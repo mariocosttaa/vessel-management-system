@@ -7,11 +7,49 @@
 - Place in `app/Http/Resources/`
 - Follow Laravel conventions
 
-### Basic Structure
+### Resource Organization
+Create folders for different contexts to prevent N+1 queries and provide different data structures:
+
+```
+app/Http/Resources/
+├── General/           # General purpose resources (minimal data)
+│   ├── TransactionResource.php
+│   ├── VesselResource.php
+│   └── CrewMemberResource.php
+├── Detailed/          # Detailed resources (with relationships)
+│   ├── TransactionResource.php
+│   ├── VesselResource.php
+│   └── CrewMemberResource.php
+├── List/              # List resources (for tables/lists)
+│   ├── TransactionResource.php
+│   ├── VesselResource.php
+│   └── CrewMemberResource.php
+└── Api/               # API-specific resources
+    ├── TransactionResource.php
+    ├── VesselResource.php
+    └── CrewMemberResource.php
+```
+
+### Usage Examples
+```php
+// In Controller - General resource (minimal data)
+return new General\TransactionResource($transaction);
+
+// In Controller - Detailed resource (with relationships)
+return new Detailed\TransactionResource($transaction);
+
+// In Controller - List resource (for tables)
+return TransactionResource::collection($transactions);
+
+// In Controller - API resource (for external APIs)
+return new Api\TransactionResource($transaction);
+```
+
+## Basic Structure
 ```php
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\General;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -50,22 +88,197 @@ class TransactionResource extends JsonResource
 }
 ```
 
-## Data Transformation Patterns
+## Resource Context Examples
 
-### Money Formatting
+### General Resource (Minimal Data)
 ```php
-public function toArray(Request $request): array
+<?php
+
+namespace App\Http\Resources\General;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TransactionResource extends JsonResource
 {
-    return [
-        'amount' => $this->amount, // Integer value (cents)
-        'formatted_amount' => $this->formatted_amount, // Formatted string
-        'vat_amount' => $this->vat_amount,
-        'formatted_vat_amount' => $this->formatted_vat_amount,
-        'total_amount' => $this->total_amount,
-        'formatted_total_amount' => $this->formatted_total_amount,
-        'currency' => $this->currency,
-        'house_of_zeros' => $this->house_of_zeros,
-    ];
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'transaction_number' => $this->transaction_number,
+            'type' => $this->type,
+            'type_label' => $this->type_label,
+            'amount' => $this->amount,
+            'formatted_amount' => $this->formatted_amount,
+            'currency' => $this->currency,
+            'transaction_date' => $this->transaction_date?->format('Y-m-d'),
+            'description' => $this->description,
+            'status' => $this->status,
+            'status_label' => $this->status_label,
+        ];
+    }
+}
+```
+
+### Detailed Resource (With Relationships)
+```php
+<?php
+
+namespace App\Http\Resources\Detailed;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TransactionResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'transaction_number' => $this->transaction_number,
+            'type' => $this->type,
+            'type_label' => $this->type_label,
+            
+            // Money values
+            'amount' => $this->amount,
+            'formatted_amount' => $this->formatted_amount,
+            'vat_amount' => $this->vat_amount,
+            'formatted_vat_amount' => $this->formatted_vat_amount,
+            'total_amount' => $this->total_amount,
+            'formatted_total_amount' => $this->formatted_total_amount,
+            'currency' => $this->currency,
+            'house_of_zeros' => $this->house_of_zeros,
+            
+            // Dates
+            'transaction_date' => $this->transaction_date?->format('Y-m-d'),
+            'formatted_transaction_date' => $this->transaction_date?->format('d/m/Y'),
+            
+            // Descriptions
+            'description' => $this->description,
+            'notes' => $this->notes,
+            'reference' => $this->reference,
+            
+            // Status
+            'status' => $this->status,
+            'status_label' => $this->status_label,
+            
+            // Flags
+            'is_recurring' => $this->is_recurring,
+            
+            // Relationships
+            'vessel' => new General\VesselResource($this->whenLoaded('vessel')),
+            'category' => new General\TransactionCategoryResource($this->whenLoaded('category')),
+            'bank_account' => new General\BankAccountResource($this->whenLoaded('bankAccount')),
+            'supplier' => new General\SupplierResource($this->whenLoaded('supplier')),
+            'crew_member' => new General\CrewMemberResource($this->whenLoaded('crewMember')),
+            'vat_rate' => new General\VatRateResource($this->whenLoaded('vatRate')),
+            'created_by' => new General\UserResource($this->whenLoaded('createdBy')),
+            'attachments' => General\AttachmentResource::collection($this->whenLoaded('attachments')),
+            
+            // Additional data for detailed views
+            'detailed_info' => $this->when($request->include_details, [
+                'transaction_month' => $this->transaction_month,
+                'transaction_year' => $this->transaction_year,
+                'recurring_transaction_id' => $this->recurring_transaction_id,
+            ]),
+            
+            // Timestamps
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}
+```
+
+### List Resource (For Tables/Lists)
+```php
+<?php
+
+namespace App\Http\Resources\List;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TransactionResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'transaction_number' => $this->transaction_number,
+            'type' => $this->type,
+            'type_label' => $this->type_label,
+            'amount' => $this->amount,
+            'formatted_amount' => $this->formatted_amount,
+            'currency' => $this->currency,
+            'transaction_date' => $this->transaction_date?->format('Y-m-d'),
+            'formatted_transaction_date' => $this->transaction_date?->format('d/m/Y'),
+            'description' => $this->description,
+            'status' => $this->status,
+            'status_label' => $this->status_label,
+            
+            // Minimal relationship data for lists
+            'vessel' => $this->whenLoaded('vessel', [
+                'id' => $this->vessel->id,
+                'name' => $this->vessel->name,
+                'registration_number' => $this->vessel->registration_number,
+            ]),
+            'category' => $this->whenLoaded('category', [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'type' => $this->category->type,
+                'color' => $this->category->color,
+            ]),
+            'bank_account' => $this->whenLoaded('bankAccount', [
+                'id' => $this->bankAccount->id,
+                'name' => $this->bankAccount->name,
+                'bank_name' => $this->bankAccount->bank_name,
+            ]),
+        ];
+    }
+}
+```
+
+### API Resource (For External APIs)
+```php
+<?php
+
+namespace App\Http\Resources\Api;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TransactionResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'transaction_number' => $this->transaction_number,
+            'type' => $this->type,
+            'amount' => $this->amount,
+            'currency' => $this->currency,
+            'transaction_date' => $this->transaction_date?->format('Y-m-d'),
+            'description' => $this->description,
+            'status' => $this->status,
+            
+            // API-specific fields
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
+            
+            // Conditional API data
+            'vessel' => $this->when($request->include_vessel && $this->relationLoaded('vessel'), [
+                'id' => $this->vessel->id,
+                'name' => $this->vessel->name,
+                'registration_number' => $this->vessel->registration_number,
+            ]),
+            'category' => $this->when($request->include_category && $this->relationLoaded('category'), [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'type' => $this->category->type,
+            ]),
+        ];
+    }
 }
 ```
 
