@@ -28,5 +28,4 @@ yarn-error.log
 /.zed
 
 # Exclude docs and cursor rules for initial commit
-/docs
-/.cursor-rules
+/.cursor
