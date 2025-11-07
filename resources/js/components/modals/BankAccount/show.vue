@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ref, watch } from 'vue';
@@ -109,6 +109,9 @@ const getStatusVariant = (status: string) => {
         <DialogContent class="max-w-2xl">
             <DialogHeader>
                 <DialogTitle>Bank Account Details</DialogTitle>
+                <DialogDescription class="sr-only">
+                    View detailed information about the bank account
+                </DialogDescription>
             </DialogHeader>
 
             <!-- Loading State -->
