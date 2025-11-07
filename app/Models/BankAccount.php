@@ -54,6 +54,32 @@ class BankAccount extends Model
     }
 
     /**
+     * Get the country for this bank account, auto-detecting from IBAN if country_id is null.
+     * This method should be used when you need to get the country even if country_id is not set.
+     */
+    public function getCountryOrDetectFromIban(): ?Country
+    {
+        // If country_id is set, return the relationship
+        if ($this->country_id && $this->relationLoaded('country')) {
+            return $this->country;
+        }
+
+        if ($this->country_id) {
+            return $this->country()->first();
+        }
+
+        // If no country_id but IBAN exists, try to detect from IBAN
+        if ($this->iban) {
+            $countryCode = Country::extractCountryCodeFromIban($this->iban);
+            if ($countryCode) {
+                return Country::byCode($countryCode)->first();
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get the transactions for the bank account.
      */
     public function transactions(): HasMany
