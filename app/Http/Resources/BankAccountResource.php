@@ -14,14 +14,6 @@ class BankAccountResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // Get country from relationship or auto-detect from IBAN
-        $country = null;
-        if ($this->relationLoaded('country') && $this->country) {
-            $country = $this->country;
-        } else {
-            $country = $this->resource->getCountryOrDetectFromIban();
-        }
-
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -29,7 +21,9 @@ class BankAccountResource extends JsonResource
             'account_number' => $this->account_number,
             'iban' => $this->iban,
             'country_id' => $this->country_id,
-            'country' => $country ? new CountryResource($country) : null,
+            'country' => $this->whenLoaded('country', function () {
+                return new CountryResource($this->country);
+            }),
             'initial_balance' => $this->initial_balance,
             'formatted_initial_balance' => $this->formatted_initial_balance,
             'current_balance' => $this->current_balance,
