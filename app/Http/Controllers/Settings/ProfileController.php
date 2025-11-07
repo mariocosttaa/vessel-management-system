@@ -18,7 +18,8 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        return Inertia::render('settings/Profile', [
+        return Inertia::render('panel/Profile', [
+            'user' => $request->user(),
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
         ]);
@@ -29,15 +30,24 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        try {
+            $request->user()->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+            if ($request->user()->isDirty('email')) {
+                $request->user()->email_verified_at = null;
+            }
+
+            $request->user()->save();
+
+            return to_route('panel.profile.edit')
+                ->with('success', 'Profile updated successfully.')
+                ->with('notification_delay', 3); // 3 seconds auto-dismiss
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update profile. Please try again.')
+                ->with('notification_delay', 0); // Persistent error
         }
-
-        $request->user()->save();
-
-        return to_route('profile.edit');
     }
 
     /**
@@ -45,19 +55,27 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
+        try {
+            $request->validate([
+                'password' => ['required', 'current_password'],
+            ]);
 
-        $user = $request->user();
+            $user = $request->user();
 
-        Auth::logout();
+            Auth::logout();
 
-        $user->delete();
+            $user->delete();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
-        return redirect('/');
+            return redirect('/')
+                ->with('success', 'Your account has been deleted successfully.')
+                ->with('notification_delay', 5); // 5 seconds auto-dismiss
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', 'Failed to delete account. Please try again.')
+                ->with('notification_delay', 0); // Persistent error
+        }
     }
 }
