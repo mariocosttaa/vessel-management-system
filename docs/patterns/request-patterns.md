@@ -172,6 +172,191 @@ $roomId = EasyHashAction::decode($this->route('roomIdHashed'), 'room-id');
 'name' => ['required', 'string', Rule::unique(RoomTypeModel::class, 'name_pt')],
 ```
 
+## 4. Multi-Tenancy and Vessel ID (**CRITICAL - NEVER IN REQUESTS**)
+
+### ⚠️ **CRITICAL RULE: NEVER PUT `vessel_id` IN FORM REQUESTS**
+
+**`vessel_id` MUST NEVER:**
+- ❌ Be included in validation rules
+- ❌ Be set in `prepareForValidation()`
+- ❌ Come from form input or frontend
+- ❌ Be validated as a form field
+
+**`vessel_id` MUST ALWAYS:**
+- ✅ Come from the route parameter (validated by `EnsureVesselAccess` middleware)
+- ✅ Be set in the **controller** using `$request->attributes->get('vessel_id')`
+- ✅ Be added to validated data in the controller's `store()` or `update()` method
+
+### How It Works
+
+1. **Middleware (`EnsureVesselAccess`)**: 
+   - Validates user has access to the vessel from route parameter
+   - Sets `vessel` and `vessel_id` in request attributes via `$request->attributes->set()`
+
+2. **Controller**:
+   - Gets `vessel_id` from request attributes: `$request->attributes->get('vessel_id')`
+   - Adds it to validated data before creating/updating the model
+
+3. **Form Request**:
+   - Only validates form fields (name, email, etc.)
+   - Does NOT include `vessel_id` in rules or `prepareForValidation()`
+
+### Correct Pattern
+
+**✅ Correct Request (NO vessel_id):**
+```php
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\Country;
+
+/**
+ * StoreBankAccountRequest validates creating a new bank account.
+ *
+ * Input fields:
+ * @property string $name
+ * @property string $bank_name
+ * @property string|null $iban
+ * @property int|null $country_id
+ * @property int $initial_balance
+ * @property string $status
+ * @property string|null $notes
+ *
+ * Route parameters (for authorization only):
+ * @property int $vessel (accessed via $this->route('vessel') for authorization)
+ *
+ * @method mixed route(string $key = null)
+ * @method \Illuminate\Contracts\Auth\Authenticatable|null user()
+ */
+class StoreBankAccountRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        // Get vessel ID from route parameter for authorization check only
+        $vesselId = $this->route('vessel');
+        return $this->user()?->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']) ?? false;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'bank_name' => ['required', 'string', 'max:255'],
+            'iban' => ['nullable', 'string', 'max:34'],
+            'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
+            // ❌ NO vessel_id here - it comes from middleware/controller
+            'initial_balance' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', 'in:active,inactive'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => trim($this->name),
+            'bank_name' => trim($this->bank_name),
+            // ❌ NO vessel_id here - it comes from middleware/controller
+        ]);
+    }
+}
+```
+
+**✅ Correct Controller:**
+```php
+public function store(StoreBankAccountRequest $request)
+{
+    try {
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Add vessel_id to validated data
+        $data = $request->validated();
+        $data['vessel_id'] = $vesselId;
+
+        $bankAccount = BankAccount::create($data);
+
+        return redirect()
+            ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
+            ->with('success', "Bank account '{$bankAccount->name}' has been created successfully.");
+    } catch (\Exception $e) {
+        return back()
+            ->withInput()
+            ->with('error', 'Failed to create bank account. Please try again.');
+    }
+}
+```
+
+### Using BaseController Helper Methods
+
+If your controller extends `BaseController`, you can use helper methods:
+
+```php
+use App\Http\Controllers\BaseController;
+
+class BankAccountController extends BaseController
+{
+    public function store(StoreBankAccountRequest $request)
+    {
+        // Option 1: Use request attributes directly
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Option 2: Use BaseController helper method
+        $vesselId = $this->getCurrentVesselId($request);
+
+        $data = $request->validated();
+        $data['vessel_id'] = $vesselId;
+
+        $bankAccount = BankAccount::create($data);
+        // ...
+    }
+}
+```
+
+### Why This Pattern?
+
+1. **Security**: `vessel_id` cannot be manipulated by users via form input
+2. **Consistency**: All vessel-scoped resources follow the same pattern
+3. **Middleware Validation**: `EnsureVesselAccess` ensures user has access before controller runs
+4. **Single Source of Truth**: Route parameter is the only source for `vessel_id`
+
+### Common Mistakes to Avoid
+
+❌ **DON'T:**
+```php
+// ❌ WRONG - vessel_id in validation rules
+public function rules(): array
+{
+    return [
+        'name' => ['required', 'string'],
+        'vessel_id' => ['required', 'integer', Rule::exists(Vessel::class, 'id')], // ❌
+    ];
+}
+
+// ❌ WRONG - vessel_id in prepareForValidation
+protected function prepareForValidation(): void
+{
+    $this->merge([
+        'vessel_id' => $this->route('vessel'), // ❌
+    ]);
+}
+```
+
+✅ **DO:**
+```php
+// ✅ CORRECT - vessel_id only in controller
+public function store(StoreRequest $request)
+{
+    $vesselId = $request->attributes->get('vessel_id');
+    $data = $request->validated();
+    $data['vessel_id'] = $vesselId;
+    Model::create($data);
+}
+```
+
 ## Validation Rules Organization
 
 ### Grouped Rules by Entity Type

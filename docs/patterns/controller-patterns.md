@@ -120,6 +120,36 @@ public function create()
 ```
 
 #### Store Actions
+
+**For Multi-Tenant Resources (vessel-scoped):**
+```php
+public function store(StoreBankAccountRequest $request)
+{
+    try {
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        // This ensures vessel_id comes from middleware-validated route, not from form/frontend
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Add vessel_id to validated data
+        $data = $request->validated();
+        $data['vessel_id'] = $vesselId;
+
+        $bankAccount = BankAccount::create($data);
+
+        return redirect()
+            ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
+            ->with('success', "Bank account '{$bankAccount->name}' has been created successfully.")
+            ->with('notification_delay', 3);
+    } catch (\Exception $e) {
+        return back()
+            ->withInput()
+            ->with('error', 'Failed to create bank account. Please try again.')
+            ->with('notification_delay', 0);
+    }
+}
+```
+
+**For Non-Tenant Resources:**
 ```php
 public function store(StoreTransactionRequest $request)
 {
@@ -243,6 +273,191 @@ public function show($id)
     return inertia('Transactions/Show', [
         'transaction' => new TransactionResource($transaction),
     ]);
+}
+```
+
+## Multi-Tenancy and Vessel Scoping (**CRITICAL**)
+
+### ⚠️ **CRITICAL: Always Get `vessel_id` from Request Attributes**
+
+For all vessel-scoped resources, `vessel_id` MUST come from request attributes set by `EnsureVesselAccess` middleware, NOT from form requests.
+
+### How It Works
+
+1. **Middleware (`EnsureVesselAccess`)**:
+   - Validates user access to vessel from route parameter
+   - Sets `vessel` and `vessel_id` in request attributes: `$request->attributes->set('vessel_id', $vesselId)`
+
+2. **Controller**:
+   - Gets `vessel_id` from request attributes: `$request->attributes->get('vessel_id')`
+   - Adds it to validated data before creating/updating models
+
+### Getting Vessel ID in Controllers
+
+**Option 1: Direct from Request Attributes (Recommended)**
+```php
+public function store(StoreBankAccountRequest $request)
+{
+    // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+    $vesselId = $request->attributes->get('vessel_id');
+    
+    $data = $request->validated();
+    $data['vessel_id'] = $vesselId;
+    
+    $bankAccount = BankAccount::create($data);
+    // ...
+}
+```
+
+**Option 2: Using BaseController Helper Methods**
+```php
+use App\Http\Controllers\BaseController;
+
+class BankAccountController extends BaseController
+{
+    public function store(StoreBankAccountRequest $request)
+    {
+        // Use BaseController helper method
+        $vesselId = $this->getCurrentVesselId($request);
+        
+        $data = $request->validated();
+        $data['vessel_id'] = $vesselId;
+        
+        $bankAccount = BankAccount::create($data);
+        // ...
+    }
+}
+```
+
+### Complete Multi-Tenant Controller Pattern
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreBankAccountRequest;
+use App\Http\Requests\UpdateBankAccountRequest;
+use App\Models\BankAccount;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class BankAccountController extends Controller
+{
+    public function index(Request $request)
+    {
+        // Get vessel_id from request attributes
+        $vesselId = $request->attributes->get('vessel_id');
+        
+        // Always filter by vessel_id
+        $query = BankAccount::query()->where('vessel_id', $vesselId);
+        
+        // Apply filters, search, sorting...
+        $bankAccounts = $query->paginate(15);
+        
+        return Inertia::render('BankAccounts/Index', [
+            'bankAccounts' => BankAccountResource::collection($bankAccounts),
+        ]);
+    }
+
+    public function store(StoreBankAccountRequest $request)
+    {
+        try {
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            $vesselId = $request->attributes->get('vessel_id');
+            
+            // Add vessel_id to validated data
+            $data = $request->validated();
+            $data['vessel_id'] = $vesselId;
+            
+            $bankAccount = BankAccount::create($data);
+            
+            return redirect()
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
+                ->with('success', "Bank account '{$bankAccount->name}' has been created successfully.");
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create bank account. Please try again.');
+        }
+    }
+
+    public function update(UpdateBankAccountRequest $request, BankAccount $bankAccount)
+    {
+        try {
+            // Verify bank account belongs to current vessel
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($bankAccount->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to bank account.');
+            }
+            
+            $bankAccount->update($request->validated());
+            
+            return redirect()
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
+                ->with('success', "Bank account '{$bankAccount->name}' has been updated successfully.");
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update bank account. Please try again.');
+        }
+    }
+
+    public function destroy(Request $request, BankAccount $bankAccount)
+    {
+        try {
+            // Verify bank account belongs to current vessel
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($bankAccount->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to bank account.');
+            }
+            
+            $bankAccountName = $bankAccount->name;
+            $bankAccount->delete();
+            
+            return redirect()
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
+                ->with('success', "Bank account '{$bankAccountName}' has been deleted successfully.");
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', 'Failed to delete bank account. Please try again.');
+        }
+    }
+}
+```
+
+### Key Principles
+
+1. **Always Filter by Vessel**: Every query must include `where('vessel_id', $vesselId)`
+2. **Get from Attributes**: Use `$request->attributes->get('vessel_id')` not `$request->route('vessel')`
+3. **Verify Ownership**: In update/destroy, verify resource belongs to current vessel
+4. **Never Trust Form Input**: `vessel_id` never comes from form requests
+
+### Common Mistakes to Avoid
+
+❌ **DON'T:**
+```php
+// ❌ WRONG - Getting from route directly
+$vesselId = $request->route('vessel');
+
+// ❌ WRONG - Getting from form input
+$vesselId = $request->input('vessel_id');
+
+// ❌ WRONG - Not filtering by vessel
+$bankAccounts = BankAccount::all();
+```
+
+✅ **DO:**
+```php
+// ✅ CORRECT - Getting from request attributes
+$vesselId = $request->attributes->get('vessel_id');
+
+// ✅ CORRECT - Always filter by vessel
+$bankAccounts = BankAccount::where('vessel_id', $vesselId)->get();
+
+// ✅ CORRECT - Verify ownership
+if ($bankAccount->vessel_id !== $vesselId) {
+    abort(403, 'Unauthorized access.');
 }
 ```
 
