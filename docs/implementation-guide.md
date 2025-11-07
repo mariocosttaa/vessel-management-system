@@ -28,42 +28,55 @@ This guide provides a structured approach to implementing the Vessel Management 
 - [ ] Add model scopes and accessors
 - [ ] Configure model boot methods for auto-calculations
 
-### 1.4 Authentication System
-- [ ] Set up user roles and permissions
-- [ ] Create middleware for role checking
-- [ ] Implement user management
+### 1.4 Multi-Tenant Vessel-Based RBAC System
+- [x] Create VesselRoleAccess model and migration
+- [x] Create VesselUserRole model and migration (pivot table)
+- [x] Add user_type field to users table
+- [x] Create VesselRoleAccessSeeder with predefined roles
+- [x] Update User model with vessel-specific permission methods
+- [x] Update Vessel model with new relationships
+- [x] Implement vessel-specific authorization in controllers
+- [x] Make all entities vessel-specific (crew_members, suppliers, bank_accounts, crew_positions, roles)
+- [x] Update all controllers to filter by vessel_id
+- [x] Update all request classes to use vessel-based authorization
+- [x] Update frontend components to use vessel-specific permissions
 
 **Dependencies**: None
 **Deliverables**: Working Laravel installation with database and authentication
 
-## Phase 2: Basic CRUD Operations (Week 2)
+## Phase 2: Basic CRUD Operations (Week 2) ✅ COMPLETED
 
-### 2.1 Vessel Management
-- [ ] Create VesselController following controller-patterns.md
-- [ ] Create StoreVesselRequest and UpdateVesselRequest
-- [ ] Create VesselResource
-- [ ] Build Vue.js pages:
-  - [ ] Vessels/Index.vue
-  - [ ] Vessels/Create.vue
-  - [ ] Vessels/Edit.vue
-  - [ ] Vessels/Show.vue
+### 2.1 Vessel Management ✅ COMPLETED
+- [x] Create VesselController following controller-patterns.md
+- [x] Create StoreVesselRequest and UpdateVesselRequest with vessel-specific authorization
+- [x] Create VesselResource
+- [x] Update VesselSelectorController to use vesselsThroughRoles()
+- [x] Build Vue.js pages with vessel-specific permissions:
+  - [x] VesselSelector.vue (shows vessels user has access to)
+  - [x] Vessels/Create.vue (only for paid_system users)
+  - [x] Vessels/Edit.vue (based on vessel permissions)
+  - [x] Vessels/Show.vue (with role-based actions)
 
-### 2.2 Crew Member Management
-- [ ] Create CrewMemberController
-- [ ] Create crew member requests and resources
-- [ ] Build crew member Vue.js pages
-- [ ] Implement crew position management
+### 2.2 Crew Member Management ✅ COMPLETED
+- [x] Create CrewMemberController with vessel-based filtering
+- [x] Create crew member requests and resources with vessel authorization
+- [x] Build crew member Vue.js pages using VesselLayout
+- [x] Implement crew position management with vessel-specific positions
+- [x] Remove document_number field as requested
+- [x] Implement tenant-based access (no manual vessel selection)
 
-### 2.3 Supplier Management
-- [ ] Create SupplierController
-- [ ] Create supplier requests and resources
-- [ ] Build supplier Vue.js pages
+### 2.3 Supplier Management ✅ COMPLETED
+- [x] Create SupplierController with vessel-based filtering
+- [x] Create supplier requests and resources with vessel authorization
+- [x] Build supplier Vue.js pages using VesselLayout
+- [x] Add vessel_id to suppliers table
 
-### 2.4 Bank Account Management
-- [ ] Create BankAccountController
-- [ ] Create bank account requests and resources
-- [ ] Build bank account Vue.js pages
-- [ ] Implement account transfer functionality
+### 2.4 Bank Account Management ✅ COMPLETED
+- [x] Create BankAccountController with vessel-based filtering
+- [x] Create bank account requests and resources with vessel authorization
+- [x] Build bank account Vue.js pages using VesselLayout
+- [x] Add vessel_id to bank_accounts table
+- [x] Implement account transfer functionality
 
 **Dependencies**: Phase 1
 **Deliverables**: Complete CRUD for vessels, crew, suppliers, and bank accounts

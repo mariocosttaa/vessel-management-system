@@ -12,12 +12,14 @@ CREATE TABLE users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    user_type ENUM('paid_system', 'employee_of_vessel') DEFAULT 'employee_of_vessel',
     email_verified_at TIMESTAMP NULL,
     password VARCHAR(255) NOT NULL,
     remember_token VARCHAR(100) NULL,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
-    INDEX idx_email (email)
+    INDEX idx_email (email),
+    INDEX idx_user_type (user_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -45,6 +47,39 @@ CREATE TABLE user_roles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
+## Vessel-Specific Role-Based Access Control (RBAC)
+
+### vessel_role_accesses
+```sql
+CREATE TABLE vessel_role_accesses (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE, -- normal, moderator, supervisor, administrator
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT NULL,
+    permissions JSON NOT NULL, -- Array of permission strings
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+### vessel_user_roles
+```sql
+CREATE TABLE vessel_user_roles (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    vessel_id BIGINT UNSIGNED NOT NULL,
+    vessel_role_access_id BIGINT UNSIGNED NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (vessel_id) REFERENCES vessels(id) ON DELETE CASCADE,
+    FOREIGN KEY (vessel_role_access_id) REFERENCES vessel_role_accesses(id) ON DELETE CASCADE,
+    UNIQUE KEY user_vessel_role_unique (user_id, vessel_id, vessel_role_access_id),
+    INDEX idx_user_vessel (user_id, vessel_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
 ## Vessels
 
 ### vessels
@@ -58,11 +93,14 @@ CREATE TABLE vessels (
     year_built YEAR NULL,
     status ENUM('active', 'maintenance', 'inactive') DEFAULT 'active',
     notes TEXT NULL,
+    owner_id BIGINT UNSIGNED NULL,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_status (status),
-    INDEX idx_registration (registration_number)
+    INDEX idx_registration (registration_number),
+    INDEX idx_owner (owner_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -114,19 +152,17 @@ CREATE TABLE crew_members (
 ```sql
 CREATE TABLE suppliers (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    company_name VARCHAR(255) NULL,
-    tax_number VARCHAR(50) NULL, -- NIF
+    vessel_id BIGINT UNSIGNED NULL,
+    company_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NULL,
     phone VARCHAR(50) NULL,
     address TEXT NULL,
     notes TEXT NULL,
-    status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL,
-    INDEX idx_tax_number (tax_number),
-    INDEX idx_status (status)
+    FOREIGN KEY (vessel_id) REFERENCES vessels(id) ON DELETE SET NULL,
+    INDEX idx_vessel (vessel_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
