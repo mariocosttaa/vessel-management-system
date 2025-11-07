@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard } from '@/routes';
+import VesselDefaultLayout from '@/layouts/VesselDefaultLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import PlaceholderPattern from '../components/PlaceholderPattern.vue';
 
+// Get vessel ID from current URL
+const vesselId = window.location.pathname.split('/')[2] || '1';
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: dashboard().url,
+        href: `/panel/${vesselId}/dashboard`,
     },
 ];
 </script>
@@ -16,7 +18,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 <template>
     <Head title="Dashboard" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <VesselDefaultLayout :breadcrumbs="breadcrumbs">
         <div
             class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
         >
@@ -43,5 +45,5 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <PlaceholderPattern />
             </div>
         </div>
-    </AppLayout>
+    </VesselDefaultLayout>
 </template>
