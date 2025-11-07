@@ -17,8 +17,9 @@ class CrewMemberController extends Controller
 {
     public function index(Request $request)
     {
-        // Get vessel ID from route parameter (tenant-based access)
-        $vesselId = $request->route('vessel');
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
         $vessel = Vessel::with('owner')->findOrFail($vesselId);
 
         $query = User::query()->where(function ($builder) use ($vesselId, $vessel) {
@@ -91,7 +92,9 @@ class CrewMemberController extends Controller
 
     public function create(Request $request)
     {
-        $vesselId = $request->route('vessel');
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
 
         // No need for available users anymore - we create users directly
 
@@ -117,8 +120,9 @@ class CrewMemberController extends Controller
     public function store(StoreCrewMemberRequest $request)
     {
         try {
-            // Get vessel ID from route parameter (tenant-based access)
-            $vesselId = $request->route('vessel');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
 
             // Add vessel_id to validated data
             $data = $request->validated();
@@ -187,7 +191,9 @@ class CrewMemberController extends Controller
 
     public function edit(Request $request, User $crewMember)
     {
-        $vesselId = $request->route('vessel');
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
 
         // Load salary compensation relationship
         $crewMember->load(['activeSalaryCompensation']);
@@ -225,6 +231,13 @@ class CrewMemberController extends Controller
     public function update(UpdateCrewMemberRequest $request, $vessel, User $crewMember)
     {
         try {
+            // Verify crew member belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($crewMember->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to crew member.');
+            }
+
             $data = $request->validated();
 
             // Handle password update
@@ -258,7 +271,7 @@ class CrewMemberController extends Controller
             );
 
             return redirect()
-                ->route('panel.crew-members.index', ['vessel' => $request->route('vessel')])
+                ->route('panel.crew-members.index', ['vessel' => $vesselId])
                 ->with('success', "Crew member '{$crewMember->name}' has been updated successfully.")
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
@@ -272,7 +285,14 @@ class CrewMemberController extends Controller
     public function destroy(DeleteCrewMemberRequest $request, $vessel, User $crewMember)
     {
         try {
-            $vesselModel = Vessel::findOrFail($vessel);
+            // Verify crew member belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($crewMember->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to crew member.');
+            }
+
+            $vesselModel = Vessel::findOrFail($vesselId);
 
             if ($vesselModel->owner_id === $crewMember->id) {
                 return back()
@@ -309,7 +329,7 @@ class CrewMemberController extends Controller
             }
 
             return redirect()
-                ->route('panel.crew-members.index', ['vessel' => $vessel])
+                ->route('panel.crew-members.index', ['vessel' => $vesselId])
                 ->with('success', "Crew member '{$crewMemberName}' has been deleted successfully.")
                 ->with('notification_delay', 5); // 5 seconds delay
         } catch (\Exception $e) {

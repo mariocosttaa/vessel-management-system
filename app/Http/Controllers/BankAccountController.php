@@ -16,8 +16,9 @@ class BankAccountController extends Controller
 {
     public function index(Request $request)
     {
-        // Get vessel ID from route parameter
-        $vesselId = $request->route('vessel');
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
 
         // Main data query - only essential data for table display
         $query = BankAccount::query()->where('vessel_id', $vesselId);
@@ -110,8 +111,10 @@ class BankAccountController extends Controller
     public function store(StoreBankAccountRequest $request)
     {
         try {
-            // Get vessel ID from route parameter
-            $vesselId = $request->route('vessel');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            // This ensures vessel_id comes from middleware-validated route, not from form/frontend
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
 
             // Add vessel_id to validated data
             $data = $request->validated();
@@ -120,7 +123,7 @@ class BankAccountController extends Controller
             $bankAccount = BankAccount::create($data);
 
             return redirect()
-                ->route('bank-accounts.index')
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
                 ->with('success', "Bank account '{$bankAccount->name}' has been created successfully.")
                 ->with('notification_delay', 3); // 3 seconds delay
         } catch (\Exception $e) {
@@ -184,10 +187,17 @@ class BankAccountController extends Controller
     public function update(UpdateBankAccountRequest $request, BankAccount $bankAccount)
     {
         try {
+            // Verify bank account belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($bankAccount->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to bank account.');
+            }
+
             $bankAccount->update($request->validated());
 
             return redirect()
-                ->route('bank-accounts.index')
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
                 ->with('success', "Bank account '{$bankAccount->name}' has been updated successfully.")
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
@@ -198,9 +208,16 @@ class BankAccountController extends Controller
         }
     }
 
-    public function destroy(BankAccount $bankAccount)
+    public function destroy(Request $request, BankAccount $bankAccount)
     {
         try {
+            // Verify bank account belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($bankAccount->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to bank account.');
+            }
+
             // Check if bank account has transactions
             if ($bankAccount->transactions()->count() > 0) {
                 return back()->with('error', "Cannot delete bank account '{$bankAccount->name}' because it has transactions. Please remove all transactions first.")
@@ -211,7 +228,7 @@ class BankAccountController extends Controller
             $bankAccount->delete();
 
             return redirect()
-                ->route('bank-accounts.index')
+                ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
                 ->with('success', "Bank account '{$bankAccountName}' has been deleted successfully.")
                 ->with('notification_delay', 5); // 5 seconds delay
         } catch (\Exception $e) {
