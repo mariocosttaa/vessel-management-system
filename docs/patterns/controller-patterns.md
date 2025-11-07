@@ -121,6 +121,8 @@ public function create()
 
 #### Store Actions
 
+**IMPORTANT: Never use `$request->validated()` in controllers. Always access validated values directly as properties.**
+
 **For Multi-Tenant Resources (vessel-scoped):**
 ```php
 public function store(StoreBankAccountRequest $request)
@@ -130,11 +132,18 @@ public function store(StoreBankAccountRequest $request)
         // This ensures vessel_id comes from middleware-validated route, not from form/frontend
         $vesselId = $request->attributes->get('vessel_id');
 
-        // Add vessel_id to validated data
-        $data = $request->validated();
-        $data['vessel_id'] = $vesselId;
-
-        $bankAccount = BankAccount::create($data);
+        // Access validated values directly as properties (elegant and clean)
+        $bankAccount = BankAccount::create([
+            'name' => $request->name,
+            'bank_name' => $request->bank_name,
+            'account_number' => $request->account_number,
+            'iban' => $request->iban,
+            'country_id' => $request->country_id,
+            'vessel_id' => $vesselId,
+            'initial_balance' => $request->initial_balance ?? 0,
+            'status' => $request->status,
+            'notes' => $request->notes,
+        ]);
 
         return redirect()
             ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
@@ -153,7 +162,16 @@ public function store(StoreBankAccountRequest $request)
 ```php
 public function store(StoreTransactionRequest $request)
 {
-    $transaction = Transaction::create($request->validated());
+    // Access validated values directly as properties
+    $transaction = Transaction::create([
+        'vessel_id' => $request->vessel_id,
+        'category_id' => $request->category_id,
+        'bank_account_id' => $request->bank_account_id,
+        'amount' => $request->amount,
+        'description' => $request->description,
+        'transaction_date' => $request->transaction_date,
+        // ... other fields
+    ]);
     
     $transaction->load(['vessel', 'category', 'bankAccount', 'vatRate']);
 
@@ -193,7 +211,16 @@ Controllers should use comprehensive error handling with specific flash messages
 public function store(StoreTransactionRequest $request)
 {
     try {
-        $transaction = Transaction::create($request->validated());
+        // Access validated values directly as properties (never use validated())
+        $transaction = Transaction::create([
+            'vessel_id' => $request->vessel_id,
+            'category_id' => $request->category_id,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            // ... other fields
+        ]);
         
         return redirect()
             ->route('transactions.show', $transaction)
@@ -209,7 +236,16 @@ public function store(StoreTransactionRequest $request)
 public function update(UpdateTransactionRequest $request, Transaction $transaction)
 {
     try {
-        $transaction->update($request->validated());
+        // Access validated values directly as properties (never use validated())
+        $transaction->update([
+            'vessel_id' => $request->vessel_id,
+            'category_id' => $request->category_id,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            // ... other fields
+        ]);
         
         return redirect()
             ->route('transactions.show', $transaction)
@@ -301,10 +337,14 @@ public function store(StoreBankAccountRequest $request)
     // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
     $vesselId = $request->attributes->get('vessel_id');
     
-    $data = $request->validated();
-    $data['vessel_id'] = $vesselId;
-    
-    $bankAccount = BankAccount::create($data);
+    // Access validated values directly as properties (never use validated())
+    $bankAccount = BankAccount::create([
+        'name' => $request->name,
+        'bank_name' => $request->bank_name,
+        'vessel_id' => $vesselId,
+        'status' => $request->status,
+        // ... other fields
+    ]);
     // ...
 }
 ```
@@ -320,10 +360,14 @@ class BankAccountController extends BaseController
         // Use BaseController helper method
         $vesselId = $this->getCurrentVesselId($request);
         
-        $data = $request->validated();
-        $data['vessel_id'] = $vesselId;
-        
-        $bankAccount = BankAccount::create($data);
+        // Access validated values directly as properties (never use validated())
+        $bankAccount = BankAccount::create([
+            'name' => $request->name,
+            'bank_name' => $request->bank_name,
+            'vessel_id' => $vesselId,
+            'status' => $request->status,
+            // ... other fields
+        ]);
         // ...
     }
 }
@@ -366,11 +410,18 @@ class BankAccountController extends Controller
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             $vesselId = $request->attributes->get('vessel_id');
             
-            // Add vessel_id to validated data
-            $data = $request->validated();
-            $data['vessel_id'] = $vesselId;
-            
-            $bankAccount = BankAccount::create($data);
+            // Access validated values directly as properties (never use validated())
+            $bankAccount = BankAccount::create([
+                'name' => $request->name,
+                'bank_name' => $request->bank_name,
+                'account_number' => $request->account_number,
+                'iban' => $request->iban,
+                'country_id' => $request->country_id,
+                'vessel_id' => $vesselId,
+                'initial_balance' => $request->initial_balance ?? 0,
+                'status' => $request->status,
+                'notes' => $request->notes,
+            ]);
             
             return redirect()
                 ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
@@ -391,7 +442,17 @@ class BankAccountController extends Controller
                 abort(403, 'Unauthorized access to bank account.');
             }
             
-            $bankAccount->update($request->validated());
+            // Access validated values directly as properties (never use validated())
+            $bankAccount->update([
+                'name' => $request->name,
+                'bank_name' => $request->bank_name,
+                'account_number' => $request->account_number,
+                'iban' => $request->iban,
+                'country_id' => $request->country_id,
+                'initial_balance' => $request->initial_balance ?? $bankAccount->initial_balance ?? 0,
+                'status' => $request->status,
+                'notes' => $request->notes,
+            ]);
             
             return redirect()
                 ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
@@ -445,6 +506,11 @@ $vesselId = $request->input('vessel_id');
 
 // ❌ WRONG - Not filtering by vessel
 $bankAccounts = BankAccount::all();
+
+// ❌ WRONG - Using validated() method
+$data = $request->validated();
+$data['vessel_id'] = $vesselId;
+$bankAccount = BankAccount::create($data);
 ```
 
 ✅ **DO:**
@@ -459,6 +525,14 @@ $bankAccounts = BankAccount::where('vessel_id', $vesselId)->get();
 if ($bankAccount->vessel_id !== $vesselId) {
     abort(403, 'Unauthorized access.');
 }
+
+// ✅ CORRECT - Access validated values directly as properties
+$bankAccount = BankAccount::create([
+    'name' => $request->name,
+    'bank_name' => $request->bank_name,
+    'vessel_id' => $vesselId,
+    'status' => $request->status,
+]);
 ```
 
 ## Service Integration
@@ -474,7 +548,17 @@ class TransactionController extends Controller
 
     public function store(StoreTransactionRequest $request)
     {
-        $transaction = $this->transactionService->create($request->validated());
+        // Access validated values directly as properties (never use validated())
+        // If service needs array, pass individual values or build array from properties
+        $transaction = $this->transactionService->create([
+            'vessel_id' => $request->vessel_id,
+            'category_id' => $request->category_id,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            // ... other fields
+        ]);
         
         // Update balances
         $this->balanceService->recalculateBalances($transaction);
@@ -631,10 +715,17 @@ class CrewMemberController extends BaseController
     {
         try {
             $vesselId = $this->getCurrentVesselId(); // From BaseController
-            $data = $request->validated();
-            $data['vessel_id'] = $vesselId; // Inject vessel_id
             
-            $crewMember = CrewMember::create($data);
+            // Access validated values directly as properties (never use validated())
+            $crewMember = CrewMember::create([
+                'position_id' => $request->position_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'vessel_id' => $vesselId,
+                'status' => $request->status,
+                // ... other fields
+            ]);
             $crewMember->load(['position', 'vessel']);
 
             return redirect()
@@ -660,7 +751,15 @@ class CrewMemberController extends BaseController
                 abort(403, 'Unauthorized access to crew member.');
             }
 
-            $crewMember->update($request->validated());
+            // Access validated values directly as properties (never use validated())
+            $crewMember->update([
+                'position_id' => $request->position_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'status' => $request->status,
+                // ... other fields
+            ]);
             $crewMember->load(['position', 'vessel']);
 
             return redirect()
@@ -971,7 +1070,18 @@ class VesselController extends Controller
     public function store(StoreVesselRequest $request)
     {
         // Authorization is handled in the request class
-        $vessel = Vessel::create($request->validated());
+        // Access validated values directly as properties (never use validated())
+        $vessel = Vessel::create([
+            'name' => $request->name,
+            'registration_number' => $request->registration_number,
+            'vessel_type' => $request->vessel_type,
+            'capacity' => $request->capacity,
+            'year_built' => $request->year_built,
+            'status' => $request->status,
+            'notes' => $request->notes,
+            'country_code' => $request->country_code,
+            'currency_code' => $request->currency_code,
+        ]);
 
         return redirect()
             ->route('vessels.index')
@@ -984,7 +1094,18 @@ class VesselController extends Controller
     public function update(UpdateVesselRequest $request, Vessel $vessel)
     {
         // Authorization is handled in the request class
-        $vessel->update($request->validated());
+        // Access validated values directly as properties (never use validated())
+        $vessel->update([
+            'name' => $request->name,
+            'registration_number' => $request->registration_number,
+            'vessel_type' => $request->vessel_type,
+            'capacity' => $request->capacity,
+            'year_built' => $request->year_built,
+            'status' => $request->status,
+            'notes' => $request->notes,
+            'country_code' => $request->country_code,
+            'currency_code' => $request->currency_code,
+        ]);
 
         return redirect()
             ->route('vessels.index')
@@ -1099,7 +1220,16 @@ class TransactionController extends Controller
 
     public function store(StoreTransactionRequest $request)
     {
-        $transaction = $this->transactionService->create($request->validated());
+        // Access validated values directly as properties (never use validated())
+        $transaction = $this->transactionService->create([
+            'vessel_id' => $request->vessel_id,
+            'category_id' => $request->category_id,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            // ... other fields
+        ]);
 
         return redirect()
             ->route('transactions.show', $transaction)
@@ -1141,7 +1271,16 @@ class TransactionController extends Controller
 
     public function update(UpdateTransactionRequest $request, Transaction $transaction)
     {
-        $this->transactionService->update($transaction, $request->validated());
+        // Access validated values directly as properties (never use validated())
+        $this->transactionService->update($transaction, [
+            'vessel_id' => $request->vessel_id,
+            'category_id' => $request->category_id,
+            'bank_account_id' => $request->bank_account_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            // ... other fields
+        ]);
 
         return redirect()
             ->route('transactions.show', $transaction)
