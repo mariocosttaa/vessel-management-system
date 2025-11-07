@@ -1,378 +1,410 @@
 # Money Handling Patterns
 
+## Overview
+
+This system uses `MoneyAction` class for all money-related operations (formatting, sanitization, and currency detection) and `MoneyService` class for business logic calculations (VAT, etc.).
+
+### Key Principles
+- **Storage**: All monetary values stored as integers (cents/minor units)
+- **Formatting**: Use `MoneyAction::format()` for display
+- **Input Sanitization**: Use `MoneyAction::sanitize()` for user input
+- **Currency Detection**: Use `MoneyAction::getCurrencyFromCountry()` and `MoneyAction::getCurrencyFromIban()` for automatic currency detection
+- **Business Logic**: Use `MoneyService` for VAT calculations
+- **No Fallbacks**: Never use EUR as fallback - always detect currency from country/IBAN
+
+---
+
 ## Storage Format
 
-### Database Storage
-All monetary values are stored as integers representing the smallest currency unit (cents for EUR/USD):
+### Database Schema
+All monetary values are stored as integers representing the smallest currency unit:
 
 ```sql
 -- Example: €123.45 is stored as 12345
-amount BIGINT NOT NULL, -- 12345
-currency VARCHAR(3) NOT NULL DEFAULT 'EUR', -- EUR
-house_of_zeros TINYINT NOT NULL DEFAULT 2, -- 2 (decimal places)
+amount BIGINT NOT NULL,              -- 12345 (cents)
+currency VARCHAR(3) NOT NULL,        -- 'EUR'
+house_of_zeros TINYINT NOT NULL,     -- 2 (decimal places)
 ```
 
-### Field Structure
+### Model Field Structure
 ```php
-// Transaction Model
 protected $fillable = [
-    'amount',        // Integer: 12345 (represents €123.45)
+    'amount',        // Integer: 12345 (€123.45)
     'currency',      // String: 'EUR'
-    'house_of_zeros', // Integer: 2 (decimal places)
-    'vat_amount',    // Integer: 2840 (represents €28.40 VAT)
-    'total_amount',  // Integer: 15185 (amount + VAT)
+    'house_of_zeros', // Integer: 2
+];
+
+protected $casts = [
+    'amount' => 'integer',
+    'house_of_zeros' => 'integer',
 ];
 ```
 
-## Conversion Functions
+---
 
-### MoneyService Class
-```php
-<?php
+## MoneyAction Class
 
-namespace App\Services;
-
-class MoneyService
-{
-    /**
-     * Convert float to integer (cents)
-     */
-    public static function toInteger(float $value, int $decimals = 2): int
-    {
-        return (int) round($value * pow(10, $decimals));
-    }
-    
-    /**
-     * Convert integer (cents) to float
-     */
-    public static function toFloat(int $value, int $decimals = 2): float
-    {
-        return $value / pow(10, $decimals);
-    }
-    
-    /**
-     * Format integer as currency string
-     */
-    public static function format(int $value, string $currency = 'EUR', int $decimals = 2): string
-    {
-        $float = self::toFloat($value, $decimals);
-        return number_format($float, $decimals, ',', '.') . ' ' . $currency;
-    }
-    
-    /**
-     * Format without currency symbol
-     */
-    public static function formatWithoutSymbol(int $value, int $decimals = 2): string
-    {
-        $float = self::toFloat($value, $decimals);
-        return number_format($float, $decimals, ',', '.');
-    }
-    
-    /**
-     * Calculate VAT amount
-     */
-    public static function calculateVat(int $amount, float $vatRate, int $decimals = 2): int
-    {
-        $vatAmount = ($amount * $vatRate) / 100;
-        return (int) round($vatAmount);
-    }
-    
-    /**
-     * Add two money values
-     */
-    public static function add(int $amount1, int $amount2): int
-    {
-        return $amount1 + $amount2;
-    }
-    
-    /**
-     * Subtract two money values
-     */
-    public static function subtract(int $amount1, int $amount2): int
-    {
-        return $amount1 - $amount2;
-    }
-    
-    /**
-     * Multiply money value by factor
-     */
-    public static function multiply(int $amount, float $factor, int $decimals = 2): int
-    {
-        $result = $amount * $factor;
-        return (int) round($result);
-    }
-    
-    /**
-     * Normalize string input to integer
-     */
-    public static function normalizeFromString(string $value, int $decimals = 2): int
-    {
-        // Remove currency symbols and convert to float
-        $value = preg_replace('/[^\d.,]/', '', $value);
-        $value = str_replace(',', '.', $value);
-        
-        return self::toInteger((float) $value, $decimals);
-    }
-}
+### Location
+```
+app/Actions/MoneyAction.php
 ```
 
-### Usage Examples
+### Methods
+
+#### `format()`
+Format integer amount as currency string for display.
+
 ```php
-// Convert user input to storage format
-$userInput = "123.45"; // User enters €123.45
-$amount = MoneyService::toInteger((float) $userInput); // 12345
-
-// Convert from storage to display
-$amount = 12345; // From database
-$formatted = MoneyService::format($amount); // "123,45 EUR"
-
-// Calculate VAT
-$amount = 10000; // €100.00
-$vatAmount = MoneyService::calculateVat($amount, 23.0); // 2300 (€23.00)
-
-// Add amounts
-$total = MoneyService::add(10000, 2300); // 12300 (€123.00)
+MoneyAction::format(
+    float|int $amount,           // Amount in cents (12345)
+    int|string|null $decimalPlaces, // Decimal places or null
+    ?string $currency,           // Currency code ('eur', 'usd')
+    bool $formatWithSymbol       // Include symbol (€, $)
+): string
 ```
 
-## Formatting for Display
-
-### HasMoney Trait
+**Examples:**
 ```php
-<?php
+// Basic formatting
+MoneyAction::format(12345, 2, 'eur', true);
+// Returns: "€ 123,45"
 
-namespace App\Traits;
+MoneyAction::format(12345, 2, 'usd', true);
+// Returns: "$ 123.45"
 
-use App\Services\MoneyService;
+// Without symbol
+MoneyAction::format(12345, 2, 'eur', false);
+// Returns: "123,45"
 
-trait HasMoney
-{
-    /**
-     * Get formatted amount attribute
-     */
-    public function getFormattedAmountAttribute(): string
-    {
-        return MoneyService::format(
-            $this->amount, 
-            $this->currency, 
-            $this->house_of_zeros
-        );
-    }
-    
-    /**
-     * Get formatted VAT amount attribute
-     */
-    public function getFormattedVatAmountAttribute(): string
-    {
-        return MoneyService::format(
-            $this->vat_amount, 
-            $this->currency, 
-            $this->house_of_zeros
-        );
-    }
-    
-    /**
-     * Get formatted total amount attribute
-     */
-    public function getFormattedTotalAmountAttribute(): string
-    {
-        return MoneyService::format(
-            $this->total_amount, 
-            $this->currency, 
-            $this->house_of_zeros
-        );
-    }
-    
-    /**
-     * Format money value
-     */
-    protected function formatMoney(int $amount, string $currency, int $decimals): string
-    {
-        return MoneyService::format($amount, $currency, $decimals);
-    }
-    
-    /**
-     * Set money attribute from float
-     */
-    protected function setMoneyAttribute(string $attribute, float $value, int $decimals = 2): void
-    {
-        $this->attributes[$attribute] = MoneyService::toInteger($value, $decimals);
-    }
-    
-    /**
-     * Normalize money input
-     */
-    protected function normalizeMoney($value, int $decimals = 2): int
-    {
-        if (is_string($value)) {
-            return MoneyService::normalizeFromString($value, $decimals);
-        }
-        
-        return MoneyService::toInteger((float) $value, $decimals);
-    }
-}
+// Auto-detect decimal places from currency
+MoneyAction::format(12345, null, 'eur', true);
+// Returns: "€ 123,45"
 ```
 
-### Model Integration
+#### `sanitize()`
+Clean and convert user input string to integer (cents).
+
+```php
+MoneyAction::sanitize(string $amount): int
+```
+
+**Examples:**
+```php
+MoneyAction::sanitize('123.45');      // Returns: 12345
+MoneyAction::sanitize('123,45');      // Returns: 12345
+MoneyAction::sanitize('€ 123.45');    // Returns: 12345
+MoneyAction::sanitize('1.234,56');    // Returns: 123456
+MoneyAction::sanitize('$ 1,234.56');  // Returns: 123456
+```
+
+#### `getCurrencyFromCountry()`
+Get currency code from country code.
+
+```php
+MoneyAction::getCurrencyFromCountry(string $countryCode): ?string
+```
+
+**Examples:**
+```php
+MoneyAction::getCurrencyFromCountry('PT');  // Returns: 'EUR'
+MoneyAction::getCurrencyFromCountry('US');  // Returns: 'USD'
+MoneyAction::getCurrencyFromCountry('GB'); // Returns: 'GBP'
+MoneyAction::getCurrencyFromCountry('BR'); // Returns: 'BRL'
+MoneyAction::getCurrencyFromCountry('AO'); // Returns: 'AOA'
+MoneyAction::getCurrencyFromCountry('XX'); // Returns: null
+```
+
+#### `getCurrencyFromIban()`
+Extract currency code from IBAN string.
+
+```php
+MoneyAction::getCurrencyFromIban(string $iban): ?string
+```
+
+**Examples:**
+```php
+MoneyAction::getCurrencyFromIban('PT50000000000000000000000'); // Returns: 'EUR'
+MoneyAction::getCurrencyFromIban('GB29NWBK60161331926819');   // Returns: 'GBP'
+MoneyAction::getCurrencyFromIban('US64SVBKUS6S3300958879');   // Returns: 'USD'
+MoneyAction::getCurrencyFromIban('INVALID_IBAN');             // Returns: null
+```
+
+---
+
+## Model Integration
+
+### Adding Formatted Attributes
+
+Add formatted money attributes directly to your models:
+
 ```php
 <?php
 
 namespace App\Models;
 
-use App\Traits\HasMoney;
+use App\Actions\MoneyAction;
+use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
-    use HasMoney;
-    
+    protected $fillable = [
+        'amount',
+        'currency',
+        'house_of_zeros',
+        'vat_amount',
+        'total_amount',
+    ];
+
     protected $casts = [
         'amount' => 'integer',
         'vat_amount' => 'integer',
         'total_amount' => 'integer',
+        'house_of_zeros' => 'integer',
     ];
-    
-    // Accessors automatically available:
-    // - formatted_amount
-    // - formatted_vat_amount  
-    // - formatted_total_amount
-    
-    // Mutators
-    public function setAmountAttribute($value): void
+
+    /**
+     * Get formatted amount attribute.
+     */
+    public function getFormattedAmountAttribute(): string
     {
-        $this->attributes['amount'] = $this->normalizeMoney($value, $this->house_of_zeros ?? 2);
+        return MoneyAction::format(
+            $this->amount,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
     }
-    
-    public function setVatAmountAttribute($value): void
+
+    /**
+     * Get formatted VAT amount attribute.
+     */
+    public function getFormattedVatAmountAttribute(): string
     {
-        $this->attributes['vat_amount'] = $this->normalizeMoney($value, $this->house_of_zeros ?? 2);
+        return MoneyAction::format(
+            $this->vat_amount ?? 0,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
+    }
+
+    /**
+     * Get formatted total amount attribute.
+     */
+    public function getFormattedTotalAmountAttribute(): string
+    {
+        return MoneyAction::format(
+            $this->total_amount,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
     }
 }
 ```
 
-## VAT Calculations
+### Usage in Code
 
-### VAT Calculation Service
+```php
+$transaction = Transaction::find(1);
+
+// Display formatted values
+echo $transaction->formatted_amount;      // "€ 123,45"
+echo $transaction->formatted_vat_amount;  // "€ 28,39"
+echo $transaction->formatted_total_amount; // "€ 151,84"
+
+// Access raw values
+echo $transaction->amount;        // 12345
+echo $transaction->vat_amount;    // 2839
+echo $transaction->total_amount;  // 15184
+```
+
+---
+
+## Request Validation & Normalization
+
+### Form Request Pattern
+
+Always normalize money input in `prepareForValidation()`:
+
 ```php
 <?php
 
-namespace App\Services;
+namespace App\Http\Requests;
 
-use App\Models\VatRate;
+use App\Actions\MoneyAction;
+use Illuminate\Foundation\Http\FormRequest;
 
-class VatCalculationService
+class StoreTransactionRequest extends FormRequest
 {
-    /**
-     * Calculate VAT for a transaction
-     */
-    public static function calculateTransactionVat(int $amount, ?int $vatRateId, int $decimals = 2): array
+    public function rules(): array
     {
-        if (!$vatRateId) {
-            return [
-                'vat_amount' => 0,
-                'total_amount' => $amount,
-                'vat_rate' => null,
-            ];
-        }
-        
-        $vatRate = VatRate::find($vatRateId);
-        if (!$vatRate) {
-            return [
-                'vat_amount' => 0,
-                'total_amount' => $amount,
-                'vat_rate' => null,
-            ];
-        }
-        
-        $vatAmount = MoneyService::calculateVat($amount, $vatRate->rate, $decimals);
-        $totalAmount = MoneyService::add($amount, $vatAmount);
-        
         return [
-            'vat_amount' => $vatAmount,
-            'total_amount' => $totalAmount,
-            'vat_rate' => $vatRate,
+            'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'size:3'],
+            'house_of_zeros' => ['required', 'integer', 'min:0', 'max:4'],
         ];
     }
-    
-    /**
-     * Calculate VAT breakdown
-     */
-    public static function calculateVatBreakdown(int $totalAmount, float $vatRate, int $decimals = 2): array
+
+    protected function prepareForValidation(): void
     {
-        // Calculate amount without VAT
-        $amountWithoutVat = (int) round($totalAmount / (1 + $vatRate / 100));
-        $vatAmount = $totalAmount - $amountWithoutVat;
-        
+        $this->merge([
+            'amount' => $this->normalizeMoney($this->amount),
+            'currency' => strtoupper($this->currency ?? 'EUR'),
+            'house_of_zeros' => $this->house_of_zeros ?? 2,
+        ]);
+    }
+
+    private function normalizeMoney($value): int
+    {
+        if (is_string($value)) {
+            return MoneyAction::sanitize($value);
+        }
+
+        return (int) round((float) $value * 100);
+    }
+}
+```
+
+### Real-World Examples
+
+```php
+// Bank Account Request
+protected function prepareForValidation(): void
+{
+    $data = [
+        'initial_balance' => $this->normalizeMoney($this->initial_balance),
+        'name' => trim($this->name),
+    ];
+    $this->merge($data);
+}
+
+// Crew Member Request
+protected function prepareForValidation(): void
+{
+    $this->merge([
+        'salary_amount' => $this->normalizeMoney($this->salary_amount),
+        'salary_currency' => strtoupper($this->salary_currency ?? 'EUR'),
+        'house_of_zeros' => $this->house_of_zeros ?? 2,
+    ]);
+}
+```
+
+---
+
+## Resource Formatting
+
+### API Resource Pattern
+
+Always provide both raw and formatted values:
+
+```php
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TransactionResource extends JsonResource
+{
+    public function toArray($request): array
+    {
         return [
-            'amount_without_vat' => $amountWithoutVat,
-            'vat_amount' => $vatAmount,
-            'total_amount' => $totalAmount,
+            'id' => $this->id,
+            
+            // Raw integer values (for calculations)
+            'amount' => $this->amount,
+            'vat_amount' => $this->vat_amount,
+            'total_amount' => $this->total_amount,
+            
+            // Formatted string values (for display)
+            'formatted_amount' => $this->formatted_amount,
+            'formatted_vat_amount' => $this->formatted_vat_amount,
+            'formatted_total_amount' => $this->formatted_total_amount,
+            
+            // Currency metadata
+            'currency' => $this->currency,
+            'house_of_zeros' => $this->house_of_zeros,
         ];
     }
 }
 ```
 
-### Model Boot Method for VAT
+### Why Both Raw and Formatted?
+
+- **Raw values**: Frontend can do calculations, sorting, filtering
+- **Formatted values**: Direct display without frontend formatting logic
+
+---
+
+## MoneyService (Business Logic)
+
+### Location
+```
+app/Services/MoneyService.php
+```
+
+### Methods
+
+Used for VAT calculations and business logic:
+
 ```php
+// Calculate VAT amount
+MoneyService::calculateVat(int $amount, float $vatRate, int $decimals = 2): int
+
+// Calculate total
+MoneyService::calculateTotal(int $amount, int $vatAmount): int
+
+// Parse money string (alternative to MoneyAction::sanitize)
+MoneyService::parseMoneyString(string $value): int
+```
+
+### VAT Calculation Example
+
+```php
+use App\Services\MoneyService;
+use App\Models\VatRate;
+
+// In model boot method
 protected static function boot()
 {
     parent::boot();
     
     static::creating(function ($transaction) {
-        // Calculate VAT if VAT rate is provided
+        // Calculate VAT if necessary
         if ($transaction->vat_rate_id && !$transaction->vat_amount) {
-            $vatCalculation = VatCalculationService::calculateTransactionVat(
+            $vatRate = VatRate::find($transaction->vat_rate_id);
+            $transaction->vat_amount = MoneyService::calculateVat(
                 $transaction->amount,
-                $transaction->vat_rate_id,
+                $vatRate->rate,
                 $transaction->house_of_zeros
             );
-            
-            $transaction->vat_amount = $vatCalculation['vat_amount'];
-            $transaction->total_amount = $vatCalculation['total_amount'];
-        } else {
-            $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
         }
-    });
-    
-    static::updating(function ($transaction) {
-        // Recalculate VAT if amount or VAT rate changed
-        if ($transaction->isDirty(['amount', 'vat_rate_id'])) {
-            $vatCalculation = VatCalculationService::calculateTransactionVat(
-                $transaction->amount,
-                $transaction->vat_rate_id,
-                $transaction->house_of_zeros
-            );
-            
-            $transaction->vat_amount = $vatCalculation['vat_amount'];
-            $transaction->total_amount = $vatCalculation['total_amount'];
-        }
+        
+        $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
     });
 }
 ```
 
-## Frontend useMoney Composable
+---
+
+## Frontend Integration
 
 ### Vue.js Composable
+
 ```typescript
-// Composables/useMoney.ts
+// composables/useMoney.ts
 import { computed } from 'vue'
 
 export function useMoney() {
-  /**
-   * Convert float to integer (cents)
-   */
   const toInteger = (value: number, decimals: number = 2): number => {
     return Math.round(value * Math.pow(10, decimals))
   }
   
-  /**
-   * Convert integer (cents) to float
-   */
   const toFloat = (value: number, decimals: number = 2): number => {
     return value / Math.pow(10, decimals)
   }
   
-  /**
-   * Format integer as currency string
-   */
   const format = (value: number, currency: string = 'EUR', decimals: number = 2): string => {
     const float = toFloat(value, decimals)
     return new Intl.NumberFormat('pt-PT', {
@@ -383,43 +415,7 @@ export function useMoney() {
     }).format(float)
   }
   
-  /**
-   * Format without currency symbol
-   */
-  const formatWithoutSymbol = (value: number, decimals: number = 2): string => {
-    const float = toFloat(value, decimals)
-    return new Intl.NumberFormat('pt-PT', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(float)
-  }
-  
-  /**
-   * Calculate VAT amount
-   */
-  const calculateVat = (amount: number, vatRate: number, decimals: number = 2): number => {
-    return Math.round((amount * vatRate) / 100)
-  }
-  
-  /**
-   * Add two money values
-   */
-  const add = (amount1: number, amount2: number): number => {
-    return amount1 + amount2
-  }
-  
-  /**
-   * Subtract two money values
-   */
-  const subtract = (amount1: number, amount2: number): number => {
-    return amount1 - amount2
-  }
-  
-  /**
-   * Normalize string input to integer
-   */
-  const normalizeFromString = (value: string, decimals: number = 2): number => {
-    // Remove currency symbols and convert to float
+  const sanitize = (value: string, decimals: number = 2): number => {
     const cleanValue = value.replace(/[^\d.,]/g, '').replace(',', '.')
     return toInteger(parseFloat(cleanValue) || 0, decimals)
   }
@@ -428,351 +424,339 @@ export function useMoney() {
     toInteger,
     toFloat,
     format,
-    formatWithoutSymbol,
-    calculateVat,
-    add,
-    subtract,
-    normalizeFromString
+    sanitize
   }
 }
 ```
 
-### Usage in Components
+### Component Usage
+
 ```vue
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useMoney } from '@/Composables/useMoney'
+import { useMoney } from '@/composables/useMoney'
 
-const { format, calculateVat, add } = useMoney()
+const { format } = useMoney()
 
 const props = defineProps<{
   amount: number
   currency: string
-  vatRate?: number
+  decimals?: number
 }>()
 
-const vatAmount = computed(() => {
-  if (!props.vatRate) return 0
-  return calculateVat(props.amount, props.vatRate)
-})
-
-const totalAmount = computed(() => {
-  return add(props.amount, vatAmount.value)
-})
-
 const formattedAmount = computed(() => {
-  return format(props.amount, props.currency)
-})
-
-const formattedTotal = computed(() => {
-  return format(totalAmount.value, props.currency)
+  return format(props.amount, props.currency, props.decimals ?? 2)
 })
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div class="flex justify-between">
-      <span>Amount:</span>
-      <span>{{ formattedAmount }}</span>
-    </div>
-    <div v-if="vatRate" class="flex justify-between">
-      <span>VAT ({{ vatRate }}%):</span>
-      <span>{{ format(vatAmount, currency) }}</span>
-    </div>
-    <div class="flex justify-between font-semibold">
-      <span>Total:</span>
-      <span>{{ formattedTotal }}</span>
-    </div>
+  <div>
+    <p>Amount: {{ formattedAmount }}</p>
   </div>
 </template>
 ```
 
-## Request Normalization
+---
 
-### Form Request Money Handling
-```php
-<?php
+## Complete Examples
 
-namespace App\Http\Requests;
+### Example 1: BankAccount Model with Currency Detection
 
-use App\Services\MoneyService;
-
-class StoreTransactionRequest extends FormRequest
-{
-    protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'amount' => $this->normalizeMoney($this->amount),
-            'currency' => strtoupper($this->currency ?? 'EUR'),
-            'house_of_zeros' => 2,
-        ]);
-    }
-    
-    private function normalizeMoney($value): int
-    {
-        if (is_string($value)) {
-            return MoneyService::normalizeFromString($value);
-        }
-        
-        return MoneyService::toInteger((float) $value);
-    }
-}
-```
-
-## Resource Formatting
-
-### API Resource Money Formatting
-```php
-<?php
-
-namespace App\Http\Resources;
-
-use App\Services\MoneyService;
-
-class TransactionResource extends JsonResource
-{
-    public function toArray($request): array
-    {
-        return [
-            'id' => $this->id,
-            
-            // Raw integer values
-            'amount' => $this->amount,
-            'vat_amount' => $this->vat_amount,
-            'total_amount' => $this->total_amount,
-            
-            // Formatted string values
-            'formatted_amount' => MoneyService::format(
-                $this->amount, 
-                $this->currency, 
-                $this->house_of_zeros
-            ),
-            'formatted_vat_amount' => MoneyService::format(
-                $this->vat_amount, 
-                $this->currency, 
-                $this->house_of_zeros
-            ),
-            'formatted_total_amount' => MoneyService::format(
-                $this->total_amount, 
-                $this->currency, 
-                $this->house_of_zeros
-            ),
-            
-            // Currency information
-            'currency' => $this->currency,
-            'house_of_zeros' => $this->house_of_zeros,
-        ];
-    }
-}
-```
-
-## Balance Calculations
-
-### Balance Service
-```php
-<?php
-
-namespace App\Services;
-
-use App\Models\Transaction;
-use App\Models\BankAccount;
-
-class BalanceService
-{
-    /**
-     * Calculate current balance for account
-     */
-    public function calculateCurrentBalance(int $bankAccountId): int
-    {
-        $account = BankAccount::find($bankAccountId);
-        if (!$account) {
-            return 0;
-        }
-        
-        $income = Transaction::where('bank_account_id', $bankAccountId)
-            ->where('type', 'income')
-            ->where('status', 'completed')
-            ->sum('total_amount');
-            
-        $expense = Transaction::where('bank_account_id', $bankAccountId)
-            ->where('type', 'expense')
-            ->where('status', 'completed')
-            ->sum('total_amount');
-            
-        return $account->initial_balance + $income - $expense;
-    }
-    
-    /**
-     * Update account balance
-     */
-    public function updateAccountBalance(int $bankAccountId): void
-    {
-        $account = BankAccount::find($bankAccountId);
-        if (!$account) {
-            return;
-        }
-        
-        $currentBalance = $this->calculateCurrentBalance($bankAccountId);
-        $account->update(['current_balance' => $currentBalance]);
-    }
-    
-    /**
-     * Recalculate balances after transaction change
-     */
-    public function recalculateBalances(Transaction $transaction): void
-    {
-        $this->updateAccountBalance($transaction->bank_account_id);
-        
-        // If transfer, update both accounts
-        if ($transaction->type === 'transfer') {
-            $transfer = $transaction->accountTransfer;
-            if ($transfer) {
-                $this->updateAccountBalance($transfer->to_account_id);
-            }
-        }
-    }
-}
-```
-
-## Multi-Currency Support
-
-### Currency Configuration
 ```php
 <?php
 
 namespace App\Models;
 
-class Currency extends Model
+use App\Actions\MoneyAction;
+use Illuminate\Database\Eloquent\Model;
+
+class BankAccount extends Model
 {
     protected $fillable = [
-        'code', 'name', 'symbol', 'decimals', 'is_active'
+        'name',
+        'initial_balance',
+        'current_balance',
+        'iban',
     ];
-    
+
     protected $casts = [
-        'decimals' => 'integer',
-        'is_active' => 'boolean',
+        'initial_balance' => 'integer',
+        'current_balance' => 'integer',
     ];
-    
-    public static function getActiveCurrencies(): array
-    {
-        return self::where('is_active', true)
-            ->orderBy('code')
-            ->get()
-            ->toArray();
-    }
-}
-```
 
-### Multi-Currency Money Service
-```php
-<?php
+    protected $appends = [
+        'formatted_initial_balance',
+        'formatted_current_balance',
+    ];
 
-namespace App\Services;
-
-use App\Models\Currency;
-
-class MultiCurrencyMoneyService extends MoneyService
-{
     /**
-     * Format money with currency-specific formatting
+     * Get currency for this bank account based on country.
      */
-    public static function formatWithCurrency(int $amount, string $currencyCode): string
+    public function getCurrency(): ?string
     {
-        $currency = Currency::where('code', $currencyCode)->first();
-        if (!$currency) {
-            return parent::format($amount, $currencyCode);
+        if ($this->country) {
+            return $this->country->getCurrencyCode();
         }
         
-        $float = self::toFloat($amount, $currency->decimals);
+        // Fallback to IBAN detection if no country
+        if ($this->iban) {
+            return MoneyAction::getCurrencyFromIban($this->iban);
+        }
         
-        return $currency->symbol . ' ' . 
-               number_format($float, $currency->decimals, ',', '.');
+        return null;
     }
-    
-    /**
-     * Convert between currencies (requires exchange rate service)
-     */
-    public static function convert(int $amount, string $fromCurrency, string $toCurrency): int
+
+    public function getFormattedInitialBalanceAttribute(): string
     {
-        // This would integrate with an exchange rate API
-        $rate = ExchangeRateService::getRate($fromCurrency, $toCurrency);
-        return self::multiply($amount, $rate);
+        $currency = $this->getCurrency();
+        return MoneyAction::format($this->initial_balance, null, $currency, true);
+    }
+
+    public function getFormattedCurrentBalanceAttribute(): string
+    {
+        $currency = $this->getCurrency();
+        return MoneyAction::format($this->current_balance, null, $currency, true);
     }
 }
 ```
 
-## Testing Money Operations
+### Example 2: CrewMember Model
 
-### Money Test Helpers
 ```php
 <?php
 
-namespace Tests\Helpers;
+namespace App\Models;
 
-use App\Services\MoneyService;
+use App\Actions\MoneyAction;
+use Illuminate\Database\Eloquent\Model;
 
-class MoneyTestHelper
+class CrewMember extends Model
 {
-    public static function assertMoneyEquals(int $expected, int $actual, string $message = ''): void
+    protected $fillable = [
+        'name',
+        'salary_amount',
+        'salary_currency',
+        'house_of_zeros',
+    ];
+
+    protected $casts = [
+        'salary_amount' => 'integer',
+        'house_of_zeros' => 'integer',
+    ];
+
+    protected $appends = [
+        'formatted_salary_amount',
+    ];
+
+    public function getFormattedSalaryAmountAttribute(): string
     {
-        self::assertEquals($expected, $actual, $message ?: "Expected {$expected} but got {$actual}");
-    }
-    
-    public static function assertMoneyFormatted(string $expected, int $amount, string $currency = 'EUR'): void
-    {
-        $formatted = MoneyService::format($amount, $currency);
-        self::assertEquals($expected, $formatted);
-    }
-    
-    public static function createMoneyAmount(float $value, int $decimals = 2): int
-    {
-        return MoneyService::toInteger($value, $decimals);
+        return MoneyAction::format(
+            $this->salary_amount,
+            $this->house_of_zeros,
+            $this->salary_currency,
+            true
+        );
     }
 }
 ```
+
+### Example 3: Transaction with VAT
+
+```php
+<?php
+
+namespace App\Models;
+
+use App\Actions\MoneyAction;
+use App\Services\MoneyService;
+use Illuminate\Database\Eloquent\Model;
+
+class Transaction extends Model
+{
+    protected $fillable = [
+        'amount',
+        'currency',
+        'house_of_zeros',
+        'vat_rate_id',
+        'vat_amount',
+        'total_amount',
+    ];
+
+    protected $casts = [
+        'amount' => 'integer',
+        'vat_amount' => 'integer',
+        'total_amount' => 'integer',
+        'house_of_zeros' => 'integer',
+    ];
+
+    // Formatted attributes
+    public function getFormattedAmountAttribute(): string
+    {
+        return MoneyAction::format(
+            $this->amount,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
+    }
+
+    public function getFormattedVatAmountAttribute(): string
+    {
+        return MoneyAction::format(
+            $this->vat_amount ?? 0,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
+    }
+
+    public function getFormattedTotalAmountAttribute(): string
+    {
+        return MoneyAction::format(
+            $this->total_amount,
+            $this->house_of_zeros,
+            $this->currency,
+            true
+        );
+    }
+
+    // Auto-calculate VAT on create
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($transaction) {
+            if ($transaction->vat_rate_id && !$transaction->vat_amount) {
+                $vatRate = VatRate::find($transaction->vat_rate_id);
+                $transaction->vat_amount = MoneyService::calculateVat(
+                    $transaction->amount,
+                    $vatRate->rate,
+                    $transaction->house_of_zeros
+                );
+            }
+            
+            $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
+        });
+    }
+}
+```
+
+---
+
+## Best Practices
+
+### ✅ DO
+
+```php
+// Use MoneyAction for formatting
+$formatted = MoneyAction::format($amount, 2, 'eur', true);
+
+// Use MoneyAction for sanitizing user input
+$clean = MoneyAction::sanitize($userInput);
+
+// Use currency detection from country/IBAN
+$currency = MoneyAction::getCurrencyFromCountry('PT'); // Returns 'EUR'
+$currency = MoneyAction::getCurrencyFromIban('PT50000000000000000000000'); // Returns 'EUR'
+
+// Add formatted attributes to models with currency detection
+public function getFormattedAmountAttribute(): string
+{
+    $currency = $this->getCurrency(); // Detect from country/IBAN
+    return MoneyAction::format($this->amount, $this->house_of_zeros, $currency, true);
+}
+
+// Normalize in prepareForValidation()
+protected function prepareForValidation(): void
+{
+    $this->merge([
+        'amount' => $this->normalizeMoney($this->amount),
+    ]);
+}
+
+// Return both raw and formatted in resources
+'amount' => $this->amount,
+'formatted_amount' => $this->formatted_amount,
+```
+
+### ❌ DON'T
+
+```php
+// Don't use number_format directly
+$formatted = number_format($amount / 100, 2, ',', '.');
+
+// Don't hardcode currency symbols
+$formatted = '€ ' . number_format($amount, 2);
+
+// Don't use floats for money
+$amount = 123.45; // Bad!
+
+// Don't forget to sanitize user input
+$transaction->amount = $request->amount; // Bad!
+
+// Don't format in the controller
+$transaction->formatted_amount = '€ ' . number_format($amount, 2); // Bad!
+
+// Don't use EUR as fallback - always detect currency
+return MoneyAction::format($amount, null, 'eur', true); // Bad!
+
+// Don't hardcode currency in models
+public function getFormattedAmountAttribute(): string
+{
+    return MoneyAction::format($this->amount, null, 'eur', true); // Bad!
+}
+```
+
+---
+
+## Testing
 
 ### Test Examples
+
 ```php
-<?php
-
-namespace Tests\Unit;
-
-use Tests\TestCase;
+use App\Actions\MoneyAction;
 use App\Services\MoneyService;
-use Tests\Helpers\MoneyTestHelper;
 
-class MoneyServiceTest extends TestCase
-{
-    public function test_to_integer_conversion(): void
-    {
-        $this->assertEquals(12345, MoneyService::toInteger(123.45));
-        $this->assertEquals(123450, MoneyService::toInteger(1234.50));
-    }
+test('MoneyAction formats correctly', function () {
+    expect(MoneyAction::format(12345, 2, 'eur', true))
+        ->toBe('€ 123,45');
+});
+
+test('MoneyAction sanitizes correctly', function () {
+    expect(MoneyAction::sanitize('€ 123,45'))->toBe(12345);
+    expect(MoneyAction::sanitize('$1,234.56'))->toBe(123456);
+});
+
+test('MoneyService calculates VAT correctly', function () {
+    $amount = 10000; // €100.00
+    $vatAmount = MoneyService::calculateVat($amount, 23.0);
     
-    public function test_to_float_conversion(): void
-    {
-        $this->assertEquals(123.45, MoneyService::toFloat(12345));
-        $this->assertEquals(1234.50, MoneyService::toFloat(123450));
-    }
+    expect($vatAmount)->toBe(2300); // €23.00
+});
+
+test('Transaction formats money correctly', function () {
+    $transaction = Transaction::factory()->create([
+        'amount' => 12345,
+        'currency' => 'EUR',
+        'house_of_zeros' => 2,
+    ]);
     
-    public function test_formatting(): void
-    {
-        $this->assertEquals('123,45 EUR', MoneyService::format(12345));
-        $this->assertEquals('1.234,50 EUR', MoneyService::format(123450));
-    }
-    
-    public function test_vat_calculation(): void
-    {
-        $this->assertEquals(2300, MoneyService::calculateVat(10000, 23.0)); // €23.00 VAT on €100.00
-        $this->assertEquals(1150, MoneyService::calculateVat(5000, 23.0));  // €11.50 VAT on €50.00
-    }
-    
-    public function test_string_normalization(): void
-    {
-        $this->assertEquals(12345, MoneyService::normalizeFromString('123.45'));
-        $this->assertEquals(12345, MoneyService::normalizeFromString('123,45'));
-        $this->assertEquals(12345, MoneyService::normalizeFromString('€123.45'));
-        $this->assertEquals(12345, MoneyService::normalizeFromString('123.45 EUR'));
-    }
-}
+    expect($transaction->formatted_amount)->toBe('€ 123,45');
+});
 ```
+
+---
+
+## Summary
+
+| Task | Use This | Example |
+|------|----------|---------|
+| Format for display | `MoneyAction::format()` | `MoneyAction::format(12345, 2, 'eur', true)` |
+| Sanitize user input | `MoneyAction::sanitize()` | `MoneyAction::sanitize('€123.45')` |
+| Detect currency from country | `MoneyAction::getCurrencyFromCountry()` | `MoneyAction::getCurrencyFromCountry('PT')` |
+| Detect currency from IBAN | `MoneyAction::getCurrencyFromIban()` | `MoneyAction::getCurrencyFromIban('PT50000000000000000000000')` |
+| Calculate VAT | `MoneyService::calculateVat()` | `MoneyService::calculateVat(10000, 23.0)` |
+| Model accessor | Direct `MoneyAction` with currency detection | `MoneyAction::format($this->amount, ..., $this->getCurrency(), true)` |
+| Request normalization | `MoneyAction::sanitize()` | In `prepareForValidation()` |
+| Resource output | Model accessor | `'formatted_amount' => $this->formatted_amount` |
+
+**Key Principle**: One unified system through `MoneyAction` for all money formatting, sanitization, and currency detection. Never use EUR as fallback - always detect currency from country/IBAN. Simple, direct, and maintainable.
