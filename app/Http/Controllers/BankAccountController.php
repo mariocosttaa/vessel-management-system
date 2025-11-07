@@ -123,6 +123,8 @@ class BankAccountController extends Controller
                 $countryId = DetectCountryFromIbanAction::execute($request->iban);
             }
 
+            $initialBalance = $request->initial_balance ?? 0;
+
             $bankAccount = BankAccount::create([
                 'name' => $request->name,
                 'bank_name' => $request->bank_name,
@@ -130,8 +132,9 @@ class BankAccountController extends Controller
                 'iban' => $request->iban,
                 'country_id' => $countryId ?? $request->country_id,
                 'vessel_id' => $vesselId,
-                'initial_balance' => $request->initial_balance ?? 0,
-                'status' => $request->status,
+                'initial_balance' => $initialBalance,
+                'current_balance' => $initialBalance, // Current balance starts equal to initial balance
+                'status' => 'active', // Default status
                 'notes' => $request->notes,
             ]);
 
@@ -220,7 +223,6 @@ class BankAccountController extends Controller
                 'iban' => $request->iban,
                 'country_id' => $countryId ?? $request->country_id,
                 'initial_balance' => $request->initial_balance ?? $bankAccount->initial_balance ?? 0,
-                'status' => $request->status,
                 'notes' => $request->notes,
             ]);
 
@@ -236,14 +238,22 @@ class BankAccountController extends Controller
         }
     }
 
-    public function destroy(Request $request, BankAccount $bankAccount)
+    public function destroy(Request $request, $vessel, BankAccount $bankAccount)
     {
         try {
+            $user = $request->user();
+
             // Verify bank account belongs to current vessel
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $vessel;
             if ($bankAccount->vessel_id !== $vesselId) {
                 abort(403, 'Unauthorized access to bank account.');
+            }
+
+            // Check vessel-specific permissions for deletion
+            // Only Administrator can delete bank accounts
+            if (!$user->hasAnyRoleForVessel($vesselId, ['Administrator'])) {
+                abort(403, 'You do not have permission to delete bank accounts for this vessel.');
             }
 
             // Check if bank account has transactions
