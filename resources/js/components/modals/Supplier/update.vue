@@ -38,38 +38,62 @@ const form = useForm({
     notes: '',
 });
 
-// Reset form when modal opens/closes or supplier changes
-watch(() => props.open, (isOpen) => {
-    if (isOpen && props.supplier) {
-        // Populate form for editing
-        form.company_name = props.supplier.company_name || '';
-        form.email = props.supplier.email || '';
-        form.phone = props.supplier.phone || '';
-        form.address = props.supplier.address || '';
-        form.notes = props.supplier.notes || '';
-    } else if (isOpen) {
-        // Reset form for creating
-        form.reset();
-    }
-    form.clearErrors();
-});
-
+// Get current vessel ID from URL
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
     const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : null;
+    return vesselMatch ? vesselMatch[1] : '1';
 };
 
-const handleSave = () => {
-    if (props.supplier) {
-        const vesselId = getCurrentVesselId();
-        form.put(suppliers.update.url({ vessel: vesselId, supplier: props.supplier.id }), {
-            onSuccess: () => {
-                emit('saved');
-                emit('update:open', false);
-            },
-        });
+// Helper function to populate form from supplier
+const populateForm = (supplier: Supplier | null) => {
+    if (supplier) {
+        form.company_name = supplier.company_name || '';
+        form.email = supplier.email || '';
+        form.phone = supplier.phone || '';
+        form.address = supplier.address || '';
+        form.notes = supplier.notes || '';
+    } else {
+        form.reset();
     }
+    form.clearErrors();
+};
+
+// Watch for modal open/close and supplier changes
+watch([() => props.open, () => props.supplier], ([isOpen, supplier]) => {
+    if (isOpen && supplier) {
+        populateForm(supplier);
+    } else if (isOpen) {
+        form.reset();
+        form.clearErrors();
+    }
+}, { immediate: true });
+
+const handleSave = () => {
+    if (!props.supplier) {
+        return;
+    }
+
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+
+    form.put(suppliers.update.url({ vessel: vesselId, supplier: props.supplier.id }), {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            emit('saved');
+            emit('update:open', false);
+            form.reset();
+        },
+        onError: (errors) => {
+            // Validation errors are automatically displayed by InputError components
+            // Keep modal open to show errors
+            console.error('Update failed:', errors);
+        },
+    });
 };
 
 const handleClose = () => {

@@ -7,7 +7,6 @@ use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class SupplierController extends Controller
 {
@@ -15,7 +14,7 @@ class SupplierController extends Controller
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
-        $vesselId = $request->attributes->get('vessel_id');
+        $vesselId = (int) $request->attributes->get('vessel_id');
 
         $query = Supplier::query()->where('vessel_id', $vesselId);
 
@@ -44,7 +43,7 @@ class SupplierController extends Controller
             return (new SupplierResource($supplier))->resolve();
         });
 
-        return Inertia::render('Suppliers/Index', [
+        return inertia('Suppliers/Index', [
             'suppliers' => $suppliers,
             'filters' => $request->only(['search', 'sort', 'direction']),
         ]);
@@ -52,7 +51,7 @@ class SupplierController extends Controller
 
     public function create()
     {
-        return Inertia::render('Suppliers/Create');
+        return inertia('Suppliers/Create');
     }
 
     public function store(StoreSupplierRequest $request)
@@ -60,7 +59,7 @@ class SupplierController extends Controller
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
 
             $supplier = Supplier::create([
                 'company_name' => $request->company_name,
@@ -85,14 +84,14 @@ class SupplierController extends Controller
 
     public function show($vessel, Supplier $supplier)
     {
-        return Inertia::render('Suppliers/Show', [
+        return inertia('Suppliers/Show', [
             'supplier' => new SupplierResource($supplier),
         ]);
     }
 
     public function edit($vessel, Supplier $supplier)
     {
-        return Inertia::render('Suppliers/Edit', [
+        return inertia('Suppliers/Edit', [
             'supplier' => new SupplierResource($supplier),
         ]);
     }
@@ -102,11 +101,12 @@ class SupplierController extends Controller
         try {
             // Verify supplier belongs to current vessel
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
             if ($supplier->vessel_id !== $vesselId) {
                 abort(403, 'Unauthorized access to supplier.');
             }
 
+            // Access validated values directly as properties (never use validated())
             $supplier->update([
                 'company_name' => $request->company_name,
                 'email' => $request->email,
@@ -120,6 +120,13 @@ class SupplierController extends Controller
                 ->with('success', "Supplier '{$supplier->company_name}' has been updated successfully.")
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
+            // Log the exception for debugging
+            \Log::error('Supplier update failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'supplier_id' => $supplier->id,
+                'vessel_id' => $vesselId ?? null,
+            ]);
+
             return back()
                 ->withInput()
                 ->with('error', 'Failed to update supplier. Please try again.')
@@ -132,7 +139,7 @@ class SupplierController extends Controller
         try {
             // Verify supplier belongs to current vessel
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
             if ($supplier->vessel_id !== $vesselId) {
                 abort(403, 'Unauthorized access to supplier.');
             }
