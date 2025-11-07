@@ -54,32 +54,6 @@ class BankAccount extends Model
     }
 
     /**
-     * Get the country for this bank account, auto-detecting from IBAN if country_id is null.
-     * This method should be used when you need to get the country even if country_id is not set.
-     */
-    public function getCountryOrDetectFromIban(): ?Country
-    {
-        // If country_id is set, return the relationship
-        if ($this->country_id && $this->relationLoaded('country')) {
-            return $this->country;
-        }
-
-        if ($this->country_id) {
-            return $this->country()->first();
-        }
-
-        // If no country_id but IBAN exists, try to detect from IBAN
-        if ($this->iban) {
-            $countryCode = Country::extractCountryCodeFromIban($this->iban);
-            if ($countryCode) {
-                return Country::byCode($countryCode)->first();
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Get the transactions for the bank account.
      */
     public function transactions(): HasMany
@@ -113,11 +87,13 @@ class BankAccount extends Model
 
     /**
      * Get currency for this bank account based on country.
+     * Uses MoneyAction::getCurrencyFromCountry() following money-handling.md pattern.
      */
     public function getCurrency(): ?string
     {
         if ($this->country) {
-            return $this->country->getCurrencyCode();
+            // Use MoneyAction to get currency from country code (following money-handling.md pattern)
+            return MoneyAction::getCurrencyFromCountry($this->country->code);
         }
 
         // Fallback to IBAN detection if no country
@@ -130,19 +106,23 @@ class BankAccount extends Model
 
     /**
      * Get formatted initial balance attribute.
+     * Format with symbol for show modal (we know the country/currency).
      */
     public function getFormattedInitialBalanceAttribute(): string
     {
         $currency = $this->getCurrency();
+        // Format with symbol for display in show modal
         return MoneyAction::format($this->initial_balance, null, $currency, true);
     }
 
     /**
      * Get formatted current balance attribute.
+     * Format with symbol for show modal (we know the country/currency).
      */
     public function getFormattedCurrentBalanceAttribute(): string
     {
         $currency = $this->getCurrency();
+        // Format with symbol for display in show modal
         return MoneyAction::format($this->current_balance, null, $currency, true);
     }
 }
