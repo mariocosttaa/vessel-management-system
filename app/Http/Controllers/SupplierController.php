@@ -13,8 +13,9 @@ class SupplierController extends Controller
 {
     public function index(Request $request)
     {
-        // Get vessel ID from route parameter
-        $vesselId = $request->route('vessel');
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
 
         $query = Supplier::query()->where('vessel_id', $vesselId);
 
@@ -57,8 +58,9 @@ class SupplierController extends Controller
     public function store(StoreSupplierRequest $request)
     {
         try {
-            // Get vessel ID from route parameter
-            $vesselId = $request->route('vessel');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
 
             // Add vessel_id to validated data
             $data = $request->validated();
@@ -95,10 +97,17 @@ class SupplierController extends Controller
     public function update(UpdateSupplierRequest $request, $vessel, Supplier $supplier)
     {
         try {
+            // Verify supplier belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($supplier->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to supplier.');
+            }
+
             $supplier->update($request->validated());
 
             return redirect()
-                ->route('panel.suppliers.index', ['vessel' => $request->route('vessel')])
+                ->route('panel.suppliers.index', ['vessel' => $vesselId])
                 ->with('success', "Supplier '{$supplier->company_name}' has been updated successfully.")
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
@@ -109,9 +118,16 @@ class SupplierController extends Controller
         }
     }
 
-    public function destroy($vessel, Supplier $supplier)
+    public function destroy(Request $request, Supplier $supplier)
     {
         try {
+            // Verify supplier belongs to current vessel
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($supplier->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to supplier.');
+            }
+
             // Check if supplier has transactions
             if ($supplier->transactions()->count() > 0) {
                 return back()->with('error', "Cannot delete supplier '{$supplier->company_name}' because they have transactions. Please remove all transactions first.")
@@ -122,7 +138,7 @@ class SupplierController extends Controller
             $supplier->delete();
 
             return redirect()
-                ->route('panel.suppliers.index', ['vessel' => $vessel])
+                ->route('panel.suppliers.index', ['vessel' => $vesselId])
                 ->with('success', "Supplier '{$supplierName}' has been deleted successfully.")
                 ->with('notification_delay', 5); // 5 seconds delay
         } catch (\Exception $e) {
