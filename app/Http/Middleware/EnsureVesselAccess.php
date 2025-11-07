@@ -31,10 +31,17 @@ class EnsureVesselAccess
             abort(403, 'You do not have access to this vessel.');
         }
 
-        // Share vessel data with all views
+        // Load vessel model
         $vessel = \App\Models\Vessel::findOrFail($vesselId);
+
+        // Share vessel data with all views
         view()->share('currentVessel', $vessel);
         view()->share('currentVesselRole', $user->getRoleForVessel($vesselId));
+
+        // Share vessel via request attributes for use in controllers and requests
+        // Access via: $request->attributes->get('vessel') or $request->get('vessel')
+        $request->attributes->set('vessel', $vessel);
+        $request->attributes->set('vessel_id', $vesselId);
 
         return $next($request);
     }
