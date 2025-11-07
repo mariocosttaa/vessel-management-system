@@ -55,44 +55,73 @@ const form = useForm({
 });
 
 // Computed properties
-const showIbanField = computed(() => {
-    console.log('showIbanField computed:', useIban.value);
-    return useIban.value;
-});
-const showAccountNumberField = computed(() => {
-    console.log('showAccountNumberField computed:', useAccountNumber.value);
-    return useAccountNumber.value;
-});
-const showInitialBalanceField = computed(() => {
-    console.log('showInitialBalanceField computed:', hasInitialBalance.value);
-    return hasInitialBalance.value;
+const showIbanField = computed(() => useIban.value);
+const showAccountNumberField = computed(() => useAccountNumber.value);
+const showInitialBalanceField = computed(() => hasInitialBalance.value);
+const showCountrySelect = computed(() => {
+    // Show country select only when account_number is used (not IBAN)
+    return useAccountNumber.value && !useIban.value;
 });
 
 // Watch for changes in checkbox states
 watch(useIban, (newValue) => {
-    console.log('useIban changed to:', newValue);
+    if (newValue) {
+        // When IBAN is selected, clear account_number
+        form.account_number = '';
+        // Auto-detect country from IBAN if entered
+        if (form.iban) {
+            detectCountryFromIban(form.iban);
+        }
+    }
 });
+
 watch(useAccountNumber, (newValue) => {
-    console.log('useAccountNumber changed to:', newValue);
+    if (newValue) {
+        // When account_number is selected, clear IBAN
+        form.iban = '';
+        form.country_id = null;
+    }
 });
+
 watch(hasInitialBalance, (newValue) => {
-    console.log('hasInitialBalance changed to:', newValue);
+    if (!newValue) {
+        form.initial_balance = 0;
+    }
 });
+
+// Watch IBAN input to auto-detect country
+watch(() => form.iban, (newIban) => {
+    if (newIban && useIban.value && !useAccountNumber.value) {
+        detectCountryFromIban(newIban);
+    }
+});
+
+// Function to detect country from IBAN
+const detectCountryFromIban = (iban: string) => {
+    if (!iban || iban.length < 2) return;
+
+    // Extract country code from IBAN (first 2 characters)
+    const countryCode = iban.substring(0, 2).toUpperCase();
+
+    // Find matching country
+    const country = props.countries.find(c => c.code.toUpperCase() === countryCode);
+    if (country) {
+        form.country_id = country.id;
+    }
+};
 
 // Reset form when modal opens/closes
 watch(() => props.open, (isOpen) => {
-    console.log('Modal open state changed to:', isOpen);
     if (isOpen) {
-        console.log('Resetting form and checkbox states...');
         form.reset();
         form.country_id = null;
         form.status = 'active';
+        form.initial_balance = 0;
         form.clearErrors();
         // Reset checkbox states
         useIban.value = true;
         useAccountNumber.value = false;
         hasInitialBalance.value = false;
-        console.log('After reset - useIban:', useIban.value, 'useAccountNumber:', useAccountNumber.value, 'hasInitialBalance:', hasInitialBalance.value);
     }
 });
 
@@ -115,6 +144,17 @@ const submit = () => {
         form.initial_balance = 0;
     }
 
+    console.log('Submitting form with data:', {
+        name: form.name,
+        bank_name: form.bank_name,
+        iban: form.iban,
+        account_number: form.account_number,
+        country_id: form.country_id,
+        status: form.status,
+        initial_balance: form.initial_balance,
+        notes: form.notes,
+    });
+
     form.post(bankAccounts.store.url({ vessel: getCurrentVesselId() }), {
         onSuccess: () => {
             addNotification({
@@ -123,10 +163,11 @@ const submit = () => {
             });
             emit('success');
         },
-        onError: () => {
+        onError: (errors) => {
+            console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
-                message: 'Failed to create bank account. Please try again.',
+                message: 'Failed to create bank account. Please check the form for errors.',
             });
         },
     });
@@ -195,7 +236,7 @@ const submit = () => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Account Number -->
                         <div class="space-y-2" v-if="showAccountNumberField">
-                            <Label for="account_number">Account Number</Label>
+                            <Label for="account_number">Account Number *</Label>
                             <Input
                                 id="account_number"
                                 v-model="form.account_number"
@@ -208,7 +249,7 @@ const submit = () => {
 
                         <!-- IBAN -->
                         <div class="space-y-2" v-if="showIbanField">
-                            <Label for="iban">IBAN</Label>
+                            <Label for="iban">IBAN *</Label>
                             <Input
                                 id="iban"
                                 v-model="form.iban"
@@ -217,7 +258,31 @@ const submit = () => {
                                 :class="{ 'border-red-500': form.errors.iban }"
                             />
                             <InputError :message="form.errors.iban" />
+                            <p class="text-xs text-muted-foreground mt-1" v-if="form.country_id">
+                                💡 Country automatically detected: {{ countries.find(c => c.id === form.country_id)?.name }}
+                            </p>
                         </div>
+                    </div>
+
+                    <!-- Country Select (only shown when account_number is used) -->
+                    <div class="space-y-2" v-if="showCountrySelect">
+                        <Label for="country_id">Country *</Label>
+                        <select
+                            id="country_id"
+                            v-model="form.country_id"
+                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :class="{ 'border-destructive dark:border-destructive': form.errors.country_id }"
+                        >
+                            <option value="">Select a country</option>
+                            <option
+                                v-for="country in countries"
+                                :key="country.id"
+                                :value="country.id"
+                            >
+                                {{ country.name }} ({{ country.code }})
+                            </option>
+                        </select>
+                        <InputError :message="form.errors.country_id" />
                     </div>
                 </div>
 
@@ -240,9 +305,6 @@ const submit = () => {
                         </option>
                     </select>
                     <InputError :message="form.errors.status" />
-                    <p class="text-xs text-muted-foreground mt-1">
-                        💡 Country will be automatically detected from IBAN
-                    </p>
                 </div>
 
                 <!-- Initial Balance -->
@@ -258,7 +320,7 @@ const submit = () => {
                     </div>
 
                     <div class="space-y-2" v-if="showInitialBalanceField">
-                        <Label for="initial_balance">Initial Balance *</Label>
+                        <Label for="initial_balance">Initial Balance</Label>
                         <Input
                             id="initial_balance"
                             v-model="form.initial_balance"
