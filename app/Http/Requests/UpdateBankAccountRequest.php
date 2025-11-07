@@ -2,11 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Actions\MoneyAction;
 use App\Models\BankAccount;
-use App\Models\Country;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * UpdateBankAccountRequest validates updating an existing bank account.
@@ -17,10 +14,7 @@ use Illuminate\Validation\Rule;
  * Input fields:
  * @property string $name
  * @property string $bank_name
- * @property string|null $account_number
- * @property string|null $iban
- * @property int|null $country_id
- * @property int $initial_balance
+ * @property string $status
  * @property string|null $notes
  *
  * Magic/inherited methods (MANDATORY):
@@ -58,46 +52,14 @@ class UpdateBankAccountRequest extends FormRequest
      */
     public function rules(): array
     {
-        $bankAccountId = $this->route('bankAccount')->id;
-
         return [
             'name' => ['required', 'string', 'max:255'],
             'bank_name' => ['required', 'string', 'max:255'],
-            'account_number' => ['nullable', 'string', 'max:100'],
-            'iban' => [
-                'nullable',
-                'string',
-                'max:34',
-                'regex:/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/',
-                Rule::unique(BankAccount::class, 'iban')->ignore($bankAccountId),
-            ],
-            'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
-            'initial_balance' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', 'in:active,inactive'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
-    /**
-     * Configure the validator instance.
-     *
-     * @param  \Illuminate\Validation\Validator  $validator
-     * @return void
-     */
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            // Require either IBAN or account_number
-            if (empty($this->iban) && empty($this->account_number)) {
-                $validator->errors()->add('iban', 'Either IBAN or Account Number must be provided.');
-                $validator->errors()->add('account_number', 'Either IBAN or Account Number must be provided.');
-            }
-
-            // If account_number is provided (and not IBAN), country_id is mandatory
-            if (!empty($this->account_number) && empty($this->iban) && empty($this->country_id)) {
-                $validator->errors()->add('country_id', 'Country is required when using Account Number. Please select a country from the dropdown.');
-            }
-        });
-    }
 
     /**
      * Get custom messages for validator errors.
@@ -109,11 +71,8 @@ class UpdateBankAccountRequest extends FormRequest
         return [
             'name.required' => 'The account name is required.',
             'bank_name.required' => 'The bank name is required.',
-            'iban.regex' => 'The IBAN format is invalid.',
-            'iban.unique' => 'This IBAN is already registered.',
-            'country_id.exists' => 'The selected country is invalid.',
-            'initial_balance.numeric' => 'The initial balance must be a valid number.',
-            'initial_balance.min' => 'The initial balance must be at least 0.',
+            'status.required' => 'The status is required.',
+            'status.in' => 'The status must be either active or inactive.',
         ];
     }
 
@@ -122,47 +81,10 @@ class UpdateBankAccountRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $data = [
+        $this->merge([
             'name' => trim($this->name),
             'bank_name' => trim($this->bank_name),
-            'account_number' => $this->account_number ? trim($this->account_number) : null,
-        ];
-
-        // Handle initial balance - only normalize if provided
-        if ($this->filled('initial_balance') && $this->initial_balance !== null && $this->initial_balance !== '') {
-            $data['initial_balance'] = $this->normalizeMoney($this->initial_balance);
-        } else {
-            // Keep existing balance if not provided
-            $bankAccount = $this->route('bankAccount');
-            $data['initial_balance'] = $bankAccount->initial_balance ?? 0;
-        }
-
-        // Normalize IBAN (country detection is done in controller)
-        if ($this->iban) {
-            $iban = strtoupper(preg_replace('/\s+/', '', trim($this->iban)));
-            $data['iban'] = $iban;
-        }
-
-        $this->merge($data);
-    }
-
-    private function normalizeMoney($value): int
-    {
-        if (is_string($value)) {
-            return MoneyAction::sanitize($value);
-        }
-
-        // If it's already an integer, it's already in cents (from MoneyInput with return-type="int")
-        if (is_int($value)) {
-            return $value;
-        }
-
-        // If it's a float, convert to cents
-        if (is_float($value)) {
-            return (int) round($value * 100);
-        }
-
-        // Default: treat as integer (already in cents)
-        return (int) $value;
+            'status' => $this->status ?? 'active',
+        ]);
     }
 }
