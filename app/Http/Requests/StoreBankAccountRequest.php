@@ -17,10 +17,13 @@ use Illuminate\Validation\Rule;
  * @property string $bank_name
  * @property string|null $account_number
  * @property string|null $iban
- * @property int $vessel_id
+ * @property int|null $country_id
  * @property int $initial_balance
  * @property string $status
  * @property string|null $notes
+ *
+ * Route parameters:
+ * @property int $vessel (vessel_id comes from route parameter, validated by middleware)
  *
  * Magic/inherited methods (MANDATORY):
  * @method bool hasFile(string $key)
@@ -30,6 +33,8 @@ use Illuminate\Validation\Rule;
  * @method array all()
  * @method void merge(array $data)
  * @method array input(string $key = null, mixed $default = null)
+ * @method bool filled(string $key)
+ * @method \Illuminate\Contracts\Auth\Authenticatable|null user()
  *
  * @mixin \Illuminate\Http\Request
  */
@@ -59,9 +64,9 @@ class StoreBankAccountRequest extends FormRequest
             'bank_name' => ['required', 'string', 'max:255'],
             'account_number' => ['nullable', 'string', 'max:100'],
             'iban' => ['nullable', 'string', 'max:34', 'regex:/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/', Rule::unique(BankAccount::class, 'iban')],
-            'country_id' => ['required', 'integer', Rule::exists(Country::class, 'id')],
-            'vessel_id' => ['required', 'integer', Rule::exists(Vessel::class, 'id')],
-            'initial_balance' => ['required', 'numeric', 'min:0'],
+            'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
+            // vessel_id comes from route parameter (validated by middleware), not from form
+            'initial_balance' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', 'in:active,inactive'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -81,6 +86,11 @@ class StoreBankAccountRequest extends FormRequest
                 $validator->errors()->add('iban', 'Either IBAN or Account Number must be provided.');
                 $validator->errors()->add('account_number', 'Either IBAN or Account Number must be provided.');
             }
+
+            // If account_number is provided (and not IBAN), country_id is required
+            if (!empty($this->account_number) && empty($this->iban) && empty($this->country_id)) {
+                $validator->errors()->add('country_id', 'Country is required when using Account Number.');
+            }
         });
     }
 
@@ -96,9 +106,8 @@ class StoreBankAccountRequest extends FormRequest
             'bank_name.required' => 'The bank name is required.',
             'iban.regex' => 'The IBAN format is invalid.',
             'iban.unique' => 'This IBAN is already registered.',
-            'country_id.required' => 'Please select a country.',
             'country_id.exists' => 'The selected country is invalid.',
-            'initial_balance.required' => 'The initial balance is required.',
+            'initial_balance.numeric' => 'The initial balance must be a valid number.',
             'initial_balance.min' => 'The initial balance must be at least 0.',
             'status.required' => 'Please select a status.',
         ];
@@ -111,11 +120,17 @@ class StoreBankAccountRequest extends FormRequest
     {
         $data = [
             'status' => $this->status ?? 'active',
-            'initial_balance' => $this->normalizeMoney($this->initial_balance),
             'name' => trim($this->name),
             'bank_name' => trim($this->bank_name),
             'account_number' => $this->account_number ? trim($this->account_number) : null,
         ];
+
+        // Handle initial balance - only normalize if provided
+        if ($this->filled('initial_balance') && $this->initial_balance !== null && $this->initial_balance !== '') {
+            $data['initial_balance'] = $this->normalizeMoney($this->initial_balance);
+        } else {
+            $data['initial_balance'] = 0;
+        }
 
         // Normalize IBAN and auto-detect country
         if ($this->iban) {
