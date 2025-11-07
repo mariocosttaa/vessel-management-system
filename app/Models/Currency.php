@@ -45,6 +45,7 @@ class Currency extends Model
 
     /**
      * Get currency by country code.
+     * Returns currency from database if exists, otherwise returns currency code from mapping.
      */
     public static function getByCountryCode(string $countryCode): ?self
     {
@@ -52,7 +53,7 @@ class Currency extends Model
             'PT' => 'EUR', 'ES' => 'EUR', 'FR' => 'EUR', 'DE' => 'EUR', 'IT' => 'EUR',
             'NL' => 'EUR', 'BE' => 'EUR', 'AT' => 'EUR', 'IE' => 'EUR', 'FI' => 'EUR',
             'US' => 'USD', 'CA' => 'USD', 'MX' => 'USD',
-            'GB' => 'GBP', 'IE' => 'EUR',
+            'GB' => 'GBP',
             'BR' => 'BRL',
             'AO' => 'AOA',
             'CH' => 'CHF',
@@ -67,7 +68,38 @@ class Currency extends Model
             return null;
         }
 
-        return self::where('code', $currencyCode)->first();
+        // Try to get from database first
+        $currency = self::where('code', $currencyCode)->first();
+
+        // If not in database, create a temporary currency object with default values
+        if (!$currency) {
+            $currency = new self();
+            $currency->code = $currencyCode;
+            $currency->symbol = self::getDefaultSymbol($currencyCode);
+            $currency->decimal_separator = 2;
+        }
+
+        return $currency;
+    }
+
+    /**
+     * Get default currency symbol for currency code.
+     */
+    private static function getDefaultSymbol(string $currencyCode): string
+    {
+        $symbols = [
+            'EUR' => '€',
+            'USD' => '$',
+            'GBP' => '£',
+            'BRL' => 'R$',
+            'AOA' => 'Kz',
+            'CHF' => 'CHF',
+            'DKK' => 'kr',
+            'SEK' => 'kr',
+            'NOK' => 'kr',
+        ];
+
+        return $symbols[strtoupper($currencyCode)] ?? $currencyCode;
     }
 
     /**
