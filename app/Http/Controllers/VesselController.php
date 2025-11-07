@@ -113,7 +113,17 @@ class VesselController extends BaseController
         }
 
         try {
-            $vessel = Vessel::create($request->validated());
+            $vessel = Vessel::create([
+                'name' => $request->name,
+                'registration_number' => $request->registration_number,
+                'vessel_type' => $request->vessel_type,
+                'capacity' => $request->capacity,
+                'year_built' => $request->year_built,
+                'status' => $request->status,
+                'notes' => $request->notes,
+                'country_code' => $request->country_code,
+                'currency_code' => $request->currency_code,
+            ]);
 
             // Assign the vessel to the current user as administrator (owner)
             $user = auth()->user();
@@ -203,7 +213,17 @@ class VesselController extends BaseController
     public function update(UpdateVesselRequest $request, Vessel $vessel)
     {
         try {
-            $vessel->update($request->validated());
+            $vessel->update([
+                'name' => $request->name,
+                'registration_number' => $request->registration_number,
+                'vessel_type' => $request->vessel_type,
+                'capacity' => $request->capacity,
+                'year_built' => $request->year_built,
+                'status' => $request->status,
+                'notes' => $request->notes,
+                'country_code' => $request->country_code,
+                'currency_code' => $request->currency_code,
+            ]);
 
             return redirect()
                 ->route('panel.index')

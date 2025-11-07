@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\General\DetectCountryFromIbanAction;
 use App\Http\Requests\StoreBankAccountRequest;
 use App\Http\Requests\UpdateBankAccountRequest;
 use App\Http\Resources\BankAccountResource;
@@ -116,11 +117,23 @@ class BankAccountController extends Controller
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
 
-            // Add vessel_id to validated data
-            $data = $request->validated();
-            $data['vessel_id'] = $vesselId;
+            // Auto-detect country from IBAN if provided
+            $countryId = null;
+            if (!empty($request->iban)) {
+                $countryId = DetectCountryFromIbanAction::execute($request->iban);
+            }
 
-            $bankAccount = BankAccount::create($data);
+            $bankAccount = BankAccount::create([
+                'name' => $request->name,
+                'bank_name' => $request->bank_name,
+                'account_number' => $request->account_number,
+                'iban' => $request->iban,
+                'country_id' => $countryId ?? $request->country_id,
+                'vessel_id' => $vesselId,
+                'initial_balance' => $request->initial_balance ?? 0,
+                'status' => $request->status,
+                'notes' => $request->notes,
+            ]);
 
             return redirect()
                 ->route('panel.bank-accounts.index', ['vessel' => $vesselId])
@@ -194,7 +207,22 @@ class BankAccountController extends Controller
                 abort(403, 'Unauthorized access to bank account.');
             }
 
-            $bankAccount->update($request->validated());
+            // Auto-detect country from IBAN if provided
+            $countryId = null;
+            if (!empty($request->iban)) {
+                $countryId = DetectCountryFromIbanAction::execute($request->iban);
+            }
+
+            $bankAccount->update([
+                'name' => $request->name,
+                'bank_name' => $request->bank_name,
+                'account_number' => $request->account_number,
+                'iban' => $request->iban,
+                'country_id' => $countryId ?? $request->country_id,
+                'initial_balance' => $request->initial_balance ?? $bankAccount->initial_balance ?? 0,
+                'status' => $request->status,
+                'notes' => $request->notes,
+            ]);
 
             return redirect()
                 ->route('panel.bank-accounts.index', ['vessel' => $vesselId])

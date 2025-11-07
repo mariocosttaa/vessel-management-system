@@ -62,11 +62,14 @@ class SupplierController extends Controller
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
 
-            // Add vessel_id to validated data
-            $data = $request->validated();
-            $data['vessel_id'] = $vesselId;
-
-            $supplier = Supplier::create($data);
+            $supplier = Supplier::create([
+                'company_name' => $request->company_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'notes' => $request->notes,
+                'vessel_id' => $vesselId,
+            ]);
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
@@ -104,7 +107,13 @@ class SupplierController extends Controller
                 abort(403, 'Unauthorized access to supplier.');
             }
 
-            $supplier->update($request->validated());
+            $supplier->update([
+                'company_name' => $request->company_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'notes' => $request->notes,
+            ]);
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
