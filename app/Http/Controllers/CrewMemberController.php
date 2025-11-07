@@ -124,22 +124,16 @@ class CrewMemberController extends Controller
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
 
-            // Add vessel_id to validated data
-            $data = $request->validated();
-            $data['vessel_id'] = $vesselId;
-
-            // Create new user as crew member
+            // Handle password
+            $password = null;
+            $temporaryPassword = null;
             if ($request->login_permitted && $request->password) {
-                $data['password'] = bcrypt($request->password);
-                $data['temporary_password'] = null;
+                $password = bcrypt($request->password);
+                $temporaryPassword = null;
             } else {
-                $data['password'] = bcrypt('temp_' . time());
-                $data['temporary_password'] = 'temp_' . time();
+                $password = bcrypt('temp_' . time());
+                $temporaryPassword = 'temp_' . time();
             }
-            $data['user_type'] = 'employee_of_vessel';
-
-            // Remove skip_salary from user data
-            unset($data['skip_salary']);
 
             // Only create salary compensation if salary is not skipped
             $skipSalary = $request->boolean('skip_salary') ?? false;
@@ -149,19 +143,29 @@ class CrewMemberController extends Controller
                 // Extract salary compensation data
                 // Note: fixed_amount comes from MoneyInput as integer (cents), no conversion needed
                 $salaryData = [
-                    'compensation_type' => $data['compensation_type'],
-                    'fixed_amount' => $data['compensation_type'] === 'fixed' ? (int) $data['fixed_amount'] : null,
-                    'percentage' => $data['compensation_type'] === 'percentage' ? $data['percentage'] : null,
-                    'currency' => $data['currency'],
-                    'payment_frequency' => $data['payment_frequency'],
+                    'compensation_type' => $request->compensation_type,
+                    'fixed_amount' => $request->compensation_type === 'fixed' ? (int) $request->fixed_amount : null,
+                    'percentage' => $request->compensation_type === 'percentage' ? $request->percentage : null,
+                    'currency' => $request->currency,
+                    'payment_frequency' => $request->payment_frequency,
                     'is_active' => true,
                 ];
             }
 
-            // Remove salary fields from user data
-            unset($data['compensation_type'], $data['fixed_amount'], $data['percentage'], $data['currency'], $data['payment_frequency']);
-
-            $crewMember = User::create($data);
+            $crewMember = User::create([
+                'position_id' => $request->position_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'date_of_birth' => $request->date_of_birth,
+                'hire_date' => $request->hire_date,
+                'status' => $request->status,
+                'notes' => $request->notes,
+                'vessel_id' => $vesselId,
+                'password' => $password,
+                'temporary_password' => $temporaryPassword,
+                'user_type' => 'employee_of_vessel',
+            ]);
 
             // Create salary compensation only if not skipped
             if (!$skipSalary && $salaryData) {
@@ -238,31 +242,37 @@ class CrewMemberController extends Controller
                 abort(403, 'Unauthorized access to crew member.');
             }
 
-            $data = $request->validated();
-
             // Handle password update
+            $updateData = [
+                'position_id' => $request->position_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'date_of_birth' => $request->date_of_birth,
+                'hire_date' => $request->hire_date,
+                'status' => $request->status,
+                'notes' => $request->notes,
+            ];
+
             if ($request->login_permitted && $request->password) {
-                $data['password'] = bcrypt($request->password);
-                $data['temporary_password'] = null;
+                $updateData['password'] = bcrypt($request->password);
+                $updateData['temporary_password'] = null;
             } elseif (!$request->login_permitted) {
-                $data['temporary_password'] = 'temp_' . time();
+                $updateData['temporary_password'] = 'temp_' . time();
             }
 
             // Extract salary compensation data
             // Note: fixed_amount comes from MoneyInput as integer (cents), no conversion needed
             $salaryData = [
-                'compensation_type' => $data['compensation_type'],
-                'fixed_amount' => $data['compensation_type'] === 'fixed' ? (int) $data['fixed_amount'] : null,
-                'percentage' => $data['compensation_type'] === 'percentage' ? $data['percentage'] : null,
-                'currency' => $data['currency'],
-                'payment_frequency' => $data['payment_frequency'],
+                'compensation_type' => $request->compensation_type,
+                'fixed_amount' => $request->compensation_type === 'fixed' ? (int) $request->fixed_amount : null,
+                'percentage' => $request->compensation_type === 'percentage' ? $request->percentage : null,
+                'currency' => $request->currency,
+                'payment_frequency' => $request->payment_frequency,
                 'is_active' => true,
             ];
 
-            // Remove salary fields from user data
-            unset($data['compensation_type'], $data['fixed_amount'], $data['percentage'], $data['currency'], $data['payment_frequency']);
-
-            $crewMember->update($data);
+            $crewMember->update($updateData);
 
             // Update or create salary compensation
             $crewMember->salaryCompensations()->updateOrCreate(
