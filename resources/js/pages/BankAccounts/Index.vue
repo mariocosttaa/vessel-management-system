@@ -81,16 +81,12 @@ const selectedBankAccount = ref<BankAccount | null>(null);
 const sortField = ref(props.filters.sort || 'created_at');
 const sortDirection = ref(props.filters.direction || 'desc');
 
-// Data table configuration
+// Data table configuration - reduced columns since we have show modal
 const columns = [
     { key: 'name', label: 'Account Name', sortable: true },
     { key: 'bank_name', label: 'Bank', sortable: true },
-    { key: 'account_number', label: 'Account Number', sortable: false },
-    { key: 'iban', label: 'IBAN', sortable: false },
-    { key: 'country', label: 'Country', sortable: false },
     { key: 'formatted_current_balance', label: 'Current Balance', sortable: true },
     { key: 'status_label', label: 'Status', sortable: true },
-    { key: 'created_at', label: 'Created', sortable: true },
 ];
 
 const actions = computed(() => {
@@ -156,7 +152,7 @@ const closeModals = () => {
 // CRUD operations
 const deleteBankAccount = (bankAccount: BankAccount) => {
     if (confirm(`Are you sure you want to delete the bank account '${bankAccount.name}'? This will permanently remove the bank account and all its data.`)) {
-        router.delete(bankAccounts.destroy.url({ bankAccount: bankAccount.id }), {
+        router.delete(bankAccounts.destroy.url({ vessel: getCurrentVesselId(), bankAccount: bankAccount.id }), {
             onSuccess: () => {
                 addNotification({
                     type: 'success',

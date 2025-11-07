@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ref, watch } from 'vue';
+import bankAccountsApi from '@/routes/panel/api/bank-accounts';
 
 interface Country {
     id: number;
@@ -36,6 +37,13 @@ const emit = defineEmits<{
     close: [];
 }>();
 
+// Get current vessel ID from URL
+const getCurrentVesselId = () => {
+    const path = window.location.pathname;
+    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    return vesselMatch ? vesselMatch[1] : '1';
+};
+
 // State for detailed bank account data
 const detailedBankAccount = ref<BankAccount | null>(null);
 const loading = ref(false);
@@ -46,7 +54,8 @@ const fetchBankAccountDetails = async () => {
     loading.value = true;
     error.value = null;
 
-    const url = `/api/bank-accounts/${props.bankAccount.id}/details`;
+    const vesselId = getCurrentVesselId();
+    const url = bankAccountsApi.details.url({ vessel: vesselId, bankAccount: props.bankAccount.id });
 
     try {
         const response = await fetch(url, {

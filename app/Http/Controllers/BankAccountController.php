@@ -144,7 +144,7 @@ class BankAccountController extends Controller
     /**
      * Get bank account details for modal display (API endpoint)
      */
-    public function details(BankAccount $bankAccount)
+    public function details($vessel, BankAccount $bankAccount)
     {
         $bankAccount->load('country');
 
