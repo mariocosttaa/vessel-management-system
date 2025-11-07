@@ -23,12 +23,17 @@ class MoneyAction
             // se n tiver, procura na db
             if (! $currencyGet) {
                 $currencyGet = Currency::where('code', $currency)->first();
-                $decimalPlaces = $currencyGet->decimal_separator;
+                $decimalPlaces = $currencyGet?->decimal_separator ?? 2;
 
             } else {
                 $decimalPlaces = $currencyGet->decimal_separator;
             }
 
+        }
+
+        // Default to 2 decimal places if not set
+        if ($decimalPlaces === null) {
+            $decimalPlaces = 2;
         }
 
         // Adiciona ponto antes das últimas casas decimais
@@ -43,9 +48,10 @@ class MoneyAction
             // se n tiver, procura na db
             if (! $currencyGet) {
                 $currencyGet = Currency::where('code', $currency)->first();
-                $formattedAmount = $currencyGet->symbol.' '.$formattedAmount;
+            }
 
-            } else {
+            // Only add symbol if currency was found
+            if ($currencyGet) {
                 $formattedAmount = $currencyGet->symbol.' '.$formattedAmount;
             }
 
