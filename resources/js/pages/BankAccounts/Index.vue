@@ -8,6 +8,7 @@ import Pagination from '@/components/ui/Pagination.vue';
 import BankAccountCreateModal from '@/components/modals/BankAccount/create.vue';
 import BankAccountUpdateModal from '@/components/modals/BankAccount/update.vue';
 import BankAccountShowModal from '@/components/modals/BankAccount/show.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { Button } from '@/components/ui/button';
 import { Plus, Eye, Edit, Trash2 } from 'lucide-vue-next';
 import { usePermissions } from '@/composables/usePermissions';
@@ -76,6 +77,11 @@ const showCreateModal = ref(false);
 const showUpdateModal = ref(false);
 const showShowModal = ref(false);
 const selectedBankAccount = ref<BankAccount | null>(null);
+
+// Confirmation dialog state
+const showDeleteDialog = ref(false);
+const bankAccountToDelete = ref<BankAccount | null>(null);
+const isDeleting = ref(false);
 
 // Sorting
 const sortField = ref(props.filters.sort || 'created_at');
@@ -151,22 +157,40 @@ const closeModals = () => {
 
 // CRUD operations
 const deleteBankAccount = (bankAccount: BankAccount) => {
-    if (confirm(`Are you sure you want to delete the bank account '${bankAccount.name}'? This will permanently remove the bank account and all its data.`)) {
-        router.delete(bankAccounts.destroy.url({ vessel: getCurrentVesselId(), bankAccount: bankAccount.id }), {
-            onSuccess: () => {
-                addNotification({
-                    type: 'success',
-                    message: `Bank account '${bankAccount.name}' has been deleted successfully.`,
-                });
-            },
-            onError: () => {
-                addNotification({
-                    type: 'error',
-                    message: 'Failed to delete bank account. Please try again.',
-                });
-            },
-        });
-    }
+    bankAccountToDelete.value = bankAccount;
+    showDeleteDialog.value = true;
+};
+
+const confirmDelete = () => {
+    if (!bankAccountToDelete.value) return;
+
+    const bankAccountName = bankAccountToDelete.value.name;
+    isDeleting.value = true;
+
+    router.delete(bankAccounts.destroy.url({ vessel: getCurrentVesselId(), bankAccount: bankAccountToDelete.value.id }), {
+        onSuccess: () => {
+            showDeleteDialog.value = false;
+            bankAccountToDelete.value = null;
+            isDeleting.value = false;
+            addNotification({
+                type: 'success',
+                message: `Bank account '${bankAccountName}' has been deleted successfully.`,
+            });
+        },
+        onError: () => {
+            isDeleting.value = false;
+            addNotification({
+                type: 'error',
+                message: 'Failed to delete bank account. Please try again.',
+            });
+        },
+    });
+};
+
+const cancelDelete = () => {
+    showDeleteDialog.value = false;
+    bankAccountToDelete.value = null;
+    isDeleting.value = false;
 };
 
 // Sorting
@@ -358,6 +382,21 @@ const clearFilters = () => {
             :open="showShowModal"
             :bank-account="selectedBankAccount"
             @close="closeModals"
+        />
+
+        <!-- Confirmation Dialog -->
+        <ConfirmationDialog
+            v-model:open="showDeleteDialog"
+            title="Delete Bank Account"
+            description="This action cannot be undone."
+            :message="`Are you sure you want to delete the bank account '${bankAccountToDelete?.name}'? This will permanently remove the bank account and all its data.`"
+            confirm-text="Delete Bank Account"
+            cancel-text="Cancel"
+            variant="destructive"
+            type="danger"
+            :loading="isDeleting"
+            @confirm="confirmDelete"
+            @cancel="cancelDelete"
         />
     </VesselLayout>
 </template>
