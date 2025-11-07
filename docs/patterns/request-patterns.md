@@ -594,39 +594,51 @@ class PanelClientCreateRequest extends FormRequest {
 
 ## Authorization Logic
 
-### Policy-Based Authorization
+### Vessel-Based Authorization
+
+All requests must implement vessel-specific authorization using the vessel ID from the route parameter:
+
 ```php
 public function authorize(): bool
 {
-    return $this->user()->can('create', Transaction::class);
+    // Get vessel ID from route parameter
+    $vesselId = $this->route('vessel');
+    
+    // Check if user has admin or supervisor role for this specific vessel
+    return $this->user()?->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']) ?? false;
 }
 
 // For update requests
 public function authorize(): bool
 {
-    return $this->user()->can('update', $this->route('transaction'));
+    $vesselId = $this->route('vessel');
+    
+    // Check if user has admin or supervisor role for this specific vessel
+    return $this->user()?->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']) ?? false;
 }
 ```
 
-### Role-Based Authorization
+### Vessel-Specific Role Authorization
+
 ```php
 public function authorize(): bool
 {
-    return $this->user()->hasRole(['admin', 'manager']);
-}
-
-// Or more specific
-public function authorize(): bool
-{
-    if ($this->user()->hasRole('admin')) {
-        return true;
+    $vesselId = $this->route('vessel');
+    
+    // Different permissions based on vessel role
+    if ($this->user()?->hasRoleForVessel($vesselId, 'Administrator')) {
+        return true; // Full access
     }
     
-    if ($this->user()->hasRole('manager')) {
-        return $this->type !== 'transfer'; // Managers can't create transfers
+    if ($this->user()?->hasRoleForVessel($vesselId, 'Supervisor')) {
+        return $this->type !== 'transfer'; // Supervisors can't create transfers
     }
     
-    return false;
+    if ($this->user()?->hasRoleForVessel($vesselId, 'Moderator')) {
+        return false; // Moderators can't create, only edit
+    }
+    
+    return false; // Normal users have no create access
 }
 ```
 

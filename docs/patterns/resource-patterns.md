@@ -333,6 +333,30 @@ public function toArray(Request $request): array
 }
 ```
 
+### Using whenLoaded with Closures (Recommended Pattern)
+```php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->id,
+        'name' => $this->name,
+        
+        // Use closures to ensure proper resource instantiation
+        'country' => $this->whenLoaded('country', function () {
+            return new CountryResource($this->country);
+        }),
+        'vessel' => $this->whenLoaded('vessel', function () {
+            return new VesselResource($this->vessel);
+        }),
+        'category' => $this->whenLoaded('category', function () {
+            return new TransactionCategoryResource($this->category);
+        }),
+    ];
+}
+```
+
+**Why use closures?** Closures ensure that the resource is only instantiated when the relationship is actually loaded, preventing errors when the relationship is null or not loaded.
+
 ### Using when for Conditional Fields
 ```php
 public function toArray(Request $request): array
