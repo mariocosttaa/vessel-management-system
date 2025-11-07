@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import BaseModal from '../BaseModal.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
-import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import bankAccounts from '@/routes/panel/bank-accounts';
 
@@ -25,6 +23,7 @@ interface BankAccount {
     iban: string | null;
     country_id: number | null;
     initial_balance: number;
+    status: string;
     notes: string | null;
 }
 
@@ -41,6 +40,7 @@ interface Props {
     bankAccount: BankAccount;
     countries: Country[];
     currencies: Currency[];
+    statuses: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -57,124 +57,81 @@ const vesselCurrency = computed(() => {
     return (page.props.auth as any)?.current_vessel?.currency_code || 'EUR';
 });
 
-// Loading state
-const loading = ref(false);
-const error = ref<string | null>(null);
-const detailedBankAccount = ref<BankAccount | null>(null);
-
-// Checkbox states
-const useIban = ref(true);
-const useAccountNumber = ref(false);
-const hasInitialBalance = ref(false);
+// Get current vessel ID from URL
+const getCurrentVesselId = () => {
+    const path = window.location.pathname;
+    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    return vesselMatch ? vesselMatch[1] : '1';
+};
 
 const form = useForm({
     name: '',
     bank_name: '',
-    account_number: '',
-    iban: '',
-    country_id: null as number | null,
-    initial_balance: null as number | null,
+    status: 'active',
     notes: '',
 });
 
-// Computed properties
-const showIbanField = computed(() => useIban.value);
-const showAccountNumberField = computed(() => useAccountNumber.value);
-const showInitialBalanceField = computed(() => hasInitialBalance.value);
+// Store read-only account information
+const accountInfo = ref<{
+    iban: string | null;
+    account_number: string | null;
+    country_id: number | null;
+    country_name: string | null;
+}>({
+    iban: null,
+    account_number: null,
+    country_id: null,
+    country_name: null,
+});
 
-// Fetch bank account details from API
-const fetchBankAccountDetails = async () => {
-    loading.value = true;
-    error.value = null;
+// API URL for fetching bank account details
+const apiUrl = computed(() => {
+    const vesselId = getCurrentVesselId();
+    return `/panel/${vesselId}/api/bank-accounts/${props.bankAccount.id}/details`;
+});
 
-    const url = `/api/bank-accounts/${props.bankAccount.id}/details`;
+// Handle data loaded from API
+const handleDataLoaded = (data: any) => {
+    if (data?.bankAccount) {
+        const bankAccount = data.bankAccount;
 
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            },
-            credentials: 'same-origin',
-        });
+        // Populate form with editable data only
+        form.name = bankAccount.name;
+        form.bank_name = bankAccount.bank_name;
+        form.status = bankAccount.status;
+        form.notes = bankAccount.notes || '';
+        form.clearErrors();
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch bank account details');
-        }
+        // Store read-only account information for display
+        const country = bankAccount.country_id
+            ? props.countries.find((c: Country) => c.id === bankAccount.country_id)
+            : null;
 
-        const data = await response.json();
-        detailedBankAccount.value = data.bankAccount;
-
-        // Populate form with detailed data
-        populateForm(data.bankAccount);
-    } catch (err) {
-        error.value = 'Failed to load bank account details';
-        console.error('Error fetching bank account details:', err);
-    } finally {
-        loading.value = false;
+        accountInfo.value = {
+            iban: bankAccount.iban || null,
+            account_number: bankAccount.account_number || null,
+            country_id: bankAccount.country_id || null,
+            country_name: country?.name || null,
+        };
     }
 };
-
-// Populate form with bank account data
-const populateForm = (bankAccount: BankAccount) => {
-    form.name = bankAccount.name;
-    form.bank_name = bankAccount.bank_name;
-    form.account_number = bankAccount.account_number || '';
-    form.iban = bankAccount.iban || '';
-    form.country_id = bankAccount.country_id;
-    form.initial_balance = bankAccount.initial_balance; // Already in cents from API
-    form.notes = bankAccount.notes || '';
-    form.clearErrors();
-
-    // Set checkbox states based on existing data
-    useIban.value = !!bankAccount.iban;
-    useAccountNumber.value = !!bankAccount.account_number;
-    hasInitialBalance.value = bankAccount.initial_balance > 0;
-};
-
-// Watch for modal open to fetch details
-watch(() => props.open, async (isOpen) => {
-    if (isOpen && props.bankAccount) {
-        await fetchBankAccountDetails();
-    } else {
-        // Reset state when modal closes
-        detailedBankAccount.value = null;
-        error.value = null;
-    }
-}, { immediate: true });
 
 const submit = () => {
-    // Clear fields based on checkbox selection
-    if (!useIban.value) {
-        form.iban = '';
-    }
-    if (!useAccountNumber.value) {
-        form.account_number = '';
-    }
-    if (!hasInitialBalance.value) {
-        form.initial_balance = null;
-    }
-
-    // Get current vessel ID from URL
-    const getCurrentVesselId = () => {
-        const path = window.location.pathname;
-        const vesselMatch = path.match(/\/panel\/(\d+)/);
-        return vesselMatch ? vesselMatch[1] : '1';
-    };
-
-    form.put(bankAccounts.update.url({ vessel: getCurrentVesselId(), bankAccount: props.bankAccount.id }), {
+    const vesselId = getCurrentVesselId();
+    form.put(bankAccounts.update.url({ vessel: vesselId, bankAccount: props.bankAccount.id }), {
         onSuccess: () => {
             addNotification({
                 type: 'success',
+                title: 'Success',
                 message: `Bank account '${form.name}' has been updated successfully.`,
             });
             emit('success');
+            emit('close');
         },
         onError: () => {
             addNotification({
                 type: 'error',
+                title: 'Error',
                 message: 'Failed to update bank account. Please try again.',
             });
         },
@@ -183,32 +140,19 @@ const submit = () => {
 </script>
 
 <template>
-    <Dialog :open="open" @update:open="emit('close')">
-        <DialogContent class="max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Edit Bank Account</DialogTitle>
-            </DialogHeader>
-
-            <!-- Loading State -->
-            <div v-if="loading" class="flex items-center justify-center py-8">
-                <div class="flex items-center space-x-2">
-                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    <span class="text-muted-foreground">Loading bank account details...</span>
-                </div>
-            </div>
-
-            <!-- Error State -->
-            <div v-else-if="error" class="flex items-center justify-center py-8">
-                <div class="text-center">
-                    <p class="text-red-600 mb-4">{{ error }}</p>
-                    <Button @click="fetchBankAccountDetails" variant="outline">
-                        Try Again
-                    </Button>
-                </div>
-            </div>
-
-            <!-- Form Content -->
-            <form v-else @submit.prevent="submit" class="space-y-6" :class="{ 'blur-sm pointer-events-none': loading }">
+    <BaseModal
+        :open="open"
+        title="Edit Bank Account"
+        size="2xl"
+        :api-url="apiUrl"
+        :enable-lazy-loading="true"
+        confirm-text="Update"
+        @close="emit('close')"
+        @confirm="submit"
+        @data-loaded="handleDataLoaded"
+    >
+        <template #default>
+            <form @submit.prevent="submit" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Account Name -->
                     <div class="space-y-2">
@@ -237,82 +181,32 @@ const submit = () => {
                     </div>
                 </div>
 
-                <!-- Account Information Checkboxes -->
-                <div class="space-y-4">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                id="use_iban"
-                                v-model="useIban"
-                                class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                            />
-                            <Label for="use_iban" class="text-sm font-medium cursor-pointer">Use IBAN</Label>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                id="use_account_number"
-                                v-model="useAccountNumber"
-                                class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                            />
-                            <Label for="use_account_number" class="text-sm font-medium cursor-pointer">Use Account Number</Label>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Account Number -->
-                        <div class="space-y-2" v-if="showAccountNumberField">
-                            <Label for="account_number">Account Number</Label>
-                            <Input
-                                id="account_number"
-                                v-model="form.account_number"
-                                type="text"
-                                placeholder="e.g., 1234567890"
-                                :class="{ 'border-red-500': form.errors.account_number }"
-                            />
-                            <InputError :message="form.errors.account_number" />
-                        </div>
-
-                        <!-- IBAN -->
-                        <div class="space-y-2" v-if="showIbanField">
-                            <Label for="iban">IBAN</Label>
-                            <Input
-                                id="iban"
-                                v-model="form.iban"
-                                type="text"
-                                placeholder="e.g., PT50 0000 0000 0000 0000 0000 0"
-                                :class="{ 'border-red-500': form.errors.iban }"
-                            />
-                            <InputError :message="form.errors.iban" />
-                        </div>
-                    </div>
+                <!-- Account Information Notice -->
+                <div class="p-3 bg-muted rounded-md border border-border">
+                    <p class="text-sm text-muted-foreground">
+                        <strong class="text-foreground">Note:</strong> IBAN and Account Number cannot be changed.
+                        If you need to update this information, please contact support or delete this account and create a new one.
+                    </p>
                 </div>
 
-
-                <!-- Initial Balance -->
-                <div class="space-y-4">
-                    <div class="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            id="has_initial_balance"
-                            v-model="hasInitialBalance"
-                            class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        />
-                        <Label for="has_initial_balance" class="text-sm font-medium cursor-pointer">Set Initial Balance</Label>
-                    </div>
-
-                    <div v-if="showInitialBalanceField">
-                        <MoneyInputWithLabel
-                            v-model="form.initial_balance"
-                            label="Initial Balance"
-                            :currency="vesselCurrency"
-                            placeholder="0,00"
-                            :error="form.errors.initial_balance"
-                            :show-currency="false"
-                            return-type="int"
-                        />
-                    </div>
+                <!-- Status -->
+                <div class="space-y-2">
+                    <Label for="status">Status *</Label>
+                    <select
+                        id="status"
+                        v-model="form.status"
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
+                    >
+                        <option
+                            v-for="(label, value) in statuses"
+                            :key="value"
+                            :value="value"
+                        >
+                            {{ label }}
+                        </option>
+                    </select>
+                    <InputError :message="form.errors.status" />
                 </div>
 
                 <!-- Notes -->
@@ -329,16 +223,7 @@ const submit = () => {
                     <InputError :message="form.errors.notes" />
                 </div>
 
-                <!-- Actions -->
-                <div class="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" @click="emit('close')">
-                        Cancel
-                    </Button>
-                    <Button type="submit" :disabled="form.processing">
-                        {{ form.processing ? 'Updating...' : 'Update Bank Account' }}
-                    </Button>
-                </div>
             </form>
-        </DialogContent>
-    </Dialog>
+        </template>
+    </BaseModal>
 </template>

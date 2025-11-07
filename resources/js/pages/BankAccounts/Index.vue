@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
 import DataTable from '@/components/ui/DataTable.vue';
 import Pagination from '@/components/ui/Pagination.vue';
@@ -148,10 +148,13 @@ const openShowModal = (bankAccount: BankAccount) => {
     showShowModal.value = true
 }
 
-const closeModals = () => {
+const closeModals = async () => {
+    // Reset modal states
     showCreateModal.value = false;
     showUpdateModal.value = false;
     showShowModal.value = false;
+    // Use nextTick to ensure selectedBankAccount is cleared after DOM updates
+    await nextTick();
     selectedBankAccount.value = null;
 };
 
@@ -174,6 +177,7 @@ const confirmDelete = () => {
             isDeleting.value = false;
             addNotification({
                 type: 'success',
+                title: 'Success',
                 message: `Bank account '${bankAccountName}' has been deleted successfully.`,
             });
         },
@@ -181,6 +185,7 @@ const confirmDelete = () => {
             isDeleting.value = false;
             addNotification({
                 type: 'error',
+                title: 'Error',
                 message: 'Failed to delete bank account. Please try again.',
             });
         },
