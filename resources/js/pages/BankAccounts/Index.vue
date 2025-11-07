@@ -207,7 +207,10 @@ const handleSort = (field: string) => {
         sortDirection.value = 'asc';
     }
 
-    router.get(bankAccounts.index.url(), {
+    router.get(bankAccounts.index.url({ vessel: getCurrentVesselId() }), {
+        search: search.value || undefined,
+        status: statusFilter.value || undefined,
+        country_id: countryFilter.value || undefined,
         sort: sortField.value,
         direction: sortDirection.value,
     }, {
@@ -222,10 +225,10 @@ const statusFilter = ref(props.filters.status || '');
 const countryFilter = ref(props.filters.country_id || '');
 
 const applyFilters = () => {
-    router.get(bankAccounts.index.url(), {
+    router.get(bankAccounts.index.url({ vessel: getCurrentVesselId() }), {
         search: search.value || undefined,
         status: statusFilter.value || undefined,
-        country_id: countryFilter.value || undefined,
+        country_id: countryFilter.value ? Number(countryFilter.value) : undefined,
         sort: sortField.value,
         direction: sortDirection.value,
     }, {
