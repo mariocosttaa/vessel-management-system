@@ -21,7 +21,6 @@ use Illuminate\Validation\Rule;
  * @property string|null $iban
  * @property int|null $country_id
  * @property int $initial_balance
- * @property string $status
  * @property string|null $notes
  *
  * Magic/inherited methods (MANDATORY):
@@ -47,8 +46,9 @@ class UpdateBankAccountRequest extends FormRequest
         // Get vessel ID from route parameter
         $vesselId = $this->route('vessel');
 
-        // Check if user has admin or manager role for this specific vessel
-        return $this->user()?->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']) ?? false;
+        // Check if user has permission to edit bank accounts for this vessel
+        // Administrator, Supervisor, and Moderator can edit bank accounts
+        return $this->user()?->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor', 'Moderator']) ?? false;
     }
 
     /**
@@ -73,7 +73,6 @@ class UpdateBankAccountRequest extends FormRequest
             ],
             'country_id' => ['nullable', 'integer', Rule::exists(Country::class, 'id')],
             'initial_balance' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', 'in:active,inactive'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -93,9 +92,9 @@ class UpdateBankAccountRequest extends FormRequest
                 $validator->errors()->add('account_number', 'Either IBAN or Account Number must be provided.');
             }
 
-            // If account_number is provided (and not IBAN), country_id is required
+            // If account_number is provided (and not IBAN), country_id is mandatory
             if (!empty($this->account_number) && empty($this->iban) && empty($this->country_id)) {
-                $validator->errors()->add('country_id', 'Country is required when using Account Number.');
+                $validator->errors()->add('country_id', 'Country is required when using Account Number. Please select a country from the dropdown.');
             }
         });
     }
@@ -115,7 +114,6 @@ class UpdateBankAccountRequest extends FormRequest
             'country_id.exists' => 'The selected country is invalid.',
             'initial_balance.numeric' => 'The initial balance must be a valid number.',
             'initial_balance.min' => 'The initial balance must be at least 0.',
-            'status.required' => 'Please select a status.',
         ];
     }
 
@@ -125,7 +123,6 @@ class UpdateBankAccountRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $data = [
-            'status' => $this->status ?? 'active',
             'name' => trim($this->name),
             'bank_name' => trim($this->bank_name),
             'account_number' => $this->account_number ? trim($this->account_number) : null,
@@ -140,19 +137,10 @@ class UpdateBankAccountRequest extends FormRequest
             $data['initial_balance'] = $bankAccount->initial_balance ?? 0;
         }
 
-        // Normalize IBAN and auto-detect country
+        // Normalize IBAN (country detection is done in controller)
         if ($this->iban) {
             $iban = strtoupper(preg_replace('/\s+/', '', trim($this->iban)));
             $data['iban'] = $iban;
-
-            // Auto-detect country from IBAN if not provided
-            if (!$this->filled('country_id') && strlen($iban) >= 2) {
-                $countryCode = substr($iban, 0, 2);
-                $country = Country::byCode($countryCode)->first();
-                if ($country) {
-                    $data['country_id'] = $country->id;
-                }
-            }
         }
 
         $this->merge($data);
@@ -164,6 +152,17 @@ class UpdateBankAccountRequest extends FormRequest
             return MoneyAction::sanitize($value);
         }
 
-        return (int) round((float) $value * 100); // Convert to cents for numeric input
+        // If it's already an integer, it's already in cents (from MoneyInput with return-type="int")
+        if (is_int($value)) {
+            return $value;
+        }
+
+        // If it's a float, convert to cents
+        if (is_float($value)) {
+            return (int) round($value * 100);
+        }
+
+        // Default: treat as integer (already in cents)
+        return (int) $value;
     }
 }
