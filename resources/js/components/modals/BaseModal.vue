@@ -156,6 +156,9 @@ const handleConfirm = () => {
                 <DialogDescription v-if="description">
                     {{ description }}
                 </DialogDescription>
+                <DialogDescription v-else class="sr-only">
+                    {{ title }} dialog
+                </DialogDescription>
             </DialogHeader>
 
             <!-- API Loading State -->
