@@ -8,32 +8,45 @@ use App\Models\Vessel;
 abstract class BaseController extends Controller
 {
     /**
-     * Get the current vessel from route parameter.
+     * Get the current vessel from request attributes (set by EnsureVesselAccess middleware).
+     * This is the preferred method as it uses the vessel already validated and loaded by middleware.
      */
-    protected function getCurrentVessel(): Vessel
+    protected function getCurrentVessel(Request $request = null): Vessel
     {
-        $vesselId = request()->route('vessel');
+        $request = $request ?? request();
 
-        if (!$vesselId) {
-            abort(403, 'No vessel specified.');
-        }
+        // Get vessel from request attributes (set by EnsureVesselAccess middleware)
+        $vessel = $request->attributes->get('vessel');
 
-        $vessel = Vessel::findOrFail($vesselId);
-
-        // Verify user still has access
-        if (!auth()->user()->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+        if (!$vessel) {
+            // Fallback to route parameter if attributes not set (shouldn't happen with proper middleware)
+            $vesselId = $request->route('vessel');
+            if (!$vesselId) {
+                abort(403, 'No vessel specified.');
+            }
+            $vessel = Vessel::findOrFail($vesselId);
         }
 
         return $vessel;
     }
 
     /**
-     * Get current vessel ID.
+     * Get current vessel ID from request attributes (set by EnsureVesselAccess middleware).
+     * This is the preferred method as it uses the vessel_id already validated by middleware.
      */
-    protected function getCurrentVesselId(): int
+    protected function getCurrentVesselId(Request $request = null): int
     {
-        return $this->getCurrentVessel()->id;
+        $request = $request ?? request();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = $request->attributes->get('vessel_id');
+
+        if (!$vesselId) {
+            // Fallback to getting from vessel model
+            return $this->getCurrentVessel($request)->id;
+        }
+
+        return $vesselId;
     }
 
     /**
@@ -41,7 +54,12 @@ abstract class BaseController extends Controller
      */
     protected function getCurrentVesselRole(): string
     {
-        return auth()->user()->getRoleForVessel($this->getCurrentVesselId()) ?? 'viewer';
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        if (!$user) {
+            return 'viewer';
+        }
+        return $user->getRoleForVessel($this->getCurrentVesselId()) ?? 'viewer';
     }
 
     /**
