@@ -78,8 +78,10 @@ const initializeDisplayValue = () => {
     return
   }
 
-  // Show currency symbol when not focused
-  const formattedValue = formatCurrency(props.modelValue, props.currency, props.decimals, props.locale)
+  // Format based on showCurrency prop - use formatCurrencyWithoutSymbol when false
+  const formattedValue = props.showCurrency
+    ? formatCurrency(props.modelValue, props.currency, props.decimals, props.locale)
+    : formatCurrencyWithoutSymbol(props.modelValue, props.decimals, props.locale)
   displayValue.value = formattedValue
 }
 
@@ -98,11 +100,13 @@ const handleFocus = () => {
 const handleBlur = () => {
   isEditing.value = false
 
-  // Ensure the value is properly formatted on blur with currency symbol
+  // Ensure the value is properly formatted on blur
   if (displayValue.value && displayValue.value.trim() !== '') {
     const numericValue = extractNumericValue(displayValue.value, props.decimals)
     if (numericValue !== null) {
-      const formattedValue = formatCurrency(numericValue, props.currency, props.decimals, props.locale)
+      const formattedValue = props.showCurrency
+        ? formatCurrency(numericValue, props.currency, props.decimals, props.locale)
+        : formatCurrencyWithoutSymbol(numericValue, props.decimals, props.locale)
       displayValue.value = formattedValue
     }
   }
@@ -126,8 +130,10 @@ const handleInput = (event: Event) => {
   if (numericValue !== null) {
     const formValue = convertToFormValue(numericValue, props.returnType, props.decimals)
 
-    // Always format the display value while typing with currency symbol
-    const formattedValue = formatCurrency(numericValue, props.currency, props.decimals, props.locale)
+    // Format the display value while typing based on showCurrency prop
+    const formattedValue = props.showCurrency
+      ? formatCurrency(numericValue, props.currency, props.decimals, props.locale)
+      : formatCurrencyWithoutSymbol(numericValue, props.decimals, props.locale)
     displayValue.value = formattedValue
 
     emit('update:modelValue', numericValue)

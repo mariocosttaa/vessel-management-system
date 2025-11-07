@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
+import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import bankAccounts from '@/routes/panel/bank-accounts';
 
@@ -37,6 +39,12 @@ const emit = defineEmits<{
 }>();
 
 const { addNotification } = useNotifications();
+const page = usePage();
+
+// Get vessel currency from shared props
+const vesselCurrency = computed(() => {
+    return (page.props.auth as any)?.current_vessel?.currency_code || 'EUR';
+});
 
 // Checkbox states
 const useIban = ref(true);
@@ -49,8 +57,7 @@ const form = useForm({
     account_number: '',
     iban: '',
     country_id: null as number | null,
-    initial_balance: 0,
-    status: 'active',
+    initial_balance: null as number | null,
     notes: '',
 });
 
@@ -85,7 +92,7 @@ watch(useAccountNumber, (newValue) => {
 
 watch(hasInitialBalance, (newValue) => {
     if (!newValue) {
-        form.initial_balance = 0;
+        form.initial_balance = null;
     }
 });
 
@@ -115,8 +122,7 @@ watch(() => props.open, (isOpen) => {
     if (isOpen) {
         form.reset();
         form.country_id = null;
-        form.status = 'active';
-        form.initial_balance = 0;
+        form.initial_balance = null;
         form.clearErrors();
         // Reset checkbox states
         useIban.value = true;
@@ -141,7 +147,7 @@ const submit = () => {
         form.account_number = '';
     }
     if (!hasInitialBalance.value) {
-        form.initial_balance = 0;
+        form.initial_balance = null;
     }
 
     console.log('Submitting form with data:', {
@@ -286,27 +292,6 @@ const submit = () => {
                     </div>
                 </div>
 
-                <!-- Status -->
-                <div class="space-y-2">
-                    <Label for="status">Status *</Label>
-                    <select
-                        id="status"
-                        v-model="form.status"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                    >
-                        <option value="">Select status</option>
-                        <option
-                            v-for="(label, value) in statuses"
-                            :key="value"
-                            :value="value"
-                        >
-                            {{ label }}
-                        </option>
-                    </select>
-                    <InputError :message="form.errors.status" />
-                </div>
-
                 <!-- Initial Balance -->
                 <div class="space-y-4">
                     <div class="flex items-center space-x-2">
@@ -319,18 +304,16 @@ const submit = () => {
                         <Label for="has_initial_balance" class="text-sm font-medium cursor-pointer">Set Initial Balance</Label>
                     </div>
 
-                    <div class="space-y-2" v-if="showInitialBalanceField">
-                        <Label for="initial_balance">Initial Balance</Label>
-                        <Input
-                            id="initial_balance"
+                    <div v-if="showInitialBalanceField">
+                        <MoneyInputWithLabel
                             v-model="form.initial_balance"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            :class="{ 'border-red-500': form.errors.initial_balance }"
+                            label="Initial Balance"
+                            :currency="vesselCurrency"
+                            placeholder="0,00"
+                            :error="form.errors.initial_balance"
+                            :show-currency="false"
+                            return-type="int"
                         />
-                        <InputError :message="form.errors.initial_balance" />
                     </div>
                 </div>
 

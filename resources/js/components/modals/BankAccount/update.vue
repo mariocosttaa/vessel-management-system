@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
+import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import bankAccounts from '@/routes/panel/bank-accounts';
 
@@ -23,7 +25,6 @@ interface BankAccount {
     iban: string | null;
     country_id: number | null;
     initial_balance: number;
-    status: string;
     notes: string | null;
 }
 
@@ -40,7 +41,6 @@ interface Props {
     bankAccount: BankAccount;
     countries: Country[];
     currencies: Currency[];
-    statuses: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -50,6 +50,12 @@ const emit = defineEmits<{
 }>();
 
 const { addNotification } = useNotifications();
+const page = usePage();
+
+// Get vessel currency from shared props
+const vesselCurrency = computed(() => {
+    return (page.props.auth as any)?.current_vessel?.currency_code || 'EUR';
+});
 
 // Loading state
 const loading = ref(false);
@@ -67,8 +73,7 @@ const form = useForm({
     account_number: '',
     iban: '',
     country_id: null as number | null,
-    initial_balance: 0,
-    status: 'active',
+    initial_balance: null as number | null,
     notes: '',
 });
 
@@ -119,8 +124,7 @@ const populateForm = (bankAccount: BankAccount) => {
     form.account_number = bankAccount.account_number || '';
     form.iban = bankAccount.iban || '';
     form.country_id = bankAccount.country_id;
-    form.initial_balance = bankAccount.initial_balance / 100; // Convert from cents
-    form.status = bankAccount.status;
+    form.initial_balance = bankAccount.initial_balance; // Already in cents from API
     form.notes = bankAccount.notes || '';
     form.clearErrors();
 
@@ -150,10 +154,17 @@ const submit = () => {
         form.account_number = '';
     }
     if (!hasInitialBalance.value) {
-        form.initial_balance = 0;
+        form.initial_balance = null;
     }
 
-    form.put(bankAccounts.update.url({ bankAccount: props.bankAccount.id }), {
+    // Get current vessel ID from URL
+    const getCurrentVesselId = () => {
+        const path = window.location.pathname;
+        const vesselMatch = path.match(/\/panel\/(\d+)/);
+        return vesselMatch ? vesselMatch[1] : '1';
+    };
+
+    form.put(bankAccounts.update.url({ vessel: getCurrentVesselId(), bankAccount: props.bankAccount.id }), {
         onSuccess: () => {
             addNotification({
                 type: 'success',
@@ -278,29 +289,6 @@ const submit = () => {
                     </div>
                 </div>
 
-                <!-- Status -->
-                <div class="space-y-2">
-                    <Label for="status">Status *</Label>
-                    <select
-                        id="status"
-                        v-model="form.status"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                    >
-                        <option value="">Select status</option>
-                        <option
-                            v-for="(label, value) in statuses"
-                            :key="value"
-                            :value="value"
-                        >
-                            {{ label }}
-                        </option>
-                    </select>
-                    <InputError :message="form.errors.status" />
-                    <p class="text-xs text-muted-foreground mt-1">
-                        💡 Country will be automatically detected from IBAN
-                    </p>
-                </div>
 
                 <!-- Initial Balance -->
                 <div class="space-y-4">
@@ -314,18 +302,16 @@ const submit = () => {
                         <Label for="has_initial_balance" class="text-sm font-medium cursor-pointer">Set Initial Balance</Label>
                     </div>
 
-                    <div class="space-y-2" v-if="showInitialBalanceField">
-                        <Label for="initial_balance">Initial Balance *</Label>
-                        <Input
-                            id="initial_balance"
+                    <div v-if="showInitialBalanceField">
+                        <MoneyInputWithLabel
                             v-model="form.initial_balance"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            :class="{ 'border-red-500': form.errors.initial_balance }"
+                            label="Initial Balance"
+                            :currency="vesselCurrency"
+                            placeholder="0,00"
+                            :error="form.errors.initial_balance"
+                            :show-currency="false"
+                            return-type="int"
                         />
-                        <InputError :message="form.errors.initial_balance" />
                     </div>
                 </div>
 
