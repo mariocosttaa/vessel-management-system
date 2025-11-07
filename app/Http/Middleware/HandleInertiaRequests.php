@@ -257,6 +257,7 @@ class HandleInertiaRequests extends Middleware
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,
+                'currency_code' => $vessel->currency_code,
             ];
         }
 
@@ -271,6 +272,7 @@ class HandleInertiaRequests extends Middleware
             'name' => $vesselModel->name,
             'registration_number' => $vesselModel->registration_number,
             'status' => $vesselModel->status,
+            'currency_code' => $vesselModel->currency_code,
         ];
     }
 
