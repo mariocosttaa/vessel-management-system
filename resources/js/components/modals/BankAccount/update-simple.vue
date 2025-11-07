@@ -1,0 +1,287 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import BaseModal from '../BaseModal.vue';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import InputError from '@/components/InputError.vue';
+import { useNotifications } from '@/composables/useNotifications';
+import bankAccounts from '@/routes/bank-accounts';
+
+interface Country {
+    id: number;
+    name: string;
+    code: string;
+}
+
+interface BankAccount {
+    id: number;
+    name: string;
+    bank_name: string;
+    account_number: string | null;
+    iban: string | null;
+    country_id: number | null;
+    initial_balance: number;
+    status: string;
+    notes: string | null;
+}
+
+interface Currency {
+    id: number;
+    code: string;
+    name: string;
+    symbol: string;
+    formatted_display: string;
+}
+
+interface Props {
+    open: boolean;
+    bankAccount: BankAccount;
+    countries: Country[];
+    currencies: Currency[];
+    statuses: Record<string, string>;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+    close: [];
+    success: [];
+}>();
+
+const { addNotification } = useNotifications();
+
+// Checkbox states
+const useIban = ref(true);
+const useAccountNumber = ref(false);
+const hasInitialBalance = ref(false);
+
+const form = useForm({
+    name: '',
+    bank_name: '',
+    account_number: '',
+    iban: '',
+    country_id: null as number | null,
+    initial_balance: 0,
+    status: 'active',
+    notes: '',
+});
+
+// Watch for data loaded from API
+const handleDataLoaded = (data: any) => {
+    if (data?.bankAccount) {
+        const bankAccount = data.bankAccount;
+
+        // Populate form with detailed data
+        form.name = bankAccount.name;
+        form.bank_name = bankAccount.bank_name;
+        form.account_number = bankAccount.account_number || '';
+        form.iban = bankAccount.iban || '';
+        form.country_id = bankAccount.country_id;
+        form.initial_balance = bankAccount.initial_balance / 100; // Convert from cents
+        form.status = bankAccount.status;
+        form.notes = bankAccount.notes || '';
+        form.clearErrors();
+
+        // Set checkbox states based on existing data
+        useIban.value = !!bankAccount.iban;
+        useAccountNumber.value = !!bankAccount.account_number;
+        hasInitialBalance.value = bankAccount.initial_balance > 0;
+    }
+};
+
+const submit = () => {
+    // Clear fields based on checkbox selection
+    if (!useIban.value) {
+        form.iban = '';
+    }
+    if (!useAccountNumber.value) {
+        form.account_number = '';
+    }
+    if (!hasInitialBalance.value) {
+        form.initial_balance = 0;
+    }
+
+    form.put(bankAccounts.update.url({ bankAccount: props.bankAccount.id }), {
+        onSuccess: () => {
+            addNotification({
+                type: 'success',
+                message: `Bank account '${form.name}' has been updated successfully.`,
+            });
+            emit('success');
+        },
+        onError: () => {
+            addNotification({
+                type: 'error',
+                message: 'Failed to update bank account. Please try again.',
+            });
+        },
+    });
+};
+</script>
+
+<template>
+    <BaseModal
+        :open="open"
+        title="Edit Bank Account"
+        size="2xl"
+        :api-url="`/api/bank-accounts/${bankAccount.id}/details`"
+        :enable-lazy-loading="true"
+        confirm-text="Update"
+        @close="emit('close')"
+        @confirm="submit"
+        @data-loaded="handleDataLoaded"
+    >
+        <template #default="{ data, loading }">
+            <form @submit.prevent="submit" class="space-y-6">
+                <!-- Basic Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <Label for="name">Account Name *</Label>
+                            <Input
+                                id="name"
+                                v-model="form.name"
+                                type="text"
+                                placeholder="Enter account name"
+                                :class="{ 'border-red-500': form.errors.name }"
+                            />
+                            <InputError :message="form.errors.name" />
+                        </div>
+
+                        <div>
+                            <Label for="bank_name">Bank Name *</Label>
+                            <Input
+                                id="bank_name"
+                                v-model="form.bank_name"
+                                type="text"
+                                placeholder="Enter bank name"
+                                :class="{ 'border-red-500': form.errors.bank_name }"
+                            />
+                            <InputError :message="form.errors.bank_name" />
+                        </div>
+
+                        <div>
+                            <Label for="country_id">Country</Label>
+                            <select
+                                id="country_id"
+                                v-model="form.country_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                :class="{ 'border-red-500': form.errors.country_id }"
+                            >
+                                <option value="">Select a country</option>
+                                <option
+                                    v-for="country in countries"
+                                    :key="country.id"
+                                    :value="country.id"
+                                >
+                                    {{ country.name }} ({{ country.code }})
+                                </option>
+                            </select>
+                            <InputError :message="form.errors.country_id" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <Label for="status">Status *</Label>
+                            <select
+                                id="status"
+                                v-model="form.status"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                :class="{ 'border-red-500': form.errors.status }"
+                            >
+                                <option
+                                    v-for="(label, value) in statuses"
+                                    :key="value"
+                                    :value="value"
+                                >
+                                    {{ label }}
+                                </option>
+                            </select>
+                            <InputError :message="form.errors.status" />
+                        </div>
+
+                        <div>
+                            <Label for="notes">Notes</Label>
+                            <textarea
+                                id="notes"
+                                v-model="form.notes"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter any additional notes"
+                            ></textarea>
+                            <InputError :message="form.errors.notes" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Details -->
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center">
+                            <input
+                                v-model="useIban"
+                                type="checkbox"
+                                class="mr-2"
+                            />
+                            Use IBAN
+                        </label>
+                        <label class="flex items-center">
+                            <input
+                                v-model="useAccountNumber"
+                                type="checkbox"
+                                class="mr-2"
+                            />
+                            Use Account Number
+                        </label>
+                        <label class="flex items-center">
+                            <input
+                                v-model="hasInitialBalance"
+                                type="checkbox"
+                                class="mr-2"
+                            />
+                            Set Initial Balance
+                        </label>
+                    </div>
+
+                    <div v-if="useIban" class="space-y-2">
+                        <Label for="iban">IBAN</Label>
+                        <Input
+                            id="iban"
+                            v-model="form.iban"
+                            type="text"
+                            placeholder="Enter IBAN"
+                            :class="{ 'border-red-500': form.errors.iban }"
+                        />
+                        <InputError :message="form.errors.iban" />
+                    </div>
+
+                    <div v-if="useAccountNumber" class="space-y-2">
+                        <Label for="account_number">Account Number</Label>
+                        <Input
+                            id="account_number"
+                            v-model="form.account_number"
+                            type="text"
+                            placeholder="Enter account number"
+                            :class="{ 'border-red-500': form.errors.account_number }"
+                        />
+                        <InputError :message="form.errors.account_number" />
+                    </div>
+
+                    <div v-if="hasInitialBalance" class="space-y-2">
+                        <Label for="initial_balance">Initial Balance</Label>
+                        <Input
+                            id="initial_balance"
+                            v-model="form.initial_balance"
+                            type="number"
+                            step="0.01"
+                            placeholder="Enter initial balance"
+                            :class="{ 'border-red-500': form.errors.initial_balance }"
+                        />
+                        <InputError :message="form.errors.initial_balance" />
+                    </div>
+                </div>
+            </form>
+        </template>
+    </BaseModal>
+</template>
