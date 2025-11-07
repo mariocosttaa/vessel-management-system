@@ -3,6 +3,7 @@ import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
+import NotificationContainer from '@/components/NotificationContainer.vue';
 import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
@@ -21,5 +22,8 @@ withDefaults(defineProps<Props>(), {
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <slot />
         </AppContent>
+
+        <!-- Global Notifications -->
+        <NotificationContainer />
     </AppShell>
 </template>
