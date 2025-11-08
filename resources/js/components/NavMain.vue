@@ -5,7 +5,6 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { urlIsActive } from '@/lib/utils';
 import { type NavItem } from '@/types';
@@ -55,7 +54,7 @@ const groupedItems = computed(() => {
 </script>
 
 <template>
-    <template v-for="(group, index) in groupedItems" :key="group.label">
+    <template v-for="group in groupedItems" :key="group.label">
         <SidebarGroup class="px-2 py-0">
             <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
             <SidebarMenu>
@@ -73,7 +72,5 @@ const groupedItems = computed(() => {
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarGroup>
-        <!-- Add separator between groups (except after the last one) -->
-        <SidebarSeparator v-if="index < groupedItems.length - 1" />
     </template>
 </template>
