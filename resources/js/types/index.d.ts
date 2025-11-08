@@ -15,6 +15,7 @@ export interface NavItem {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    group?: string; // Optional group label for organizing menu items
 }
 
 export type AppPageProps<

@@ -6,20 +6,23 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { toUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
+import { Link } from '@inertiajs/vue3';
+import { urlIsActive } from '@/lib/utils';
+import { usePage } from '@inertiajs/vue3';
 
 interface Props {
     items: NavItem[];
     class?: string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+const page = usePage();
 </script>
 
 <template>
     <SidebarGroup
-        :class="`group-data-[collapsible=icon]:p-0 ${$props.class || ''}`"
+        :class="`group-data-[collapsible=icon]:p-0 ${props.class || ''}`"
     >
         <SidebarGroupContent>
             <SidebarMenu>
@@ -27,15 +30,12 @@ defineProps<Props>();
                     <SidebarMenuButton
                         class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                         as-child
+                        :is-active="urlIsActive(item.href, page.url)"
                     >
-                        <a
-                            :href="toUrl(item.href)"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
+                        <Link :href="item.href">
                             <component :is="item.icon" />
                             <span>{{ item.title }}</span>
-                        </a>
+                        </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
