@@ -10,8 +10,10 @@ use App\Models\CrewPosition;
 use App\Models\Currency;
 use App\Models\User;
 use App\Models\Vessel;
+use App\Models\VesselRoleAccess;
+use App\Models\VesselUser;
+use App\Models\VesselUserRole;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class CrewMemberController extends Controller
 {
@@ -19,7 +21,7 @@ class CrewMemberController extends Controller
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
-        $vesselId = $request->attributes->get('vessel_id');
+        $vesselId = (int) $request->attributes->get('vessel_id');
         $vessel = Vessel::with('owner')->findOrFail($vesselId);
 
         $query = User::query()->where(function ($builder) use ($vesselId, $vessel) {
@@ -70,10 +72,13 @@ class CrewMemberController extends Controller
 
         // No need for available users anymore - we create users directly
 
-        return Inertia::render('CrewMembers/Index', [
+        return inertia('CrewMembers/Index', [
             'crewMembers' => $crewMembers,
             'filters' => $request->only(['search', 'status', 'position_id', 'sort', 'direction']),
-            'positions' => CrewPosition::where('vessel_id', $vesselId)->select('id', 'name')->get(),
+            'positions' => CrewPosition::where(function ($query) use ($vesselId) {
+                $query->where('vessel_id', $vesselId)
+                      ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
+            })->select('id', 'name')->get(),
             'statuses' => [
                 'active' => 'Active',
                 'inactive' => 'Inactive',
@@ -94,13 +99,16 @@ class CrewMemberController extends Controller
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
-        $vesselId = $request->attributes->get('vessel_id');
+        $vesselId = (int) $request->attributes->get('vessel_id');
 
         // No need for available users anymore - we create users directly
 
-        return Inertia::render('CrewMembers/Create', [
+        return inertia('CrewMembers/Create', [
             'vessels' => Vessel::select('id', 'name')->get(),
-            'positions' => CrewPosition::select('id', 'name')->get(),
+            'positions' => CrewPosition::where(function ($query) use ($vesselId) {
+                $query->where('vessel_id', $vesselId)
+                      ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
+            })->select('id', 'name')->get(),
             'statuses' => [
                 'active' => 'Active',
                 'inactive' => 'Inactive',
@@ -122,7 +130,7 @@ class CrewMemberController extends Controller
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
 
             // Handle password
             $password = null;
@@ -172,6 +180,37 @@ class CrewMemberController extends Controller
                 $crewMember->salaryCompensations()->create($salaryData);
             }
 
+            // Grant vessel access to the crew member
+            // Get the "normal" role access (view-only access for crew members)
+            $normalRoleAccess = VesselRoleAccess::where('name', 'normal')->first();
+
+            if ($normalRoleAccess) {
+                // Create or update vessel user role with normal access
+                // Using updateOrCreate to handle cases where access might already exist
+                VesselUserRole::updateOrCreate(
+                    [
+                        'vessel_id' => $vesselId,
+                        'user_id' => $crewMember->id,
+                    ],
+                    [
+                        'vessel_role_access_id' => $normalRoleAccess->id,
+                        'is_active' => true,
+                    ]
+                );
+            }
+
+            // Also maintain the old vessel_users table for backward compatibility
+            VesselUser::updateOrCreate(
+                [
+                    'vessel_id' => $vesselId,
+                    'user_id' => $crewMember->id,
+                ],
+                [
+                    'role' => 'viewer',
+                    'is_active' => true,
+                ]
+            );
+
             return redirect()
                 ->route('panel.crew-members.index', ['vessel' => $vesselId])
                 ->with('success', "Crew member '{$crewMember->name}' has been created successfully.")
@@ -188,7 +227,7 @@ class CrewMemberController extends Controller
     {
         $crewMember->load(['vessel', 'position', 'activeSalaryCompensation']);
 
-        return Inertia::render('CrewMembers/Show', [
+        return inertia('CrewMembers/Show', [
             'crewMember' => new CrewMemberResource($crewMember),
         ]);
     }
@@ -197,7 +236,7 @@ class CrewMemberController extends Controller
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
-        $vesselId = $request->attributes->get('vessel_id');
+        $vesselId = (int) $request->attributes->get('vessel_id');
 
         // Load salary compensation relationship
         $crewMember->load(['activeSalaryCompensation']);
@@ -212,10 +251,13 @@ class CrewMemberController extends Controller
             })->orWhere('id', $crewMember->user_id);
         })->select('id', 'name', 'email')->get();
 
-        return Inertia::render('CrewMembers/Edit', [
+        return inertia('CrewMembers/Edit', [
             'crewMember' => new CrewMemberResource($crewMember),
             'vessels' => Vessel::select('id', 'name')->get(),
-            'positions' => CrewPosition::select('id', 'name')->get(),
+            'positions' => CrewPosition::where(function ($query) use ($vesselId) {
+                $query->where('vessel_id', $vesselId)
+                      ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
+            })->select('id', 'name')->get(),
             'statuses' => [
                 'active' => 'Active',
                 'inactive' => 'Inactive',
@@ -237,7 +279,7 @@ class CrewMemberController extends Controller
         try {
             // Verify crew member belongs to current vessel
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
             if ($crewMember->vessel_id !== $vesselId) {
                 abort(403, 'Unauthorized access to crew member.');
             }
@@ -297,7 +339,7 @@ class CrewMemberController extends Controller
         try {
             // Verify crew member belongs to current vessel
             /** @var int $vesselId */
-            $vesselId = $request->attributes->get('vessel_id');
+            $vesselId = (int) $request->attributes->get('vessel_id');
             if ($crewMember->vessel_id !== $vesselId) {
                 abort(403, 'Unauthorized access to crew member.');
             }
