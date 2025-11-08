@@ -16,7 +16,14 @@ import suppliers from '@/routes/panel/suppliers/index';
 import bankAccounts from '@/routes/panel/bank-accounts/index';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users, Building2, CreditCard } from 'lucide-vue-next';
+import {
+    LayoutDashboard,
+    Users,
+    UserCog,
+    Building2,
+    Wallet,
+    Home
+} from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
@@ -32,28 +39,43 @@ const getCurrentVesselId = () => {
 
 const mainNavItems = computed((): NavItem[] => {
     const vesselId = getCurrentVesselId();
-    const items: NavItem[] = [
-        {
-            title: 'Dashboard',
-            href: `/panel/${vesselId}/dashboard`,
-            icon: LayoutGrid,
-        },
-    ];
+    const items: NavItem[] = [];
 
+    // Platform Section - Always visible
+    items.push({
+        title: 'Dashboard',
+        href: `/panel/${vesselId}/dashboard`,
+        icon: LayoutDashboard,
+        group: 'Platform',
+    });
 
+    // Crew Management Section
     if (canView('crew')) {
         items.push({
             title: 'Crew Members',
             href: crewMembers.index.url({ vessel: vesselId }),
             icon: Users,
+            group: 'Crew Management',
         });
     }
 
+    // Crew Roles - only for users with crew-roles view permission
+    if (canView('crew-roles')) {
+        items.push({
+            title: 'Crew Roles',
+            href: `/panel/${vesselId}/crew-roles`,
+            icon: UserCog,
+            group: 'Crew Management',
+        });
+    }
+
+    // Financial Section
     if (canView('suppliers')) {
         items.push({
             title: 'Suppliers',
             href: suppliers.index.url({ vessel: vesselId }),
             icon: Building2,
+            group: 'Financial',
         });
     }
 
@@ -61,7 +83,8 @@ const mainNavItems = computed((): NavItem[] => {
         items.push({
             title: 'Bank Accounts',
             href: bankAccounts.index.url({ vessel: vesselId }),
-            icon: CreditCard,
+            icon: Wallet,
+            group: 'Financial',
         });
     }
 
@@ -70,9 +93,9 @@ const mainNavItems = computed((): NavItem[] => {
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Panel',
+        title: 'Vessel Selector',
         href: '/panel',
-        icon: BookOpen,
+        icon: Home,
     },
 ];
 </script>
