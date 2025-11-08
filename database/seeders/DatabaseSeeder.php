@@ -16,12 +16,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             VesselRoleAccessSeeder::class,
+            CrewPositionSeeder::class, // Run before UserVesselRoleSeeder so positions exist
             UserSeeder::class,
             DefaultVesselSeeder::class,
-            UserVesselRoleSeeder::class,
+            UserVesselRoleSeeder::class, // This now assigns positions to users
             VatRateSeeder::class,
             TransactionCategorySeeder::class,
-            CrewPositionSeeder::class,
         ]);
 
         $withTestData = false;
