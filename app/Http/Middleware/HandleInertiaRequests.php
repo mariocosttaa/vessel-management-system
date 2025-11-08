@@ -81,6 +81,10 @@ class HandleInertiaRequests extends Middleware
             'crew.edit' => false,
             'crew.delete' => false,
             'crew.view' => false,
+            'crew-roles.create' => false,
+            'crew-roles.edit' => false,
+            'crew-roles.delete' => false,
+            'crew-roles.view' => false,
             'suppliers.create' => false,
             'suppliers.edit' => false,
             'suppliers.delete' => false,
@@ -110,6 +114,10 @@ class HandleInertiaRequests extends Middleware
                     'crew.edit' => true,
                     'crew.delete' => true,
                     'crew.view' => true,
+                    'crew-roles.create' => true,
+                    'crew-roles.edit' => true,
+                    'crew-roles.delete' => true,
+                    'crew-roles.view' => true,
                     'suppliers.create' => true,
                     'suppliers.edit' => true,
                     'suppliers.delete' => true,
@@ -138,6 +146,10 @@ class HandleInertiaRequests extends Middleware
                     'crew.edit' => true,
                     'crew.delete' => true,
                     'crew.view' => true,
+                    'crew-roles.create' => true,
+                    'crew-roles.edit' => true,
+                    'crew-roles.delete' => true,
+                    'crew-roles.view' => true,
                     'suppliers.create' => true,
                     'suppliers.edit' => true,
                     'suppliers.delete' => false,
@@ -166,6 +178,10 @@ class HandleInertiaRequests extends Middleware
                     'crew.edit' => true,
                     'crew.delete' => false,
                     'crew.view' => true,
+                    'crew-roles.create' => false,
+                    'crew-roles.edit' => true,
+                    'crew-roles.delete' => false,
+                    'crew-roles.view' => true,
                     'suppliers.create' => false,
                     'suppliers.edit' => true,
                     'suppliers.delete' => false,
@@ -194,6 +210,10 @@ class HandleInertiaRequests extends Middleware
                     'crew.edit' => false,
                     'crew.delete' => false,
                     'crew.view' => true,
+                    'crew-roles.create' => false,
+                    'crew-roles.edit' => false,
+                    'crew-roles.delete' => false,
+                    'crew-roles.view' => true,
                     'suppliers.create' => false,
                     'suppliers.edit' => false,
                     'suppliers.delete' => false,
@@ -237,21 +257,28 @@ class HandleInertiaRequests extends Middleware
      */
     private function getCurrentVessel(Request $request): ?array
     {
-        $vessel = $request->route('vessel');
-
-        if (!$vessel || !$request->user()) {
+        if (!$request->user()) {
             return null;
         }
 
-        // If vessel is a model instance, get the ID
-        $vesselId = is_object($vessel) ? $vessel->id : $vessel;
+        // First, try to get vessel from request attributes (set by EnsureVesselAccess middleware)
+        $vessel = $request->attributes->get('vessel');
 
-        if (!$request->user()->hasAccessToVessel((int) $vesselId)) {
-            return null;
+        // If not in attributes, try to get from route parameter
+        if (!$vessel) {
+            $vessel = $request->route('vessel');
+            if (!$vessel) {
+                return null;
+            }
         }
 
-        // If vessel is already a model, use it directly
+        // If vessel is a model instance, use it directly
         if (is_object($vessel)) {
+            $vesselId = $vessel->id;
+            if (!$request->user()->hasAccessToVessel((int) $vesselId)) {
+                return null;
+            }
+
             return [
                 'id' => $vessel->id,
                 'name' => $vessel->name,
@@ -261,7 +288,12 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
-        // Otherwise, fetch the vessel
+        // If vessel is an ID, fetch the vessel model
+        $vesselId = (int) $vessel;
+        if (!$request->user()->hasAccessToVessel($vesselId)) {
+            return null;
+        }
+
         $vesselModel = \App\Models\Vessel::find($vesselId);
         if (!$vesselModel) {
             return null;
@@ -281,14 +313,26 @@ class HandleInertiaRequests extends Middleware
      */
     private function getCurrentVesselRole(Request $request): ?string
     {
-        $vessel = $request->route('vessel');
-
-        if (!$vessel || !$request->user()) {
+        if (!$request->user()) {
             return null;
         }
 
-        // If vessel is a model instance, get the ID
-        $vesselId = is_object($vessel) ? $vessel->id : $vessel;
+        // First, try to get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // If not in attributes, try to get from route parameter
+        if (!$vesselId) {
+            $vessel = $request->route('vessel');
+            if (!$vessel) {
+                return null;
+            }
+            // If vessel is a model instance, get the ID
+            $vesselId = is_object($vessel) ? $vessel->id : $vessel;
+        }
+
+        if (!$vesselId) {
+            return null;
+        }
 
         return $request->user()->getRoleForVessel((int) $vesselId);
     }
