@@ -41,12 +41,21 @@ const emit = defineEmits<{
 
 const currentStep = ref(0);
 
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const form = useForm({
     name: '',
     email: '',
     phone: '',
     date_of_birth: '',
-    hire_date: new Date().toISOString().split('T')[0],
+    hire_date: getTodayDate(),
     position_id: null as number | null,
     skip_salary: false, // Default to showing salary step (can be toggled)
     compensation_type: 'fixed',
@@ -128,13 +137,16 @@ const validateStep = (step: string) => {
         if (form.login_permitted && !form.email?.trim()) {
             errors.push('Email is required when system access is enabled');
         }
-        if (form.login_permitted && !form.password) {
+        // Note: Password is not required if email belongs to existing user (handled by backend)
+        // For new users, password is required
+        if (form.login_permitted && form.email && !form.password) {
+            // Only show error if email is provided (existing users will be handled by backend)
             errors.push('Password is required when system access is enabled');
         }
-        if (form.login_permitted && !form.password_confirmation) {
+        if (form.login_permitted && form.password && !form.password_confirmation) {
             errors.push('Password confirmation is required when system access is enabled');
         }
-        if (form.login_permitted && form.password !== form.password_confirmation) {
+        if (form.login_permitted && form.password && form.password !== form.password_confirmation) {
             errors.push('Passwords do not match');
         }
         // Basic email format validation if email is provided
@@ -212,7 +224,7 @@ const hasInteracted = ref(false);
 watch(() => props.open, (isOpen: boolean) => {
     if (isOpen) {
         form.reset();
-        form.hire_date = new Date().toISOString().split('T')[0];
+        form.hire_date = getTodayDate(); // Set to today's date
         form.skip_salary = true; // Default to skipping salary
         form.fixed_amount = null;
         form.percentage = null;
@@ -626,6 +638,13 @@ const handleClose = () => {
                         <div v-show="form.login_permitted" class="space-y-4">
                             <div class="border-t pt-4">
                                 <h3 class="text-lg font-medium text-card-foreground mb-4">Login Credentials</h3>
+
+                                <!-- Info Message -->
+                                <div class="bg-muted/50 border border-border rounded-lg p-3 mb-4">
+                                    <p class="text-sm text-muted-foreground">
+                                        <strong>Note:</strong> If the email belongs to an existing user, they will be linked to this vessel and their existing account credentials will be preserved.
+                                    </p>
+                                </div>
 
                                 <!-- Email Field -->
                                 <div class="mb-4">
