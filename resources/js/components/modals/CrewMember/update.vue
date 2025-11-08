@@ -65,6 +65,11 @@ const hasExistingAccess = computed(() => {
     return props.crewMember?.login_permitted === true;
 });
 
+// Check if user has an existing account (not just a crew member account)
+const hasExistingAccount = computed(() => {
+    return props.crewMember?.has_existing_account === true;
+});
+
 // Format currency display for dropdown options
 const formatCurrencyDisplay = (code: string, name: string, symbol: string) => {
     return `${symbol} ${name} (${code})`;
@@ -157,23 +162,33 @@ const validateStep = (step: string) => {
             if (!form.payment_frequency) errors.push('Payment frequency is required');
         }
     } else if (step === 'system-access') {
-        if (form.login_permitted && !form.email?.trim()) {
+        // Email is only required if user doesn't have existing account
+        if (!hasExistingAccount.value && form.login_permitted && !form.email?.trim()) {
             errors.push('Email is required when system access is enabled');
         }
 
-        // Password is only required for new system access (not when updating existing access)
-        if (!hasExistingAccess && form.login_permitted) {
-            if (!form.password) {
-                errors.push('Password is required when enabling system access');
+        // Password validation depends on whether user has existing account
+        if (hasExistingAccount.value) {
+            // For existing accounts, password is optional (only validate if provided)
+            if (form.password && form.password !== form.password_confirmation) {
+                errors.push('Passwords do not match');
             }
-            if (!form.password_confirmation) {
-                errors.push('Password confirmation is required when enabling system access');
+            // Password is not required for existing accounts
+        } else {
+            // For new crew member accounts, password is required when enabling system access
+            if (form.login_permitted && !hasExistingAccess.value) {
+                if (!form.password) {
+                    errors.push('Password is required when enabling system access');
+                }
+                if (!form.password_confirmation) {
+                    errors.push('Password confirmation is required when enabling system access');
+                }
             }
-        }
 
-        // If password is provided (either new or updating), it must match confirmation
-        if (form.login_permitted && form.password && form.password !== form.password_confirmation) {
-            errors.push('Passwords do not match');
+            // If password is provided, it must match confirmation
+            if (form.login_permitted && form.password && form.password !== form.password_confirmation) {
+                errors.push('Passwords do not match');
+            }
         }
 
         // Basic email format validation if email is provided
@@ -762,31 +777,38 @@ const handleClose = () => {
                             <!-- Email Field (always show when system access is enabled) -->
                             <div v-show="form.login_permitted" class="md:col-span-2">
                                 <Label for="email_system" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Email <span class="text-destructive">*</span>
+                                    Email <span v-if="!hasExistingAccount" class="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="email_system"
                                     v-model="form.email"
                                     type="email"
                                     placeholder="Enter email address"
-                                    :class="{ 'border-destructive dark:border-destructive': form.errors.email || getStepErrors('system-access').some(e => e.includes('Email')) }"
+                                    :disabled="hasExistingAccount"
+                                    :class="{ 'border-destructive dark:border-destructive': form.errors.email || getStepErrors('system-access').some(e => e.includes('Email')), 'opacity-60 cursor-not-allowed': hasExistingAccount }"
                                 />
                                 <InputError :message="form.errors.email" class="mt-1" />
                                 <div v-if="getStepErrors('system-access').some(e => e.includes('Email'))" class="text-sm text-destructive mt-1">
                                     {{ getStepErrors('system-access').find(e => e.includes('Email')) }}
                                 </div>
+                                <p v-if="hasExistingAccount" class="text-sm text-muted-foreground mt-1">
+                                    Email cannot be changed for existing user accounts.
+                                </p>
                             </div>
 
                             <!-- Password Fields Section -->
                             <div v-show="form.login_permitted" class="md:col-span-2 border-t pt-4">
                                 <div class="mb-4">
                                     <h4 class="text-lg font-medium text-card-foreground mb-2">Change Password</h4>
-                                    <p class="text-sm text-muted-foreground">
+                                    <p v-if="hasExistingAccount" class="text-sm text-muted-foreground">
+                                        Password cannot be changed for existing user accounts. Users must change their password through their profile settings.
+                                    </p>
+                                    <p v-else class="text-sm text-muted-foreground">
                                         Leave blank to keep current password. Enter new password to change it.
                                     </p>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div v-if="!hasExistingAccount" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <!-- Password -->
                                     <div>
                                         <Label for="password" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
@@ -822,6 +844,11 @@ const handleClose = () => {
                                             {{ getStepErrors('system-access').find(e => e.includes('Passwords do not match')) }}
                                         </div>
                                     </div>
+                                </div>
+                                <div v-else class="bg-muted/50 border border-border rounded-lg p-4">
+                                    <p class="text-sm text-muted-foreground">
+                                        This user has an existing account. Password management is not available through the crew member management interface.
+                                    </p>
                                 </div>
                             </div>
                         </div>
