@@ -132,18 +132,88 @@ class CrewMemberController extends Controller
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
 
-            // Handle password
-            $password = null;
-            $temporaryPassword = null;
-            if ($request->login_permitted && $request->password) {
-                $password = bcrypt($request->password);
-                $temporaryPassword = null;
-            } else {
-                $password = bcrypt('temp_' . time());
-                $temporaryPassword = 'temp_' . time();
+            // Check if user with this email already exists
+            $existingUser = null;
+            if ($request->email) {
+                $existingUser = User::where('email', strtolower(trim($request->email)))->first();
             }
 
-            // Only create salary compensation if salary is not skipped
+            // If user exists, link them to vessel instead of creating new user
+            if ($existingUser) {
+                // Check if user already has an existing account (not just a crew member account)
+                $hasExistingAccount = $existingUser->hasExistingAccount();
+
+                // If user already has account, don't allow password changes
+                // Only update crew member fields, not account credentials
+                $updateData = [
+                    'position_id' => $request->position_id,
+                    'name' => $request->name,
+                    'phone' => $request->phone,
+                    'date_of_birth' => $request->date_of_birth,
+                    'hire_date' => $request->hire_date,
+                    'status' => $request->status,
+                    'notes' => $request->notes,
+                    'vessel_id' => $vesselId,
+                ];
+
+                // Only update password/login settings if user doesn't have existing account
+                if (!$hasExistingAccount) {
+                    // Handle password for new crew member account
+                    if ($request->login_permitted && $request->password) {
+                        $updateData['password'] = bcrypt($request->password);
+                        $updateData['login_permitted'] = true;
+                        $updateData['temporary_password'] = null;
+                    } else {
+                        $updateData['password'] = bcrypt('temp_' . time());
+                        $updateData['temporary_password'] = 'temp_' . time();
+                        $updateData['login_permitted'] = false;
+                    }
+                } else {
+                    // User has existing account - enable login if requested, but don't change password
+                    if ($request->login_permitted) {
+                        $updateData['login_permitted'] = true;
+                    }
+                    // Don't update password or temporary_password for existing accounts
+                }
+
+                // Update user_type to employee_of_vessel if it's not already set
+                if (!$hasExistingAccount) {
+                    $updateData['user_type'] = 'employee_of_vessel';
+                }
+
+                $existingUser->update($updateData);
+                $crewMember = $existingUser;
+            } else {
+                // Create new user
+                // Handle password
+                $password = null;
+                $temporaryPassword = null;
+                if ($request->login_permitted && $request->password) {
+                    $password = bcrypt($request->password);
+                    $temporaryPassword = null;
+                } else {
+                    $password = bcrypt('temp_' . time());
+                    $temporaryPassword = 'temp_' . time();
+                }
+
+                $crewMember = User::create([
+                    'position_id' => $request->position_id,
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'date_of_birth' => $request->date_of_birth,
+                    'hire_date' => $request->hire_date,
+                    'status' => $request->status,
+                    'notes' => $request->notes,
+                    'vessel_id' => $vesselId,
+                    'password' => $password,
+                    'temporary_password' => $temporaryPassword,
+                    'user_type' => 'employee_of_vessel',
+                    'login_permitted' => $request->login_permitted ?? false,
+                ]);
+            }
+
+            // Only create salary compensation if not skipped and crew member was just created (not existing user)
             $skipSalary = $request->boolean('skip_salary') ?? false;
             $salaryData = null;
 
@@ -158,26 +228,11 @@ class CrewMemberController extends Controller
                     'payment_frequency' => $request->payment_frequency,
                     'is_active' => true,
                 ];
-            }
 
-            $crewMember = User::create([
-                'position_id' => $request->position_id,
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'date_of_birth' => $request->date_of_birth,
-                'hire_date' => $request->hire_date,
-                'status' => $request->status,
-                'notes' => $request->notes,
-                'vessel_id' => $vesselId,
-                'password' => $password,
-                'temporary_password' => $temporaryPassword,
-                'user_type' => 'employee_of_vessel',
-            ]);
-
-            // Create salary compensation only if not skipped
-            if (!$skipSalary && $salaryData) {
-                $crewMember->salaryCompensations()->create($salaryData);
+                // Only create if crew member doesn't already have an active salary compensation
+                if (!$crewMember->salaryCompensations()->where('is_active', true)->exists()) {
+                    $crewMember->salaryCompensations()->create($salaryData);
+                }
             }
 
             // Grant vessel access to the crew member
@@ -284,11 +339,13 @@ class CrewMemberController extends Controller
                 abort(403, 'Unauthorized access to crew member.');
             }
 
+            // Check if user has an existing account (not just a crew member account)
+            $hasExistingAccount = $crewMember->hasExistingAccount();
+
             // Handle password update
             $updateData = [
                 'position_id' => $request->position_id,
                 'name' => $request->name,
-                'email' => $request->email,
                 'phone' => $request->phone,
                 'date_of_birth' => $request->date_of_birth,
                 'hire_date' => $request->hire_date,
@@ -296,11 +353,28 @@ class CrewMemberController extends Controller
                 'notes' => $request->notes,
             ];
 
-            if ($request->login_permitted && $request->password) {
-                $updateData['password'] = bcrypt($request->password);
-                $updateData['temporary_password'] = null;
-            } elseif (!$request->login_permitted) {
-                $updateData['temporary_password'] = 'temp_' . time();
+            // Only update email if user doesn't have existing account
+            // For existing accounts, email shouldn't be changed through crew member update
+            if (!$hasExistingAccount && $request->email) {
+                $updateData['email'] = $request->email;
+            }
+
+            // Handle password and login settings
+            if ($hasExistingAccount) {
+                // User has existing account - don't allow password changes
+                // Only update login_permitted status
+                $updateData['login_permitted'] = $request->login_permitted ?? false;
+                // Don't update password or temporary_password for existing accounts
+            } else {
+                // User doesn't have existing account - allow password changes
+                if ($request->login_permitted && $request->password) {
+                    $updateData['password'] = bcrypt($request->password);
+                    $updateData['temporary_password'] = null;
+                    $updateData['login_permitted'] = true;
+                } elseif (!$request->login_permitted) {
+                    $updateData['temporary_password'] = 'temp_' . time();
+                    $updateData['login_permitted'] = false;
+                }
             }
 
             // Extract salary compensation data

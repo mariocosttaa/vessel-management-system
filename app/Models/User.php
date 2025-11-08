@@ -473,6 +473,26 @@ class User extends Authenticatable
         return $this->isCrewMember() && $this->vessel_id == $vesselId;
     }
 
+    /**
+     * Check if this user has an existing account (not just a temporary crew member account).
+     * A user has an existing account if:
+     * 1. They have a user_type other than 'employee_of_vessel', OR
+     * 2. They have login_permitted = true AND no temporary_password (meaning they have a real password).
+     */
+    public function hasExistingAccount(): bool
+    {
+        // If user_type is not 'employee_of_vessel', they have an existing account
+        if ($this->user_type !== 'employee_of_vessel') {
+            return true;
+        }
+
+        // If they have login_permitted and no temporary_password, they have a real account
+        if ($this->login_permitted && is_null($this->temporary_password)) {
+            return true;
+        }
+
+        return false;
+    }
 
     /**
      * Generate a temporary password for crew members.
