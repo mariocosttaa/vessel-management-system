@@ -43,9 +43,40 @@ class CrewMemberResource extends JsonResource
                     'payment_frequency_label' => $this->getPaymentFrequencyLabel($compensation->payment_frequency),
                 ];
             }),
+            // Legacy fields for frontend compatibility
+            'salary_amount' => $this->whenLoaded('activeSalaryCompensation', function () {
+                $compensation = $this->activeSalaryCompensation->first();
+                return $compensation && $compensation->compensation_type === 'fixed' ? $compensation->fixed_amount : null;
+            }),
+            'formatted_salary' => $this->whenLoaded('activeSalaryCompensation', function () {
+                $compensation = $this->activeSalaryCompensation->first();
+                if (!$compensation) return 'Not specified';
+
+                if ($compensation->compensation_type === 'fixed' && $compensation->fixed_amount) {
+                    $amount = number_format($compensation->fixed_amount / 100, 2);
+                    return "{$amount} {$compensation->currency}";
+                } elseif ($compensation->compensation_type === 'percentage' && $compensation->percentage) {
+                    return "{$compensation->percentage}% of revenue";
+                }
+
+                return 'Not specified';
+            }),
+            'salary_currency' => $this->whenLoaded('activeSalaryCompensation', function () {
+                $compensation = $this->activeSalaryCompensation->first();
+                return $compensation ? $compensation->currency : null;
+            }),
+            'payment_frequency' => $this->whenLoaded('activeSalaryCompensation', function () {
+                $compensation = $this->activeSalaryCompensation->first();
+                return $compensation ? $compensation->payment_frequency : null;
+            }),
+            'payment_frequency_label' => $this->whenLoaded('activeSalaryCompensation', function () {
+                $compensation = $this->activeSalaryCompensation->first();
+                return $compensation ? $this->getPaymentFrequencyLabel($compensation->payment_frequency) : null;
+            }),
             'status' => $this->status,
             'status_label' => $this->getStatusLabel(),
             'login_permitted' => $this->login_permitted,
+            'has_existing_account' => $this->hasExistingAccount(),
             'notes' => $this->notes,
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),

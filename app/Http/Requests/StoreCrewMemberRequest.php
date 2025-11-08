@@ -75,17 +75,20 @@ class StoreCrewMemberRequest extends FormRequest
         $rules = [
             'position_id' => ['required', 'integer', Rule::exists(CrewPosition::class, 'id')],
             'login_permitted' => ['boolean'],
-            'password' => ['required_if:login_permitted,true', 'string', 'min:8'],
-            'password_confirmation' => ['required_if:login_permitted,true', 'same:password'],
+            'password' => ['nullable', 'string', 'min:8'],
+            'password_confirmation' => ['nullable', 'same:password'],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required_if:login_permitted,true', 'nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'hire_date' => ['required', 'date', 'before_or_equal:today'],
+            'hire_date' => ['required', 'date'],
             'status' => ['required', 'in:active,inactive,on_leave'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'skip_salary' => ['boolean'],
         ];
+
+        // Note: Password validation for existing users is handled in the controller
+        // If email belongs to existing user, password is not required
 
         // Only require salary fields if salary is not skipped
         if (!$skipSalary) {
@@ -113,7 +116,6 @@ class StoreCrewMemberRequest extends FormRequest
             'email.email' => 'Please enter a valid email address.',
             'date_of_birth.before' => 'The date of birth must be before today.',
             'hire_date.required' => 'The hire date is required.',
-            'hire_date.before_or_equal' => 'The hire date cannot be in the future.',
             'salary_amount.required' => 'The salary amount is required.',
             'salary_amount.min' => 'The salary amount must be at least 0.',
             'payment_frequency.required' => 'Please select a payment frequency.',

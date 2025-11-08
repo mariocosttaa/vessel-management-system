@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Actions\MoneyAction;
-use App\Models\CrewMember;
 use App\Models\CrewPosition;
 use App\Models\User;
 use App\Models\Vessel;
@@ -14,7 +13,7 @@ use Illuminate\Validation\Rule;
  * UpdateCrewMemberRequest validates updating an existing crew member.
  *
  * Route params:
- * @property CrewMember $crewMember
+ * @property User $crewMember
  *
  * Input fields:
  * @property int|null $vessel_id
@@ -76,14 +75,14 @@ class UpdateCrewMemberRequest extends FormRequest
         $vesselId = $this->route('vessel');
         $crewMember = $this->route('crewMember');
 
-        return [
+        // Check if user has an existing account
+        $hasExistingAccount = $crewMember->hasExistingAccount();
+
+        $rules = [
             'vessel_id' => ['nullable', 'integer', Rule::exists(Vessel::class, 'id')],
             'login_permitted' => ['boolean'],
-            'password' => ['required_if:login_permitted,true', 'string', 'min:8'],
-            'password_confirmation' => ['required_if:login_permitted,true', 'same:password'],
             'position_id' => ['required', 'integer', Rule::exists(CrewPosition::class, 'id')],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required_if:login_permitted,true', 'nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'hire_date' => ['required', 'date', 'before_or_equal:today'],
@@ -96,6 +95,22 @@ class UpdateCrewMemberRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
             'skip_salary' => ['boolean'],
         ];
+
+        // Password rules depend on whether user has existing account
+        if ($hasExistingAccount) {
+            // For existing accounts, password is optional (only required if changing password)
+            $rules['password'] = ['nullable', 'string', 'min:8'];
+            $rules['password_confirmation'] = ['nullable', 'same:password'];
+            // Email shouldn't be changed for existing accounts
+            $rules['email'] = ['nullable', 'email', 'max:255'];
+        } else {
+            // For new crew member accounts, password is required if login_permitted is true
+            $rules['password'] = ['required_if:login_permitted,true', 'nullable', 'string', 'min:8'];
+            $rules['password_confirmation'] = ['required_if:login_permitted,true', 'nullable', 'same:password'];
+            $rules['email'] = ['required_if:login_permitted,true', 'nullable', 'email', 'max:255'];
+        }
+
+        return $rules;
     }
 
     /**
