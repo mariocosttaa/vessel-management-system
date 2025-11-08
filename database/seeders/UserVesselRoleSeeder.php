@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\CrewPosition;
 use App\Models\User;
 use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
@@ -34,21 +35,49 @@ class UserVesselRoleSeeder extends Seeder
             }
         }
 
+        // Get or create crew positions
+        $captainPosition = CrewPosition::where('name', 'Capitão')->first();
+        $firstMatePosition = CrewPosition::where('name', 'Imediato')->first();
+        $crewPosition = CrewPosition::where('name', 'Marinheiro')->first();
+
+        // Create positions if they don't exist
+        if (!$captainPosition) {
+            $captainPosition = CrewPosition::create([
+                'name' => 'Capitão',
+                'description' => 'Comandante da embarcação',
+            ]);
+        }
+        if (!$firstMatePosition) {
+            $firstMatePosition = CrewPosition::create([
+                'name' => 'Imediato',
+                'description' => 'Segundo no comando',
+            ]);
+        }
+        if (!$crewPosition) {
+            $crewPosition = CrewPosition::create([
+                'name' => 'Marinheiro',
+                'description' => 'Tripulação geral',
+            ]);
+        }
+
         $assignments = [
             [
                 'email' => 'admin@example.com',
                 'role_access' => 'administrator',
                 'legacy_role' => 'owner',
+                'position' => $captainPosition, // Captain position for vessel owner
             ],
             [
                 'email' => 'manager@example.com',
                 'role_access' => 'supervisor',
                 'legacy_role' => 'manager',
+                'position' => $firstMatePosition, // First mate position for supervisor
             ],
             [
                 'email' => 'viewer@example.com',
                 'role_access' => 'normal',
                 'legacy_role' => 'viewer',
+                'position' => $crewPosition, // Crew position for viewer
             ],
         ];
 
@@ -62,6 +91,7 @@ class UserVesselRoleSeeder extends Seeder
 
             $roleAccess = $roleAccesses[$assignment['role_access']];
 
+            // Assign vessel role access
             VesselUserRole::updateOrCreate(
                 [
                     'user_id' => $user->id,
@@ -73,6 +103,7 @@ class UserVesselRoleSeeder extends Seeder
                 ]
             );
 
+            // Assign legacy vessel user role
             VesselUser::updateOrCreate(
                 [
                     'vessel_id' => $vessel->id,
@@ -83,6 +114,14 @@ class UserVesselRoleSeeder extends Seeder
                     'role' => $assignment['legacy_role'],
                 ]
             );
+
+            // Assign vessel_id and position_id to user so they appear in crew members list
+            $user->update([
+                'vessel_id' => $vessel->id,
+                'position_id' => $assignment['position']->id,
+                'status' => 'active',
+                'hire_date' => now(),
+            ]);
         }
     }
 }
