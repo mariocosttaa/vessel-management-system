@@ -73,16 +73,25 @@ class TransactionController extends Controller
             $query->where('transaction_date', '<=', $request->date_to);
         }
 
-        // Sorting
-        $sortField = $request->get('sort', 'transaction_date');
+        // Sorting - default to created_at descending (newest first)
+        $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
-        $query->orderBy($sortField, $sortDirection);
+
+        // If sorting by created_at, also add transaction_date as secondary sort for consistency
+        if ($sortField === 'created_at') {
+            $query->orderBy('created_at', $sortDirection)
+                  ->orderBy('transaction_date', 'desc')
+                  ->orderBy('transaction_number', 'desc');
+        } else {
+            $query->orderBy($sortField, $sortDirection);
+        }
 
         // Eager load relationships for performance
         $transactions = $query->with([
             'category:id,name,type,color',
             'supplier:id,company_name,description',
             'crewMember:id,name,email',
+            'files:id,transaction_id,src,name,size,type',
         ])->paginate(15)->withQueryString();
 
         // Related data for filters/forms
@@ -354,12 +363,54 @@ class TransactionController extends Controller
                 'created_by' => $user->id,
             ]);
 
+            // Handle file uploads if any
+            if ($request->hasFile('files')) {
+                $files = $request->file('files');
+                // Handle both single file and array of files
+                if (!is_array($files)) {
+                    $files = [$files];
+                }
+                foreach ($files as $file) {
+                    if (!$file) {
+                        continue;
+                    }
+                    try {
+                        // Save file using TenantFileAction
+                        $fileInfo = \App\Actions\Tenant\TenantFileAction::save(
+                            vesselId: $vesselId,
+                            file: $file,
+                            isPublic: false,
+                            path: 'transactions',
+                            fileName: null,
+                            extension: null
+                        );
+
+                        // Create transaction file record
+                        \App\Models\TransactionFile::create([
+                            'transaction_id' => $transaction->id,
+                            'src' => $fileInfo->url,
+                            'name' => $file->getClientOriginalName(),
+                            'size' => $fileInfo->size,
+                            'type' => $fileInfo->extension,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to upload file for transaction', [
+                            'transaction_id' => $transaction->id,
+                            'file_name' => $file->getClientOriginalName(),
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Continue with other files even if one fails
+                    }
+                }
+            }
+
             // Reload with relationships
             $transaction->load([
                 'category',
                 'supplier',
                 'crewMember',
             'vatProfile',
+            'files',
             ]);
 
             return back()
@@ -409,7 +460,7 @@ class TransactionController extends Controller
             'crewMember',
             'vatProfile',
             'createdBy',
-            'attachments',
+            'files',
         ]);
 
         return Inertia::render('Transactions/Show', [
@@ -446,7 +497,7 @@ class TransactionController extends Controller
             'crewMember',
             'vatProfile',
             'createdBy',
-            'attachments',
+            'files',
         ]);
 
         return response()->json([
@@ -482,6 +533,7 @@ class TransactionController extends Controller
             'supplier',
             'crewMember',
             'vatProfile',
+            'files',
         ]);
 
         // Related data for form
@@ -626,6 +678,9 @@ class TransactionController extends Controller
             $totalAmount = $amount + $vatAmount;
 
             // Access validated values directly as properties (never use validated())
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
             $transaction->update([
                 'category_id' => $request->category_id,
                 'type' => $request->type,
@@ -645,12 +700,54 @@ class TransactionController extends Controller
                 'status' => $request->status,
             ]);
 
+            // Handle file uploads if any
+            if ($request->hasFile('files')) {
+                $files = $request->file('files');
+                // Handle both single file and array of files
+                if (!is_array($files)) {
+                    $files = [$files];
+                }
+                foreach ($files as $file) {
+                    if (!$file) {
+                        continue;
+                    }
+                    try {
+                        // Save file using TenantFileAction
+                        $fileInfo = \App\Actions\Tenant\TenantFileAction::save(
+                            vesselId: $vesselId,
+                            file: $file,
+                            isPublic: false,
+                            path: 'transactions',
+                            fileName: null,
+                            extension: null
+                        );
+
+                        // Create transaction file record
+                        \App\Models\TransactionFile::create([
+                            'transaction_id' => $transaction->id,
+                            'src' => $fileInfo->url,
+                            'name' => $file->getClientOriginalName(),
+                            'size' => $fileInfo->size,
+                            'type' => $fileInfo->extension,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to upload file for transaction', [
+                            'transaction_id' => $transaction->id,
+                            'file_name' => $file->getClientOriginalName(),
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Continue with other files even if one fails
+                    }
+                }
+            }
+
             // Reload with relationships
             $transaction->load([
                 'category',
                 'supplier',
                 'crewMember',
             'vatProfile',
+            'files',
             ]);
 
             return redirect()
@@ -688,14 +785,28 @@ class TransactionController extends Controller
                 abort(403, 'You do not have permission to delete transactions for this vessel.');
             }
 
-            // Check if transaction has attachments
-            if ($transaction->attachments()->count() > 0) {
-                return back()->with('error', "Cannot delete transaction '{$transaction->transaction_number}' because it has attachments. Please remove all attachments first.")
-                    ->with('notification_delay', 0);
+            // Delete associated files and their physical files
+            $files = $transaction->files;
+            foreach ($files as $file) {
+                // Delete physical file from storage using TenantFileAction
+                try {
+                    \App\Actions\Tenant\TenantFileAction::delete(
+                        vesselId: $vesselId,
+                        fileUrl: $file->src,
+                        isPublic: false
+                    );
+                } catch (\Exception $e) {
+                    // Log error but continue with deletion
+                    \Illuminate\Support\Facades\Log::warning('Failed to delete physical file', [
+                        'file_id' => $file->id,
+                        'path' => $file->src,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             $transactionNumber = $transaction->transaction_number;
-            $transaction->delete();
+            $transaction->delete(); // Cascade delete will remove TransactionFile records
 
             return redirect()
                 ->route('panel.transactions.index', ['vessel' => $vesselId])
@@ -705,6 +816,62 @@ class TransactionController extends Controller
             return back()
                 ->with('error', 'Failed to delete transaction. Please try again.')
                 ->with('notification_delay', 0);
+        }
+    }
+
+    /**
+     * Delete a transaction file.
+     */
+    public function deleteFile(Request $request, $vessel, Transaction $transaction, \App\Models\TransactionFile $transactionFile)
+    {
+        try {
+            $user = $request->user();
+
+            // Get vessel_id from route parameter
+            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+
+            // Verify transaction belongs to current vessel
+            if ($transaction->vessel_id !== $vesselId) {
+                abort(403, 'Unauthorized access to transaction.');
+            }
+
+            // Verify file belongs to transaction
+            if ($transactionFile->transaction_id !== $transaction->id) {
+                abort(403, 'Unauthorized access to file.');
+            }
+
+            // Check vessel-specific permissions for deletion
+            if (!$user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor'])) {
+                abort(403, 'You do not have permission to delete files for this vessel.');
+            }
+
+            // Delete physical file from storage
+            try {
+                \App\Actions\Tenant\TenantFileAction::delete(
+                    vesselId: $vesselId,
+                    fileUrl: $transactionFile->src,
+                    isPublic: false
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete physical file', [
+                    'file_id' => $transactionFile->id,
+                    'path' => $transactionFile->src,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Delete database record
+            $transactionFile->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete file.',
+            ], 500);
         }
     }
 

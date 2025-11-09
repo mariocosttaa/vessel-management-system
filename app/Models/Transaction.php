@@ -117,6 +117,14 @@ class Transaction extends Model
     }
 
     /**
+     * Get the files for the transaction.
+     */
+    public function files(): HasMany
+    {
+        return $this->hasMany(TransactionFile::class);
+    }
+
+    /**
      * Scope a query to only include income transactions.
      */
     public function scopeIncome($query)
