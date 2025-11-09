@@ -43,7 +43,6 @@ interface Transaction {
     reference: string | null;
     status: string;
     status_label: string;
-    bank_account_id: number;
     category_id: number;
     supplier_id: number | null;
     crew_member_id: number | null;
@@ -54,11 +53,6 @@ interface Transaction {
         name: string;
         type: string;
         color: string;
-    } | null;
-    bank_account: {
-        id: number;
-        name: string;
-        bank_name: string;
     } | null;
     supplier: {
         id: number;
@@ -76,12 +70,6 @@ interface TransactionCategory {
     name: string;
     type: string;
     color: string;
-}
-
-interface BankAccount {
-    id: number;
-    name: string;
-    bank_name: string;
 }
 
 interface Supplier {
@@ -113,14 +101,12 @@ interface Props {
         type?: string;
         status?: string;
         category_id?: number;
-        bank_account_id?: number;
         date_from?: string;
         date_to?: string;
         sort?: string;
         direction?: string;
     };
     categories: TransactionCategory[];
-    bankAccounts: BankAccount[];
     suppliers: Supplier[];
     crewMembers: CrewMember[];
     vatProfiles?: VatProfile[];
@@ -443,7 +429,6 @@ const search = ref(props.filters.search || '');
 const typeFilter = ref(props.filters.type || '');
 const statusFilter = ref(props.filters.status || '');
 const categoryFilter = ref(props.filters.category_id || '');
-const bankAccountFilter = ref(props.filters.bank_account_id || '');
 const dateFromFilter = ref(props.filters.date_from || '');
 const dateToFilter = ref(props.filters.date_to || '');
 
@@ -453,7 +438,6 @@ const filters = computed(() => {
         type: typeFilter.value || undefined,
         status: statusFilter.value || undefined,
         category_id: categoryFilter.value ? Number(categoryFilter.value) : undefined,
-        bank_account_id: bankAccountFilter.value ? Number(bankAccountFilter.value) : undefined,
         date_from: dateFromFilter.value || undefined,
         date_to: dateToFilter.value || undefined,
         sort: sortField.value,
@@ -482,7 +466,6 @@ const clearFilters = () => {
     typeFilter.value = '';
     statusFilter.value = '';
     categoryFilter.value = '';
-    bankAccountFilter.value = '';
     dateFromFilter.value = '';
     dateToFilter.value = '';
     sortField.value = 'transaction_date';
@@ -599,22 +582,6 @@ onUnmounted(() => {
                         </select>
                     </div>
 
-                    <!-- Bank Account Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Bank Account
-                        </label>
-                        <select
-                            v-model="bankAccountFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        >
-                            <option value="">All Accounts</option>
-                            <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
-                                {{ account.name }}
-                            </option>
-                        </select>
-                    </div>
-
                     <!-- Date From -->
                     <div>
                         <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
@@ -722,9 +689,6 @@ onUnmounted(() => {
                                             <div class="mt-1">
                                                 <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
                                                     {{ transaction.description || 'No description' }}
-                                                </p>
-                                                <p class="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                                                    {{ transaction.bank_account?.name || 'N/A' }}
                                                 </p>
                                             </div>
                                         </div>
@@ -841,7 +805,6 @@ onUnmounted(() => {
         <CreateAddModal
             :open="showCreateAddModal"
             :categories="incomeCategories"
-            :bank-accounts="bankAccounts"
             :vat-profiles="vatProfiles"
             :default-vat-profile="defaultVatProfile"
             :default-currency="props.defaultCurrency"
@@ -852,7 +815,6 @@ onUnmounted(() => {
         <CreateRemoveModal
             :open="showCreateRemoveModal"
             :categories="expenseCategories"
-            :bank-accounts="bankAccounts"
             :suppliers="suppliers"
             :crew-members="crewMembers"
             :vat-profiles="vatProfiles"
@@ -867,7 +829,6 @@ onUnmounted(() => {
             :open="showUpdateAddModal"
             :transaction="selectedTransaction"
             :categories="incomeCategories"
-            :bank-accounts="bankAccounts"
             :vat-profiles="vatProfiles"
             :default-vat-profile="defaultVatProfile"
             :default-currency="props.defaultCurrency"
@@ -880,7 +841,6 @@ onUnmounted(() => {
             :open="showUpdateRemoveModal"
             :transaction="selectedTransaction"
             :categories="expenseCategories"
-            :bank-accounts="bankAccounts"
             :suppliers="suppliers"
             :crew-members="crewMembers"
             :default-currency="props.defaultCurrency"
