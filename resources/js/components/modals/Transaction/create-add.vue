@@ -36,6 +36,7 @@ interface Props {
     vatProfiles?: VatProfile[];
     defaultVatProfile?: VatProfile | null;
     defaultCurrency?: string; // Default currency from vessel_settings (passed from controller)
+    mareaId?: number | null; // Optional marea ID to link transaction to marea
 }
 
 const props = defineProps<Props>();
@@ -162,6 +163,7 @@ const form = useForm({
     description: '',
     notes: '',
     status: 'completed',
+    marea_id: props.mareaId ?? null as number | null,
     files: [] as File[],
 });
 
@@ -192,6 +194,7 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.amount = null;
         form.description = '';
         form.notes = '';
+        form.marea_id = props.mareaId ?? null;
         form.files = [];
 
         // Reset reactive refs
@@ -288,6 +291,11 @@ const submit = () => {
     form.currency = vesselCurrencyData.value.code || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
+    // Set marea_id if provided
+    if (props.mareaId) {
+        form.marea_id = props.mareaId;
+    }
+
     form.post(transactions.store.url({ vessel: getCurrentVesselId() }), {
         forceFormData: true, // Required for file uploads
         preserveScroll: true,
@@ -306,6 +314,7 @@ const submit = () => {
             form.amount = null;
             form.description = '';
             form.notes = '';
+            form.marea_id = props.mareaId ?? null;
             form.files = [];
 
             // Reset reactive refs
