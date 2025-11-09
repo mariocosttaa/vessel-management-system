@@ -61,10 +61,22 @@ class StoreTransactionRequest extends FormRequest
 
         // Get vessel ID from route parameter
         $vesselId = $this->route('vessel');
+        if (!$vesselId) {
+            return false;
+        }
 
-        // Check if user has admin or supervisor role for this specific vessel
+        // Check if user has access to vessel
         /** @var \App\Models\User $user */
-        return $user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']);
+        if (!$user->hasAccessToVessel(is_object($vesselId) ? $vesselId->id : (int) $vesselId)) {
+            return false;
+        }
+
+        // Check transactions.create permission from config
+        $vesselIdInt = is_object($vesselId) ? $vesselId->id : (int) $vesselId;
+        $userRole = $user->getRoleForVessel($vesselIdInt);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+        return $permissions['transactions.create'] ?? false;
     }
 
     /**
