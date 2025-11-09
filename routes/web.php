@@ -9,8 +9,10 @@ use App\Http\Controllers\{
     VesselSelectorController,
     AttachmentController,
     TestDataController,
-    VesselSettingController
+    VesselSettingController,
+    VesselFileController
 };
+use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -21,6 +23,22 @@ Route::get('/', function () {
         return redirect()->route('panel.index');
     }
     return redirect()->route('login');
+});
+
+// Files Routes
+Route::prefix('file/{vesselIdHashed}')->group(function () {
+
+    // Private Files
+    Route::get('/company/{filePath}', [VesselFileController::class, 'showPrivate'])
+        ->middleware(['auth', VesselAuthPrivateFiles::class])
+        ->name('vessel-file-show-private')
+        ->where('filePath', '.*');
+
+    // Public Files
+    Route::get('/{filePath?}', [VesselFileController::class, 'showPublic'])
+        ->name('vessel-file-show-public')
+        ->where('filePath', '.*');
+
 });
 
 // Panel Routes (vessel selector and vessel management)
@@ -116,6 +134,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::post('/transactions', [TransactionController::class, 'store'])->name('panel.transactions.store');
         Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('panel.transactions.update');
         Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('panel.transactions.destroy');
+        Route::delete('/transactions/{transaction}/files/{transactionFile}', [TransactionController::class, 'deleteFile'])->name('panel.transactions.files.delete');
     });
 
     // Vessel Settings (scoped to current vessel)
