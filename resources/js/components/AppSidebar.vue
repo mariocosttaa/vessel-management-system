@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/sidebar';
 import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
-import bankAccounts from '@/routes/panel/bank-accounts/index';
 import transactions from '@/routes/panel/transactions/index';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
@@ -78,15 +77,6 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'Suppliers',
             href: suppliers.index.url({ vessel: vesselId }),
             icon: Building2,
-            group: 'Financial',
-        });
-    }
-
-    if (canView('bank-accounts')) {
-        items.push({
-            title: 'Bank Accounts',
-            href: bankAccounts.index.url({ vessel: vesselId }),
-            icon: Wallet,
             group: 'Financial',
         });
     }
