@@ -397,6 +397,7 @@ const handleCreateSuccess = () => {
     }, 100);
 };
 
+
 // Filter categories by type
 const incomeCategories = computed(() => {
     return props.categories.filter(cat => cat.type === 'income');
