@@ -22,7 +22,7 @@ class RecurringTransaction extends Model
         'amount',
         'currency',
         'house_of_zeros',
-        'vat_rate_id',
+        'vat_profile_id',
         'frequency',
         'start_date',
         'end_date',
@@ -76,11 +76,11 @@ class RecurringTransaction extends Model
     }
 
     /**
-     * Get the VAT rate that owns the recurring transaction.
+     * Get the VAT profile that owns the recurring transaction.
      */
-    public function vatRate(): BelongsTo
+    public function vatProfile(): BelongsTo
     {
-        return $this->belongsTo(VatRate::class);
+        return $this->belongsTo(VatProfile::class);
     }
 
     /**
