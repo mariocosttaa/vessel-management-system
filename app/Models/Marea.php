@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
+use App\Models\VesselSetting;
 
 class Marea extends Model
 {
@@ -172,26 +173,46 @@ class Marea extends Model
         parent::boot();
 
         static::creating(function ($marea) {
-            if (!$marea->marea_number) {
-                $marea->marea_number = self::generateMareaNumber();
+            if (!$marea->marea_number && $marea->vessel_id) {
+                $marea->marea_number = self::generateMareaNumber($marea->vessel_id);
             }
         });
     }
 
     /**
-     * Generate marea number.
+     * Generate marea number based on vessel's starting number.
      */
-    private static function generateMareaNumber(): string
+    private static function generateMareaNumber(int $vesselId): string
     {
-        $year = date('Y');
-        $lastMarea = self::whereYear('created_at', $year)
+        // Get vessel settings to find starting marea number
+        $vesselSetting = VesselSetting::getForVessel($vesselId);
+        $startingNumber = $vesselSetting->starting_marea_number ?? 1;
+
+        // Find the last marea for this vessel
+        $lastMarea = self::where('vessel_id', $vesselId)
             ->orderBy('id', 'desc')
             ->first();
 
-        $nextNumber = $lastMarea ?
-            (int) substr($lastMarea->marea_number, -6) + 1 : 1;
+        if ($lastMarea) {
+            // Extract number from last marea (format: MARE2025000001)
+            // Get the numeric part (last 6 digits)
+            $lastNumber = (int) substr($lastMarea->marea_number, -6);
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // This is the first marea for this vessel, use starting number
+            $nextNumber = $startingNumber;
+        }
 
+        $year = date('Y');
         return sprintf('MARE%s%06d', $year, $nextNumber);
+    }
+
+    /**
+     * Get the next marea number for a vessel (for display purposes).
+     */
+    public static function getNextMareaNumber(int $vesselId): string
+    {
+        return self::generateMareaNumber($vesselId);
     }
 
     /**

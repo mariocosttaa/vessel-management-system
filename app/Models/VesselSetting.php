@@ -12,6 +12,7 @@ class VesselSetting extends Model
         'country_code',
         'currency_code',
         'vat_profile_id',
+        'starting_marea_number',
     ];
 
     /**
@@ -57,6 +58,7 @@ class VesselSetting extends Model
                 'country_code' => null,
                 'currency_code' => null,
                 'vat_profile_id' => null,
+                'starting_marea_number' => 1,
             ]
         );
     }
