@@ -5,7 +5,6 @@ use App\Http\Controllers\{
     CrewMemberController,
     CrewPositionController,
     SupplierController,
-    BankAccountController,
     TransactionController,
     VesselSelectorController,
     AttachmentController,
@@ -103,20 +102,6 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::post('/suppliers', [SupplierController::class, 'store'])->name('panel.suppliers.store');
         Route::put('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('panel.suppliers.update');
         Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('panel.suppliers.destroy');
-    });
-
-    // Bank Accounts (global but vessel-aware)
-    Route::get('/bank-accounts', [BankAccountController::class, 'index'])->name('panel.bank-accounts.index');
-    Route::get('/bank-accounts/create', [BankAccountController::class, 'create'])->name('panel.bank-accounts.create');
-    Route::get('/bank-accounts/{bankAccount}', [BankAccountController::class, 'show'])->name('panel.bank-accounts.show');
-    Route::get('/bank-accounts/{bankAccount}/edit', [BankAccountController::class, 'edit'])->name('panel.bank-accounts.edit');
-    Route::get('/api/bank-accounts/search', [BankAccountController::class, 'search'])->name('panel.api.bank-accounts.search');
-    Route::get('/api/bank-accounts/{bankAccount}/details', [BankAccountController::class, 'details'])->name('panel.api.bank-accounts.details');
-
-    Route::middleware('role:admin,manager')->group(function () {
-        Route::post('/bank-accounts', [BankAccountController::class, 'store'])->name('panel.bank-accounts.store');
-        Route::put('/bank-accounts/{bankAccount}', [BankAccountController::class, 'update'])->name('panel.bank-accounts.update');
-        Route::delete('/bank-accounts/{bankAccount}', [BankAccountController::class, 'destroy'])->name('panel.bank-accounts.destroy');
     });
 
     // Transactions (scoped to current vessel)
