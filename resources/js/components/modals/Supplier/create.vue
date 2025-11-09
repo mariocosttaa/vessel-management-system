@@ -22,6 +22,7 @@ const emit = defineEmits<{
 
 const form = useForm({
     company_name: '',
+    description: '',
     email: '',
     phone: '',
     address: '',
@@ -85,6 +86,22 @@ const handleClose = () => {
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.company_name }"
                             />
                             <InputError :message="form.errors.company_name" class="mt-1" />
+                        </div>
+
+                        <!-- Description -->
+                        <div>
+                            <Label for="description" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Description
+                            </Label>
+                            <textarea
+                                id="description"
+                                v-model="form.description"
+                                rows="3"
+                                placeholder="Enter supplier description"
+                                class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
+                            ></textarea>
+                            <InputError :message="form.errors.description" class="mt-1" />
                         </div>
 
                         <!-- Email -->

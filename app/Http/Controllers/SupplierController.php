@@ -7,14 +7,24 @@ use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SupplierController extends Controller
 {
     public function index(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
         $vesselId = (int) $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view suppliers (moderator and administrator only)
+        // Normal users should not have access to this page
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view suppliers.');
+        }
 
         $query = Supplier::query()->where('vessel_id', $vesselId);
 
@@ -23,6 +33,7 @@ class SupplierController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")
@@ -49,8 +60,20 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = (int) $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view suppliers (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view suppliers.');
+        }
+
         return inertia('Suppliers/Create');
     }
 
@@ -58,11 +81,13 @@ class SupplierController extends Controller
     {
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var \Illuminate\Http\Request $request */
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
 
             $supplier = Supplier::create([
                 'company_name' => $request->company_name,
+                'description' => $request->description,
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'address' => $request->address,
@@ -82,15 +107,39 @@ class SupplierController extends Controller
         }
     }
 
-    public function show($vessel, Supplier $supplier)
+    public function show(Request $request, $vessel, Supplier $supplier)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = (int) $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view suppliers (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view suppliers.');
+        }
+
         return inertia('Suppliers/Show', [
             'supplier' => new SupplierResource($supplier),
         ]);
     }
 
-    public function edit($vessel, Supplier $supplier)
+    public function edit(Request $request, $vessel, Supplier $supplier)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = (int) $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view suppliers (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view suppliers.');
+        }
+
         return inertia('Suppliers/Edit', [
             'supplier' => new SupplierResource($supplier),
         ]);
@@ -100,6 +149,7 @@ class SupplierController extends Controller
     {
         try {
             // Verify supplier belongs to current vessel
+            /** @var \Illuminate\Http\Request $request */
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
             if ($supplier->vessel_id !== $vesselId) {
@@ -109,6 +159,7 @@ class SupplierController extends Controller
             // Access validated values directly as properties (never use validated())
             $supplier->update([
                 'company_name' => $request->company_name,
+                'description' => $request->description,
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'address' => $request->address,
@@ -121,7 +172,7 @@ class SupplierController extends Controller
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
             // Log the exception for debugging
-            \Log::error('Supplier update failed: ' . $e->getMessage(), [
+            Log::error('Supplier update failed: ' . $e->getMessage(), [
                 'exception' => $e,
                 'supplier_id' => $supplier->id,
                 'vessel_id' => $vesselId ?? null,
@@ -166,11 +217,26 @@ class SupplierController extends Controller
 
     public function search(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = (int) $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view suppliers (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to search suppliers.');
+        }
+
         $query = $request->get('q');
 
-        $suppliers = Supplier::where('company_name', 'like', "%{$query}%")
-                            ->orWhere('email', 'like', "%{$query}%")
-                            ->orWhere('phone', 'like', "%{$query}%")
+        $suppliers = Supplier::where('vessel_id', $vesselId)
+                            ->where(function ($q) use ($query) {
+                                $q->where('company_name', 'like', "%{$query}%")
+                                  ->orWhere('email', 'like', "%{$query}%")
+                                  ->orWhere('phone', 'like', "%{$query}%");
+                            })
                             ->limit(10)
                             ->get(['id', 'company_name', 'email', 'phone']);
 
