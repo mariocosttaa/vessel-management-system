@@ -29,11 +29,6 @@ interface Transaction {
         type: string;
         color: string;
     } | null;
-    bank_account: {
-        id: number;
-        name: string;
-        bank_name: string;
-    } | null;
     supplier: {
         id: number;
         company_name: string;
@@ -168,16 +163,6 @@ const getTypeVariant = (type: string) => {
                             <label class="text-sm font-medium text-muted-foreground">Category</label>
                             <p class="text-lg text-card-foreground">
                                 {{ detailedTransaction.category?.name || 'N/A' }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-sm font-medium text-muted-foreground">Bank Account</label>
-                            <p class="text-lg text-card-foreground">
-                                {{ detailedTransaction.bank_account?.name || 'N/A' }}
-                                <span v-if="detailedTransaction.bank_account" class="text-sm text-muted-foreground">
-                                    ({{ detailedTransaction.bank_account.bank_name }})
-                                </span>
                             </p>
                         </div>
                     </div>

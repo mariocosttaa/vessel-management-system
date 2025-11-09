@@ -18,13 +18,6 @@ interface TransactionCategory {
     color: string;
 }
 
-interface BankAccount {
-    id: number;
-    name: string;
-    bank_name: string;
-    currency?: string;
-}
-
 interface Supplier {
     id: number;
     company_name: string;
@@ -39,7 +32,6 @@ interface CrewMember {
 interface Props {
     open: boolean;
     categories: TransactionCategory[];
-    bankAccounts: BankAccount[];
     suppliers: Supplier[];
     crewMembers: CrewMember[];
     vatRates?: any[]; // Keep for backward compatibility (not used)
@@ -90,42 +82,18 @@ const vesselCurrencyData = computed(() => {
     };
 });
 
-// Auto-select bank account if only one exists
-const defaultBankAccount = computed(() => {
-    if (props.bankAccounts.length === 1) {
-        return props.bankAccounts[0].id;
-    }
-    return null;
-});
-
-// Get selected bank account currency
-const selectedBankAccount = computed(() => {
-    if (!form.bank_account_id) return null;
-    return props.bankAccounts.find(acc => acc.id === form.bank_account_id);
-});
-
-// Currency priority: vessel_settings (defaultCurrency prop) > bank account currency > EUR
-// Vessel settings currency should always take precedence over bank account currency
+// Currency priority: vessel_settings (defaultCurrency prop) > EUR
+// Vessel settings currency should always take precedence
 const currentCurrency = computed(() => {
     // Always prioritize vessel_settings currency (from defaultCurrency prop)
-    // Only use bank account currency if vessel_settings currency is not available
-    return vesselCurrencyData.value.code || selectedBankAccount.value?.currency || 'EUR';
+    return vesselCurrencyData.value.code || 'EUR';
 });
 
 // Get current currency decimals
-// Priority: vessel_settings currency decimals > bank account currency decimals > 2
+// Priority: vessel_settings currency decimals > 2
 const currentCurrencyDecimals = computed(() => {
     // Always prioritize vessel_settings currency decimals
-    if (vesselCurrencyData.value.decimals) {
-        return vesselCurrencyData.value.decimals;
-    }
-    // Fallback to bank account currency decimals if vessel currency not available
-    if (selectedBankAccount.value?.currency) {
-        const currencies = (page.props as any)?.currencies || [];
-        const currency = currencies.find((c: any) => c.code === selectedBankAccount.value?.currency);
-        return currency?.decimal_separator || 2;
-    }
-    return 2;
+    return vesselCurrencyData.value.decimals || 2;
 });
 
 // Filter categories for expense only
@@ -148,7 +116,6 @@ const showCrewMemberField = computed(() => {
 // VAT is not used for expenses/removals
 
 const form = useForm({
-    bank_account_id: null as number | null,
     category_id: null as number | null,
     type: 'expense' as string,
     amount: null as number | null,
@@ -170,9 +137,8 @@ watch(() => props.open, (isOpen) => {
     if (isOpen) {
         form.reset();
         form.type = 'expense';
-        form.bank_account_id = defaultBankAccount.value;
-        // Priority: vessel_settings currency > bank account currency > EUR
-        form.currency = vesselCurrencyData.value.code || selectedBankAccount.value?.currency || 'EUR';
+        // Priority: vessel_settings currency > EUR
+        form.currency = vesselCurrencyData.value.code || 'EUR';
         form.house_of_zeros = currentCurrencyDecimals.value;
         form.transaction_date = new Date().toISOString().split('T')[0];
         form.status = 'completed';
@@ -194,20 +160,6 @@ watch(() => form.category_id, () => {
     }
 });
 
-// Watch bank account change to update currency
-watch(() => form.bank_account_id, (newAccountId) => {
-    if (newAccountId && selectedBankAccount.value) {
-        // Priority: vessel_settings currency > bank account currency > EUR
-        // Vessel settings currency should always take precedence
-        form.currency = vesselCurrencyData.value.code || selectedBankAccount.value.currency || 'EUR';
-        form.house_of_zeros = currentCurrencyDecimals.value;
-    } else if (!newAccountId) {
-        // If no bank account selected, use vessel settings currency
-        form.currency = vesselCurrencyData.value.code || 'EUR';
-        form.house_of_zeros = vesselCurrencyData.value.decimals;
-    }
-});
-
 // VAT is not used for expenses/removals
 
 // Get current vessel ID from URL
@@ -223,10 +175,10 @@ const submit = () => {
     form.vat_profile_id = null;
     form.vat_rate_id = null;
 
-    // Ensure currency is always set from vessel settings or bank account
-    // Priority: selected bank account currency > vessel settings currency > EUR
+    // Ensure currency is always set from vessel settings
+    // Priority: vessel settings currency > EUR
     if (!form.currency) {
-        form.currency = selectedBankAccount.value?.currency || vesselCurrencyData.value.code || 'EUR';
+        form.currency = vesselCurrencyData.value.code || 'EUR';
     }
 
     // Ensure house_of_zeros is set
@@ -235,8 +187,8 @@ const submit = () => {
     }
 
     // Always ensure currency is set before submission (force update)
-    // Priority: vessel_settings currency > bank account currency > EUR
-    form.currency = vesselCurrencyData.value.code || selectedBankAccount.value?.currency || 'EUR';
+    // Priority: vessel_settings currency > EUR
+    form.currency = vesselCurrencyData.value.code || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
     form.post(transactions.store.url({ vessel: getCurrentVesselId() }), {
@@ -269,27 +221,6 @@ const submit = () => {
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
-                <!-- Bank Account -->
-                <div class="space-y-2">
-                    <Label for="bank_account_id">Bank Account <span v-if="bankAccounts.length > 0" class="text-destructive">*</span></Label>
-                    <select
-                        id="bank_account_id"
-                        v-model="form.bank_account_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.bank_account_id }"
-                        :required="bankAccounts.length > 0"
-                    >
-                        <option :value="null">Select a bank account</option>
-                        <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
-                            {{ account.name }} ({{ account.bank_name }})
-                        </option>
-                    </select>
-                    <InputError :message="form.errors.bank_account_id" />
-                    <p v-if="bankAccounts.length === 0" class="text-xs text-muted-foreground">
-                        Please create a bank account first before removing funds.
-                    </p>
-                </div>
-
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
@@ -413,7 +344,7 @@ const submit = () => {
                     <Button type="button" variant="outline" @click="emit('close')">
                         Cancel
                     </Button>
-                    <Button type="submit" :disabled="form.processing || bankAccounts.length === 0">
+                    <Button type="submit" :disabled="form.processing">
                         {{ form.processing ? 'Removing...' : 'Remove Transaction' }}
                     </Button>
                 </div>

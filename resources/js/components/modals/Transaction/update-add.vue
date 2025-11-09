@@ -28,7 +28,6 @@ interface Transaction {
     notes: string | null;
     reference: string | null;
     status: string;
-    bank_account_id: number;
     category_id: number;
     vat_profile_id: number | null;
     amount_includes_vat?: boolean;
@@ -39,13 +38,6 @@ interface TransactionCategory {
     name: string;
     type: string;
     color: string;
-}
-
-interface BankAccount {
-    id: number;
-    name: string;
-    bank_name: string;
-    currency?: string;
 }
 
 interface VatProfile {
@@ -59,7 +51,6 @@ interface Props {
     open: boolean;
     transaction: Transaction;
     categories: TransactionCategory[];
-    bankAccounts: BankAccount[];
     vatProfiles?: VatProfile[];
     defaultVatProfile?: VatProfile | null;
     defaultCurrency?: string;
@@ -109,30 +100,19 @@ const vesselCurrencyData = computed(() => {
     };
 });
 
-// Get selected bank account currency
-const selectedBankAccount = computed(() => {
-    if (!form.bank_account_id) return null;
-    return props.bankAccounts.find(acc => acc.id === form.bank_account_id);
-});
-
-// Currency priority: transaction currency (what was saved) > vessel_settings > bank account currency > EUR
+// Currency priority: transaction currency (what was saved) > vessel_settings > EUR
 const currentCurrency = computed(() => {
     // Always prioritize transaction currency for update modals
     if (props.transaction?.currency) {
         return props.transaction.currency;
     }
-    return vesselCurrencyData.value.code || selectedBankAccount.value?.currency || 'EUR';
+    return vesselCurrencyData.value.code || 'EUR';
 });
 
 // Get current currency decimals
 const currentCurrencyDecimals = computed(() => {
     if (vesselCurrencyData.value.decimals) {
         return vesselCurrencyData.value.decimals;
-    }
-    if (selectedBankAccount.value?.currency) {
-        const currencies = (page.props as any)?.currencies || [];
-        const currency = currencies.find((c: any) => c.code === selectedBankAccount.value?.currency);
-        return currency?.decimal_separator || 2;
     }
     return props.transaction.house_of_zeros || 2;
 });
@@ -211,7 +191,6 @@ const selectedVatProfile = computed(() => {
 
 // Initialize form with transaction data
 const form = useForm({
-    bank_account_id: props.transaction.bank_account_id,
     category_id: props.transaction.category_id,
     type: 'income' as string,
     amount: props.transaction.amount,
@@ -234,7 +213,6 @@ const vatProfiles = computed(() => props.vatProfiles || []);
 // Reset form when modal opens/closes or transaction changes
 watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        form.bank_account_id = props.transaction.bank_account_id;
         form.category_id = props.transaction.category_id;
         form.type = 'income';
         form.amount = props.transaction.amount;
@@ -249,14 +227,6 @@ watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
         form.notes = props.transaction.notes || '';
         form.status = props.transaction.status;
         form.clearErrors();
-    }
-});
-
-// Watch bank account change to update currency
-watch(() => form.bank_account_id, (newAccountId) => {
-    if (newAccountId && selectedBankAccount.value) {
-        form.currency = vesselCurrencyData.value.code || selectedBankAccount.value.currency || props.transaction.currency || 'EUR';
-        form.house_of_zeros = currentCurrencyDecimals.value;
     }
 });
 
@@ -279,7 +249,7 @@ const submit = () => {
     form.amount_includes_vat = amountIncludesVat.value;
 
     if (!form.currency) {
-        form.currency = vesselCurrencyData.value.code || selectedBankAccount.value?.currency || props.transaction.currency || 'EUR';
+        form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
     }
 
     if (!form.house_of_zeros) {
@@ -290,7 +260,7 @@ const submit = () => {
         form.vat_profile_id = defaultVatProfile.value.id;
     }
 
-    form.currency = vesselCurrencyData.value.code || selectedBankAccount.value?.currency || props.transaction.currency || 'EUR';
+    form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
     form.put(transactions.update.url({ vessel: getCurrentVesselId(), transaction: props.transaction.id }), {
@@ -323,24 +293,6 @@ const submit = () => {
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
-                <!-- Bank Account -->
-                <div class="space-y-2">
-                    <Label for="bank_account_id">Bank Account <span class="text-destructive">*</span></Label>
-                    <select
-                        id="bank_account_id"
-                        v-model="form.bank_account_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.bank_account_id }"
-                        required
-                    >
-                        <option :value="null">Select a bank account</option>
-                        <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
-                            {{ account.name }} ({{ account.bank_name }})
-                        </option>
-                    </select>
-                    <InputError :message="form.errors.bank_account_id" />
-                </div>
-
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
