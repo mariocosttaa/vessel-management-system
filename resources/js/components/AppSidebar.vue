@@ -27,7 +27,8 @@ import {
     Home,
     Settings,
     Ship,
-    Calculator
+    Calculator,
+    Trash2
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -118,6 +119,16 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'Vessel Settings',
             href: `/panel/${vesselId}/settings`,
             icon: Settings,
+            group: 'Settings',
+        });
+    }
+
+    // Recycle Bin - Only for users with recycle_bin.view permission
+    if (hasPermission('recycle_bin.view')) {
+        items.push({
+            title: 'Recycle Bin',
+            href: `/panel/${vesselId}/recycle-bin`,
+            icon: Trash2,
             group: 'Settings',
         });
     }
