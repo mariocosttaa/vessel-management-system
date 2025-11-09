@@ -10,8 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
+import Icon from '@/components/Icon.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useMoney } from '@/composables/useMoney';
+import { router } from '@inertiajs/vue3';
 import transactions from '@/routes/panel/transactions';
 
 interface Transaction {
@@ -31,6 +34,14 @@ interface Transaction {
     category_id: number;
     vat_profile_id: number | null;
     amount_includes_vat?: boolean;
+    files?: {
+        id: number;
+        src: string;
+        name: string;
+        size: number;
+        type: string;
+        size_human: string;
+    }[];
 }
 
 interface TransactionCategory {
@@ -197,12 +208,15 @@ const form = useForm({
     currency: props.transaction.currency,
     house_of_zeros: props.transaction.house_of_zeros,
     vat_profile_id: props.transaction.vat_profile_id || props.defaultVatProfile?.id || null,
+    files: [] as File[],
     amount_includes_vat: initialAmountIncludesVat.value,
     transaction_date: props.transaction.transaction_date,
     description: props.transaction.description || '',
     notes: props.transaction.notes || '',
     status: props.transaction.status,
 });
+
+const selectedFiles = ref<File[]>([]);
 
 // Get default VAT profile from props
 const defaultVatProfile = computed(() => props.defaultVatProfile);
@@ -226,9 +240,16 @@ watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
         form.description = props.transaction.description || '';
         form.notes = props.transaction.notes || '';
         form.status = props.transaction.status;
+        form.files = [];
+        selectedFiles.value = [];
         form.clearErrors();
     }
 });
+
+// Watch selectedFiles and update form.files
+watch(selectedFiles, (files) => {
+    form.files = files;
+}, { deep: true });
 
 // Watch VAT switch
 watch(amountIncludesVat, (value) => {
@@ -243,6 +264,60 @@ const getCurrentVesselId = () => {
     const path = window.location.pathname;
     const vesselMatch = path.match(/\/panel\/(\d+)/);
     return vesselMatch ? vesselMatch[1] : '1';
+};
+
+// File management functions
+const getFileIcon = (type: string): string => {
+    const extension = type.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+        return 'image';
+    }
+    if (extension === 'pdf') {
+        return 'file-text';
+    }
+    if (['doc', 'docx'].includes(extension)) {
+        return 'file-text';
+    }
+    if (['xls', 'xlsx'].includes(extension)) {
+        return 'file-text';
+    }
+    if (['txt', 'csv'].includes(extension)) {
+        return 'file-text';
+    }
+    return 'file';
+};
+
+const openFile = (src: string) => {
+    // Ensure the URL starts with / for relative paths
+    const url = src.startsWith('/') ? src : `/${src}`;
+    window.open(url, '_blank');
+};
+
+const deleteFile = (fileId: number) => {
+    if (!confirm('Are you sure you want to delete this file?')) {
+        return;
+    }
+
+    const vesselId = getCurrentVesselId();
+    router.delete(`/panel/${vesselId}/transactions/${props.transaction.id}/files/${fileId}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            addNotification({
+                type: 'success',
+                title: 'Success',
+                message: 'File deleted successfully.',
+            });
+            // Reload the page to refresh the transaction data
+            router.reload({ only: ['transactions'] });
+        },
+        onError: () => {
+            addNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to delete file.',
+            });
+        },
+    });
 };
 
 const submit = () => {
@@ -264,6 +339,8 @@ const submit = () => {
     form.house_of_zeros = currentCurrencyDecimals.value;
 
     form.put(transactions.update.url({ vessel: getCurrentVesselId(), transaction: props.transaction.id }), {
+        forceFormData: true, // Required for file uploads
+        preserveScroll: true,
         onSuccess: () => {
             addNotification({
                 type: 'success',
@@ -287,12 +364,16 @@ const submit = () => {
 
 <template>
     <Dialog :open="open" @update:open="emit('close')">
-        <DialogContent class="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
                 <DialogTitle class="text-green-600 dark:text-green-400">Update Transaction #{{ transaction.transaction_number }}</DialogTitle>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- Two Column Layout: Left (Form Fields) | Right (Files) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Form Fields -->
+                    <div class="lg:col-span-2 space-y-6">
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
@@ -447,6 +528,71 @@ const submit = () => {
                         <option value="cancelled">Cancelled</option>
                     </select>
                     <InputError :message="form.errors.status" />
+                </div>
+
+                    </div>
+
+                    <!-- Right Column: Files Section -->
+                    <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
+                        <!-- Existing Files -->
+                        <div v-if="transaction.files && transaction.files.length > 0" class="space-y-3">
+                            <Label class="text-base font-semibold">Existing Files</Label>
+                            <div class="space-y-2 max-h-[300px] overflow-y-auto">
+                                <div
+                                    v-for="file in transaction.files"
+                                    :key="file.id"
+                                    class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                                >
+                                    <div class="flex items-start gap-2">
+                                        <Icon
+                                            :name="getFileIcon(file.type)"
+                                            class="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5"
+                                        />
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-foreground truncate">
+                                                {{ file.name }}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                {{ file.size_human }} · {{ file.type.toUpperCase() }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            @click="openFile(file.src)"
+                                            class="flex-1 text-xs"
+                                        >
+                                            <Icon name="external-link" class="w-3 h-3 mr-1" />
+                                            View
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            @click="deleteFile(file.id)"
+                                            class="flex-shrink-0"
+                                            title="Delete file"
+                                        >
+                                            <Icon name="trash-2" class="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="space-y-2">
+                            <Label class="text-base font-semibold">Add New Files</Label>
+                            <MultiFileUpload
+                                v-model="selectedFiles"
+                                :error="form.errors.files"
+                                @error="(error) => form.setError('files', error)"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Hidden fields -->

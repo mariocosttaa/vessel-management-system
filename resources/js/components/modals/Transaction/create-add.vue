@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useMoney } from '@/composables/useMoney';
 import transactions from '@/routes/panel/transactions';
@@ -161,7 +162,11 @@ const form = useForm({
     description: '',
     notes: '',
     status: 'completed',
+    files: [] as File[],
 });
+
+const selectedFiles = ref<File[]>([]);
+const fileUploadRef = ref<InstanceType<typeof MultiFileUpload> | null>(null);
 
 // Get default VAT profile from props
 const defaultVatProfile = computed(() => props.defaultVatProfile);
@@ -169,25 +174,48 @@ const defaultVatProfile = computed(() => props.defaultVatProfile);
 // Get VAT profiles list
 const vatProfiles = computed(() => props.vatProfiles || []);
 
-// Reset form when modal opens/closes
-watch(() => props.open, (isOpen) => {
-    if (isOpen) {
+// Reset form when modal opens
+watch(() => props.open, (isOpen, wasOpen) => {
+    // Only reset when modal opens (transitioning from false to true)
+    if (isOpen && wasOpen === false) {
+        // Reset all form fields to default values
         form.reset();
         form.type = 'income';
-        // Priority: vessel_settings currency > EUR
         form.currency = vesselCurrencyData.value.code || 'EUR';
         form.house_of_zeros = currentCurrencyDecimals.value;
         form.transaction_date = new Date().toISOString().split('T')[0];
         form.status = 'completed';
-        amountIncludesVat.value = false;
         form.amount_includes_vat = false;
         form.vat_rate_id = null;
-        // Always set default VAT profile if available (user cannot change it)
         form.vat_profile_id = defaultVatProfile.value?.id || null;
         form.category_id = null;
+        form.amount = null;
+        form.description = '';
+        form.notes = '';
+        form.files = [];
+
+        // Reset reactive refs
+        amountIncludesVat.value = false;
+        selectedFiles.value = [];
+
+        // Clear file upload component after a brief delay to ensure component is mounted
+        nextTick(() => {
+            if (fileUploadRef.value && typeof fileUploadRef.value.clearFiles === 'function') {
+                fileUploadRef.value.clearFiles();
+            }
+        });
+
+        // Clear all errors
         form.clearErrors();
     }
 });
+
+// Watch selectedFiles to ensure it stays in sync with MultiFileUpload
+// But only log/debug, don't modify form.files here to avoid loops
+watch(selectedFiles, (newFiles) => {
+    // This watcher ensures selectedFiles is reactive
+    // The actual form.files will be set in submit()
+}, { deep: false }); // Use shallow watch to avoid deep watching File objects
 
 // Watch VAT checkbox
 watch(amountIncludesVat, (value) => {
@@ -205,9 +233,39 @@ const getCurrentVesselId = () => {
     return vesselMatch ? vesselMatch[1] : '1';
 };
 
+const handleDialogUpdate = (value: boolean) => {
+    // Only emit close when dialog is being closed (not opened)
+    if (!value) {
+        emit('close');
+    }
+};
+
 const submit = () => {
     // Set amount_includes_vat flag
     form.amount_includes_vat = amountIncludesVat.value;
+
+    // Get files for submission - prioritize component ref, then selectedFiles, then empty array
+    let filesToSubmit: File[] = [];
+
+    // Method 1: Get files directly from the MultiFileUpload component (most reliable)
+    if (fileUploadRef.value && typeof fileUploadRef.value.getFiles === 'function') {
+        try {
+            const componentFiles = fileUploadRef.value.getFiles();
+            if (componentFiles && Array.isArray(componentFiles) && componentFiles.length > 0) {
+                filesToSubmit = Array.from(componentFiles);
+            }
+        } catch (e) {
+            // If getFiles fails, fall through to selectedFiles
+        }
+    }
+
+    // Method 2: Fallback to selectedFiles if component ref didn't work or returned empty
+    if (filesToSubmit.length === 0 && selectedFiles.value && Array.isArray(selectedFiles.value) && selectedFiles.value.length > 0) {
+        filesToSubmit = Array.from(selectedFiles.value);
+    }
+
+    // Set form.files for submission (can be empty array if no files)
+    form.files = filesToSubmit;
 
     // Ensure currency is always set from vessel settings
     // Priority: vessel settings currency > EUR
@@ -231,17 +289,47 @@ const submit = () => {
     form.house_of_zeros = currentCurrencyDecimals.value;
 
     form.post(transactions.store.url({ vessel: getCurrentVesselId() }), {
-        onSuccess: () => {
-            addNotification({
-                type: 'success',
-                title: 'Success',
-                message: 'Funds have been added successfully.',
-            });
-            emit('success');
+        forceFormData: true, // Required for file uploads
+        preserveScroll: true,
+        onSuccess: (page) => {
+            // Reset all form fields to default values
+            form.reset();
+            form.type = 'income';
+            form.currency = vesselCurrencyData.value.code || 'EUR';
+            form.house_of_zeros = currentCurrencyDecimals.value;
+            form.transaction_date = new Date().toISOString().split('T')[0];
+            form.status = 'completed';
+            form.amount_includes_vat = false;
+            form.vat_rate_id = null;
+            form.vat_profile_id = defaultVatProfile.value?.id || null;
+            form.category_id = null;
+            form.amount = null;
+            form.description = '';
+            form.notes = '';
+            form.files = [];
+
+            // Reset reactive refs
+            amountIncludesVat.value = false;
+            selectedFiles.value = [];
+
+            // Clear file upload component
+            if (fileUploadRef.value && typeof fileUploadRef.value.clearFiles === 'function') {
+                fileUploadRef.value.clearFiles();
+            }
+
+            // Clear all errors
+            form.clearErrors();
+
+            // Close modal - parent will handle reload
             emit('close');
+
+            // Small delay before emitting success to ensure modal closes first
+            requestAnimationFrame(() => {
+                emit('success');
+            });
         },
         onError: (errors) => {
-            console.error('Form submission errors:', errors);
+            // Errors are already displayed via form.errors in the template
             addNotification({
                 type: 'error',
                 title: 'Error',
@@ -253,13 +341,20 @@ const submit = () => {
 </script>
 
 <template>
-    <Dialog :open="open" @update:open="emit('close')">
-        <DialogContent class="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <Dialog :open="open" @update:open="handleDialogUpdate">
+        <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
                 <DialogTitle class="text-green-600 dark:text-green-400">Add Transaction</DialogTitle>
+                <DialogDescription class="sr-only">
+                    Add a new income transaction to the vessel
+                </DialogDescription>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- Two Column Layout: Left (Form Fields) | Right (Files) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Form Fields -->
+                    <div class="lg:col-span-2 space-y-6">
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
@@ -398,6 +493,23 @@ const submit = () => {
                         :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                     />
                     <InputError :message="form.errors.notes" />
+                </div>
+
+                    </div>
+
+                    <!-- Right Column: Files Section -->
+                    <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
+                        <!-- File Upload -->
+                        <div class="space-y-2">
+                            <Label class="text-base font-semibold">Attach Files</Label>
+                            <MultiFileUpload
+                                ref="fileUploadRef"
+                                v-model="selectedFiles"
+                                :error="form.errors.files"
+                                @error="(error) => form.setError('files', error)"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Hidden fields -->
