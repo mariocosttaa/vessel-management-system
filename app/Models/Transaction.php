@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Actions\MoneyAction;
 use App\Services\MoneyService;
+use App\Models\VatProfile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -25,7 +26,7 @@ class Transaction extends Model
         'amount',
         'currency',
         'house_of_zeros',
-        'vat_rate_id',
+        'vat_profile_id',
         'vat_amount',
         'total_amount',
         'transaction_date',
@@ -85,18 +86,19 @@ class Transaction extends Model
 
     /**
      * Get the crew member that owns the transaction.
+     * Crew members are now User models with vessel_id and position_id.
      */
     public function crewMember(): BelongsTo
     {
-        return $this->belongsTo(CrewMember::class);
+        return $this->belongsTo(User::class, 'crew_member_id');
     }
 
     /**
-     * Get the VAT rate that owns the transaction.
+     * Get the VAT profile that owns the transaction.
      */
-    public function vatRate(): BelongsTo
+    public function vatProfile(): BelongsTo
     {
-        return $this->belongsTo(VatRate::class);
+        return $this->belongsTo(VatProfile::class);
     }
 
     /**
@@ -208,22 +210,107 @@ class Transaction extends Model
                 $transaction->transaction_number = self::generateTransactionNumber();
             }
 
-            // Extract month and year from date
-            $date = \Carbon\Carbon::parse($transaction->transaction_date);
-            $transaction->transaction_month = $date->month;
-            $transaction->transaction_year = $date->year;
-
-            // Calculate VAT if necessary
-            if ($transaction->vat_rate_id && !$transaction->vat_amount) {
-                $vatRate = VatRate::find($transaction->vat_rate_id);
-                $transaction->vat_amount = MoneyService::calculateVat(
-                    $transaction->amount,
-                    (float) $vatRate->rate,
-                    $transaction->house_of_zeros
-                );
+            // Auto-generate reference number if not provided
+            if (!$transaction->reference) {
+                $transaction->reference = self::generateReferenceNumber();
             }
 
-            $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
+            // Extract month and year from date
+            if ($transaction->transaction_date) {
+                $date = \Carbon\Carbon::parse($transaction->transaction_date);
+                $transaction->transaction_month = $date->month;
+                $transaction->transaction_year = $date->year;
+            }
+
+            // For income transactions, ensure vat_profile_id is set from vessel settings if not provided
+            if ($transaction->type === 'income' && !$transaction->vat_profile_id && $transaction->vessel_id) {
+                $vesselSetting = \App\Models\VesselSetting::getForVessel($transaction->vessel_id);
+                if ($vesselSetting && $vesselSetting->vat_profile_id) {
+                    $transaction->vat_profile_id = $vesselSetting->vat_profile_id;
+                } else {
+                    // Fallback to default VAT profile
+                    $defaultVatProfile = VatProfile::where('is_default', true)->first();
+                    if ($defaultVatProfile) {
+                        $transaction->vat_profile_id = $defaultVatProfile->id;
+                    }
+                }
+            }
+
+            // For expense transactions, ensure vat_profile_id is null
+            if ($transaction->type === 'expense') {
+                $transaction->vat_profile_id = null;
+                $transaction->vat_amount = 0;
+            }
+
+            // Calculate VAT if not already set (controller may have set it)
+            // Only calculate if vat_amount is not set and we have a VAT profile
+            if (!$transaction->vat_amount && $transaction->vat_profile_id) {
+                $vatProfile = VatProfile::find($transaction->vat_profile_id);
+                if ($vatProfile) {
+                    // VAT calculation is handled in controller based on amount_includes_vat flag
+                    // Here we just set default if not provided
+                    $transaction->vat_amount = MoneyService::calculateVat(
+                        $transaction->amount,
+                        (float) $vatProfile->percentage,
+                        $transaction->house_of_zeros ?? 2
+                    );
+                }
+            }
+
+            // Calculate total amount if not already set
+            if (!$transaction->total_amount) {
+                $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
+            }
+        });
+
+        static::updating(function ($transaction) {
+            // Recalculate month and year if date changed
+            if ($transaction->isDirty('transaction_date') && $transaction->transaction_date) {
+                $date = \Carbon\Carbon::parse($transaction->transaction_date);
+                $transaction->transaction_month = $date->month;
+                $transaction->transaction_year = $date->year;
+            }
+
+            // For income transactions, ensure vat_profile_id is set from vessel settings if not provided
+            if ($transaction->type === 'income' && !$transaction->vat_profile_id && $transaction->vessel_id) {
+                $vesselSetting = \App\Models\VesselSetting::getForVessel($transaction->vessel_id);
+                if ($vesselSetting && $vesselSetting->vat_profile_id) {
+                    $transaction->vat_profile_id = $vesselSetting->vat_profile_id;
+                } else {
+                    // Fallback to default VAT profile
+                    $defaultVatProfile = VatProfile::where('is_default', true)->first();
+                    if ($defaultVatProfile) {
+                        $transaction->vat_profile_id = $defaultVatProfile->id;
+                    }
+                }
+            }
+
+            // For expense transactions, ensure vat_profile_id is null
+            if ($transaction->type === 'expense') {
+                $transaction->vat_profile_id = null;
+                $transaction->vat_amount = 0;
+            }
+
+            // Recalculate VAT if amount or VAT profile changed
+            if ($transaction->isDirty('amount') || $transaction->isDirty('vat_profile_id') || $transaction->isDirty('house_of_zeros')) {
+                if ($transaction->vat_profile_id && $transaction->type === 'income') {
+                    $vatProfile = VatProfile::find($transaction->vat_profile_id);
+                    if ($vatProfile) {
+                        $transaction->vat_amount = MoneyService::calculateVat(
+                            $transaction->amount,
+                            (float) $vatProfile->percentage,
+                            $transaction->house_of_zeros ?? 2
+                        );
+                    }
+                } else {
+                    $transaction->vat_amount = 0;
+                }
+            }
+
+            // Recalculate total amount if amount or VAT amount changed
+            if ($transaction->isDirty('amount') || $transaction->isDirty('vat_amount')) {
+                $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
+            }
         });
     }
 
@@ -241,6 +328,33 @@ class Transaction extends Model
             (int) substr($lastTransaction->transaction_number, -6) + 1 : 1;
 
         return sprintf('TRX%s%06d', $year, $nextNumber);
+    }
+
+    /**
+     * Generate reference number (auto-generated if not provided).
+     */
+    private static function generateReferenceNumber(): string
+    {
+        $year = date('Y');
+        $month = date('m');
+
+        // Get the last transaction with a reference number in this month/year
+        $lastTransaction = self::whereYear('created_at', $year)
+                              ->whereMonth('created_at', $month)
+                              ->whereNotNull('reference')
+                              ->where('reference', 'like', 'REF' . $year . $month . '%')
+                              ->orderBy('id', 'desc')
+                              ->first();
+
+        if ($lastTransaction && $lastTransaction->reference) {
+            // Extract the number part from the reference (last 6 digits)
+            $lastNumber = (int) substr($lastTransaction->reference, -6);
+            $nextNumber = $lastNumber + 1;
+        } else {
+            $nextNumber = 1;
+        }
+
+        return sprintf('REF%s%s%06d', $year, $month, $nextNumber);
     }
 
     /**

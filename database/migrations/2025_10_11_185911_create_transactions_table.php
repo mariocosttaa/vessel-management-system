@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('bank_account_id')->constrained()->onDelete('restrict');
             $table->foreignId('category_id')->constrained('transaction_categories')->onDelete('restrict');
             $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('crew_member_id')->nullable()->constrained()->onDelete('set null'); // se for pagamento de salário
+            $table->foreignId('crew_member_id')->nullable()->constrained('users')->onDelete('set null'); // se for pagamento de salário
 
             $table->enum('type', ['income', 'expense', 'transfer']);
 
