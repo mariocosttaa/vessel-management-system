@@ -12,6 +12,11 @@ interface Transaction {
     type_label: string;
     amount: number;
     formatted_amount: string;
+    amount_per_unit: number | null;
+    price_per_unit?: number | null; // Backward compatibility
+    formatted_amount_per_unit?: string | null;
+    formatted_price_per_unit: string | null;
+    quantity: number | null;
     vat_amount: number;
     formatted_vat_amount: string;
     total_amount: number;
@@ -162,32 +167,74 @@ const openFile = (src: string) => {
                         <!-- Financial Information -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="space-y-4">
-                                <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Amount</label>
-                                    <p class="text-xl font-semibold text-card-foreground">
-                                        {{ detailedTransaction.formatted_amount }}
-                                    </p>
+                                <!-- Price Per Unit and Quantity (if available) -->
+                                <div v-if="(detailedTransaction.amount_per_unit ?? detailedTransaction.price_per_unit) != null && detailedTransaction.quantity != null && (detailedTransaction.amount_per_unit ?? detailedTransaction.price_per_unit)! > 0 && detailedTransaction.quantity > 0" class="space-y-3 p-4 border rounded-lg bg-muted/30">
+                                    <div class="space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Quantity</label>
+                                        <p class="text-lg font-semibold text-card-foreground">
+                                            {{ Math.round(detailedTransaction.quantity ?? 0) }}
+                                        </p>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Price Per Unit</label>
+                                        <p class="text-lg font-semibold text-card-foreground">
+                                            {{ detailedTransaction.formatted_amount_per_unit || detailedTransaction.formatted_price_per_unit || detailedTransaction.formatted_amount }}
+                                        </p>
+                                    </div>
+
+                                    <div v-if="detailedTransaction.vat_profile" class="pt-2 border-t space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
+                                        </p>
+                                    </div>
+
+                                    <div v-if="detailedTransaction.vat_amount > 0" class="pt-2 border-t space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ detailedTransaction.formatted_vat_amount }}
+                                        </p>
+                                    </div>
+
+                                    <div class="pt-2 border-t-2 border-primary/50 space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <p class="text-2xl font-bold text-card-foreground text-primary">
+                                            {{ detailedTransaction.formatted_total_amount }}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div v-if="detailedTransaction.vat_profile">
-                                    <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
-                                    <p class="text-lg text-card-foreground">
-                                        {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
-                                    </p>
-                                </div>
+                                <!-- Direct Amount (if no price per unit/quantity) -->
+                                <div v-else class="space-y-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                        <p class="text-xl font-semibold text-card-foreground">
+                                            {{ detailedTransaction.formatted_amount }}
+                                        </p>
+                                    </div>
 
-                                <div v-if="detailedTransaction.vat_amount > 0">
-                                    <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
-                                    <p class="text-lg text-card-foreground">
-                                        {{ detailedTransaction.formatted_vat_amount }}
-                                    </p>
-                                </div>
+                                    <div v-if="detailedTransaction.vat_profile">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
+                                        </p>
+                                    </div>
 
-                                <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
-                                    <p class="text-xl font-semibold text-card-foreground text-primary">
-                                        {{ detailedTransaction.formatted_total_amount }}
-                                    </p>
+                                    <div v-if="detailedTransaction.vat_amount > 0">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ detailedTransaction.formatted_vat_amount }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Only show Total Amount if it's different from Amount (i.e., VAT exists) -->
+                                    <div v-if="detailedTransaction.vat_amount > 0" class="pt-2 border-t">
+                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <p class="text-xl font-semibold text-card-foreground text-primary">
+                                            {{ detailedTransaction.formatted_total_amount }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -334,17 +381,88 @@ const openFile = (src: string) => {
                     <!-- Left Column: Transaction Details -->
                     <div class="lg:col-span-2 space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="text-sm font-medium text-muted-foreground">Amount</label>
-                                <p class="text-xl font-semibold text-card-foreground">
-                                    {{ props.transaction.formatted_amount }}
-                                </p>
+                            <div class="space-y-4">
+                                <!-- Price Per Unit and Quantity (if available) -->
+                                <div v-if="(props.transaction.amount_per_unit ?? props.transaction.price_per_unit) != null && props.transaction.quantity != null && (props.transaction.amount_per_unit ?? props.transaction.price_per_unit)! > 0 && props.transaction.quantity > 0" class="space-y-3 p-4 border rounded-lg bg-muted/30">
+                                    <div class="space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Quantity</label>
+                                        <p class="text-lg font-semibold text-card-foreground">
+                                            {{ Math.round(props.transaction.quantity ?? 0) }}
+                                        </p>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Price Per Unit</label>
+                                        <p class="text-lg font-semibold text-card-foreground">
+                                            {{ (props.transaction as any).formatted_amount_per_unit || props.transaction.formatted_price_per_unit || props.transaction.formatted_amount }}
+                                        </p>
+                                    </div>
+
+                                    <div v-if="props.transaction.vat_profile" class="pt-2 border-t space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ props.transaction.vat_profile.name }} ({{ props.transaction.vat_profile.percentage }}%)
+                                        </p>
+                                    </div>
+
+                                    <div v-if="props.transaction.vat_amount > 0" class="pt-2 border-t space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ props.transaction.formatted_vat_amount }}
+                                        </p>
+                                    </div>
+
+                                    <div class="pt-2 border-t-2 border-primary/50 space-y-2">
+                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <p class="text-2xl font-bold text-card-foreground text-primary">
+                                            {{ props.transaction.formatted_total_amount }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Direct Amount (if no price per unit/quantity) -->
+                                <div v-else class="space-y-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                        <p class="text-xl font-semibold text-card-foreground">
+                                            {{ props.transaction.formatted_amount }}
+                                        </p>
+                                    </div>
+
+                                    <div v-if="props.transaction.vat_profile">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ props.transaction.vat_profile.name }} ({{ props.transaction.vat_profile.percentage }}%)
+                                        </p>
+                                    </div>
+
+                                    <div v-if="props.transaction.vat_amount > 0">
+                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <p class="text-lg text-card-foreground">
+                                            {{ props.transaction.formatted_vat_amount }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Only show Total Amount if it's different from Amount (i.e., VAT exists) -->
+                                    <div v-if="props.transaction.vat_amount > 0" class="pt-2 border-t">
+                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <p class="text-xl font-semibold text-card-foreground text-primary">
+                                            {{ props.transaction.formatted_total_amount }}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label class="text-sm font-medium text-muted-foreground">Category</label>
-                                <p class="text-lg text-card-foreground">
-                                    {{ props.transaction.category?.name || 'N/A' }}
-                                </p>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Currency</label>
+                                    <p class="text-lg text-card-foreground">{{ props.transaction.currency }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Category</label>
+                                    <p class="text-lg text-card-foreground">
+                                        {{ props.transaction.category?.name || 'N/A' }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
