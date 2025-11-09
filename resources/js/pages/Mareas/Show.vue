@@ -17,6 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
+import EditMareaModal from '@/components/modals/Marea/edit.vue';
 import TransactionShowModal from '@/components/modals/Transaction/show.vue';
 import transactions from '@/routes/panel/transactions';
 import MoneyInput from '@/components/Forms/MoneyInput.vue';
@@ -242,6 +243,7 @@ const showCreateExpenseDialog = ref(false);
 const showAddCrewDialog = ref(false);
 const showAddQuantityReturnDialog = ref(false);
 const showEditCalculationDialog = ref(false);
+const showEditMareaDialog = ref(false);
 const showSalaryPaymentDialog = ref(false);
 const showTransactionModal = ref(false);
 const selectedTransaction = ref<any>(null);
@@ -567,6 +569,12 @@ const handleAddTransaction = () => {
 };
 
 const handleEditCalculationSuccess = () => {
+    router.reload();
+};
+
+// Handle edit marea success
+const handleEditMareaSuccess = () => {
+    showEditMareaDialog.value = false;
     router.reload();
 };
 
@@ -1011,7 +1019,7 @@ const cancelDeleteMarea = () => {
                         </button>
                         <button
                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                            @click="router.visit(mareas.edit.url({ vessel: getCurrentVesselId(), mareaId: marea.id }))"
+                            @click="showEditMareaDialog = true"
                             class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                         >
                             <Icon name="edit" class="w-4 h-4 mr-2" />
@@ -2221,6 +2229,24 @@ const cancelDeleteMarea = () => {
             @update:open="showEditCalculationDialog = $event"
             @close="showEditCalculationDialog = false"
             @success="handleEditCalculationSuccess"
+        />
+
+        <!-- Edit Marea Modal -->
+        <EditMareaModal
+            :open="showEditMareaDialog"
+            :marea="{
+                id: marea.id,
+                marea_number: marea.marea_number,
+                name: marea.name,
+                description: marea.description,
+                estimated_departure_date: marea.estimated_departure_date,
+                estimated_return_date: marea.estimated_return_date,
+                status: marea.status,
+            }"
+            :vessel-id="getCurrentVesselId()"
+            @update:open="showEditMareaDialog = $event"
+            @close="showEditMareaDialog = false"
+            @success="handleEditMareaSuccess"
         />
 
         <!-- Salary Payment Modal -->
