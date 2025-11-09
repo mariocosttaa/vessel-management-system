@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
@@ -12,11 +12,14 @@ import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
 import mareas from '@/routes/panel/mareas';
-import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2 } from 'lucide-vue-next';
+import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
+import TransactionShowModal from '@/components/modals/Transaction/show.vue';
 import transactions from '@/routes/panel/transactions';
+import MoneyInput from '@/components/Forms/MoneyInput.vue';
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -82,6 +85,10 @@ interface Marea {
         transaction_number: string;
         type: string;
         amount: number;
+        amount_per_unit: number | null;
+        price_per_unit?: number | null; // Backward compatibility
+        quantity: number | null;
+        vat_amount: number;
         total_amount: number;
         currency: string;
         transaction_date: string | null;
@@ -96,6 +103,12 @@ interface Marea {
             id: number;
             company_name: string;
         } | null;
+        crew_member_id: number | null;
+        crew_member: {
+            id: number;
+            name: string;
+            email: string;
+        } | null;
     }>;
     created_at: string | null;
     created_by: {
@@ -106,6 +119,7 @@ interface Marea {
 
 interface Props {
     marea: Marea;
+    transactionCount?: number;
     defaultCurrency?: string;
     categories?: Array<{
         id: number;
@@ -141,11 +155,77 @@ interface Props {
         description?: string | null;
         is_default?: boolean;
     }>;
+    salaryCategory?: {
+        id: number;
+        name: string;
+        type: string;
+        color: string;
+    } | null;
+    crewSalaryData?: Record<number, {
+        id: number;
+        compensation_type: string;
+        fixed_amount: number | null;
+        percentage: number | null;
+        currency: string;
+        calculated_amount: number | null;
+    }>;
 }
 
 const props = defineProps<Props>();
 const { canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+const page = usePage();
+
+// Get currency data from shared props
+const currencies = computed(() => {
+    return (page.props as any)?.currencies || [];
+});
+
+// Get currency details for a transaction
+const getCurrencyData = (currencyCode: string) => {
+    const currency = currencies.value.find((c: any) => c.code === currencyCode);
+    return currency || { code: currencyCode, symbol: currencyCode, decimal_separator: 2 };
+};
+
+// Open transaction show modal
+const openTransactionModal = async (transaction: any) => {
+    selectedTransaction.value = transaction;
+    loadingTransaction.value = true;
+    showTransactionModal.value = true;
+
+    // Fetch full transaction details from API
+    try {
+        const vesselId = getCurrentVesselId();
+        const response = await fetch(`/panel/${vesselId}/api/transactions/${transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                selectedTransaction.value = data.transaction;
+            }
+        } else {
+            console.error('Failed to load transaction details:', response.statusText);
+            // Continue with the transaction data we have
+        }
+    } catch (error) {
+        console.error('Failed to load transaction details:', error);
+        // Continue with the transaction data we have
+    } finally {
+        loadingTransaction.value = false;
+    }
+};
+
+// Close transaction modal
+const closeTransactionModal = () => {
+    showTransactionModal.value = false;
+    selectedTransaction.value = null;
+};
 
 // Confirmation dialogs
 const showMarkAtSeaDialog = ref(false);
@@ -162,6 +242,19 @@ const showCreateExpenseDialog = ref(false);
 const showAddCrewDialog = ref(false);
 const showAddQuantityReturnDialog = ref(false);
 const showEditCalculationDialog = ref(false);
+const showSalaryPaymentDialog = ref(false);
+const showTransactionModal = ref(false);
+const selectedTransaction = ref<any>(null);
+const loadingTransaction = ref(false);
+
+// Distribution section collapsed state - default to collapsed, especially when calculation is not active
+const isDistributionExpanded = ref(false);
+
+// Crew Members section collapsed state - default to collapsed
+const isCrewMembersExpanded = ref(false);
+
+// Fishing Quantity section collapsed state - default to collapsed
+const isFishingQuantityExpanded = ref(false);
 
 // Data for modals
 const availableTransactions = ref<Array<any>>([]);
@@ -187,6 +280,16 @@ const addQuantityReturnForm = useForm({
     quantity: 0 as number,
     notes: '' as string,
 });
+
+const salaryPaymentForm = useForm({
+    crew_member_id: null as number | null,
+    amount: null as number | null,
+    transaction_date: new Date().toISOString().split('T')[0] as string,
+    description: '' as string,
+    notes: '' as string,
+});
+
+const loadingSalaryData = ref(false);
 
 // Forms for status actions
 const markAtSeaForm = useForm({
@@ -338,6 +441,23 @@ const incomeTransactions = computed(() =>
 
 const expenseTransactions = computed(() =>
     props.marea.transactions.filter(t => t.type === 'expense')
+);
+
+// Salary transactions (expense transactions with crew_member_id)
+const salaryTransactions = computed(() =>
+    props.marea.transactions.filter(t =>
+        t.type === 'expense' &&
+        t.crew_member_id !== null &&
+        t.category?.name === 'Salários'
+    )
+);
+
+// Non-salary expense transactions
+const nonSalaryExpenseTransactions = computed(() =>
+    props.marea.transactions.filter(t =>
+        t.type === 'expense' &&
+        (t.crew_member_id === null || t.category?.name !== 'Salários')
+    )
 );
 
 // Sort distribution items by order_index for display
@@ -656,6 +776,168 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
         },
     });
 };
+
+// Store selected crew member's salary info for display
+const selectedCrewSalaryInfo = ref<{
+    compensation_type: string | null;
+    fixed_amount: number | null;
+    percentage: number | null;
+    calculated_amount: number | null;
+    currency: string | null;
+} | null>(null);
+
+// Load salary data when crew member is selected
+const loadCrewSalaryData = async (crewMemberId: number | null) => {
+    if (!crewMemberId) {
+        salaryPaymentForm.amount = null;
+        selectedCrewSalaryInfo.value = null;
+        return;
+    }
+
+    // Check if we have salary data in props
+    if (props.crewSalaryData && props.crewSalaryData[crewMemberId]) {
+        const salaryData = props.crewSalaryData[crewMemberId];
+        selectedCrewSalaryInfo.value = {
+            compensation_type: salaryData.compensation_type,
+            fixed_amount: salaryData.fixed_amount,
+            percentage: salaryData.percentage,
+            calculated_amount: salaryData.calculated_amount,
+            currency: salaryData.currency,
+        };
+
+        if (salaryData.calculated_amount) {
+            salaryPaymentForm.amount = salaryData.calculated_amount;
+        } else if (salaryData.fixed_amount) {
+            salaryPaymentForm.amount = salaryData.fixed_amount;
+        } else {
+            salaryPaymentForm.amount = null;
+        }
+        return;
+    }
+
+    // If not in props, fetch from API
+    loadingSalaryData.value = true;
+    try {
+        const response = await fetch(
+            `/panel/${getCurrentVesselId()}/mareas/${props.marea.id}/crew-salary-data?crew_member_id=${crewMemberId}`
+        );
+        const data = await response.json();
+
+        selectedCrewSalaryInfo.value = {
+            compensation_type: data.compensation_type || null,
+            fixed_amount: data.fixed_amount || null,
+            percentage: data.percentage || null,
+            calculated_amount: data.calculated_amount || null,
+            currency: data.currency || null,
+        };
+
+        if (data.calculated_amount) {
+            salaryPaymentForm.amount = data.calculated_amount;
+        } else if (data.fixed_amount) {
+            salaryPaymentForm.amount = data.fixed_amount;
+        } else {
+            salaryPaymentForm.amount = null;
+        }
+    } catch (error) {
+        console.error('Failed to load salary data:', error);
+        salaryPaymentForm.amount = null;
+        selectedCrewSalaryInfo.value = null;
+    } finally {
+        loadingSalaryData.value = false;
+    }
+};
+
+// Watch crew member selection
+watch(() => salaryPaymentForm.crew_member_id, (newValue) => {
+    if (newValue) {
+        loadCrewSalaryData(newValue);
+        // Auto-fill description
+        const crewMember = props.marea.crew_members.find(m => m.id === newValue);
+        if (crewMember) {
+            salaryPaymentForm.description = `Salary payment for ${crewMember.name}`;
+        }
+    } else {
+        salaryPaymentForm.amount = null;
+        salaryPaymentForm.description = '';
+        selectedCrewSalaryInfo.value = null;
+    }
+});
+
+// Watch marea total income to recalculate percentage-based salaries
+watch(() => props.marea.total_income, () => {
+    if (salaryPaymentForm.crew_member_id) {
+        loadCrewSalaryData(salaryPaymentForm.crew_member_id);
+    }
+});
+
+// Handle salary payment
+const handleSalaryPayment = () => {
+    if (!salaryPaymentForm.crew_member_id || !salaryPaymentForm.amount) {
+        addNotification({
+            type: 'error',
+            title: 'Error',
+            message: 'Please select a crew member and enter an amount.',
+        });
+        return;
+    }
+
+    isProcessing.value = true;
+    salaryPaymentForm.post(`/panel/${getCurrentVesselId()}/mareas/${props.marea.id}/salary-payment`, {
+        onSuccess: () => {
+            showSalaryPaymentDialog.value = false;
+            isProcessing.value = false;
+            salaryPaymentForm.reset();
+            salaryPaymentForm.transaction_date = new Date().toISOString().split('T')[0];
+            addNotification({
+                type: 'success',
+                title: 'Success',
+                message: 'Salary payment has been created successfully.',
+            });
+        },
+        onError: () => {
+            isProcessing.value = false;
+        },
+    });
+};
+
+// Watch salary payment dialog to reset form when opened
+watch(showSalaryPaymentDialog, (open) => {
+    if (open) {
+        salaryPaymentForm.reset();
+        salaryPaymentForm.transaction_date = new Date().toISOString().split('T')[0];
+        selectedCrewSalaryInfo.value = null;
+    }
+});
+
+// Delete marea functions
+const isDeleting = ref(false);
+
+const handleDeleteMarea = () => {
+    showDeleteDialog.value = true;
+};
+
+const confirmDeleteMarea = () => {
+    isDeleting.value = true;
+
+    router.delete(mareas.destroy.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        onSuccess: () => {
+            router.visit(mareas.index.url({ vessel: getCurrentVesselId() }));
+        },
+        onError: () => {
+            isDeleting.value = false;
+            addNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to delete marea. Please try again.',
+            });
+        },
+    });
+};
+
+const cancelDeleteMarea = () => {
+    showDeleteDialog.value = false;
+    isDeleting.value = false;
+};
 </script>
 
 <template>
@@ -735,73 +1017,19 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
                             <Icon name="edit" class="w-4 h-4 mr-2" />
                             Edit
                         </button>
+                        <button
+                            v-if="canDelete('mareas')"
+                            @click="handleDeleteMarea"
+                            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <Icon name="trash-2" class="w-4 h-4 mr-2" />
+                            Delete
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Timeline Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Timeline</h2>
-                <div class="space-y-4">
-                    <div class="flex items-start gap-4">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Departure
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.estimated_departure_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="marea.actual_departure_date" class="flex items-start gap-4">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-cyan-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Actual Departure
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.actual_departure_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Return
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.estimated_return_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="marea.actual_return_date" class="flex items-start gap-4">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Actual Return
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.actual_return_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="marea.closed_at" class="flex items-start gap-4">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Closed At
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDateTime(marea.closed_at) }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Financial Summary Card -->
+            <!-- Financial Summary Card - Moved to top for quick overview -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Financial Summary</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -834,94 +1062,198 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
                     <div class="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
                         <div class="flex items-center justify-center mb-2">
                             <DollarSign class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
-                            <span class="text-sm font-medium text-blue-800 dark:text-blue-300">Net Result</span>
+                            <span class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                {{ marea.use_calculation && marea.distribution?.final_result !== undefined ? 'Distribution Result' : 'Net Result' }}
+                            </span>
                         </div>
                         <MoneyDisplay
-                            :value="marea.net_result"
+                            :value="marea.use_calculation && marea.distribution?.final_result !== undefined ? marea.distribution.final_result : marea.net_result"
                             :currency="defaultCurrency"
-                            :variant="marea.net_result >= 0 ? 'positive' : 'negative'"
+                            :variant="(marea.use_calculation && marea.distribution?.final_result !== undefined ? marea.distribution.final_result : marea.net_result) >= 0 ? 'positive' : 'negative'"
                             size="lg"
                             class="font-bold"
                         />
+                        <p v-if="marea.use_calculation && marea.distribution?.final_result !== undefined" class="text-xs text-muted-foreground mt-1">
+                            Based on distribution calculation
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline Card -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4 flex items-center">
+                    <Calendar class="w-5 h-5 mr-2" />
+                    Timeline
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Estimated Departure
+                            </div>
+                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ formatDate(marea.estimated_departure_date) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="marea.actual_departure_date" class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-cyan-500 mt-2"></div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Actual Departure
+                            </div>
+                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ formatDate(marea.actual_departure_date) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500 mt-2"></div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Estimated Return
+                            </div>
+                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ formatDate(marea.estimated_return_date) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="marea.actual_return_date" class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Actual Return
+                            </div>
+                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ formatDate(marea.actual_return_date) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="marea.closed_at" class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-500 mt-2"></div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                Closed At
+                            </div>
+                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ formatDateTime(marea.closed_at) }}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Distribution Calculation Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="flex-1">
-                        <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-3">
-                            Distribution Calculation
-                            <span v-if="marea.distribution_profile" class="text-sm text-muted-foreground dark:text-muted-foreground ml-2">
-                                ({{ marea.distribution_profile.name }})
-                            </span>
-                            <span v-if="marea.distribution?.uses_overrides" class="text-xs text-primary dark:text-primary ml-2 px-2 py-1 rounded bg-primary/10 dark:bg-primary/20">
-                                Custom Override
-                            </span>
-                        </h2>
-
-                        <!-- Instant Profile Selector -->
-                        <div v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'" class="flex items-center gap-3 mb-4">
-                            <Label for="distribution-profile" class="text-sm font-medium text-card-foreground dark:text-card-foreground whitespace-nowrap">
-                                Distribution Profile:
-                            </Label>
-                            <div class="flex items-center gap-2 flex-1 max-w-md">
-                                <select
-                                    id="distribution-profile"
-                                    :value="selectedProfileId"
-                                    @change="updateProfile($event.target.value)"
-                                    :disabled="updatingProfile || isProcessing"
-                                    class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    <option :value="null">No Profile (Optional)</option>
-                                    <option
-                                        v-for="profile in (distributionProfiles || [])"
-                                        :key="profile.id"
-                                        :value="profile.id"
-                                    >
-                                        {{ profile.name }}{{ profile.is_default ? ' (Default)' : '' }}
-                                    </option>
-                                </select>
-                                <Icon
-                                    v-if="updatingProfile"
-                                    name="loader-circle"
-                                    class="w-4 h-4 animate-spin text-muted-foreground"
-                                />
+                <Collapsible v-model:open="isDistributionExpanded" :default-open="false">
+                    <CollapsibleTrigger class="w-full">
+                        <div class="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    Distribution Calculation
+                                </h2>
+                                <span v-if="marea.distribution_profile" class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                    ({{ marea.distribution_profile.name }})
+                                </span>
+                                <span v-if="marea.distribution?.uses_overrides" class="text-xs text-primary dark:text-primary px-2 py-1 rounded bg-primary/10 dark:bg-primary/20">
+                                    Custom Override
+                                </span>
+                                <span v-if="!marea.use_calculation" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                                    Inactive
+                                </span>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4 ml-4">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                :checked="marea.use_calculation"
-                                @change="toggleCalculation"
-                                class="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-                                :disabled="isProcessing || marea.status === 'closed' || marea.status === 'cancelled'"
+                            <ChevronDown
+                                :class="[
+                                    'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
+                                    isDistributionExpanded ? 'transform rotate-180' : ''
+                                ]"
                             />
-                            <span class="text-sm text-card-foreground dark:text-card-foreground">Use Calculation</span>
-                        </label>
-                        <button
-                            v-if="marea.use_calculation && marea.distribution_profile_id && canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                            @click="showEditCalculationDialog = true"
-                            class="inline-flex items-center px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
-                        >
-                            <Icon name="edit" class="w-4 h-4 mr-1" />
-                            Edit Calculation
-                        </button>
-                    </div>
+                        </div>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                        <div class="mt-4">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <!-- Instant Profile Selector -->
+                                    <div v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'" class="flex items-center gap-3 mb-4">
+                                        <Label for="distribution-profile" class="text-sm font-medium text-card-foreground dark:text-card-foreground whitespace-nowrap">
+                                            Distribution Profile:
+                                        </Label>
+                                        <div class="flex items-center gap-2 flex-1 max-w-md">
+                                            <select
+                                                id="distribution-profile"
+                                                :value="selectedProfileId"
+                                                @change="updateProfile($event.target.value)"
+                                                :disabled="updatingProfile || isProcessing"
+                                                class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <option :value="null">No Profile (Optional)</option>
+                                                <option
+                                                    v-for="profile in (distributionProfiles || [])"
+                                                    :key="profile.id"
+                                                    :value="profile.id"
+                                                >
+                                                    {{ profile.name }}{{ profile.is_default ? ' (Default)' : '' }}
+                                                </option>
+                                            </select>
+                                            <Icon
+                                                v-if="updatingProfile"
+                                                name="loader-circle"
+                                                class="w-4 h-4 animate-spin text-muted-foreground"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-4 ml-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            :checked="marea.use_calculation"
+                                            @change="toggleCalculation"
+                                            class="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                                            :disabled="isProcessing || marea.status === 'closed' || marea.status === 'cancelled'"
+                                        />
+                                        <span class="text-sm text-card-foreground dark:text-card-foreground">Use Calculation</span>
+                                    </label>
+                                    <button
+                                        v-if="marea.use_calculation && marea.distribution_profile_id && canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                        @click="showEditCalculationDialog = true"
+                                        class="inline-flex items-center px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+                                    >
+                                        <Icon name="edit" class="w-4 h-4 mr-1" />
+                                        Edit Calculation
+                                    </button>
+                                </div>
+                            </div>
+
+                <!-- Warning message for closed/cancelled mareas -->
+                <div v-if="(marea.status === 'closed' || marea.status === 'cancelled') && marea.distribution?.items && Object.keys(marea.distribution.items).length > 0" class="mb-4 py-3 px-4 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
+                    <p class="text-xs text-yellow-700 dark:text-yellow-400">
+                        <strong>{{ marea.status === 'closed' ? 'Closed marea:' : 'Cancelled marea:' }}</strong>
+                        Distribution calculations are displayed for reference only and cannot be modified.
+                    </p>
                 </div>
 
                 <div v-if="!marea.use_calculation" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
-                    Calculation is disabled for this marea. Enable it to see distribution results.
+                    <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm mb-2">
+                        Calculation is disabled for this marea.
+                    </p>
+                    <p v-else class="text-sm">
+                        Calculation is disabled for this marea. Enable it to see distribution results.
+                    </p>
                 </div>
 
                 <div v-else-if="!marea.distribution_profile_id" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
                     <Icon name="layers" class="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p class="text-base font-medium mb-2">No Distribution Profile Selected</p>
-                    <p class="text-sm mb-4">Select a distribution profile above to enable calculation.</p>
+                    <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
+                        No distribution profile was selected for this marea.
+                    </p>
+                    <p v-else class="text-sm mb-4">Select a distribution profile above to enable calculation.</p>
                 </div>
 
                 <div v-else-if="marea.distribution?.items && Object.keys(marea.distribution.items).length > 0" class="space-y-4">
@@ -1020,8 +1352,143 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
                         />
                     </div>
                 </div>
-                <div v-else class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
-                    No distribution items configured. {{ marea.distribution_profile ? 'The profile has no items.' : 'Please select a distribution profile.' }}
+                <div v-else class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
+                    <p class="text-sm">
+                        No distribution items configured. {{ marea.distribution_profile ? 'The profile has no items.' : 'Please select a distribution profile.' }}
+                    </p>
+                    <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-xs mt-2 text-muted-foreground dark:text-muted-foreground">
+                        Distribution cannot be modified for {{ marea.status === 'closed' ? 'closed' : 'cancelled' }} mareas.
+                    </p>
+                </div>
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+            </div>
+
+            <!-- Salary Payments Card -->
+            <div v-if="marea.crew_members.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground flex items-center">
+                        <Wallet class="w-5 h-5 mr-2" />
+                        Salary Payments
+                    </h2>
+                    <button
+                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                        @click="showSalaryPaymentDialog = true"
+                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                        <Plus class="w-4 h-4 mr-1" />
+                        Pay Salary
+                    </button>
+                </div>
+                <div v-if="salaryTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
+                    <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
+                        No salary payments recorded for this marea
+                    </p>
+                    <p v-else-if="marea.crew_members.length === 0" class="text-sm">
+                        Add crew members to enable salary payments
+                    </p>
+                    <p v-else class="text-sm">
+                        No salary payments recorded for this marea
+                    </p>
+                </div>
+                <div v-else class="space-y-3">
+                    <div
+                        v-for="transaction in salaryTransactions"
+                        :key="transaction.id"
+                        class="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border hover:bg-muted/30 dark:hover:bg-muted/20 group"
+                    >
+                        <div
+                            class="flex items-center gap-3 flex-1 cursor-pointer flex-wrap"
+                            @click="openTransactionModal(transaction)"
+                        >
+                            <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                {{ transaction.transaction_number }}
+                            </span>
+                            <span
+                                v-if="transaction.crew_member"
+                                class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
+                            >
+                                {{ transaction.crew_member.name }}
+                            </span>
+                            <span class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ transaction.description || 'Salary payment' }}
+                            </span>
+                            <!-- Quantity and Price Per Unit (inline, prominent) -->
+                            <span
+                                v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit) > 0 && transaction.quantity > 0"
+                                class="inline-flex items-center gap-1 text-xs text-muted-foreground dark:text-muted-foreground"
+                            >
+                                <span class="font-medium">{{ Math.round(transaction.quantity) }}</span>
+                                <span>×</span>
+                                <MoneyDisplay
+                                    :value="transaction.amount_per_unit ?? transaction.price_per_unit"
+                                    :currency="transaction.currency"
+                                    :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                    variant="neutral"
+                                    size="xs"
+                                    class="inline"
+                                />
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex flex-col items-end">
+                                <!-- When amount_per_unit and quantity exist -->
+                                <template v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0">
+                                    <!-- Show VAT only if it exists -->
+                                    <template v-if="transaction.vat_amount > 0">
+                                        <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
+                                            VAT:
+                                            <MoneyDisplay
+                                                :value="transaction.vat_amount"
+                                                :currency="transaction.currency"
+                                                :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                variant="neutral"
+                                                size="xs"
+                                                class="text-xs font-normal"
+                                            />
+                                        </div>
+                                    </template>
+                                    <!-- Total Amount (always show) -->
+                                    <div class="text-sm font-semibold">
+                                        <MoneyDisplay
+                                            :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                            :currency="transaction.currency"
+                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                            variant="negative"
+                                            size="sm"
+                                            class="font-semibold"
+                                        />
+                                    </div>
+                                </template>
+                                <!-- When no price_per_unit/quantity -->
+                                <template v-else>
+                                    <div class="text-sm font-semibold">
+                                        <MoneyDisplay
+                                            :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                            :currency="transaction.currency"
+                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                            variant="negative"
+                                            size="sm"
+                                            class="font-semibold"
+                                        />
+                                    </div>
+                                    <!-- VAT indicator (only if VAT exists) -->
+                                    <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                        incl. VAT
+                                    </div>
+                                </template>
+                            </div>
+                            <button
+                                v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                @click.stop="handleRemoveTransaction(transaction.id)"
+                                class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                :disabled="isProcessing"
+                            >
+                                <X class="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1062,52 +1529,233 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
                         </button>
                     </div>
                 </div>
-                <div v-if="marea.transactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
-                    No transactions linked to this marea
+                <div v-if="incomeTransactions.length === 0 && nonSalaryExpenseTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
+                    <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
+                        No transactions linked to this marea
+                    </p>
+                    <p v-else class="text-sm">
+                        No transactions linked to this marea. Add income or expense transactions to get started.
+                    </p>
                 </div>
-                <div v-else class="space-y-3">
-                    <div
-                        v-for="transaction in marea.transactions.slice(0, 10)"
-                        :key="transaction.id"
-                        class="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border hover:bg-muted/30 dark:hover:bg-muted/20 group"
-                    >
-                        <div
-                            class="flex items-center gap-3 flex-1 cursor-pointer"
-                            @click="router.visit(`/panel/${getCurrentVesselId()}/transactions/${transaction.id}`)"
-                        >
-                            <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ transaction.transaction_number }}
-                            </span>
-                            <span
-                                v-if="transaction.category"
-                                class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
-                                :style="transaction.category.color ? {
-                                    backgroundColor: transaction.category.color + '20',
-                                    color: transaction.category.color
-                                } : {}"
+                <div v-else class="space-y-4">
+                    <!-- Income Transactions -->
+                    <div v-if="incomeTransactions.length > 0">
+                        <h3 class="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">Income</h3>
+                        <div class="space-y-3">
+                            <div
+                                v-for="transaction in incomeTransactions"
+                                :key="transaction.id"
+                                class="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border hover:bg-muted/30 dark:hover:bg-muted/20 group"
                             >
-                                {{ transaction.category.name }}
-                            </span>
-                            <span class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ transaction.description || 'No description' }}
-                            </span>
+                                <div
+                                    class="flex items-center gap-3 flex-1 cursor-pointer flex-wrap"
+                                    @click="openTransactionModal(transaction)"
+                                >
+                                    <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ transaction.transaction_number }}
+                                    </span>
+                                    <span
+                                        v-if="transaction.category"
+                                        class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
+                                        :style="transaction.category.color ? {
+                                            backgroundColor: transaction.category.color + '20',
+                                            color: transaction.category.color
+                                        } : {}"
+                                    >
+                                        {{ transaction.category.name }}
+                                    </span>
+                                    <span class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ transaction.description || 'No description' }}
+                                    </span>
+                                    <!-- Quantity and Price Per Unit (inline, prominent) -->
+                                    <span
+                                        v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0"
+                                        class="inline-flex items-center gap-1 text-xs text-muted-foreground dark:text-muted-foreground"
+                                    >
+                                        <span class="font-medium">{{ Math.round(transaction.quantity) }}</span>
+                                        <span>×</span>
+                                        <MoneyDisplay
+                                            :value="transaction.amount_per_unit ?? transaction.price_per_unit"
+                                            :currency="transaction.currency"
+                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                            variant="neutral"
+                                            size="xs"
+                                            class="inline"
+                                        />
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex flex-col items-end">
+                                        <!-- When amount_per_unit and quantity exist -->
+                                        <template v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit) > 0 && transaction.quantity > 0">
+                                            <!-- Show VAT only if it exists -->
+                                            <template v-if="transaction.vat_amount > 0">
+                                                <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
+                                                    VAT:
+                                                    <MoneyDisplay
+                                                        :value="transaction.vat_amount"
+                                                        :currency="transaction.currency"
+                                                        :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                        variant="neutral"
+                                                        size="xs"
+                                                        class="text-xs font-normal"
+                                                    />
+                                                </div>
+                                            </template>
+                                            <!-- Total Amount (always show) -->
+                                            <div class="text-sm font-semibold">
+                                                <MoneyDisplay
+                                                    :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                                    :currency="transaction.currency"
+                                                    :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                    variant="positive"
+                                                    size="sm"
+                                                    class="font-semibold"
+                                                />
+                                            </div>
+                                        </template>
+                                        <!-- When no amount_per_unit/quantity -->
+                                        <template v-else>
+                                            <div class="text-sm font-semibold">
+                                                <MoneyDisplay
+                                                    :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                                    :currency="transaction.currency"
+                                                    :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                    variant="positive"
+                                                    size="sm"
+                                                    class="font-semibold"
+                                                />
+                                            </div>
+                                            <!-- VAT indicator (only if VAT exists) -->
+                                            <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                                incl. VAT
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <button
+                                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                        @click.stop="handleRemoveTransaction(transaction.id)"
+                                        class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                        :disabled="isProcessing"
+                                    >
+                                        <X class="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <MoneyDisplay
-                                :value="transaction.total_amount"
-                                :currency="transaction.currency"
-                                :variant="transaction.type === 'income' ? 'positive' : 'negative'"
-                                size="sm"
-                                class="font-semibold"
-                            />
-                            <button
-                                v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                                @click.stop="handleRemoveTransaction(transaction.id)"
-                                class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                :disabled="isProcessing"
+                    </div>
+
+                    <!-- Divider between income and expenses -->
+                    <div v-if="incomeTransactions.length > 0 && nonSalaryExpenseTransactions.length > 0" class="flex items-center my-4">
+                        <div class="flex-1 border-t border-border dark:border-border"></div>
+                        <span class="px-4 text-xs font-medium text-muted-foreground dark:text-muted-foreground">Expenses</span>
+                        <div class="flex-1 border-t border-border dark:border-border"></div>
+                    </div>
+
+                    <!-- Expense Transactions (non-salary) -->
+                    <div v-if="nonSalaryExpenseTransactions.length > 0">
+                        <h3 v-if="incomeTransactions.length === 0" class="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">Expenses</h3>
+                        <div class="space-y-3">
+                            <div
+                                v-for="transaction in nonSalaryExpenseTransactions"
+                                :key="transaction.id"
+                                class="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border hover:bg-muted/30 dark:hover:bg-muted/20 group"
                             >
-                                <X class="w-4 h-4" />
-                            </button>
+                                <div
+                                    class="flex items-center gap-3 flex-1 cursor-pointer flex-wrap"
+                                    @click="openTransactionModal(transaction)"
+                                >
+                                    <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ transaction.transaction_number }}
+                                    </span>
+                                    <span
+                                        v-if="transaction.category"
+                                        class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium"
+                                        :style="transaction.category.color ? {
+                                            backgroundColor: transaction.category.color + '20',
+                                            color: transaction.category.color
+                                        } : {}"
+                                    >
+                                        {{ transaction.category.name }}
+                                    </span>
+                                    <span class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ transaction.description || 'No description' }}
+                                    </span>
+                                    <!-- Quantity and Price Per Unit (inline, prominent) -->
+                                    <span
+                                        v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0"
+                                        class="inline-flex items-center gap-1 text-xs text-muted-foreground dark:text-muted-foreground"
+                                    >
+                                        <span class="font-medium">{{ Math.round(transaction.quantity) }}</span>
+                                        <span>×</span>
+                                        <MoneyDisplay
+                                            :value="transaction.amount_per_unit ?? transaction.price_per_unit"
+                                            :currency="transaction.currency"
+                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                            variant="neutral"
+                                            size="xs"
+                                            class="inline"
+                                        />
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex flex-col items-end">
+                                        <!-- When amount_per_unit and quantity exist -->
+                                        <template v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit) > 0 && transaction.quantity > 0">
+                                            <!-- Show VAT only if it exists -->
+                                            <template v-if="transaction.vat_amount > 0">
+                                                <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
+                                                    VAT:
+                                                    <MoneyDisplay
+                                                        :value="transaction.vat_amount"
+                                                        :currency="transaction.currency"
+                                                        :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                        variant="neutral"
+                                                        size="xs"
+                                                        class="text-xs font-normal"
+                                                    />
+                                                </div>
+                                            </template>
+                                            <!-- Total Amount (always show) -->
+                                            <div class="text-sm font-semibold">
+                                                <MoneyDisplay
+                                                    :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                                    :currency="transaction.currency"
+                                                    :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                    variant="negative"
+                                                    size="sm"
+                                                    class="font-semibold"
+                                                />
+                                            </div>
+                                        </template>
+                                        <!-- When no amount_per_unit/quantity -->
+                                        <template v-else>
+                                            <div class="text-sm font-semibold">
+                                                <MoneyDisplay
+                                                    :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
+                                                    :currency="transaction.currency"
+                                                    :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                    variant="negative"
+                                                    size="sm"
+                                                    class="font-semibold"
+                                                />
+                                            </div>
+                                            <!-- VAT indicator (only if VAT exists) -->
+                                            <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                                incl. VAT
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <button
+                                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                        @click.stop="handleRemoveTransaction(transaction.id)"
+                                        class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                        :disabled="isProcessing"
+                                    >
+                                        <X class="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1115,106 +1763,175 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
 
             <!-- Crew Members Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground flex items-center">
-                        <Users class="w-5 h-5 mr-2" />
-                        Crew Members
-                    </h2>
-                    <button
-                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                        @click="showAddCrewDialog = true"
-                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                        <Plus class="w-4 h-4 mr-1" />
-                        Add Crew Member
-                    </button>
-                </div>
-                <div v-if="marea.crew_members.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
-                    No crew members assigned to this marea
-                </div>
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div
-                        v-for="member in marea.crew_members"
-                        :key="member.id"
-                        class="p-4 rounded-lg border border-border dark:border-border group relative"
-                    >
-                        <button
-                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                            @click="handleRemoveCrew(member.id)"
-                            class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                            :disabled="isProcessing"
-                        >
-                            <X class="w-4 h-4" />
-                        </button>
-                        <div class="font-medium text-card-foreground dark:text-card-foreground">
-                            {{ member.name }}
+                <Collapsible v-model:open="isCrewMembersExpanded" :default-open="false">
+                    <CollapsibleTrigger class="w-full">
+                        <div class="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
+                            <div class="flex items-center gap-2">
+                                <Users class="w-5 h-5 text-card-foreground dark:text-card-foreground" />
+                                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    Crew Members
+                                </h2>
+                                <span v-if="marea.crew_members.length > 0" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                                    {{ marea.crew_members.length }}
+                                </span>
+                                <span v-else class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                                    Empty
+                                </span>
+                            </div>
+                            <ChevronDown
+                                :class="[
+                                    'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
+                                    isCrewMembersExpanded ? 'transform rotate-180' : ''
+                                ]"
+                            />
                         </div>
-                        <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                            {{ member.email }}
-                        </div>
-                        <div v-if="member.notes" class="text-xs text-muted-foreground dark:text-muted-foreground mt-2">
-                            {{ member.notes }}
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </CollapsibleTrigger>
 
-            <!-- Quantity Returns Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground flex items-center">
-                        <Package class="w-5 h-5 mr-2" />
-                        Products Returned
-                    </h2>
-                    <button
-                        v-if="canEdit('mareas') && (marea.status === 'returned' || marea.status === 'closed')"
-                        @click="showAddQuantityReturnDialog = true"
-                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                        <Plus class="w-4 h-4 mr-1" />
-                        Add Product
-                    </button>
-                </div>
-                <div v-if="marea.quantity_returns.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
-                    No products returned for this marea
-                </div>
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b border-border dark:border-border">
-                                <th class="text-left py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Name</th>
-                                <th class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Quantity</th>
-                                <th v-if="canEdit('mareas') && marea.status !== 'closed'" class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="qr in marea.quantity_returns"
-                                :key="qr.id"
-                                class="border-b border-border dark:border-border"
-                            >
-                                <td class="py-2 px-4 text-sm text-card-foreground dark:text-card-foreground">
-                                    {{ qr.name }}
-                                    <div v-if="qr.notes" class="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                                        {{ qr.notes }}
-                                    </div>
-                                </td>
-                                <td class="py-2 px-4 text-sm text-right text-card-foreground dark:text-card-foreground">
-                                    {{ qr.quantity }}
-                                </td>
-                                <td v-if="canEdit('mareas') && marea.status !== 'closed'" class="py-2 px-4 text-right">
+                    <CollapsibleContent>
+                        <div class="mt-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex-1"></div>
+                                <button
+                                    v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                    @click="showAddCrewDialog = true"
+                                    class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                                >
+                                    <Plus class="w-4 h-4 mr-1" />
+                                    Add Crew Member
+                                </button>
+                            </div>
+
+                            <div v-if="marea.crew_members.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
+                                No crew members assigned to this marea
+                            </div>
+
+                            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div
+                                    v-for="member in marea.crew_members"
+                                    :key="member.id"
+                                    class="p-4 rounded-lg border border-border dark:border-border group relative"
+                                >
                                     <button
-                                        @click="handleRemoveQuantityReturn(qr.id)"
-                                        class="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                        @click="handleRemoveCrew(member.id)"
+                                        class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
                                         :disabled="isProcessing"
                                     >
                                         <X class="w-4 h-4" />
                                     </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                    <div class="font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ member.name }}
+                                    </div>
+                                    <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ member.email }}
+                                    </div>
+                                    <div v-if="member.notes" class="text-xs text-muted-foreground dark:text-muted-foreground mt-2">
+                                        {{ member.notes }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+            </div>
+
+            <!-- Fishing Quantity Card -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                <Collapsible v-model:open="isFishingQuantityExpanded" :default-open="false">
+                    <CollapsibleTrigger class="w-full">
+                        <div class="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
+                            <div class="flex items-center gap-2">
+                                <Package class="w-5 h-5 text-card-foreground dark:text-card-foreground" />
+                                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    Fishing Quantity
+                                </h2>
+                                <span v-if="marea.quantity_returns.length > 0" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                                    {{ marea.quantity_returns.length }}
+                                </span>
+                                <span v-else class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                                    Empty
+                                </span>
+                            </div>
+                            <ChevronDown
+                                :class="[
+                                    'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
+                                    isFishingQuantityExpanded ? 'transform rotate-180' : ''
+                                ]"
+                            />
+                        </div>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                        <div class="mt-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex-1"></div>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        v-if="canEdit('mareas') && marea.status === 'returned'"
+                                        @click="showAddQuantityReturnDialog = true"
+                                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                                    >
+                                        <Plus class="w-4 h-4 mr-1" />
+                                        Add Product
+                                    </button>
+                                    <div v-else-if="marea.status === 'closed'" class="text-xs text-muted-foreground dark:text-muted-foreground italic">
+                                        Products cannot be added to closed mareas
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="marea.quantity_returns.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
+                                <p v-if="marea.status === 'closed'" class="text-sm mb-2">
+                                    No products returned for this marea
+                                </p>
+                                <p v-else-if="marea.status === 'returned'" class="text-sm">
+                                    No products returned for this marea
+                                </p>
+                                <p v-else class="text-sm">
+                                    Products can be added when the marea is returned
+                                </p>
+                            </div>
+
+                            <div v-else class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-border dark:border-border">
+                                            <th class="text-left py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Name</th>
+                                            <th class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Quantity</th>
+                                            <th v-if="canEdit('mareas') && marea.status !== 'closed'" class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="qr in marea.quantity_returns"
+                                            :key="qr.id"
+                                            class="border-b border-border dark:border-border"
+                                        >
+                                            <td class="py-2 px-4 text-sm text-card-foreground dark:text-card-foreground">
+                                                {{ qr.name }}
+                                                <div v-if="qr.notes" class="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
+                                                    {{ qr.notes }}
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-4 text-sm text-right text-card-foreground dark:text-card-foreground">
+                                                {{ qr.quantity }}
+                                            </td>
+                                            <td v-if="canEdit('mareas') && marea.status !== 'closed'" class="py-2 px-4 text-right">
+                                                <button
+                                                    @click="handleRemoveQuantityReturn(qr.id)"
+                                                    class="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                                    :disabled="isProcessing"
+                                                >
+                                                    <X class="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
         </div>
 
@@ -1305,14 +2022,14 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
             v-model:open="showDeleteDialog"
             title="Delete Marea"
             description="This action cannot be undone."
-            :message="`Are you sure you want to delete marea '${marea.marea_number}'? This will permanently remove the marea and all its data.`"
+            :message="`Are you sure you want to delete marea '${marea.marea_number}'? This will permanently remove the marea and all ${props.transactionCount || 0} transaction(s) associated with it.`"
             confirm-text="Delete Marea"
             cancel-text="Cancel"
             variant="destructive"
             type="danger"
-            :loading="isProcessing"
-            @confirm="handleDelete"
-            @cancel="showDeleteDialog = false"
+            :loading="isDeleting"
+            @confirm="confirmDeleteMarea"
+            @cancel="cancelDeleteMarea"
         />
 
         <!-- Add Transaction Modal -->
@@ -1420,12 +2137,12 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
             </DialogContent>
         </Dialog>
 
-        <!-- Add Quantity Return Modal -->
+        <!-- Add Fishing Quantity Modal -->
         <Dialog :open="showAddQuantityReturnDialog" @update:open="showAddQuantityReturnDialog = $event">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Product Return</DialogTitle>
-                    <DialogDescription>Add a product that was returned from this marea.</DialogDescription>
+                    <DialogTitle>Add Fishing Quantity</DialogTitle>
+                    <DialogDescription>Add fishing quantity for this marea.</DialogDescription>
                 </DialogHeader>
                 <div class="py-4 space-y-4">
                     <div>
@@ -1504,6 +2221,169 @@ const updateProfile = (eventOrValue: Event | string | number | null) => {
             @update:open="showEditCalculationDialog = $event"
             @close="showEditCalculationDialog = false"
             @success="handleEditCalculationSuccess"
+        />
+
+        <!-- Salary Payment Modal -->
+        <Dialog :open="showSalaryPaymentDialog" @update:open="showSalaryPaymentDialog = $event">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Pay Salary</DialogTitle>
+                    <DialogDescription>Create a salary payment transaction for a crew member.</DialogDescription>
+                </DialogHeader>
+                <div class="py-4 space-y-4">
+                    <div>
+                        <Label for="crew_member_salary">Crew Member *</Label>
+                        <select
+                            id="crew_member_salary"
+                            v-model="salaryPaymentForm.crew_member_id"
+                            class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isProcessing || loadingSalaryData"
+                        >
+                            <option :value="null">Select a crew member</option>
+                            <option
+                                v-for="member in marea.crew_members"
+                                :key="member.id"
+                                :value="member.id"
+                            >
+                                {{ member.name }} {{ member.email ? `(${member.email})` : '' }}
+                            </option>
+                        </select>
+                        <p v-if="salaryPaymentForm.errors.crew_member_id" class="text-sm text-red-600 dark:text-red-400 mt-1">
+                            {{ salaryPaymentForm.errors.crew_member_id }}
+                        </p>
+                    </div>
+
+                    <!-- Salary Configuration Info -->
+                    <div v-if="selectedCrewSalaryInfo && selectedCrewSalaryInfo.compensation_type" class="p-4 rounded-lg border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-1">
+                                <h4 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-2">
+                                    Salary Configuration
+                                </h4>
+                                <div v-if="selectedCrewSalaryInfo.compensation_type === 'fixed'" class="space-y-1">
+                                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span class="font-medium">Type:</span> Fixed Amount
+                                    </p>
+                                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span class="font-medium">Fixed Salary:</span>
+                                        <MoneyDisplay
+                                            v-if="selectedCrewSalaryInfo.fixed_amount"
+                                            :value="selectedCrewSalaryInfo.fixed_amount"
+                                            :currency="selectedCrewSalaryInfo.currency || defaultCurrency"
+                                            variant="neutral"
+                                            size="sm"
+                                            class="inline-block ml-1"
+                                        />
+                                        <span v-else class="ml-1">Not specified</span>
+                                    </p>
+                                </div>
+                                <div v-else-if="selectedCrewSalaryInfo.compensation_type === 'percentage'" class="space-y-1">
+                                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span class="font-medium">Type:</span> Percentage of Revenue
+                                    </p>
+                                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span class="font-medium">Percentage:</span> {{ selectedCrewSalaryInfo.percentage }}% of total income
+                                    </p>
+                                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span class="font-medium">Total Income:</span>
+                                        <MoneyDisplay
+                                            :value="marea.total_income"
+                                            :currency="defaultCurrency"
+                                            variant="neutral"
+                                            size="sm"
+                                            class="inline-block ml-1"
+                                        />
+                                    </p>
+                                    <p class="text-sm font-semibold text-card-foreground dark:text-card-foreground mt-2">
+                                        <span class="font-medium">Calculated Amount:</span>
+                                        <MoneyDisplay
+                                            v-if="selectedCrewSalaryInfo.calculated_amount"
+                                            :value="selectedCrewSalaryInfo.calculated_amount"
+                                            :currency="selectedCrewSalaryInfo.currency || defaultCurrency"
+                                            variant="positive"
+                                            size="sm"
+                                            class="inline-block ml-1"
+                                        />
+                                        <span v-else class="ml-1 text-muted-foreground">Not calculated</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else-if="salaryPaymentForm.crew_member_id && !loadingSalaryData" class="p-4 rounded-lg border border-border/50 dark:border-border/50 bg-muted/20 dark:bg-muted/10">
+                        <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                            This crew member doesn't have a salary configuration. You can enter the amount manually.
+                        </p>
+                    </div>
+
+                    <div>
+                        <Label for="salary_amount">Amount *</Label>
+                        <MoneyInput
+                            id="salary_amount"
+                            v-model="salaryPaymentForm.amount"
+                            :currency="defaultCurrency"
+                            :decimals="marea.house_of_zeros"
+                            return-type="int"
+                            :disabled="isProcessing || loadingSalaryData"
+                            :error="!!salaryPaymentForm.errors.amount"
+                            placeholder="0,00"
+                        />
+                        <p v-if="salaryPaymentForm.errors.amount" class="text-sm text-red-600 dark:text-red-400 mt-1">
+                            {{ salaryPaymentForm.errors.amount }}
+                        </p>
+                        <p v-if="loadingSalaryData" class="text-xs text-muted-foreground mt-1">
+                            Loading salary configuration...
+                        </p>
+                    </div>
+                    <div>
+                        <Label for="salary_date">Payment Date *</Label>
+                        <Input
+                            id="salary_date"
+                            v-model="salaryPaymentForm.transaction_date"
+                            type="date"
+                            :error="salaryPaymentForm.errors.transaction_date"
+                            :disabled="isProcessing"
+                        />
+                    </div>
+                    <div>
+                        <Label for="salary_description">Description</Label>
+                        <Input
+                            id="salary_description"
+                            v-model="salaryPaymentForm.description"
+                            placeholder="Salary payment description"
+                            :error="salaryPaymentForm.errors.description"
+                            :disabled="isProcessing"
+                        />
+                    </div>
+                    <div>
+                        <Label for="salary_notes">Notes (Optional)</Label>
+                        <textarea
+                            id="salary_notes"
+                            v-model="salaryPaymentForm.notes"
+                            placeholder="Additional notes"
+                            rows="3"
+                            class="flex min-h-[80px] w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="isProcessing"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" @click="showSalaryPaymentDialog = false" :disabled="isProcessing">
+                        Cancel
+                    </Button>
+                    <Button @click="handleSalaryPayment" :disabled="isProcessing || !salaryPaymentForm.crew_member_id || !salaryPaymentForm.amount">
+                        Create Payment
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Transaction Show Modal -->
+        <TransactionShowModal
+            v-if="selectedTransaction"
+            :open="showTransactionModal"
+            :transaction="selectedTransaction"
+            @close="closeTransactionModal"
         />
     </VesselLayout>
 </template>

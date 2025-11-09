@@ -31,6 +31,9 @@ interface Transaction {
     type_label: string;
     amount: number;
     formatted_amount: string;
+    amount_per_unit: number | null;
+    price_per_unit?: number | null; // Backward compatibility
+    quantity: number | null;
     vat_amount: number;
     formatted_vat_amount: string;
     total_amount: number;
@@ -419,7 +422,7 @@ const confirmDelete = () => {
     const transactionNumber = transactionToDelete.value.transaction_number;
     isDeleting.value = true;
 
-    router.delete(transactions.destroy.url({ vessel: getCurrentVesselId(), transaction: transactionToDelete.value.id }), {
+    router.delete(transactions.destroy.url({ vessel: getCurrentVesselId(), transactionId: transactionToDelete.value.id }), {
         onSuccess: () => {
             showDeleteDialog.value = false;
             transactionToDelete.value = null;
@@ -705,7 +708,7 @@ onUnmounted(() => {
 
                                         <!-- Transaction Details -->
                                         <div class="flex-1 min-w-0">
-                                            <div class="flex items-center space-x-3">
+                                            <div class="flex items-center space-x-3 flex-wrap gap-2">
                                                 <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                                     {{ transaction.transaction_number }}
                                                 </span>
@@ -727,6 +730,22 @@ onUnmounted(() => {
                                                 >
                                                     {{ transaction.status_label }}
                                                 </span>
+                                                <!-- Quantity and Price Per Unit (inline, prominent) -->
+                                                <span
+                                                    v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0"
+                                                    class="inline-flex items-center gap-1 text-xs text-muted-foreground dark:text-muted-foreground"
+                                                >
+                                                    <span class="font-medium">{{ Math.round(transaction.quantity) }}</span>
+                                                    <span>×</span>
+                                                    <MoneyDisplay
+                                                        :value="transaction.amount_per_unit ?? transaction.price_per_unit"
+                                                        :currency="transaction.currency"
+                                                        :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                        variant="neutral"
+                                                        size="xs"
+                                                        class="inline"
+                                                    />
+                                                </span>
                                             </div>
                                             <div class="mt-1">
                                                 <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
@@ -738,46 +757,53 @@ onUnmounted(() => {
 
                                     <!-- Amount (with right padding for dropdown) -->
                                     <div class="flex items-center ml-4 mr-10">
-                                        <!-- Amount with VAT -->
                                         <div class="text-right">
-                                            <div class="flex flex-col items-end gap-0.5">
-                                                <!-- Base Amount + VAT (on same line) -->
-                                                <div class="flex items-baseline gap-2">
-                                                    <!-- Base Amount -->
+                                            <!-- When amount_per_unit and quantity exist -->
+                                            <template v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0">
+                                                <!-- Show VAT only if it exists, otherwise just show total -->
+                                                <template v-if="transaction.vat_amount > 0">
+                                                    <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
+                                                        VAT:
+                                                        <MoneyDisplay
+                                                            :value="transaction.vat_amount"
+                                                            :currency="transaction.currency"
+                                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
+                                                            variant="neutral"
+                                                            size="xs"
+                                                            class="text-xs font-normal"
+                                                        />
+                                                    </div>
+                                                </template>
+                                                <!-- Total Amount (always show) -->
+                                                <div class="text-sm font-semibold">
                                                     <MoneyDisplay
-                                                        :value="transaction.amount"
+                                                        :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
                                                         :currency="transaction.currency"
                                                         :decimals="getCurrencyData(transaction.currency).decimal_separator"
                                                         :variant="transaction.type === 'income' ? 'positive' : transaction.type === 'expense' ? 'negative' : 'neutral'"
                                                         size="sm"
                                                         class="font-semibold"
                                                     />
-                                                    <!-- VAT Amount (only show if VAT > 0, smaller text) -->
-                                                    <span v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground flex items-baseline gap-1">
-                                                        <span class="opacity-60">+</span>
-                                                        <MoneyDisplay
-                                                            :value="transaction.vat_amount"
-                                                            :currency="transaction.currency"
-                                                            :decimals="getCurrencyData(transaction.currency).decimal_separator"
-                                                            variant="neutral"
-                                                            size="sm"
-                                                            class="text-xs font-normal opacity-80"
-                                                        />
-                                                    </span>
                                                 </div>
-                                                <!-- Total Amount (below, smaller, only show if VAT exists) -->
-                                                <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground opacity-75">
-                                                    Total:
+                                            </template>
+                                            <!-- When no amount_per_unit/quantity -->
+                                            <template v-else>
+                                                <!-- Total Amount with optional VAT indicator -->
+                                                <div class="text-sm font-semibold">
                                                     <MoneyDisplay
-                                                        :value="transaction.total_amount"
+                                                        :value="transaction.vat_amount > 0 ? transaction.total_amount : transaction.amount"
                                                         :currency="transaction.currency"
                                                         :decimals="getCurrencyData(transaction.currency).decimal_separator"
-                                                        variant="neutral"
+                                                        :variant="transaction.type === 'income' ? 'positive' : transaction.type === 'expense' ? 'negative' : 'neutral'"
                                                         size="sm"
-                                                        class="text-xs font-medium"
+                                                        class="font-semibold"
                                                     />
                                                 </div>
-                                            </div>
+                                                <!-- VAT indicator (only if VAT exists) -->
+                                                <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                                    incl. VAT
+                                                </div>
+                                            </template>
                                         </div>
                                     </div>
                                 </div>
