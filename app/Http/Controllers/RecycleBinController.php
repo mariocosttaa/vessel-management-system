@@ -1,0 +1,379 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Transaction;
+use App\Models\Supplier;
+use App\Models\RecurringTransaction;
+use App\Models\Marea;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+
+class RecycleBinController extends Controller
+{
+    /**
+     * Display the recycle bin index page.
+     */
+    public function index(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+        // Check if user can view recycle bin (typically admin/manager)
+        if (!($permissions['recycle_bin.view'] ?? false)) {
+            abort(403, 'You do not have permission to view the recycle bin.');
+        }
+
+        $type = $request->get('type', 'all'); // all, transactions, suppliers, recurring_transactions, mareas
+        $search = $request->get('search', '');
+
+        // Get soft-deleted transactions
+        $transactions = collect();
+        if ($type === 'all' || $type === 'transactions') {
+            $transactionQuery = Transaction::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->with(['category', 'supplier', 'vessel'])
+                ->orderBy('deleted_at', 'desc');
+
+            if ($search) {
+                $transactionQuery->where(function ($q) use ($search) {
+                    $q->where('transaction_number', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $transactions = $transactionQuery->get()->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'type' => 'transaction',
+                    'type_label' => 'Transaction',
+                    'name' => $transaction->transaction_number,
+                    'description' => $transaction->description,
+                    'deleted_at' => $transaction->deleted_at ? $transaction->deleted_at->format('Y-m-d H:i:s') : null,
+                    'category' => $transaction->category ? $transaction->category->name : null,
+                    'amount' => $transaction->total_amount,
+                    'currency' => $transaction->currency,
+                ];
+            });
+        }
+
+        // Get soft-deleted suppliers
+        $suppliers = collect();
+        if ($type === 'all' || $type === 'suppliers') {
+            $supplierQuery = Supplier::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->orderBy('deleted_at', 'desc');
+
+            if ($search) {
+                $supplierQuery->where(function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $suppliers = $supplierQuery->get()->map(function ($supplier) {
+                return [
+                    'id' => $supplier->id,
+                    'type' => 'supplier',
+                    'type_label' => 'Supplier',
+                    'name' => $supplier->company_name,
+                    'description' => $supplier->description,
+                    'deleted_at' => $supplier->deleted_at ? $supplier->deleted_at->format('Y-m-d H:i:s') : null,
+                ];
+            });
+        }
+
+        // Get soft-deleted recurring transactions
+        $recurringTransactions = collect();
+        if ($type === 'all' || $type === 'recurring_transactions') {
+            $recurringQuery = RecurringTransaction::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->with(['category'])
+                ->orderBy('deleted_at', 'desc');
+
+            if ($search) {
+                $recurringQuery->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $recurringTransactions = $recurringQuery->get()->map(function ($recurring) {
+                return [
+                    'id' => $recurring->id,
+                    'type' => 'recurring_transaction',
+                    'type_label' => 'Recurring Transaction',
+                    'name' => $recurring->name,
+                    'description' => $recurring->description,
+                    'deleted_at' => $recurring->deleted_at ? $recurring->deleted_at->format('Y-m-d H:i:s') : null,
+                    'category' => $recurring->category ? $recurring->category->name : null,
+                ];
+            });
+        }
+
+        // Get soft-deleted mareas
+        $mareas = collect();
+        if ($type === 'all' || $type === 'mareas') {
+            $mareaQuery = Marea::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->with(['vessel'])
+                ->orderBy('deleted_at', 'desc');
+
+            if ($search) {
+                $mareaQuery->where(function ($q) use ($search) {
+                    $q->where('marea_number', 'like', "%{$search}%")
+                      ->orWhere('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $mareas = $mareaQuery->get()->map(function ($marea) {
+                // Count transactions associated with this marea
+                $transactionCount = Transaction::onlyTrashed()
+                    ->where('marea_id', $marea->id)
+                    ->count();
+
+                return [
+                    'id' => $marea->id,
+                    'type' => 'marea',
+                    'type_label' => 'Marea',
+                    'name' => $marea->marea_number,
+                    'description' => $marea->name ?: $marea->description,
+                    'deleted_at' => $marea->deleted_at ? $marea->deleted_at->format('Y-m-d H:i:s') : null,
+                    'transaction_count' => $transactionCount,
+                    'status' => $marea->status,
+                ];
+            });
+        }
+
+        // Combine all items and sort by deleted_at
+        $allItems = $transactions->concat($suppliers)->concat($recurringTransactions)->concat($mareas)
+            ->sortByDesc('deleted_at')
+            ->values();
+
+        return Inertia::render('RecycleBin/Index', [
+            'items' => $allItems,
+            'filters' => [
+                'type' => $type,
+                'search' => $search,
+            ],
+            'counts' => [
+                'transactions' => Transaction::onlyTrashed()->where('vessel_id', $vesselId)->count(),
+                'suppliers' => Supplier::onlyTrashed()->where('vessel_id', $vesselId)->count(),
+                'recurring_transactions' => RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->count(),
+                'mareas' => Marea::onlyTrashed()->where('vessel_id', $vesselId)->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Restore a soft-deleted item.
+     */
+    public function restore(Request $request, $vessel, $type, $id)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            $vesselId = $request->attributes->get('vessel_id');
+
+            // Check permissions
+            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+            if (!($permissions['recycle_bin.restore'] ?? false)) {
+                abort(403, 'You do not have permission to restore items.');
+            }
+
+            $item = null;
+            $itemName = '';
+
+            switch ($type) {
+                case 'transaction':
+                    $item = Transaction::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->transaction_number;
+                    break;
+                case 'supplier':
+                    $item = Supplier::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->company_name;
+                    break;
+                case 'recurring_transaction':
+                    $item = RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->name;
+                    break;
+                case 'marea':
+                    $item = Marea::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->marea_number;
+                    // Also restore transactions associated with this marea
+                    Transaction::onlyTrashed()
+                        ->where('marea_id', $item->id)
+                        ->restore();
+                    break;
+                default:
+                    abort(404, 'Invalid item type.');
+            }
+
+            $item->restore();
+
+            return redirect()
+                ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
+                ->with('success', "{$type} '{$itemName}' has been restored successfully.");
+        } catch (\Exception $e) {
+            Log::error('Recycle bin restore failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->with('error', 'Failed to restore item: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Permanently delete an item.
+     */
+    public function destroy(Request $request, $vessel, $type, $id)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            $vesselId = $request->attributes->get('vessel_id');
+
+            // Check permissions
+            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+            if (!($permissions['recycle_bin.delete'] ?? false)) {
+                abort(403, 'You do not have permission to permanently delete items.');
+            }
+
+            $item = null;
+            $itemName = '';
+
+            switch ($type) {
+                case 'transaction':
+                    $item = Transaction::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->transaction_number;
+                    break;
+                case 'supplier':
+                    $item = Supplier::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->company_name;
+                    break;
+                case 'recurring_transaction':
+                    $item = RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->name;
+                    break;
+                case 'marea':
+                    $item = Marea::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->marea_number;
+                    // Permanently delete transactions associated with this marea
+                    Transaction::onlyTrashed()
+                        ->where('marea_id', $item->id)
+                        ->forceDelete();
+                    // Permanently delete related data
+                    \App\Models\MareaQuantityReturn::where('marea_id', $item->id)->delete();
+                    \App\Models\MareaCrew::where('marea_id', $item->id)->delete();
+                    \App\Models\MareaDistributionItem::where('marea_id', $item->id)->delete();
+                    break;
+                default:
+                    abort(404, 'Invalid item type.');
+            }
+
+            $item->forceDelete();
+
+            return redirect()
+                ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
+                ->with('success', "{$type} '{$itemName}' has been permanently deleted.");
+        } catch (\Exception $e) {
+            Log::error('Recycle bin permanent delete failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->with('error', 'Failed to permanently delete item: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Empty the recycle bin (permanently delete all items).
+     */
+    public function empty(Request $request, $vessel)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            $vesselId = $request->attributes->get('vessel_id');
+
+            // Check permissions
+            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+            if (!($permissions['recycle_bin.delete'] ?? false)) {
+                abort(403, 'You do not have permission to empty the recycle bin.');
+            }
+
+            $transactionCount = Transaction::onlyTrashed()->where('vessel_id', $vesselId)->count();
+            $supplierCount = Supplier::onlyTrashed()->where('vessel_id', $vesselId)->count();
+            $recurringCount = RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->count();
+            $mareaCount = Marea::onlyTrashed()->where('vessel_id', $vesselId)->count();
+
+            // Permanently delete all soft-deleted items
+            Transaction::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
+            Supplier::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
+            RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
+
+            // For mareas, also delete related data
+            $softDeletedMareas = Marea::onlyTrashed()->where('vessel_id', $vesselId)->get();
+            foreach ($softDeletedMareas as $marea) {
+                // Permanently delete transactions
+                Transaction::onlyTrashed()->where('marea_id', $marea->id)->forceDelete();
+                // Permanently delete related data
+                \App\Models\MareaQuantityReturn::where('marea_id', $marea->id)->delete();
+                \App\Models\MareaCrew::where('marea_id', $marea->id)->delete();
+                \App\Models\MareaDistributionItem::where('marea_id', $marea->id)->delete();
+            }
+            Marea::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
+
+            $totalCount = $transactionCount + $supplierCount + $recurringCount + $mareaCount;
+
+            return redirect()
+                ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
+                ->with('success', "Recycle bin has been emptied. {$totalCount} item(s) have been permanently deleted.");
+        } catch (\Exception $e) {
+            Log::error('Recycle bin empty failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->with('error', 'Failed to empty recycle bin: ' . $e->getMessage());
+        }
+    }
+}
