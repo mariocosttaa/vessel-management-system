@@ -3,11 +3,14 @@
 use App\Http\Controllers\{
     VesselController,
     CrewMemberController,
+    CrewPositionController,
     SupplierController,
     BankAccountController,
+    TransactionController,
     VesselSelectorController,
     AttachmentController,
-    TestDataController
+    TestDataController,
+    VesselSettingController
 };
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +82,16 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::delete('/crew-members/{crewMember}', [CrewMemberController::class, 'destroy'])->name('panel.crew-members.destroy');
     });
 
+    // Crew Roles (scoped to current vessel, but includes global roles)
+    Route::get('/crew-roles', [CrewPositionController::class, 'index'])->name('panel.crew-roles.index');
+    Route::get('/api/crew-roles/{crewPositionId}/details', [CrewPositionController::class, 'details'])->name('panel.api.crew-roles.details');
+
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::post('/crew-roles', [CrewPositionController::class, 'store'])->name('panel.crew-roles.store');
+        Route::put('/crew-roles/{crewPosition}', [CrewPositionController::class, 'update'])->name('panel.crew-roles.update');
+        Route::delete('/crew-roles/{crewPosition}', [CrewPositionController::class, 'destroy'])->name('panel.crew-roles.destroy');
+    });
+
     // Suppliers (global but vessel-aware)
     Route::get('/suppliers', [SupplierController::class, 'index'])->name('panel.suppliers.index');
     Route::get('/suppliers/create', [SupplierController::class, 'create'])->name('panel.suppliers.create');
@@ -105,6 +118,25 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::put('/bank-accounts/{bankAccount}', [BankAccountController::class, 'update'])->name('panel.bank-accounts.update');
         Route::delete('/bank-accounts/{bankAccount}', [BankAccountController::class, 'destroy'])->name('panel.bank-accounts.destroy');
     });
+
+    // Transactions (scoped to current vessel)
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('panel.transactions.index');
+    Route::get('/transactions/create', [TransactionController::class, 'create'])->name('panel.transactions.create');
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('panel.transactions.show');
+    Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('panel.transactions.edit');
+    Route::get('/api/transactions/search', [TransactionController::class, 'search'])->name('panel.api.transactions.search');
+    Route::get('/api/transactions/{transaction}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');
+
+    Route::middleware('role:admin,manager')->group(function () {
+        Route::post('/transactions', [TransactionController::class, 'store'])->name('panel.transactions.store');
+        Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('panel.transactions.update');
+        Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('panel.transactions.destroy');
+    });
+
+    // Vessel Settings (scoped to current vessel)
+    Route::get('/settings', [VesselSettingController::class, 'edit'])->name('panel.settings.edit');
+    Route::patch('/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');
+    Route::patch('/settings/location', [VesselSettingController::class, 'updateLocation'])->name('panel.settings.update.location');
 });
 
 require __DIR__.'/settings.php';
