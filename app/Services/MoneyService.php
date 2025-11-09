@@ -39,12 +39,28 @@ class MoneyService
     }
 
     /**
-     * Calculate VAT amount
+     * Calculate VAT amount from base amount
      */
     public static function calculateVat(int $amount, float $vatRate, int $decimals = 2): int
     {
         $vatAmount = ($amount * $vatRate) / 100;
         return (int) round($vatAmount);
+    }
+
+    /**
+     * Calculate base amount and VAT from total amount (when amount includes VAT)
+     * Returns ['base' => int, 'vat' => int]
+     */
+    public static function calculateFromTotalIncludingVat(int $totalAmount, float $vatRate, int $decimals = 2): array
+    {
+        // base = total / (1 + vat_rate/100)
+        $baseAmount = (int) round($totalAmount / (1 + ($vatRate / 100)));
+        $vatAmount = $totalAmount - $baseAmount;
+
+        return [
+            'base' => $baseAmount,
+            'vat' => $vatAmount,
+        ];
     }
 
     /**
