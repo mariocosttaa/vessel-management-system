@@ -248,7 +248,6 @@ const formatDate = (dateString: string) => {
             </div>
 
             <!-- Data Table Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <DataTable
                     :data="crewPositionsData"
                     :columns="columns"
@@ -291,7 +290,6 @@ const formatDate = (dateString: string) => {
                     class="mt-4"
                 />
             </div>
-        </div>
 
         <!-- Create Modal -->
         <CrewRoleCreateModal
