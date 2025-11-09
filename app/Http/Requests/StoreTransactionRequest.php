@@ -89,7 +89,9 @@ class StoreTransactionRequest extends FormRequest
         return [
             'category_id' => ['required', 'integer', Rule::exists(TransactionCategory::class, 'id')],
             'type' => ['required', 'string', 'in:income,expense,transfer'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'amount_per_unit' => ['nullable', 'numeric', 'min:0', 'required_with:quantity'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'required_with:amount_per_unit'],
             'currency' => ['required', 'string', 'size:3'],
             'house_of_zeros' => ['nullable', 'integer', 'min:0', 'max:4'],
             'vat_profile_id' => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
@@ -119,6 +121,11 @@ class StoreTransactionRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            // Validate that either amount or both amount_per_unit and quantity are provided
+            if (!$this->filled('amount') && (!($this->filled('amount_per_unit') && $this->filled('quantity')))) {
+                $validator->errors()->add('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
+            }
+
             // Validate supplier belongs to current vessel (if provided)
             if ($this->supplier_id) {
                 $vesselId = $this->route('vessel');
@@ -210,8 +217,21 @@ class StoreTransactionRequest extends FormRequest
             'notes' => $this->notes ? trim($this->notes) : null,
         ];
 
-        // Normalize money amount - handle both string and numeric inputs
-        if ($this->filled('amount')) {
+        // Normalize amount_per_unit and quantity if provided
+        if ($this->filled('amount_per_unit')) {
+            $data['amount_per_unit'] = $this->normalizeMoney($this->amount_per_unit);
+        }
+        if ($this->filled('quantity')) {
+            $data['quantity'] = (int) $this->quantity;
+        }
+
+        // Calculate amount from amount_per_unit * quantity if both are provided
+        if ($this->filled('amount_per_unit') && $this->filled('quantity')) {
+            $amountPerUnit = $this->normalizeMoney($this->amount_per_unit);
+            $quantity = (int) $this->quantity;
+            $data['amount'] = (int) round($amountPerUnit * $quantity);
+        } elseif ($this->filled('amount')) {
+            // Normalize money amount - handle both string and numeric inputs
             $data['amount'] = $this->normalizeMoney($this->amount);
         }
 
