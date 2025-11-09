@@ -18,7 +18,6 @@ class Transaction extends Model
     protected $fillable = [
         'transaction_number',
         'vessel_id',
-        'bank_account_id',
         'category_id',
         'supplier_id',
         'crew_member_id',
@@ -58,14 +57,6 @@ class Transaction extends Model
     public function vessel(): BelongsTo
     {
         return $this->belongsTo(Vessel::class);
-    }
-
-    /**
-     * Get the bank account that owns the transaction.
-     */
-    public function bankAccount(): BelongsTo
-    {
-        return $this->belongsTo(BankAccount::class);
     }
 
     /**

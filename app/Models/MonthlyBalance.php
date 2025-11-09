@@ -11,7 +11,6 @@ class MonthlyBalance extends Model
 
     protected $fillable = [
         'vessel_id',
-        'bank_account_id',
         'month',
         'year',
         'opening_balance',
@@ -45,14 +44,6 @@ class MonthlyBalance extends Model
     }
 
     /**
-     * Get the bank account that owns the monthly balance.
-     */
-    public function bankAccount(): BelongsTo
-    {
-        return $this->belongsTo(BankAccount::class);
-    }
-
-    /**
      * Scope a query to only include balances for a specific period.
      */
     public function scopeForPeriod($query, int $year, int $month)
@@ -66,14 +57,6 @@ class MonthlyBalance extends Model
     public function scopeForVessel($query, $vesselId)
     {
         return $query->where('vessel_id', $vesselId);
-    }
-
-    /**
-     * Scope a query to only include balances for a specific bank account.
-     */
-    public function scopeForBankAccount($query, $bankAccountId)
-    {
-        return $query->where('bank_account_id', $bankAccountId);
     }
 
     /**
