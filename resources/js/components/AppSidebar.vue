@@ -14,6 +14,7 @@ import {
 import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
 import bankAccounts from '@/routes/panel/bank-accounts/index';
+import transactions from '@/routes/panel/transactions/index';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import {
@@ -22,13 +23,15 @@ import {
     UserCog,
     Building2,
     Wallet,
-    Home
+    Receipt,
+    Home,
+    Settings
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
 
-const { canView } = usePermissions();
+const { canView, hasPermission } = usePermissions();
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -85,6 +88,25 @@ const mainNavItems = computed((): NavItem[] => {
             href: bankAccounts.index.url({ vessel: vesselId }),
             icon: Wallet,
             group: 'Financial',
+        });
+    }
+
+    if (canView('transactions')) {
+        items.push({
+            title: 'Transactions',
+            href: transactions.index.url({ vessel: vesselId }),
+            icon: Receipt,
+            group: 'Financial',
+        });
+    }
+
+    // Settings Section - Only for users with settings.access permission
+    if (hasPermission('settings.access')) {
+        items.push({
+            title: 'Vessel Settings',
+            href: `/panel/${vesselId}/settings`,
+            icon: Settings,
+            group: 'Settings',
         });
     }
 

@@ -17,9 +17,18 @@ class BankAccountController extends Controller
 {
     public function index(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        // Normal users should not have access to this page
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view bank accounts.');
+        }
 
         // Main data query - only essential data for table display
         $query = BankAccount::query()->where('vessel_id', $vesselId);
@@ -82,8 +91,20 @@ class BankAccountController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view bank accounts.');
+        }
+
         // Related data for form
         $countries = Country::orderBy('name')->get();
         $currencies = Currency::active()->orderBy('name')->get();
@@ -114,6 +135,7 @@ class BankAccountController extends Controller
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             // This ensures vessel_id comes from middleware-validated route, not from form/frontend
+            /** @var \Illuminate\Http\Request $request */
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
 
@@ -150,8 +172,25 @@ class BankAccountController extends Controller
         }
     }
 
-    public function show(BankAccount $bankAccount)
+    public function show(Request $request, BankAccount $bankAccount)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Verify bank account belongs to current vessel
+        if ($bankAccount->vessel_id !== $vesselId) {
+            abort(403, 'Unauthorized access to bank account.');
+        }
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view bank accounts.');
+        }
+
         return Inertia::render('BankAccounts/Show', [
             'bankAccount' => new BankAccountResource($bankAccount),
         ]);
@@ -160,8 +199,25 @@ class BankAccountController extends Controller
     /**
      * Get bank account details for modal display (API endpoint)
      */
-    public function details($vessel, BankAccount $bankAccount)
+    public function details(Request $request, $vessel, BankAccount $bankAccount)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Verify bank account belongs to current vessel
+        if ($bankAccount->vessel_id !== $vesselId) {
+            abort(403, 'Unauthorized access to bank account.');
+        }
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view bank account details.');
+        }
+
         $bankAccount->load('country');
 
         return response()->json([
@@ -169,8 +225,25 @@ class BankAccountController extends Controller
         ]);
     }
 
-    public function edit(BankAccount $bankAccount)
+    public function edit(Request $request, BankAccount $bankAccount)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Verify bank account belongs to current vessel
+        if ($bankAccount->vessel_id !== $vesselId) {
+            abort(403, 'Unauthorized access to bank account.');
+        }
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to view bank accounts.');
+        }
+
         // Load bank account with country relationship
         $bankAccount->load('country');
 
@@ -271,11 +344,26 @@ class BankAccountController extends Controller
 
     public function search(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view bank accounts (moderator and administrator only)
+        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            abort(403, 'You do not have permission to search bank accounts.');
+        }
+
         $query = $request->get('q');
 
-        $bankAccounts = BankAccount::where('name', 'like', "%{$query}%")
-                                ->orWhere('bank_name', 'like', "%{$query}%")
-                                ->orWhere('account_number', 'like', "%{$query}%")
+        $bankAccounts = BankAccount::where('vessel_id', $vesselId)
+                                ->where(function ($q) use ($query) {
+                                    $q->where('name', 'like', "%{$query}%")
+                                      ->orWhere('bank_name', 'like', "%{$query}%")
+                                      ->orWhere('account_number', 'like', "%{$query}%");
+                                })
                                 ->limit(10)
                                 ->get(['id', 'name', 'bank_name', 'account_number']);
 
