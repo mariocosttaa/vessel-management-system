@@ -39,6 +39,7 @@ interface Props {
     vatProfiles?: any[]; // Keep for backward compatibility (not used)
     defaultVatProfile?: any; // Keep for backward compatibility (not used)
     defaultCurrency?: string; // Default currency from vessel_settings (passed from controller)
+    mareaId?: number | null; // Optional marea ID to link transaction to marea
 }
 
 const props = defineProps<Props>();
@@ -130,6 +131,7 @@ const form = useForm({
     notes: '',
     supplier_id: null as number | null,
     crew_member_id: null as number | null,
+    marea_id: props.mareaId ?? null as number | null,
     status: 'completed',
     files: [] as File[],
 });
@@ -153,6 +155,7 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.vat_profile_id = null;
         form.supplier_id = null;
         form.crew_member_id = null;
+        form.marea_id = props.mareaId ?? null;
         form.category_id = null;
         form.amount = null;
         form.description = '';
@@ -245,6 +248,11 @@ const submit = () => {
     form.currency = vesselCurrencyData.value.code || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
+    // Set marea_id if provided
+    if (props.mareaId) {
+        form.marea_id = props.mareaId;
+    }
+
     form.post(transactions.store.url({ vessel: getCurrentVesselId() }), {
         forceFormData: true, // Required for file uploads
         preserveScroll: true,
@@ -261,6 +269,7 @@ const submit = () => {
             form.vat_profile_id = null;
             form.supplier_id = null;
             form.crew_member_id = null;
+            form.marea_id = props.mareaId ?? null;
             form.category_id = null;
             form.amount = null;
             form.description = '';
