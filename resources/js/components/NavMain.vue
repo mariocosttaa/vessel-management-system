@@ -18,7 +18,7 @@ const props = defineProps<{
 const page = usePage();
 
 // Define the order of groups for consistent display
-const groupOrder = ['Platform', 'Crew Management', 'Financial'];
+const groupOrder = ['Platform', 'Crew Management', 'Financial', 'Vessel', 'Settings'];
 
 // Group items by their group property, or use 'Platform' as default
 const groupedItems = computed(() => {

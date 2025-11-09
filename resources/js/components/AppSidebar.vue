@@ -14,6 +14,7 @@ import {
 import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
 import transactions from '@/routes/panel/transactions/index';
+import mareas from '@/routes/panel/mareas/index';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import {
@@ -24,7 +25,9 @@ import {
     Wallet,
     Receipt,
     Home,
-    Settings
+    Settings,
+    Ship,
+    Calculator
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -87,6 +90,25 @@ const mainNavItems = computed((): NavItem[] => {
             href: transactions.index.url({ vessel: vesselId }),
             icon: Receipt,
             group: 'Financial',
+        });
+    }
+
+    // Vessel Section - Mareas and Distribution Profiles
+    if (canView('mareas')) {
+        items.push({
+            title: 'Mareas',
+            href: mareas.index.url({ vessel: vesselId }),
+            icon: Ship,
+            group: 'Vessel',
+        });
+    }
+
+    if (canView('distribution-profiles')) {
+        items.push({
+            title: 'Distribution Profiles',
+            href: `/panel/${vesselId}/marea-distribution-profiles`,
+            icon: Calculator,
+            group: 'Vessel',
         });
     }
 
