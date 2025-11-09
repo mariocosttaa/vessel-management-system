@@ -9,6 +9,7 @@ import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
 import mareas from '@/routes/panel/mareas';
+import MareaCreateModal from '@/components/modals/Marea/create.vue';
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -31,6 +32,7 @@ interface Marea {
     total_expenses: number;
     net_result: number;
     created_at: string | null;
+    transaction_count?: number;
 }
 
 interface Props {
@@ -58,6 +60,9 @@ const { addNotification } = useNotifications();
 const showDeleteDialog = ref(false);
 const mareaToDelete = ref<Marea | null>(null);
 const isDeleting = ref(false);
+
+// Create modal state
+const showCreateModal = ref(false);
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
@@ -223,7 +228,7 @@ const defaultCurrency = 'EUR';
                     </div>
                     <div v-if="canCreate('mareas')" class="flex gap-3">
                         <button
-                            @click="router.visit(mareas.create.url({ vessel: getCurrentVesselId() }))"
+                            @click="showCreateModal = true"
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                         >
                             <Icon name="plus" class="w-4 h-4 mr-2" />
@@ -454,7 +459,7 @@ const defaultCurrency = 'EUR';
             v-model:open="showDeleteDialog"
             title="Delete Marea"
             description="This action cannot be undone."
-            :message="`Are you sure you want to delete marea '${mareaToDelete?.marea_number}'? This will permanently remove the marea and all its data.`"
+            :message="mareaToDelete ? `Are you sure you want to delete marea '${mareaToDelete.marea_number}'? This will permanently remove the marea and all ${mareaToDelete.transaction_count || 0} transaction(s) associated with it.` : ''"
             confirm-text="Delete Marea"
             cancel-text="Cancel"
             variant="destructive"
@@ -462,6 +467,14 @@ const defaultCurrency = 'EUR';
             :loading="isDeleting"
             @confirm="confirmDelete"
             @cancel="cancelDelete"
+        />
+
+        <!-- Create Marea Modal -->
+        <MareaCreateModal
+            :open="showCreateModal"
+            :vessel-id="getCurrentVesselId()"
+            @update:open="showCreateModal = $event"
+            @saved="router.reload()"
         />
     </VesselLayout>
 </template>
