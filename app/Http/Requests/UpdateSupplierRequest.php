@@ -13,6 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Input fields:
  * @property string $company_name
+ * @property string|null $description
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $address
@@ -58,6 +59,7 @@ class UpdateSupplierRequest extends FormRequest
     {
         return [
             'company_name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:1000'],
