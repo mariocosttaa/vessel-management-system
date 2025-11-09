@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import Icon from '@/components/Icon.vue';
 import { computed } from 'vue';
 
 interface Transaction {
@@ -45,6 +47,14 @@ interface Transaction {
     } | null;
     created_at: string;
     updated_at: string;
+    files?: {
+        id: number;
+        src: string;
+        name: string;
+        size: number;
+        type: string;
+        size_human: string;
+    }[];
 }
 
 interface Props {
@@ -87,13 +97,41 @@ const getTypeVariant = (type: string) => {
             return 'outline';
     }
 };
+
+const getFileIcon = (type: string): string => {
+    const extension = type.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+        return 'image';
+    }
+    if (extension === 'pdf') {
+        return 'file-text';
+    }
+    if (['doc', 'docx'].includes(extension)) {
+        return 'file-text';
+    }
+    if (['xls', 'xlsx'].includes(extension)) {
+        return 'file-text';
+    }
+    if (['txt', 'csv'].includes(extension)) {
+        return 'file-text';
+    }
+    return 'file';
+};
+
+const openFile = (src: string) => {
+    // Ensure the URL starts with / for relative paths
+    const url = src.startsWith('/') ? src : `/${src}`;
+    window.open(url, '_blank');
+};
 </script>
 
 <template>
     <Dialog :open="open" @update:open="emit('close')">
-        <DialogContent class="max-w-3xl">
+        <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
-                <DialogTitle>Transaction Details</DialogTitle>
+                <DialogTitle>
+                    Transaction #{{ detailedTransaction?.transaction_number || props.transaction?.transaction_number || '' }}
+                </DialogTitle>
                 <DialogDescription class="sr-only">
                     View detailed information about the transaction
                 </DialogDescription>
@@ -101,13 +139,10 @@ const getTypeVariant = (type: string) => {
 
             <!-- Content -->
             <div v-if="detailedTransaction" class="space-y-6">
-                <!-- Header with Transaction Number and Status -->
+                <!-- Header with Date and Status -->
                 <div class="flex items-center justify-between pb-4 border-b border-border">
                     <div>
-                        <h3 class="text-lg font-semibold text-card-foreground">
-                            Transaction #{{ detailedTransaction.transaction_number }}
-                        </h3>
-                        <p class="text-sm text-muted-foreground mt-1">
+                        <p class="text-sm text-muted-foreground">
                             {{ detailedTransaction.formatted_transaction_date }}
                         </p>
                     </div>
@@ -121,100 +156,158 @@ const getTypeVariant = (type: string) => {
                     </div>
                 </div>
 
-                <!-- Financial Information -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-sm font-medium text-muted-foreground">Amount</label>
-                            <p class="text-xl font-semibold text-card-foreground">
-                                {{ detailedTransaction.formatted_amount }}
-                            </p>
+                <!-- Two Column Layout: Left (Details) | Right (Files) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Transaction Details -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Financial Information -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                    <p class="text-xl font-semibold text-card-foreground">
+                                        {{ detailedTransaction.formatted_amount }}
+                                    </p>
+                                </div>
+
+                                <div v-if="detailedTransaction.vat_profile">
+                                    <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                    <p class="text-lg text-card-foreground">
+                                        {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
+                                    </p>
+                                </div>
+
+                                <div v-if="detailedTransaction.vat_amount > 0">
+                                    <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                    <p class="text-lg text-card-foreground">
+                                        {{ detailedTransaction.formatted_vat_amount }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                    <p class="text-xl font-semibold text-card-foreground text-primary">
+                                        {{ detailedTransaction.formatted_total_amount }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Currency</label>
+                                    <p class="text-lg text-card-foreground">{{ detailedTransaction.currency }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="text-sm font-medium text-muted-foreground">Category</label>
+                                    <p class="text-lg text-card-foreground">
+                                        {{ detailedTransaction.category?.name || 'N/A' }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <div v-if="detailedTransaction.vat_profile">
-                            <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
-                            <p class="text-lg text-card-foreground">
-                                {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
-                            </p>
+                        <!-- Related Information -->
+                        <div v-if="detailedTransaction.supplier || detailedTransaction.crew_member" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+                            <div v-if="detailedTransaction.supplier">
+                                <label class="text-sm font-medium text-muted-foreground">Supplier</label>
+                                <p class="text-lg text-card-foreground">
+                                    {{ detailedTransaction.supplier.company_name }}
+                                </p>
+                            </div>
+
+                            <div v-if="detailedTransaction.crew_member">
+                                <label class="text-sm font-medium text-muted-foreground">Crew Member</label>
+                                <p class="text-lg text-card-foreground">
+                                    {{ detailedTransaction.crew_member.name }}
+                                    <span class="text-sm text-muted-foreground">
+                                        ({{ detailedTransaction.crew_member.email }})
+                                    </span>
+                                </p>
+                            </div>
                         </div>
 
-                        <div v-if="detailedTransaction.vat_amount > 0">
-                            <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
-                            <p class="text-lg text-card-foreground">
-                                {{ detailedTransaction.formatted_vat_amount }}
-                            </p>
+                        <!-- Description -->
+                        <div v-if="detailedTransaction.description" class="pt-4 border-t border-border">
+                            <label class="text-sm font-medium text-muted-foreground">Description</label>
+                            <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.description }}</p>
                         </div>
 
-                        <div>
-                            <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
-                            <p class="text-xl font-semibold text-card-foreground text-primary">
-                                {{ detailedTransaction.formatted_total_amount }}
-                            </p>
+                        <!-- Reference -->
+                        <div v-if="detailedTransaction.reference" class="pt-4 border-t border-border">
+                            <label class="text-sm font-medium text-muted-foreground">Reference</label>
+                            <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.reference }}</p>
+                        </div>
+
+                        <!-- Notes -->
+                        <div v-if="detailedTransaction.notes" class="pt-4 border-t border-border">
+                            <label class="text-sm font-medium text-muted-foreground">Notes</label>
+                            <p class="text-base text-card-foreground mt-1 whitespace-pre-wrap">{{ detailedTransaction.notes }}</p>
+                        </div>
+
+                        <!-- Timestamps -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+                            <div>
+                                <label class="text-sm font-medium text-muted-foreground">Created At</label>
+                                <p class="text-sm text-card-foreground">{{ detailedTransaction.created_at }}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-muted-foreground">Updated At</label>
+                                <p class="text-sm text-card-foreground">{{ detailedTransaction.updated_at }}</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-sm font-medium text-muted-foreground">Currency</label>
-                            <p class="text-lg text-card-foreground">{{ detailedTransaction.currency }}</p>
+                    <!-- Right Column: Files Section -->
+                    <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
+                        <div class="space-y-3">
+                            <label class="text-base font-semibold text-foreground">Attached Files</label>
+
+                            <!-- Files List -->
+                            <div v-if="detailedTransaction.files && detailedTransaction.files.length > 0" class="space-y-2 max-h-[500px] overflow-y-auto">
+                                <div
+                                    v-for="file in detailedTransaction.files"
+                                    :key="file.id"
+                                    class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                                >
+                                    <div class="flex items-start gap-2">
+                                        <Icon
+                                            :name="getFileIcon(file.type)"
+                                            class="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5"
+                                        />
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-foreground truncate">
+                                                {{ file.name }}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                {{ file.size_human }} · {{ file.type.toUpperCase() }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        @click="openFile(file.src)"
+                                        class="w-full text-xs"
+                                    >
+                                        <Icon name="external-link" class="w-3 h-3 mr-1" />
+                                        View
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <!-- No Files Message -->
+                            <div v-else class="flex flex-col items-center justify-center p-8 rounded-lg border border-dashed border-border bg-muted/30">
+                                <Icon name="file" class="w-12 h-12 text-muted-foreground mb-3" />
+                                <p class="text-sm font-medium text-muted-foreground text-center">
+                                    No files attached
+                                </p>
+                                <p class="text-xs text-muted-foreground text-center mt-1">
+                                    This transaction has no attached documents
+                                </p>
+                            </div>
                         </div>
-
-                        <div>
-                            <label class="text-sm font-medium text-muted-foreground">Category</label>
-                            <p class="text-lg text-card-foreground">
-                                {{ detailedTransaction.category?.name || 'N/A' }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Related Information -->
-                <div v-if="detailedTransaction.supplier || detailedTransaction.crew_member" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
-                    <div v-if="detailedTransaction.supplier">
-                        <label class="text-sm font-medium text-muted-foreground">Supplier</label>
-                        <p class="text-lg text-card-foreground">
-                            {{ detailedTransaction.supplier.company_name }}
-                        </p>
-                    </div>
-
-                    <div v-if="detailedTransaction.crew_member">
-                        <label class="text-sm font-medium text-muted-foreground">Crew Member</label>
-                        <p class="text-lg text-card-foreground">
-                            {{ detailedTransaction.crew_member.name }}
-                            <span class="text-sm text-muted-foreground">
-                                ({{ detailedTransaction.crew_member.email }})
-                            </span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <div v-if="detailedTransaction.description" class="pt-4 border-t border-border">
-                    <label class="text-sm font-medium text-muted-foreground">Description</label>
-                    <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.description }}</p>
-                </div>
-
-                <!-- Reference -->
-                <div v-if="detailedTransaction.reference" class="pt-4 border-t border-border">
-                    <label class="text-sm font-medium text-muted-foreground">Reference</label>
-                    <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.reference }}</p>
-                </div>
-
-                <!-- Notes -->
-                <div v-if="detailedTransaction.notes" class="pt-4 border-t border-border">
-                    <label class="text-sm font-medium text-muted-foreground">Notes</label>
-                    <p class="text-base text-card-foreground mt-1 whitespace-pre-wrap">{{ detailedTransaction.notes }}</p>
-                </div>
-
-                <!-- Timestamps -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
-                    <div>
-                        <label class="text-sm font-medium text-muted-foreground">Created At</label>
-                        <p class="text-sm text-card-foreground">{{ detailedTransaction.created_at }}</p>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-muted-foreground">Updated At</label>
-                        <p class="text-sm text-card-foreground">{{ detailedTransaction.updated_at }}</p>
                     </div>
                 </div>
             </div>
@@ -223,10 +316,7 @@ const getTypeVariant = (type: string) => {
             <div v-else-if="props.transaction" class="space-y-6">
                 <div class="flex items-center justify-between pb-4 border-b border-border">
                     <div>
-                        <h3 class="text-lg font-semibold text-card-foreground">
-                            Transaction #{{ props.transaction.transaction_number }}
-                        </h3>
-                        <p class="text-sm text-muted-foreground mt-1">
+                        <p class="text-sm text-muted-foreground">
                             {{ props.transaction.formatted_transaction_date }}
                         </p>
                     </div>
@@ -240,25 +330,83 @@ const getTypeVariant = (type: string) => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="text-sm font-medium text-muted-foreground">Amount</label>
-                        <p class="text-xl font-semibold text-card-foreground">
-                            {{ props.transaction.formatted_amount }}
-                        </p>
+                <!-- Two Column Layout: Left (Details) | Right (Files) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Transaction Details -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                <p class="text-xl font-semibold text-card-foreground">
+                                    {{ props.transaction.formatted_amount }}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-muted-foreground">Category</label>
+                                <p class="text-lg text-card-foreground">
+                                    {{ props.transaction.category?.name || 'N/A' }}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-sm font-medium text-muted-foreground">Category</label>
-                        <p class="text-lg text-card-foreground">
-                            {{ props.transaction.category?.name || 'N/A' }}
-                        </p>
+
+                    <!-- Right Column: Files Section -->
+                    <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
+                        <div class="space-y-3">
+                            <label class="text-base font-semibold text-foreground">Attached Files</label>
+
+                            <!-- Files List -->
+                            <div v-if="props.transaction.files && props.transaction.files.length > 0" class="space-y-2 max-h-[500px] overflow-y-auto">
+                                <div
+                                    v-for="file in props.transaction.files"
+                                    :key="file.id"
+                                    class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                                >
+                                    <div class="flex items-start gap-2">
+                                        <Icon
+                                            :name="getFileIcon(file.type)"
+                                            class="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5"
+                                        />
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-foreground truncate">
+                                                {{ file.name }}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                {{ file.size_human }} · {{ file.type.toUpperCase() }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        @click="openFile(file.src)"
+                                        class="w-full text-xs"
+                                    >
+                                        <Icon name="external-link" class="w-3 h-3 mr-1" />
+                                        View
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <!-- No Files Message -->
+                            <div v-else class="flex flex-col items-center justify-center p-8 rounded-lg border border-dashed border-border bg-muted/30">
+                                <Icon name="file" class="w-12 h-12 text-muted-foreground mb-3" />
+                                <p class="text-sm font-medium text-muted-foreground text-center">
+                                    No files attached
+                                </p>
+                                <p class="text-xs text-muted-foreground text-center mt-1">
+                                    This transaction has no attached documents
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Actions -->
             <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <Button variant="outline" @click="emit('close')">
+                <Button type="button" variant="outline" @click="emit('close')">
                     Close
                 </Button>
             </div>
