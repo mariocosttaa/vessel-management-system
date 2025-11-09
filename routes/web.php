@@ -169,6 +169,8 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     // Marea API Endpoints
     Route::get('/mareas/{mareaId}/available-transactions', [App\Http\Controllers\MareaController::class, 'getAvailableTransactions'])->name('panel.mareas.available-transactions');
     Route::get('/mareas/{mareaId}/available-crew', [App\Http\Controllers\MareaController::class, 'getAvailableCrew'])->name('panel.mareas.available-crew');
+    Route::get('/mareas/{mareaId}/crew-salary-data', [App\Http\Controllers\MareaController::class, 'getCrewSalaryData'])->name('panel.mareas.crew-salary-data');
+    Route::post('/mareas/{mareaId}/salary-payment', [App\Http\Controllers\MareaController::class, 'createSalaryPayment'])->name('panel.mareas.salary-payment');
 
     // Marea Distribution Items (for custom overrides)
     Route::post('/mareas/{mareaId}/distribution-items', [App\Http\Controllers\MareaController::class, 'storeDistributionItems'])->name('panel.mareas.distribution-items.store');
@@ -181,6 +183,12 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/marea-distribution-profiles/{id}/edit', [App\Http\Controllers\MareaDistributionProfileController::class, 'edit'])->name('panel.marea-distribution-profiles.edit');
     Route::put('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'update'])->name('panel.marea-distribution-profiles.update');
     Route::delete('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'destroy'])->name('panel.marea-distribution-profiles.destroy');
+
+    // Recycle Bin
+    Route::get('/recycle-bin', [App\Http\Controllers\RecycleBinController::class, 'index'])->name('panel.recycle-bin.index');
+    Route::post('/recycle-bin/{type}/{id}/restore', [App\Http\Controllers\RecycleBinController::class, 'restore'])->name('panel.recycle-bin.restore');
+    Route::delete('/recycle-bin/{type}/{id}', [App\Http\Controllers\RecycleBinController::class, 'destroy'])->name('panel.recycle-bin.destroy');
+    Route::post('/recycle-bin/empty', [App\Http\Controllers\RecycleBinController::class, 'empty'])->name('panel.recycle-bin.empty');
 });
 
 require __DIR__.'/settings.php';
