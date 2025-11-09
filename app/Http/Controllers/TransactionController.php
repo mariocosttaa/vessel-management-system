@@ -358,6 +358,7 @@ class TransactionController extends Controller
 
             $transaction = Transaction::create([
                 'vessel_id' => $vesselId,
+                'marea_id' => $request->marea_id ?? null,
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
@@ -446,7 +447,7 @@ class TransactionController extends Controller
     /**
      * Display the specified transaction.
      */
-    public function show(Request $request, Transaction $transaction)
+    public function show(Request $request, $vessel, $transactionId)
     {
         /** @var \App\Models\User|null $user */
         $user = $request->user();
@@ -454,11 +455,19 @@ class TransactionController extends Controller
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
-
-        // Verify transaction belongs to current vessel
-        if ($transaction->vessel_id !== $vesselId) {
-            abort(403, 'Unauthorized access to transaction.');
+        if (!$vesselId) {
+            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
         }
+        $vesselId = (int) $vesselId; // Ensure integer
+
+        // CRITICAL: Get transaction ID directly from route parameter
+        $transactionIdFromRoute = $request->route('transactionId');
+        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+        // Force fresh query with both vessel_id and id to ensure correct transaction
+        $transaction = Transaction::where('vessel_id', $vesselId)
+            ->where('id', $transactionId)
+            ->firstOrFail();
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
@@ -491,7 +500,7 @@ class TransactionController extends Controller
     /**
      * Get transaction details for modal display (API endpoint)
      */
-    public function details(Request $request, $vessel, Transaction $transaction)
+    public function details(Request $request, $vessel, $transactionId)
     {
         /** @var \App\Models\User|null $user */
         $user = $request->user();
@@ -499,11 +508,19 @@ class TransactionController extends Controller
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
-
-        // Verify transaction belongs to current vessel
-        if ($transaction->vessel_id !== $vesselId) {
-            abort(403, 'Unauthorized access to transaction.');
+        if (!$vesselId) {
+            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
         }
+        $vesselId = (int) $vesselId; // Ensure integer
+
+        // CRITICAL: Get transaction ID directly from route parameter
+        $transactionIdFromRoute = $request->route('transactionId');
+        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+        // Force fresh query with both vessel_id and id to ensure correct transaction
+        $transaction = Transaction::where('vessel_id', $vesselId)
+            ->where('id', $transactionId)
+            ->firstOrFail();
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
@@ -535,7 +552,7 @@ class TransactionController extends Controller
     /**
      * Show the form for editing the specified transaction.
      */
-    public function edit(Request $request, Transaction $transaction)
+    public function edit(Request $request, $vessel, $transactionId)
     {
         /** @var \App\Models\User|null $user */
         $user = $request->user();
@@ -543,11 +560,19 @@ class TransactionController extends Controller
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
-
-        // Verify transaction belongs to current vessel
-        if ($transaction->vessel_id !== $vesselId) {
-            abort(403, 'Unauthorized access to transaction.');
+        if (!$vesselId) {
+            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
         }
+        $vesselId = (int) $vesselId; // Ensure integer
+
+        // CRITICAL: Get transaction ID directly from route parameter
+        $transactionIdFromRoute = $request->route('transactionId');
+        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+        // Force fresh query with both vessel_id and id to ensure correct transaction
+        $transaction = Transaction::where('vessel_id', $vesselId)
+            ->where('id', $transactionId)
+            ->firstOrFail();
 
         // Check if user has permission to edit transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
@@ -649,17 +674,25 @@ class TransactionController extends Controller
     /**
      * Update the specified transaction.
      */
-    public function update(UpdateTransactionRequest $request, $vessel, Transaction $transaction)
+    public function update(UpdateTransactionRequest $request, $vessel, $transactionId)
     {
         try {
-            // Get vessel_id from route parameter
-            $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
-
-            // Verify transaction belongs to current vessel
-            if ($transaction->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to transaction.');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
+            $vesselId = (int) $vesselId; // Ensure integer
+
+            // CRITICAL: Get transaction ID directly from route parameter
+            $transactionIdFromRoute = $request->route('transactionId');
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+            // Force fresh query with both vessel_id and id to ensure correct transaction
+            $transaction = Transaction::where('vessel_id', $vesselId)
+                ->where('id', $transactionId)
+                ->firstOrFail();
 
             // Get currency priority: request currency (from form) > vessel_settings > vessel currency_code > EUR
             // IMPORTANT: Always prioritize the currency sent from the frontend form, as it reflects user's intent and vessel settings
@@ -799,19 +832,27 @@ class TransactionController extends Controller
     /**
      * Remove the specified transaction.
      */
-    public function destroy(Request $request, $vessel, Transaction $transaction)
+    public function destroy(Request $request, $vessel, $transactionId)
     {
         try {
             $user = $request->user();
 
-            // Get vessel_id from route parameter
-            $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
-
-            // Verify transaction belongs to current vessel
-            if ($transaction->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to transaction.');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
+            $vesselId = (int) $vesselId; // Ensure integer
+
+            // CRITICAL: Get transaction ID directly from route parameter
+            $transactionIdFromRoute = $request->route('transactionId');
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+            // Force fresh query with both vessel_id and id to ensure correct transaction
+            $transaction = Transaction::where('vessel_id', $vesselId)
+                ->where('id', $transactionId)
+                ->firstOrFail();
 
             // Check vessel-specific permissions for deletion using config permissions
             $userRole = $user->getRoleForVessel($vesselId);
@@ -857,23 +898,36 @@ class TransactionController extends Controller
     /**
      * Delete a transaction file.
      */
-    public function deleteFile(Request $request, $vessel, Transaction $transaction, \App\Models\TransactionFile $transactionFile)
+    public function deleteFile(Request $request, $vessel, $transactionId, $fileId)
     {
         try {
             $user = $request->user();
 
-            // Get vessel_id from route parameter
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
-
-            // Verify transaction belongs to current vessel
-            if ($transaction->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to transaction.');
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
+            $vesselId = (int) $vesselId; // Ensure integer
+
+            // CRITICAL: Get transaction ID directly from route parameter
+            $transactionIdFromRoute = $request->route('transactionId');
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+
+            // Force fresh query with both vessel_id and id to ensure correct transaction
+            $transaction = Transaction::where('vessel_id', $vesselId)
+                ->where('id', $transactionId)
+                ->firstOrFail();
+
+            // Get file ID from route parameter
+            $fileIdFromRoute = $request->route('fileId');
+            $fileId = (int) ($fileIdFromRoute ?? $fileId);
 
             // Verify file belongs to transaction
-            if ($transactionFile->transaction_id !== $transaction->id) {
-                abort(403, 'Unauthorized access to file.');
-            }
+            $transactionFile = \App\Models\TransactionFile::where('transaction_id', $transaction->id)
+                ->where('id', $fileId)
+                ->firstOrFail();
 
             // Check vessel-specific permissions for deletion using config permissions
             // File deletion requires transactions.edit permission (users who can edit can delete files)

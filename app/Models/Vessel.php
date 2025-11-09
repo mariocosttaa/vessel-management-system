@@ -109,6 +109,14 @@ class Vessel extends Model
     }
 
     /**
+     * Get the mareas for the vessel.
+     */
+    public function mareas(): HasMany
+    {
+        return $this->hasMany(Marea::class);
+    }
+
+    /**
      * Get the recurring transactions for the vessel.
      */
     public function recurringTransactions(): HasMany

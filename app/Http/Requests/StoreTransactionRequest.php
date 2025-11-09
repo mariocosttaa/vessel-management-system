@@ -99,6 +99,7 @@ class StoreTransactionRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
             'supplier_id' => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
             'crew_member_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
+            'marea_id' => ['nullable', 'integer', Rule::exists('mareas', 'id')],
             'status' => ['nullable', 'string', 'in:pending,completed,cancelled'],
             'files' => ['nullable', 'array', 'max:10'],
             'files.*' => [
@@ -144,6 +145,16 @@ class StoreTransactionRequest extends FormRequest
 
                 if ($category && $category->type !== $this->type) {
                     $validator->errors()->add('category_id', 'The selected category type does not match the transaction type.');
+                }
+            }
+
+            // Validate marea belongs to current vessel (if provided)
+            if ($this->marea_id) {
+                $vesselId = $this->route('vessel');
+                $marea = \App\Models\Marea::find($this->marea_id);
+
+                if ($marea && $marea->vessel_id !== (int) $vesselId) {
+                    $validator->errors()->add('marea_id', 'The selected marea does not belong to this vessel.');
                 }
             }
         });
