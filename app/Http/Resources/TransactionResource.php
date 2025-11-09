@@ -101,6 +101,18 @@ class TransactionResource extends JsonResource
             'attachments' => $this->whenLoaded('attachments', function () {
                 return AttachmentResource::collection($this->attachments);
             }),
+            'files' => $this->whenLoaded('files', function () {
+                return $this->files->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'src' => $file->src,
+                        'name' => $file->name,
+                        'size' => $file->size,
+                        'type' => $file->type,
+                        'size_human' => $file->size_human,
+                    ];
+                });
+            }),
 
             // Additional transaction metadata
             'transaction_month' => $this->transaction_month,
@@ -108,8 +120,10 @@ class TransactionResource extends JsonResource
             'recurring_transaction_id' => $this->recurring_transaction_id,
 
             // Timestamps
-            'created_at' => $this->created_at?->format('d/m/Y H:i'),
-            'updated_at' => $this->updated_at?->format('d/m/Y H:i'),
+            'created_at' => $this->created_at?->format('c'), // ISO 8601 format for sorting
+            'created_at_formatted' => $this->created_at?->format('d/m/Y H:i'),
+            'updated_at' => $this->updated_at?->format('c'), // ISO 8601 format for sorting
+            'updated_at_formatted' => $this->updated_at?->format('d/m/Y H:i'),
         ];
     }
 }

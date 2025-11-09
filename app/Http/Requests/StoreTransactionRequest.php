@@ -88,6 +88,12 @@ class StoreTransactionRequest extends FormRequest
             'supplier_id' => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
             'crew_member_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'status' => ['nullable', 'string', 'in:pending,completed,cancelled'],
+            'files' => ['nullable', 'array', 'max:10'],
+            'files.*' => [
+                'file',
+                'max:10240', // 10MB max
+                'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt,csv',
+            ],
         ];
     }
 
@@ -154,6 +160,9 @@ class StoreTransactionRequest extends FormRequest
             'supplier_id.exists' => 'The selected supplier is invalid.',
             'crew_member_id.exists' => 'The selected crew member is invalid.',
             'status.in' => 'Status must be pending, completed, or cancelled.',
+            'files.max' => 'You can upload a maximum of 10 files.',
+            'files.*.max' => 'Each file must not exceed 10MB.',
+            'files.*.mimes' => 'The file must be one of the following types: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV.',
         ];
     }
 
