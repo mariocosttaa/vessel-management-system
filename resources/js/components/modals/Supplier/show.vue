@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 interface Supplier {
     id: number;
     company_name: string;
+    description?: string;
     email?: string;
     phone?: string;
     address?: string;
@@ -55,6 +56,10 @@ const formatDate = (dateString: string) => {
                             <div>
                                 <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Company Name</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ supplier.company_name }}</dd>
+                            </div>
+                            <div v-if="supplier.description">
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Description</dt>
+                                <dd class="text-sm text-card-foreground dark:text-card-foreground whitespace-pre-line">{{ supplier.description }}</dd>
                             </div>
                             <div v-if="supplier.email">
                                 <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Email</dt>
