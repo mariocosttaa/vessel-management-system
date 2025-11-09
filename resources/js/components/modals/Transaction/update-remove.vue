@@ -13,6 +13,8 @@ import Icon from '@/components/Icon.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { router } from '@inertiajs/vue3';
 import transactions from '@/routes/panel/transactions';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface Transaction {
     id: number;
@@ -73,7 +75,13 @@ const emit = defineEmits<{
 }>();
 
 const { addNotification } = useNotifications();
+const { canEdit } = usePermissions();
 const page = usePage();
+
+// File deletion state
+const showDeleteFileDialog = ref(false);
+const fileToDelete = ref<{ id: number; name: string } | null>(null);
+const isDeletingFile = ref(false);
 
 // Get vessel currency from shared props
 // For update modals, prioritize transaction currency since it's what was saved
@@ -234,31 +242,43 @@ const openFile = (src: string) => {
     window.open(url, '_blank');
 };
 
-const deleteFile = (fileId: number) => {
-    if (!confirm('Are you sure you want to delete this file?')) {
-        return;
-    }
+const deleteFile = (file: { id: number; name: string }) => {
+    fileToDelete.value = file;
+    showDeleteFileDialog.value = true;
+};
+
+const confirmDeleteFile = () => {
+    if (!fileToDelete.value) return;
 
     const vesselId = getCurrentVesselId();
+    const fileId = fileToDelete.value.id;
+    const fileName = fileToDelete.value.name;
+    isDeletingFile.value = true;
+
     router.delete(`/panel/${vesselId}/transactions/${props.transaction.id}/files/${fileId}`, {
         preserveScroll: true,
         onSuccess: () => {
-            addNotification({
-                type: 'success',
-                title: 'Success',
-                message: 'File deleted successfully.',
-            });
-            // Reload the page to refresh the transaction data
-            router.reload({ only: ['transactions'] });
+            showDeleteFileDialog.value = false;
+            fileToDelete.value = null;
+            isDeletingFile.value = false;
+            // Emit success to refresh transaction data in parent
+            emit('success');
         },
         onError: () => {
+            isDeletingFile.value = false;
             addNotification({
                 type: 'error',
                 title: 'Error',
-                message: 'Failed to delete file.',
+                message: 'Failed to delete file. Please try again.',
             });
         },
     });
+};
+
+const cancelDeleteFile = () => {
+    showDeleteFileDialog.value = false;
+    fileToDelete.value = null;
+    isDeletingFile.value = false;
 };
 
 const submit = () => {
@@ -481,10 +501,11 @@ const submit = () => {
                                             View
                                         </Button>
                                         <Button
+                                            v-if="canEdit('transactions')"
                                             type="button"
                                             variant="destructive"
                                             size="sm"
-                                            @click="deleteFile(file.id)"
+                                            @click="deleteFile({ id: file.id, name: file.name })"
                                             class="flex-shrink-0"
                                             title="Delete file"
                                         >
@@ -524,5 +545,20 @@ const submit = () => {
             </form>
         </DialogContent>
     </Dialog>
+
+    <!-- File Deletion Confirmation Dialog -->
+    <ConfirmationDialog
+        v-model:open="showDeleteFileDialog"
+        title="Delete File"
+        description="This action cannot be undone."
+        :message="`Are you sure you want to delete the file '${fileToDelete?.name}'? This will permanently remove the file from this transaction.`"
+        confirm-text="Delete File"
+        cancel-text="Cancel"
+        variant="destructive"
+        type="danger"
+        :loading="isDeletingFile"
+        @confirm="confirmDeleteFile"
+        @cancel="cancelDeleteFile"
+    />
 </template>
 

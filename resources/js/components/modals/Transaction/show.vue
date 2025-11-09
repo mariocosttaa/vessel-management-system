@@ -67,7 +67,6 @@ const emit = defineEmits<{
     close: [];
 }>();
 
-
 // Use transaction data from props directly - it already has all the necessary information
 // No need for API call since the data is already loaded in the table
 const detailedTransaction = computed(() => props.transaction);
