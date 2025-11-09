@@ -63,6 +63,18 @@ interface Transaction {
         name: string;
         email: string;
     } | null;
+    files?: {
+        id: number;
+        src: string;
+        name: string;
+        size: number;
+        type: string;
+        size_human: string;
+    }[];
+    created_at?: string; // ISO 8601 format for sorting
+    created_at_formatted?: string;
+    updated_at?: string; // ISO 8601 format for sorting
+    updated_at_formatted?: string;
 }
 
 interface TransactionCategory {
@@ -154,8 +166,8 @@ const handleClickOutside = (event: Event) => {
     }
 };
 
-// Sorting
-const sortField = ref(props.filters.sort || 'transaction_date');
+// Sorting - default to created_at descending (newest first)
+const sortField = ref(props.filters.sort || 'created_at');
 const sortDirection = ref(props.filters.direction || 'desc');
 
 const page = usePage();
@@ -199,9 +211,15 @@ const groupedTransactions = computed(() => {
         return new Date(b).getTime() - new Date(a).getTime();
     });
 
-    // Sort transactions within each date group by transaction_number
+    // Sort transactions within each date group by created_at (newest first)
+    // Since backend already sorts by created_at, this maintains that order within groups
     sortedDates.forEach(date => {
         groups[date].sort((a, b) => {
+            // Sort by created_at if available, otherwise by transaction_number
+            if (a.created_at && b.created_at) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            // Fallback to transaction_number if created_at is not available
             return b.transaction_number.localeCompare(a.transaction_number);
         });
     });
@@ -356,6 +374,29 @@ const closeModals = async () => {
     selectedTransaction.value = null;
 };
 
+const handleCreateSuccess = () => {
+    // Close modals immediately and ensure they stay closed
+    showCreateAddModal.value = false;
+    showCreateRemoveModal.value = false;
+    selectedTransaction.value = null;
+
+    // Reload transactions data after modal has closed
+    // Use a small delay to ensure modal close animation completes
+    setTimeout(() => {
+        router.reload({
+            only: ['transactions'],
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => {
+                // Ensure modals remain closed after reload
+                showCreateAddModal.value = false;
+                showCreateRemoveModal.value = false;
+                selectedTransaction.value = null;
+            }
+        });
+    }, 100);
+};
+
 // Filter categories by type
 const incomeCategories = computed(() => {
     return props.categories.filter(cat => cat.type === 'income');
@@ -468,7 +509,7 @@ const clearFilters = () => {
     categoryFilter.value = '';
     dateFromFilter.value = '';
     dateToFilter.value = '';
-    sortField.value = 'transaction_date';
+    sortField.value = 'created_at';
     sortDirection.value = 'desc';
 
     router.get(transactions.index.url({ vessel: getCurrentVesselId() }), {}, {
@@ -809,7 +850,7 @@ onUnmounted(() => {
             :default-vat-profile="defaultVatProfile"
             :default-currency="props.defaultCurrency"
             @close="closeModals"
-            @success="() => { closeModals(); router.reload(); }"
+            @success="handleCreateSuccess"
         />
 
         <CreateRemoveModal
@@ -821,7 +862,7 @@ onUnmounted(() => {
             :default-vat-profile="defaultVatProfile"
             :default-currency="props.defaultCurrency"
             @close="closeModals"
-            @success="() => { closeModals(); router.reload(); }"
+            @success="handleCreateSuccess"
         />
 
         <UpdateAddModal
