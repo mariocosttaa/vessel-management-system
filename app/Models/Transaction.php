@@ -18,6 +18,7 @@ class Transaction extends Model
     protected $fillable = [
         'transaction_number',
         'vessel_id',
+        'marea_id',
         'category_id',
         'supplier_id',
         'crew_member_id',
@@ -57,6 +58,14 @@ class Transaction extends Model
     public function vessel(): BelongsTo
     {
         return $this->belongsTo(Vessel::class);
+    }
+
+    /**
+     * Get the marea that owns the transaction.
+     */
+    public function marea(): BelongsTo
+    {
+        return $this->belongsTo(Marea::class);
     }
 
     /**
