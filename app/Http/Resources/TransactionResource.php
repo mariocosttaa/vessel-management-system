@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Actions\MoneyAction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,11 +23,16 @@ class TransactionResource extends JsonResource
 
             // Money values (raw integers)
             'amount' => $this->amount,
+            'amount_per_unit' => $this->amount_per_unit,
+            'price_per_unit' => $this->amount_per_unit, // Keep for backward compatibility
+            'quantity' => $this->quantity,
             'vat_amount' => $this->vat_amount ?? 0,
             'total_amount' => $this->total_amount,
 
             // Formatted money values (strings)
             'formatted_amount' => $this->formatted_amount,
+            'formatted_amount_per_unit' => $this->amount_per_unit ? MoneyAction::format($this->amount_per_unit, $this->house_of_zeros ?? 2, $this->currency, true) : null,
+            'formatted_price_per_unit' => $this->amount_per_unit ? MoneyAction::format($this->amount_per_unit, $this->house_of_zeros ?? 2, $this->currency, true) : null, // Keep for backward compatibility
             'formatted_vat_amount' => $this->formatted_vat_amount,
             'formatted_total_amount' => $this->formatted_total_amount,
 
