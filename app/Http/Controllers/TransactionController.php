@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
-use App\Models\BankAccount;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\Supplier;
@@ -65,11 +64,6 @@ class TransactionController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        // Filter by bank account
-        if ($request->filled('bank_account_id')) {
-            $query->where('bank_account_id', $request->bank_account_id);
-        }
-
         // Filter by date range
         if ($request->filled('date_from')) {
             $query->where('transaction_date', '>=', $request->date_from);
@@ -87,18 +81,11 @@ class TransactionController extends Controller
         // Eager load relationships for performance
         $transactions = $query->with([
             'category:id,name,type,color',
-            'bankAccount:id,name,bank_name',
             'supplier:id,company_name,description',
             'crewMember:id,name,email',
         ])->paginate(15)->withQueryString();
 
         // Related data for filters/forms
-        // Eager load country relationship for getCurrency() method to work
-        $bankAccounts = BankAccount::where('vessel_id', $vesselId)
-            ->with('country')
-            ->active()
-            ->orderBy('name')
-            ->get();
         $categories = TransactionCategory::orderBy('name')->get();
         $suppliers = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
@@ -123,7 +110,6 @@ class TransactionController extends Controller
             'type',
             'status',
             'category_id',
-            'bank_account_id',
             'date_from',
             'date_to',
             'sort',
@@ -146,17 +132,6 @@ class TransactionController extends Controller
         return Inertia::render('Transactions/Index', [
             'transactions' => TransactionResource::collection($transactions),
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
-            'bankAccounts' => $bankAccounts->map(function ($account) use ($defaultCurrency) {
-                // Get currency from bank account (via getCurrency() method) or use default
-                // getCurrency() returns currency from country or IBAN, or null if neither exists
-                $accountCurrency = $account->getCurrency();
-                return [
-                    'id' => $account->id,
-                    'name' => $account->name,
-                    'bank_name' => $account->bank_name,
-                    'currency' => $accountCurrency ?? $defaultCurrency,
-                ];
-            }),
             'categories' => $categories->map(function ($category) {
                 return [
                     'id' => $category->id,
@@ -217,12 +192,6 @@ class TransactionController extends Controller
         }
 
         // Related data for form
-        // Eager load country relationship for getCurrency() method to work
-        $bankAccounts = BankAccount::where('vessel_id', $vesselId)
-            ->with('country')
-            ->active()
-            ->orderBy('name')
-            ->get();
         $categories = TransactionCategory::orderBy('name')->get();
         $suppliers = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
@@ -256,17 +225,6 @@ class TransactionController extends Controller
 
         return Inertia::render('Transactions/Create', [
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
-            'bankAccounts' => $bankAccounts->map(function ($account) use ($defaultCurrency) {
-                // Get currency from bank account (via getCurrency() method) or use default
-                // getCurrency() returns currency from country or IBAN, or null if neither exists
-                $accountCurrency = $account->getCurrency();
-                return [
-                    'id' => $account->id,
-                    'name' => $account->name,
-                    'bank_name' => $account->bank_name,
-                    'currency' => $accountCurrency ?? $defaultCurrency,
-                ];
-            }),
             'categories' => $categories->map(function ($category) {
                 return [
                     'id' => $category->id,
@@ -318,24 +276,13 @@ class TransactionController extends Controller
             $vessel = $request->route('vessel');
             $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
 
-            // Validate bank account exists if provided
-            if (!$request->bank_account_id) {
-                // If no bank account, we can't create a transaction
-                return back()
-                    ->withInput()
-                    ->with('error', 'Please select a bank account to create a transaction.')
-                    ->with('notification_delay', 0);
-            }
-
-            // Get currency priority: request currency (from form) > bank account > vessel_settings > vessel currency_code > EUR
+            // Get currency priority: request currency (from form) > vessel_settings > vessel currency_code > EUR
             // IMPORTANT: Always prioritize the currency sent from the frontend form, as it reflects user's intent and vessel settings
-            $bankAccount = BankAccount::find($request->bank_account_id);
             $vesselSetting = VesselSetting::getForVessel($vesselId);
             $vessel = \App\Models\Vessel::find($vesselId);
 
-            // Priority: form currency (user's explicit choice from vessel_settings) > bank account currency > vessel_settings > vessel currency_code > EUR
+            // Priority: form currency (user's explicit choice from vessel_settings) > vessel_settings > vessel currency_code > EUR
             $currency = $request->currency
-                ?? $bankAccount?->getCurrency()
                 ?? $vesselSetting->currency_code
                 ?? $vessel?->currency_code
                 ?? 'EUR';
@@ -389,14 +336,13 @@ class TransactionController extends Controller
 
             $transaction = Transaction::create([
                 'vessel_id' => $vesselId,
-                'bank_account_id' => $request->bank_account_id,
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'vat_amount' => $vatAmount,
                 'total_amount' => $totalAmount,
                 'currency' => $currency,
-                'house_of_zeros' => $bankAccount?->house_of_zeros ?? $request->house_of_zeros ?? 2,
+                'house_of_zeros' => $request->house_of_zeros ?? 2,
                 'vat_profile_id' => $vatProfileId,
                 'transaction_date' => $request->transaction_date,
                 'description' => $request->description,
@@ -411,7 +357,6 @@ class TransactionController extends Controller
             // Reload with relationships
             $transaction->load([
                 'category',
-                'bankAccount',
                 'supplier',
                 'crewMember',
             'vatProfile',
@@ -460,10 +405,9 @@ class TransactionController extends Controller
         $transaction->load([
             'vessel',
             'category',
-            'bankAccount',
             'supplier',
             'crewMember',
-            'vatRate',
+            'vatProfile',
             'createdBy',
             'attachments',
         ]);
@@ -498,7 +442,6 @@ class TransactionController extends Controller
         // Load all relationships
         $transaction->load([
             'category',
-            'bankAccount',
             'supplier',
             'crewMember',
             'vatProfile',
@@ -536,19 +479,12 @@ class TransactionController extends Controller
         // Load transaction with relationships
         $transaction->load([
             'category',
-            'bankAccount',
             'supplier',
             'crewMember',
-            'vatRate',
+            'vatProfile',
         ]);
 
         // Related data for form
-        // Eager load country relationship for getCurrency() method to work
-        $bankAccounts = BankAccount::where('vessel_id', $vesselId)
-            ->with('country')
-            ->active()
-            ->orderBy('name')
-            ->get();
         $categories = TransactionCategory::orderBy('name')->get();
         $suppliers = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
@@ -583,17 +519,6 @@ class TransactionController extends Controller
         return Inertia::render('Transactions/Edit', [
             'transaction' => new TransactionResource($transaction),
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
-            'bankAccounts' => $bankAccounts->map(function ($account) use ($defaultCurrency) {
-                // Get currency from bank account (via getCurrency() method) or use default
-                // getCurrency() returns currency from country or IBAN, or null if neither exists
-                $accountCurrency = $account->getCurrency();
-                return [
-                    'id' => $account->id,
-                    'name' => $account->name,
-                    'bank_name' => $account->bank_name,
-                    'currency' => $accountCurrency ?? $defaultCurrency,
-                ];
-            }),
             'categories' => $categories->map(function ($category) {
                 return [
                     'id' => $category->id,
@@ -650,15 +575,13 @@ class TransactionController extends Controller
                 abort(403, 'Unauthorized access to transaction.');
             }
 
-            // Get currency priority: request currency (from form) > bank account > vessel_settings > vessel currency_code > EUR
+            // Get currency priority: request currency (from form) > vessel_settings > vessel currency_code > EUR
             // IMPORTANT: Always prioritize the currency sent from the frontend form, as it reflects user's intent and vessel settings
-            $bankAccount = BankAccount::find($request->bank_account_id);
             $vesselSetting = VesselSetting::getForVessel($vesselId);
             $vessel = \App\Models\Vessel::find($vesselId);
 
-            // Priority: form currency (user's explicit choice from vessel_settings) > bank account currency > vessel_settings > vessel currency_code > EUR
+            // Priority: form currency (user's explicit choice from vessel_settings) > vessel_settings > vessel currency_code > EUR
             $currency = $request->currency
-                ?? $bankAccount?->getCurrency()
                 ?? $vesselSetting->currency_code
                 ?? $vessel?->currency_code
                 ?? 'EUR';
@@ -704,7 +627,6 @@ class TransactionController extends Controller
 
             // Access validated values directly as properties (never use validated())
             $transaction->update([
-                'bank_account_id' => $request->bank_account_id,
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
@@ -726,7 +648,6 @@ class TransactionController extends Controller
             // Reload with relationships
             $transaction->load([
                 'category',
-                'bankAccount',
                 'supplier',
                 'crewMember',
             'vatProfile',
