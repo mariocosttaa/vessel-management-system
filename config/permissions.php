@@ -63,6 +63,9 @@ return [
         'reports.access' => false,
         'settings.access' => false,
         'users.manage' => false,
+        'recycle_bin.view' => false,
+        'recycle_bin.restore' => false,
+        'recycle_bin.delete' => false,
     ],
 
     /**
@@ -105,6 +108,9 @@ return [
         'reports.access' => true,
         'settings.access' => true,
         'users.manage' => true,
+        'recycle_bin.view' => true,
+        'recycle_bin.restore' => true,
+        'recycle_bin.delete' => true,
     ],
 
     /**
@@ -147,6 +153,9 @@ return [
         'reports.access' => true,
         'settings.access' => true,
         'users.manage' => false,
+        'recycle_bin.view' => true,
+        'recycle_bin.restore' => true,
+        'recycle_bin.delete' => false,
     ],
 
     /**
@@ -191,6 +200,9 @@ return [
         'reports.access' => true,
         'settings.access' => false,
         'users.manage' => false,
+        'recycle_bin.view' => false,
+        'recycle_bin.restore' => false,
+        'recycle_bin.delete' => false,
     ],
 
     /**
@@ -235,6 +247,9 @@ return [
         'reports.access' => true,
         'settings.access' => false,
         'users.manage' => false,
+        'recycle_bin.view' => false,
+        'recycle_bin.restore' => false,
+        'recycle_bin.delete' => false,
     ],
 
 ];
