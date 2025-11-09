@@ -125,6 +125,14 @@ class Vessel extends Model
     }
 
     /**
+     * Get the settings for the vessel.
+     */
+    public function setting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(VesselSetting::class);
+    }
+
+    /**
      * Scope a query to only include active vessels.
      */
     public function scopeActive($query)
