@@ -262,13 +262,6 @@ const formatDate = (dateString: string) => {
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage your crew members and their information</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <a
-                            :href="`/panel/${getCurrentVesselId()}/crew-roles`"
-                            class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-background px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted/50"
-                        >
-                            <Icon name="user-cog" class="h-4 w-4" />
-                            Manage Roles
-                        </a>
                         <PermissionGate permission="crew.create">
                             <button
                                 @click="openCreateModal"
