@@ -23,10 +23,10 @@ class CrewPosition extends Model
     }
 
     /**
-     * Get the crew members for the position.
+     * Get the crew members (users) for the position.
      */
     public function crewMembers(): HasMany
     {
-        return $this->hasMany(CrewMember::class, 'position_id');
+        return $this->hasMany(User::class, 'position_id');
     }
 }
