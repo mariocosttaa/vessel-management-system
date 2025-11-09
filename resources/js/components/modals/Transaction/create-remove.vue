@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
+import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import { Switch } from '@/components/ui/switch';
 import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import transactions from '@/routes/panel/transactions';
@@ -115,12 +117,29 @@ const showCrewMemberField = computed(() => {
     return category && category.name.toLowerCase().includes('salário');
 });
 
+// Price per unit handling
+const usePricePerUnit = ref(false);
+const pricePerUnit = ref<number | null>(null);
+const quantity = ref<number | null>(null);
+
+// Calculate total amount from price_per_unit * quantity
+const calculatedAmount = computed(() => {
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        // pricePerUnit is in cents (integer), quantity is an integer
+        const qty = Math.round(quantity.value);
+        return Math.round(pricePerUnit.value * qty);
+    }
+    return form.amount || 0;
+});
+
 // VAT is not used for expenses/removals
 
 const form = useForm({
     category_id: null as number | null,
     type: 'expense' as string,
     amount: null as number | null,
+    amount_per_unit: null as number | null,
+    quantity: null as number | null,
     currency: vesselCurrencyData.value.code,
     house_of_zeros: vesselCurrencyData.value.decimals,
     vat_rate_id: null as number | null,
@@ -158,11 +177,16 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.marea_id = props.mareaId ?? null;
         form.category_id = null;
         form.amount = null;
+        form.amount_per_unit = null;
+        form.quantity = null;
         form.description = '';
         form.notes = '';
         form.files = [];
 
         // Reset reactive refs
+        usePricePerUnit.value = false;
+        pricePerUnit.value = null;
+        quantity.value = null;
         selectedFiles.value = [];
 
         // Clear file upload component after a brief delay to ensure component is mounted
@@ -187,6 +211,19 @@ watch(() => form.category_id, () => {
     }
 });
 
+// Watch price per unit and quantity to update form.amount
+watch([pricePerUnit, quantity, usePricePerUnit], () => {
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        form.amount_per_unit = pricePerUnit.value;
+        form.quantity = Math.round(quantity.value); // Ensure quantity is integer
+        form.amount = calculatedAmount.value;
+    } else {
+        form.amount_per_unit = null;
+        form.quantity = null;
+        // Keep form.amount as is if price per unit is not used
+    }
+});
+
 // VAT is not used for expenses/removals
 
 // Get current vessel ID from URL
@@ -208,6 +245,17 @@ const submit = () => {
     form.amount_includes_vat = false;
     form.vat_profile_id = null;
     form.vat_rate_id = null;
+
+    // Calculate amount from price_per_unit * quantity if using price per unit
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        form.amount_per_unit = pricePerUnit.value;
+        form.quantity = Math.round(quantity.value); // Ensure quantity is integer
+        form.amount = calculatedAmount.value;
+    } else {
+        // If not using price per unit, ensure price_per_unit and quantity are null
+        form.amount_per_unit = null;
+        form.quantity = null;
+    }
 
     // Get files for submission - prioritize component ref, then selectedFiles, then empty array
     let filesToSubmit: File[] = [];
@@ -272,11 +320,16 @@ const submit = () => {
             form.marea_id = props.mareaId ?? null;
             form.category_id = null;
             form.amount = null;
+            form.amount_per_unit = null;
+            form.quantity = null;
             form.description = '';
             form.notes = '';
             form.files = [];
 
             // Reset reactive refs
+            usePricePerUnit.value = false;
+            pricePerUnit.value = null;
+            quantity.value = null;
             selectedFiles.value = [];
 
             // Clear file upload component
@@ -340,10 +393,72 @@ const submit = () => {
                     <InputError :message="form.errors.category_id" />
                 </div>
 
+                <!-- Price Per Unit Checkbox -->
+                <div class="flex items-center justify-between p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
+                    <Label for="use_price_per_unit" class="font-medium cursor-pointer" @click="usePricePerUnit = !usePricePerUnit">
+                        Use Price Per Unit and Quantity
+                    </Label>
+                    <Switch
+                        id="use_price_per_unit"
+                        :checked="usePricePerUnit"
+                        @update:checked="(val) => usePricePerUnit = val"
+                    />
+                </div>
+
+                <!-- Price Per Unit and Quantity Fields (shown when checkbox is checked) -->
+                <div v-if="usePricePerUnit" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Price Per Unit -->
+                        <div class="space-y-2">
+                            <MoneyInputWithLabel
+                                v-model="pricePerUnit"
+                                label="Price Per Unit"
+                                :currency="currentCurrency"
+                                placeholder="0,00"
+                                :error="form.errors.amount_per_unit"
+                                :show-currency="true"
+                                return-type="int"
+                                :decimals="currentCurrencyDecimals"
+                                required
+                            />
+                            <InputError :message="form.errors.amount_per_unit" />
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="space-y-2">
+                            <Label for="quantity">Quantity <span class="text-destructive">*</span></Label>
+                            <Input
+                                id="quantity"
+                                v-model.number="quantity"
+                                type="number"
+                                step="1"
+                                min="1"
+                                placeholder="0"
+                                :class="{ 'border-destructive dark:border-destructive': form.errors.quantity }"
+                                required
+                            />
+                            <InputError :message="form.errors.quantity" />
+                        </div>
+                    </div>
+
+                    <!-- Calculated Total -->
+                    <div v-if="pricePerUnit !== null && quantity !== null && quantity > 0" class="flex justify-between items-center pt-2 border-t">
+                        <span class="text-sm font-medium">Total Amount:</span>
+                        <MoneyDisplay
+                            :value="calculatedAmount"
+                            :currency="currentCurrency"
+                            :decimals="currentCurrencyDecimals"
+                            size="sm"
+                            variant="negative"
+                            class="font-semibold"
+                        />
+                    </div>
+                </div>
+
                 <!-- Amount and Date -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Amount -->
-                    <div class="space-y-2">
+                    <!-- Amount (shown when not using price per unit) -->
+                    <div v-if="!usePricePerUnit" class="space-y-2">
                         <MoneyInputWithLabel
                             v-model="form.amount"
                             label="Amount"
@@ -353,7 +468,7 @@ const submit = () => {
                             :show-currency="true"
                             return-type="int"
                             :decimals="currentCurrencyDecimals"
-                            required
+                            :required="!usePricePerUnit"
                         />
                     </div>
 

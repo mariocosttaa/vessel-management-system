@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,6 +24,8 @@ interface Transaction {
     transaction_number: string;
     type: string;
     amount: number;
+    price_per_unit: number | null;
+    quantity: number | null;
     vat_amount?: number;
     total_amount?: number;
     currency: string;
@@ -163,14 +165,53 @@ const initialAmountIncludesVat = computed(() => {
 // VAT handling - watch transaction changes to update the ref
 const amountIncludesVat = ref(initialAmountIncludesVat.value);
 
+// Price per unit handling
+const usePricePerUnit = ref(false);
+const pricePerUnit = ref<number | null>(null);
+const quantity = ref<number | null>(null);
+
+// Initialize price per unit state from transaction
+const initializePricePerUnit = () => {
+    // Read from amount_per_unit (preferred) or price_per_unit (fallback for backward compatibility)
+    const amountPerUnit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
+    if (amountPerUnit !== null && amountPerUnit !== undefined && props.transaction.quantity !== null && props.transaction.quantity !== undefined) {
+        usePricePerUnit.value = true;
+        pricePerUnit.value = amountPerUnit;
+        quantity.value = props.transaction.quantity;
+    } else {
+        usePricePerUnit.value = false;
+        pricePerUnit.value = null;
+        quantity.value = null;
+    }
+};
+
+// Calculate total amount from price_per_unit * quantity
+const calculatedAmount = computed(() => {
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        // pricePerUnit is in cents (integer), quantity is an integer
+        const qty = Math.round(quantity.value);
+        return Math.round(pricePerUnit.value * qty);
+    }
+    return form.amount || 0;
+});
+
 // Watch transaction changes to update amountIncludesVat
 watch(() => props.transaction.id, () => {
     amountIncludesVat.value = initialAmountIncludesVat.value;
+    initializePricePerUnit();
+});
+
+// Initialize price per unit on component mount if transaction has price_per_unit
+onMounted(() => {
+    if (props.open && props.transaction) {
+        initializePricePerUnit();
+    }
 });
 
 // Calculate VAT amounts based on current input
 const vatCalculations = computed(() => {
-    if (!form.amount || !selectedVatProfile.value) {
+    const amount = calculatedAmount.value; // Use calculated amount or form.amount
+    if (!amount || !selectedVatProfile.value) {
         return {
             baseAmount: 0,
             vatAmount: 0,
@@ -178,7 +219,6 @@ const vatCalculations = computed(() => {
         };
     }
 
-    const amount = form.amount;
     const vatRate = selectedVatProfile.value.percentage;
 
     if (amountIncludesVat.value) {
@@ -213,6 +253,8 @@ const form = useForm({
     category_id: props.transaction.category_id,
     type: 'income' as string,
     amount: props.transaction.amount,
+    amount_per_unit: (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit,
+    quantity: props.transaction.quantity,
     currency: props.transaction.currency,
     house_of_zeros: props.transaction.house_of_zeros,
     vat_profile_id: props.transaction.vat_profile_id || props.defaultVatProfile?.id || null,
@@ -238,6 +280,8 @@ watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
         form.category_id = props.transaction.category_id;
         form.type = 'income';
         form.amount = props.transaction.amount;
+        form.amount_per_unit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
+        form.quantity = props.transaction.quantity;
         form.currency = props.transaction.currency || vesselCurrencyData.value.code || 'EUR';
         form.house_of_zeros = props.transaction.house_of_zeros || currentCurrencyDecimals.value;
         form.vat_profile_id = props.transaction.vat_profile_id || props.defaultVatProfile?.id || null;
@@ -250,6 +294,10 @@ watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
         form.status = props.transaction.status;
         form.files = [];
         selectedFiles.value = [];
+
+        // Initialize price per unit state
+        initializePricePerUnit();
+
         form.clearErrors();
     }
 });
@@ -264,6 +312,19 @@ watch(amountIncludesVat, (value) => {
     form.amount_includes_vat = value;
     if (selectedVatProfile.value) {
         form.vat_profile_id = selectedVatProfile.value.id;
+    }
+});
+
+// Watch price per unit and quantity to update form.amount
+watch([pricePerUnit, quantity, usePricePerUnit], () => {
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        form.amount_per_unit = pricePerUnit.value;
+        form.quantity = Math.round(quantity.value); // Ensure quantity is integer
+        form.amount = calculatedAmount.value;
+    } else {
+        form.amount_per_unit = null;
+        form.quantity = null;
+        // Keep form.amount as is if price per unit is not used
     }
 });
 
@@ -343,6 +404,17 @@ const cancelDeleteFile = () => {
 const submit = () => {
     form.amount_includes_vat = amountIncludesVat.value;
 
+    // Calculate amount from price_per_unit * quantity if using price per unit
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        form.amount_per_unit = pricePerUnit.value;
+        form.quantity = Math.round(quantity.value); // Ensure quantity is integer
+        form.amount = calculatedAmount.value;
+    } else {
+        // If not using price per unit, ensure price_per_unit and quantity are null
+        form.amount_per_unit = null;
+        form.quantity = null;
+    }
+
     if (!form.currency) {
         form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
     }
@@ -412,10 +484,72 @@ const submit = () => {
                     <InputError :message="form.errors.category_id" />
                 </div>
 
+                <!-- Price Per Unit Checkbox -->
+                <div class="flex items-center justify-between p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
+                    <Label for="use_price_per_unit" class="font-medium cursor-pointer" @click="usePricePerUnit = !usePricePerUnit">
+                        Use Price Per Unit and Quantity
+                    </Label>
+                    <Switch
+                        id="use_price_per_unit"
+                        :checked="usePricePerUnit"
+                        @update:checked="(val) => usePricePerUnit = val"
+                    />
+                </div>
+
+                <!-- Price Per Unit and Quantity Fields (shown when checkbox is checked) -->
+                <div v-if="usePricePerUnit" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Price Per Unit -->
+                        <div class="space-y-2">
+                            <MoneyInputWithLabel
+                                v-model="pricePerUnit"
+                                label="Price Per Unit"
+                                :currency="currentCurrency"
+                                placeholder="0,00"
+                                :error="form.errors.amount_per_unit"
+                                :show-currency="true"
+                                return-type="int"
+                                :decimals="currentCurrencyDecimals"
+                                required
+                            />
+                            <InputError :message="form.errors.amount_per_unit" />
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="space-y-2">
+                            <Label for="quantity">Quantity <span class="text-destructive">*</span></Label>
+                            <Input
+                                id="quantity"
+                                v-model.number="quantity"
+                                type="number"
+                                step="1"
+                                min="1"
+                                placeholder="0"
+                                :class="{ 'border-destructive dark:border-destructive': form.errors.quantity }"
+                                required
+                            />
+                            <InputError :message="form.errors.quantity" />
+                        </div>
+                    </div>
+
+                    <!-- Calculated Total -->
+                    <div v-if="pricePerUnit !== null && quantity !== null && quantity > 0" class="flex justify-between items-center pt-2 border-t">
+                        <span class="text-sm font-medium">Total Amount:</span>
+                        <MoneyDisplay
+                            :value="calculatedAmount"
+                            :currency="currentCurrency"
+                            :decimals="currentCurrencyDecimals"
+                            size="sm"
+                            variant="positive"
+                            class="font-semibold"
+                        />
+                    </div>
+                </div>
+
                 <!-- Amount and Date -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Amount -->
-                    <div class="space-y-2">
+                    <!-- Amount (shown when not using price per unit) -->
+                    <div v-if="!usePricePerUnit" class="space-y-2">
                         <MoneyInputWithLabel
                             v-model="form.amount"
                             label="Amount"
@@ -425,7 +559,7 @@ const submit = () => {
                             :show-currency="true"
                             return-type="int"
                             :decimals="currentCurrencyDecimals"
-                            required
+                            :required="!usePricePerUnit"
                         />
                     </div>
 
@@ -445,7 +579,7 @@ const submit = () => {
                 </div>
 
                 <!-- VAT Section -->
-                <div v-if="selectedVatProfile && form.amount" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
+                <div v-if="selectedVatProfile && calculatedAmount > 0" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
                     <div class="flex items-center justify-between">
                         <Label for="amount_includes_vat" class="font-medium cursor-pointer" @click="amountIncludesVat = !amountIncludesVat">
                             Amount already includes VAT
