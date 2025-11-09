@@ -1,0 +1,335 @@
+<script setup lang="ts">
+import VesselLayout from '@/layouts/VesselLayout.vue';
+import { Head, router } from '@inertiajs/vue3';
+import { ref, watch, computed } from 'vue';
+import Icon from '@/components/Icon.vue';
+import DataTable from '@/components/ui/DataTable.vue';
+import Pagination from '@/components/ui/Pagination.vue';
+import CrewRoleCreateModal from '@/components/modals/CrewRole/create.vue';
+import CrewRoleUpdateModal from '@/components/modals/CrewRole/update.vue';
+import CrewRoleShowModal from '@/components/modals/CrewRole/show.vue';
+import PermissionGate from '@/components/PermissionGate.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+// Get current vessel ID from URL
+const getCurrentVesselId = () => {
+    const path = window.location.pathname;
+    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    return vesselMatch ? vesselMatch[1] : '1';
+};
+
+interface CrewPosition {
+    id: number;
+    name: string;
+    description?: string;
+    vessel_id?: number | null;
+    is_global: boolean;
+    scope_label: string;
+    crew_members_count?: number;
+    created_at: string;
+}
+
+interface Props {
+    crewPositions: {
+        data: CrewPosition[];
+        links: any[];
+        meta: any;
+    };
+    filters: {
+        search?: string;
+        scope?: string;
+        sort?: string;
+        direction?: string;
+    };
+}
+
+const props = defineProps<Props>();
+
+// Permissions
+const { can } = usePermissions();
+
+// Computed property for crew positions data
+const crewPositionsData = computed(() => props.crewPositions?.data || []);
+const paginatedCrewPositions = computed(() => props.crewPositions);
+
+const search = ref(props.filters.search || '');
+const scopeFilter = ref(props.filters.scope || '');
+const sortField = ref(props.filters.sort || 'name');
+const sortDirection = ref(props.filters.direction || 'asc');
+
+// Modal state
+const isCreateModalOpen = ref(false);
+const isUpdateModalOpen = ref(false);
+const isShowModalOpen = ref(false);
+const editingCrewPosition = ref<CrewPosition | null>(null);
+const viewingCrewPosition = ref<CrewPosition | null>(null);
+
+// Confirmation dialog state
+const showDeleteDialog = ref(false);
+const crewPositionToDelete = ref<CrewPosition | null>(null);
+const isDeleting = ref(false);
+
+// Table configuration
+const columns = [
+    { key: 'name', label: 'Role Name', sortable: true },
+    { key: 'scope_label', label: 'Scope', sortable: false },
+    { key: 'crew_members_count', label: 'Crew Members', sortable: false },
+    { key: 'description', label: 'Description', sortable: false },
+    { key: 'created_at', label: 'Created', sortable: true },
+];
+
+// Actions configuration based on permissions
+const actions = computed(() => {
+    return (item: CrewPosition) => {
+        const availableActions = [];
+
+        if (can('view', 'crew-roles')) {
+            availableActions.push({
+                label: 'View Details',
+                icon: 'eye',
+                onClick: (position: CrewPosition) => openShowModal(position),
+            });
+        }
+
+        // Only allow editing of vessel-specific roles (not global/default roles)
+        if (can('edit', 'crew-roles') && !item.is_global) {
+            availableActions.push({
+                label: 'Edit Role',
+                icon: 'edit',
+                onClick: (position: CrewPosition) => openEditModal(position),
+            });
+        }
+
+        // Only allow deletion of vessel-specific roles (not global/default roles)
+        if (can('delete', 'crew-roles') && !item.is_global) {
+            availableActions.push({
+                label: 'Delete Role',
+                icon: 'trash-2',
+                variant: 'destructive' as const,
+                onClick: (position: CrewPosition) => deleteCrewPosition(position),
+            });
+        }
+
+        return availableActions;
+    };
+});
+
+// Watch for changes and update URL
+watch([search, scopeFilter, sortField, sortDirection], () => {
+    const filters: Record<string, any> = {};
+
+    if (search.value) filters.search = search.value;
+    if (scopeFilter.value) filters.scope = scopeFilter.value;
+    if (sortField.value !== 'name') filters.sort = sortField.value;
+    if (sortDirection.value !== 'asc') filters.direction = sortDirection.value;
+
+    router.get(`/panel/${getCurrentVesselId()}/crew-roles`, filters, {
+        preserveState: true,
+        replace: true,
+    });
+}, { debounce: 300 });
+
+const handleSort = (field: string) => {
+    if (sortField.value === field) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField.value = field;
+        sortDirection.value = 'asc';
+    }
+};
+
+// Modal functions
+const openCreateModal = () => {
+    isCreateModalOpen.value = true;
+};
+
+const openEditModal = (position: CrewPosition) => {
+    editingCrewPosition.value = position;
+    isUpdateModalOpen.value = true;
+};
+
+const openShowModal = (position: CrewPosition) => {
+    viewingCrewPosition.value = position;
+    isShowModalOpen.value = true;
+};
+
+const handleModalSaved = () => {
+    // Refresh the page to show updated data
+    router.reload();
+};
+
+// Delete functions
+const deleteCrewPosition = (position: CrewPosition) => {
+    crewPositionToDelete.value = position;
+    showDeleteDialog.value = true;
+};
+
+const confirmDelete = () => {
+    if (!crewPositionToDelete.value) return;
+
+    isDeleting.value = true;
+
+    router.delete(`/panel/${getCurrentVesselId()}/crew-roles/${crewPositionToDelete.value.id}`, {
+        onSuccess: () => {
+            showDeleteDialog.value = false;
+            crewPositionToDelete.value = null;
+            isDeleting.value = false;
+        },
+        onError: () => {
+            isDeleting.value = false;
+        },
+    });
+};
+
+const cancelDelete = () => {
+    showDeleteDialog.value = false;
+    crewPositionToDelete.value = null;
+    isDeleting.value = false;
+};
+
+const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+};
+</script>
+
+<template>
+    <Head title="Crew Roles" />
+
+    <VesselLayout :breadcrumbs="[{ title: 'Crew Roles', href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <!-- Header Card -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Crew Roles</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage crew positions and roles</p>
+                    </div>
+                    <PermissionGate permission="crew-roles.create">
+                        <button
+                            @click="openCreateModal"
+                            class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        >
+                            <Icon name="plus" class="h-4 w-4" />
+                            Add Role
+                        </button>
+                    </PermissionGate>
+                </div>
+            </div>
+
+            <!-- Filters Card -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- Search -->
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="relative">
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search roles..."
+                                class="w-full rounded-lg border border-sidebar-border/70 bg-background pl-10 pr-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Scope Filter -->
+                    <div class="min-w-[150px]">
+                        <select
+                            v-model="scopeFilter"
+                            class="w-full rounded-lg border border-sidebar-border/70 bg-background px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                            <option value="">All Scopes</option>
+                            <option value="global">Default</option>
+                            <option value="vessel">Created</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table Card -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                <DataTable
+                    :data="crewPositionsData"
+                    :columns="columns"
+                    :actions="actions"
+                    :sort-field="sortField"
+                    :sort-direction="sortDirection"
+                    :on-sort="handleSort"
+                >
+                    <template #cell-name="{ item }">
+                        <div class="font-medium">{{ item.name }}</div>
+                    </template>
+                    <template #cell-scope_label="{ item }">
+                        <span
+                            :class="[
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                item.is_global
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
+                            ]"
+                        >
+                            {{ item.is_global ? 'Default' : 'Created' }}
+                        </span>
+                    </template>
+                    <template #cell-crew_members_count="{ item }">
+                        <span class="text-muted-foreground">{{ item.crew_members_count || 0 }}</span>
+                    </template>
+                    <template #cell-description="{ item }">
+                        <span class="text-muted-foreground">{{ item.description || '-' }}</span>
+                    </template>
+                    <template #cell-created_at="{ item }">
+                        <span class="text-muted-foreground">{{ formatDate(item.created_at) }}</span>
+                    </template>
+                </DataTable>
+
+                <!-- Pagination -->
+                <Pagination
+                    v-if="paginatedCrewPositions?.links && paginatedCrewPositions?.meta"
+                    :links="paginatedCrewPositions.links"
+                    :meta="paginatedCrewPositions.meta"
+                    class="mt-4"
+                />
+            </div>
+        </div>
+
+        <!-- Create Modal -->
+        <CrewRoleCreateModal
+            :open="isCreateModalOpen"
+            @update:open="isCreateModalOpen = $event"
+            @saved="handleModalSaved"
+        />
+
+        <!-- Update Modal -->
+        <CrewRoleUpdateModal
+            :open="isUpdateModalOpen"
+            :crew-position="editingCrewPosition"
+            @update:open="isUpdateModalOpen = $event"
+            @saved="handleModalSaved"
+        />
+
+        <!-- Show Modal -->
+        <CrewRoleShowModal
+            :open="isShowModalOpen"
+            :crew-position="viewingCrewPosition"
+            @update:open="isShowModalOpen = $event"
+        />
+
+        <!-- Confirmation Dialog -->
+        <ConfirmationDialog
+            :open="showDeleteDialog"
+            title="Delete Crew Role"
+            description="This action cannot be undone."
+            :message="crewPositionToDelete ? `Are you sure you want to delete the crew role '${crewPositionToDelete.name}'? This will permanently remove the role.` : ''"
+            confirm-text="Delete Role"
+            cancel-text="Cancel"
+            variant="destructive"
+            type="danger"
+            :loading="isDeleting"
+            @confirm="confirmDelete"
+            @cancel="cancelDelete"
+            @update:open="showDeleteDialog = $event"
+        />
+    </VesselLayout>
+</template>
+
