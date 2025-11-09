@@ -252,7 +252,7 @@ const formatDate = (dateString: string) => {
 <template>
     <Head title="Crew Members" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Crew Members', href: crewMembers.index.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: 'Crew Members', href: `/panel/${getCurrentVesselId()}/crew-members` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
@@ -261,15 +261,24 @@ const formatDate = (dateString: string) => {
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Crew Members</h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage your crew members and their information</p>
                     </div>
-                    <PermissionGate permission="crew.create">
-                        <button
-                            @click="openCreateModal"
-                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                    <div class="flex items-center gap-2">
+                        <a
+                            :href="`/panel/${getCurrentVesselId()}/crew-roles`"
+                            class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 bg-background px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted/50"
                         >
-                            <Icon name="plus" class="w-4 h-4 mr-2" />
-                            Add Crew Member
-                        </button>
-                    </PermissionGate>
+                            <Icon name="user-cog" class="h-4 w-4" />
+                            Manage Roles
+                        </a>
+                        <PermissionGate permission="crew.create">
+                            <button
+                                @click="openCreateModal"
+                                class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                            >
+                                <Icon name="plus" class="w-4 h-4 mr-2" />
+                                Add Crew Member
+                            </button>
+                        </PermissionGate>
+                    </div>
                 </div>
             </div>
 
@@ -340,8 +349,8 @@ const formatDate = (dateString: string) => {
                 :clickable="true"
                 :on-row-click="openShowModal"
                 :actions="actions"
-                :sort-field="sortField.value"
-                :sort-direction="sortDirection.value"
+                :sort-field="sortField"
+                :sort-direction="sortDirection"
                 :on-sort="handleSort"
                 :loading="false"
                 empty-message="No crew members found"
