@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Actions\MoneyAction;
-use App\Models\BankAccount;
 use App\Models\TransactionCategory;
 use App\Models\User;
 use App\Models\VatProfile;
@@ -16,7 +15,6 @@ use Illuminate\Validation\Rule;
  * StoreTransactionRequest validates creating a new transaction.
  *
  * Input fields:
- * @property int $bank_account_id
  * @property int $category_id
  * @property string $type
  * @property int $amount
@@ -76,14 +74,7 @@ class StoreTransactionRequest extends FormRequest
      */
     public function rules(): array
     {
-        // Get vessel ID to check if bank accounts exist
-        $vesselId = $this->route('vessel');
-        $hasBankAccounts = BankAccount::where('vessel_id', $vesselId)->exists();
-
         return [
-            'bank_account_id' => $hasBankAccounts
-                ? ['required', 'integer', Rule::exists(BankAccount::class, 'id')]
-                : ['nullable', 'integer', Rule::exists(BankAccount::class, 'id')],
             'category_id' => ['required', 'integer', Rule::exists(TransactionCategory::class, 'id')],
             'type' => ['required', 'string', 'in:income,expense,transfer'],
             'amount' => ['required', 'numeric', 'min:0'],
@@ -109,16 +100,6 @@ class StoreTransactionRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // Validate bank account belongs to current vessel
-            if ($this->bank_account_id) {
-                $vesselId = $this->route('vessel');
-                $bankAccount = BankAccount::find($this->bank_account_id);
-
-                if ($bankAccount && $bankAccount->vessel_id !== (int) $vesselId) {
-                    $validator->errors()->add('bank_account_id', 'The selected bank account does not belong to this vessel.');
-                }
-            }
-
             // Validate supplier belongs to current vessel (if provided)
             if ($this->supplier_id) {
                 $vesselId = $this->route('vessel');
@@ -158,8 +139,6 @@ class StoreTransactionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'bank_account_id.required' => 'Please select a bank account.',
-            'bank_account_id.exists' => 'The selected bank account is invalid.',
             'category_id.required' => 'Please select a category.',
             'category_id.exists' => 'The selected category is invalid.',
             'type.required' => 'Please select transaction type.',
