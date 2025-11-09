@@ -603,6 +603,156 @@ Use vessel-specific permission gates:
 </template>
 ```
 
+## ⚙️ Permission Configuration
+
+### Config File (`config/permissions.php`)
+
+Permissions are managed through a centralized configuration file for better organization and maintainability. This approach separates configuration from business logic and makes it easier to update permissions without modifying middleware code.
+
+#### Structure
+
+The config file defines permissions for each vessel role:
+
+```php
+// config/permissions.php
+return [
+    'default' => [
+        // Default permissions for users without vessel access
+        'vessels.view' => false,
+        'crew.view' => false,
+        // ... all permissions set to false
+    ],
+
+    'Administrator' => [
+        // Full control - all permissions set to true
+        'vessels.create' => true,
+        'vessels.edit' => true,
+        'vessels.delete' => true,
+        'vessels.view' => true,
+        // ... all permissions
+    ],
+
+    'Moderator' => [
+        // Can view and edit basic data
+        'vessels.edit' => true,
+        'vessels.view' => true,
+        'crew-roles.view' => true, // Can view crew roles
+        'suppliers.view' => true, // Can view suppliers
+        'bank-accounts.view' => true, // Can view bank accounts
+        // ...
+    ],
+
+    'Normal User' => [
+        // View-only access
+        'vessels.view' => true,
+        'crew.view' => true,
+        'crew-roles.view' => false, // Cannot view crew roles
+        'suppliers.view' => false, // Cannot view suppliers
+        'bank-accounts.view' => false, // Cannot view bank accounts
+        // ...
+    ],
+];
+```
+
+#### Permission Keys
+
+Permissions follow the pattern: `resource.action`
+
+**Resources:**
+- `vessels` - Vessel management
+- `crew` - Crew members
+- `crew-roles` - Crew roles/positions
+- `suppliers` - Supplier management
+- `bank-accounts` - Bank account management
+- `transactions` - Financial transactions
+- `reports` - Reports and analytics
+- `settings` - System settings
+- `users` - User management
+
+**Actions:**
+- `view` - Can view the resource
+- `create` - Can create new records
+- `edit` - Can edit existing records
+- `delete` - Can delete records
+- `access` - Can access the feature (for reports, settings)
+- `manage` - Can manage the resource (for users)
+
+#### Access Control Rules
+
+1. **Normal Users**: Can only view vessels and crew members. Cannot access crew-roles, suppliers, or bank-accounts.
+2. **Moderators**: Can view and edit basic data. Can access crew-roles, suppliers, and bank-accounts for viewing and editing.
+3. **Supervisors**: Can view and edit basic and advanced data. Can access all resources except user management.
+4. **Administrators**: Full control over all resources and actions.
+
+#### Usage in Middleware
+
+The `HandleInertiaRequests` middleware loads permissions from the config file:
+
+```php
+// app/Http/Middleware/HandleInertiaRequests.php
+private function getUserPermissions($user, Request $request): array
+{
+    $vesselRole = $this->getCurrentVesselRole($request);
+
+    // Get all permissions from config
+    $allPermissions = config('permissions', []);
+
+    // Get default permissions for users without vessel access
+    $permissions = $allPermissions['default'] ?? [];
+
+    // If user has a vessel role, load permissions from config
+    if ($vesselRole && isset($allPermissions[$vesselRole])) {
+        $permissions = $allPermissions[$vesselRole];
+    }
+
+    return $permissions;
+}
+```
+
+This approach:
+- Loads all permissions from config at once
+- Falls back to default permissions if no role is found
+- Uses array access with null coalescing for safety
+- Keeps the middleware clean and focused on logic, not configuration
+
+#### Modifying Permissions
+
+To modify permissions:
+
+1. **Edit the config file**: Update `config/permissions.php` with the desired permission changes
+2. **Clear config cache**: Run `php artisan config:clear` to reload the configuration
+3. **Test permissions**: Verify that the changes work as expected
+
+**Example: Adding a new permission**
+
+```php
+// config/permissions.php
+'Administrator' => [
+    // ... existing permissions
+    'new-resource.view' => true,
+    'new-resource.create' => true,
+],
+```
+
+**Example: Changing access rules**
+
+```php
+// config/permissions.php
+'Normal User' => [
+    // Allow normal users to view suppliers
+    'suppliers.view' => true, // Changed from false to true
+],
+```
+
+#### Benefits of Config-Based Permissions
+
+1. **Centralized Management**: All permissions in one place
+2. **Easy Updates**: No need to modify middleware code
+3. **Version Control**: Changes are tracked in git
+4. **Documentation**: Config file serves as permission documentation
+5. **Testability**: Easy to test different permission scenarios
+6. **Maintainability**: Clear separation of configuration and logic
+
 ## 🌱 Database Seeding
 
 ### VesselRoleAccess Seeder
@@ -685,6 +835,8 @@ class VesselRoleAccessSeeder extends Seeder
 - [ ] Update controllers to use new permission system
 - [ ] Create `VesselRoleAccessSeeder`
 - [ ] Update `VesselSelectorController` to use `vesselsThroughRoles()`
+- [ ] Create `config/permissions.php` with permission mappings
+- [ ] Update `HandleInertiaRequests` middleware to use config file
 
 ### Frontend Implementation
 - [ ] Update `VesselSelector.vue` to show vessel-specific permissions
@@ -706,9 +858,10 @@ class VesselRoleAccessSeeder extends Seeder
 
 1. **User Login**: System checks `user_type` (`paid_system` or `employee_of_vessel`)
 2. **Vessel Access**: System loads vessels through `vesselsThroughRoles()` relationship
-3. **Permission Check**: For each vessel, system checks `VesselUserRole` and `VesselRoleAccess`
-4. **Frontend Display**: UI shows/hides actions based on vessel-specific permissions
-5. **Action Authorization**: Backend validates permissions before executing actions
+3. **Role Detection**: System determines user's role for current vessel via `VesselUserRole` and `VesselRoleAccess`
+4. **Config Load**: Middleware loads permissions from `config/permissions.php` based on user's vessel role
+5. **Frontend Display**: UI shows/hides actions based on vessel-specific permissions from config
+6. **Action Authorization**: Backend validates permissions before executing actions (double-check with vessel permissions)
 
 ## 🎯 Key Benefits
 

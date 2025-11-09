@@ -1,0 +1,196 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Vessel Role Permissions
+    |--------------------------------------------------------------------------
+    |
+    | This file defines the permissions for each vessel role in the system.
+    | Permissions are organized by role (Administrator, Supervisor, Moderator, Normal User).
+    |
+    | Permission Structure:
+    | - Each permission follows the pattern: 'resource.action'
+    | - Resources: vessels, crew, crew-roles, suppliers, bank-accounts, transactions, reports, settings, users
+    | - Actions: view, create, edit, delete, access, manage
+    |
+    | Role Hierarchy:
+    | - Administrator: Full control over the vessel (owner-level permissions)
+    | - Supervisor: Can view, edit basic and advanced vessel data
+    | - Moderator: Can view and edit basic vessel data
+    | - Normal User: View-only access to vessel data
+    |
+    */
+
+    /**
+     * Default permissions for users without vessel access or unknown roles.
+     */
+    'default' => [
+        'vessels.create' => false,
+        'vessels.edit' => false,
+        'vessels.delete' => false,
+        'vessels.view' => false,
+        'crew.create' => false,
+        'crew.edit' => false,
+        'crew.delete' => false,
+        'crew.view' => false,
+        'crew-roles.create' => false,
+        'crew-roles.edit' => false,
+        'crew-roles.delete' => false,
+        'crew-roles.view' => false,
+        'suppliers.create' => false,
+        'suppliers.edit' => false,
+        'suppliers.delete' => false,
+        'suppliers.view' => false,
+        'bank-accounts.create' => false,
+        'bank-accounts.edit' => false,
+        'bank-accounts.delete' => false,
+        'bank-accounts.view' => false,
+        'transactions.create' => false,
+        'transactions.edit' => false,
+        'transactions.delete' => false,
+        'transactions.view' => false,
+        'reports.access' => false,
+        'settings.access' => false,
+        'users.manage' => false,
+    ],
+
+    /**
+     * Administrator permissions - Full control over the vessel.
+     */
+    'Administrator' => [
+        'vessels.create' => true,
+        'vessels.edit' => true,
+        'vessels.delete' => true,
+        'vessels.view' => true,
+        'crew.create' => true,
+        'crew.edit' => true,
+        'crew.delete' => true,
+        'crew.view' => true,
+        'crew-roles.create' => true,
+        'crew-roles.edit' => true,
+        'crew-roles.delete' => true,
+        'crew-roles.view' => true,
+        'suppliers.create' => true,
+        'suppliers.edit' => true,
+        'suppliers.delete' => true,
+        'suppliers.view' => true,
+        'bank-accounts.create' => true,
+        'bank-accounts.edit' => true,
+        'bank-accounts.delete' => true,
+        'bank-accounts.view' => true,
+        'transactions.create' => true,
+        'transactions.edit' => true,
+        'transactions.delete' => true,
+        'transactions.view' => true,
+        'reports.access' => true,
+        'settings.access' => true,
+        'users.manage' => true,
+    ],
+
+    /**
+     * Supervisor permissions - Can view, edit basic and advanced vessel data.
+     */
+    'Supervisor' => [
+        'vessels.create' => false,
+        'vessels.edit' => true,
+        'vessels.delete' => false,
+        'vessels.view' => true,
+        'crew.create' => true,
+        'crew.edit' => true,
+        'crew.delete' => true,
+        'crew.view' => true,
+        'crew-roles.create' => true,
+        'crew-roles.edit' => true,
+        'crew-roles.delete' => true,
+        'crew-roles.view' => true,
+        'suppliers.create' => true,
+        'suppliers.edit' => true,
+        'suppliers.delete' => false,
+        'suppliers.view' => true,
+        'bank-accounts.create' => true,
+        'bank-accounts.edit' => true,
+        'bank-accounts.delete' => false,
+        'bank-accounts.view' => true,
+        'transactions.create' => true,
+        'transactions.edit' => true,
+        'transactions.delete' => false,
+        'transactions.view' => true,
+        'reports.access' => true,
+        'settings.access' => true,
+        'users.manage' => false,
+    ],
+
+    /**
+     * Moderator permissions - Can view and edit basic vessel data.
+     * Note: Moderators and Administrators can access crew-roles, suppliers, and bank-accounts.
+     * Normal users cannot view these resources.
+     */
+    'Moderator' => [
+        'vessels.create' => false,
+        'vessels.edit' => true,
+        'vessels.delete' => false,
+        'vessels.view' => true,
+        'crew.create' => false,
+        'crew.edit' => true,
+        'crew.delete' => false,
+        'crew.view' => true,
+        'crew-roles.create' => false,
+        'crew-roles.edit' => true,
+        'crew-roles.delete' => false,
+        'crew-roles.view' => true, // Moderators can view crew roles
+        'suppliers.create' => false,
+        'suppliers.edit' => true,
+        'suppliers.delete' => false,
+        'suppliers.view' => true, // Moderators can view suppliers
+        'bank-accounts.create' => false,
+        'bank-accounts.edit' => true,
+        'bank-accounts.delete' => false,
+        'bank-accounts.view' => true, // Moderators can view bank accounts
+        'transactions.create' => false,
+        'transactions.edit' => true,
+        'transactions.delete' => false,
+        'transactions.view' => true,
+        'reports.access' => true,
+        'settings.access' => false,
+        'users.manage' => false,
+    ],
+
+    /**
+     * Normal User permissions - View-only access to vessel data.
+     * Note: Normal users cannot view crew-roles, suppliers, or bank-accounts.
+     * Only moderators and administrators have access to these resources.
+     */
+    'Normal User' => [
+        'vessels.create' => false,
+        'vessels.edit' => false,
+        'vessels.delete' => false,
+        'vessels.view' => true,
+        'crew.create' => false,
+        'crew.edit' => false,
+        'crew.delete' => false,
+        'crew.view' => true,
+        'crew-roles.create' => false,
+        'crew-roles.edit' => false,
+        'crew-roles.delete' => false,
+        'crew-roles.view' => false, // Normal users cannot view crew roles
+        'suppliers.create' => false,
+        'suppliers.edit' => false,
+        'suppliers.delete' => false,
+        'suppliers.view' => false, // Normal users cannot view suppliers
+        'bank-accounts.create' => false,
+        'bank-accounts.edit' => false,
+        'bank-accounts.delete' => false,
+        'bank-accounts.view' => false, // Normal users cannot view bank accounts
+        'transactions.create' => false,
+        'transactions.edit' => false,
+        'transactions.delete' => false,
+        'transactions.view' => true,
+        'reports.access' => true,
+        'settings.access' => false,
+        'users.manage' => false,
+    ],
+
+];
+

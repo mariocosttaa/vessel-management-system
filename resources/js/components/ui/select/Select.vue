@@ -11,7 +11,7 @@
     <div class="relative">
       <input
         ref="inputRef"
-        v-model="searchQuery"
+        :value="searchQuery || displayValue || ''"
         type="text"
         :placeholder="placeholder"
         :class="inputClasses"
@@ -45,8 +45,10 @@
     >
       <div
         v-if="isOpen"
+        ref="dropdownRef"
         class="absolute z-50 mt-1 w-full rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
         @click.stop
+        @mousedown="handleDropdownMouseDown"
       >
         <!-- Search Input -->
         <div v-if="searchable" class="p-2 border-b border-gray-200 dark:border-gray-600">
@@ -57,6 +59,8 @@
             placeholder="Search..."
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             @keydown="handleSearchKeydown"
+            @mousedown.stop
+            @focus.stop
           />
         </div>
 
@@ -90,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { ChevronDownIcon } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 
@@ -127,9 +131,11 @@ const emit = defineEmits<{
 
 const inputRef = ref<HTMLInputElement>()
 const searchInputRef = ref<HTMLInputElement>()
+const dropdownRef = ref<HTMLDivElement>()
 const isOpen = ref(false)
 const searchQuery = ref('')
 const highlightedIndex = ref(-1)
+const isClickingInsideDropdown = ref(false)
 
 const inputClasses = computed(() => cn(
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
@@ -172,7 +178,7 @@ const getOptionLabel = (option: any): string => {
   if (typeof option === 'string' || typeof option === 'number') {
     return option.toString()
   }
-  return option[props.labelKey]
+  return option[props.labelKey] || option.toString()
 }
 
 const isSelected = (option: any): boolean => {
@@ -185,7 +191,10 @@ const toggleOpen = () => {
   isOpen.value = !isOpen.value
   if (isOpen.value && props.searchable) {
     nextTick(() => {
-      searchInputRef.value?.focus()
+      // Small delay to ensure dropdown is rendered
+      setTimeout(() => {
+        searchInputRef.value?.focus()
+      }, 50)
     })
   }
 }
@@ -199,11 +208,34 @@ const selectOption = (option: any) => {
 }
 
 const handleBlur = (event: FocusEvent) => {
+  // Check if the new focus target is within the dropdown
+  const relatedTarget = event.relatedTarget as HTMLElement | null
+  if (relatedTarget && dropdownRef.value?.contains(relatedTarget)) {
+    // Focus is moving to an element inside the dropdown, don't close
+    return
+  }
+
+  // If we just clicked inside the dropdown, don't close
+  if (isClickingInsideDropdown.value) {
+    isClickingInsideDropdown.value = false
+    return
+  }
+
   // Delay closing to allow click events to fire
   setTimeout(() => {
+    // Double-check that focus hasn't moved to the dropdown
+    const activeElement = document.activeElement
+    if (activeElement && dropdownRef.value?.contains(activeElement)) {
+      return
+    }
     isOpen.value = false
     highlightedIndex.value = -1
   }, 150)
+}
+
+const handleDropdownMouseDown = () => {
+  // Mark that we're clicking inside the dropdown to prevent blur from closing it
+  isClickingInsideDropdown.value = true
 }
 
 const handleKeydown = (event: KeyboardEvent) => {
@@ -259,25 +291,43 @@ const handleSearchKeydown = (event: KeyboardEvent) => {
   }
 }
 
-// Watch for modelValue changes to update display
-watch(() => props.modelValue, (newValue: string | number | null) => {
-  if (newValue !== null && newValue !== undefined) {
-    const option = props.options.find((opt: any) => getOptionValue(opt) === newValue)
+// Function to update searchQuery from modelValue
+const updateDisplayFromModelValue = () => {
+  if (props.modelValue !== null && props.modelValue !== undefined && props.options.length > 0) {
+    const option = props.options.find((opt: any) => {
+      const optValue = getOptionValue(opt)
+      const modelValue = props.modelValue
+      // Handle both string and number comparisons
+      return optValue === modelValue || String(optValue) === String(modelValue)
+    })
     if (option) {
       searchQuery.value = getOptionLabel(option)
+      return true
     }
-  } else {
+  }
+  // Only clear if we don't have a valid modelValue
+  if (!props.modelValue) {
     searchQuery.value = ''
   }
+  return false
+}
+
+// Watch for modelValue changes to update display
+watch(() => props.modelValue, (newValue: string | number | null) => {
+  updateDisplayFromModelValue()
 }, { immediate: true })
 
-// Watch for options changes to reset search
-watch(() => props.options, () => {
-  if (props.modelValue !== null && props.modelValue !== undefined) {
-    const option = props.options.find((opt: any) => getOptionValue(opt) === props.modelValue)
-    if (option) {
-      searchQuery.value = getOptionLabel(option)
-    }
+// Watch for options changes to update display when options load (important for initialization)
+watch(() => props.options, (newOptions) => {
+  if (newOptions && newOptions.length > 0 && props.modelValue !== null && props.modelValue !== undefined) {
+    updateDisplayFromModelValue()
   }
+}, { immediate: true, deep: true })
+
+// Also initialize on mount
+onMounted(() => {
+  nextTick(() => {
+    updateDisplayFromModelValue()
+  })
 })
 </script>

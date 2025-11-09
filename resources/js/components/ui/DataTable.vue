@@ -16,12 +16,14 @@ interface Action {
     variant?: 'default' | 'destructive';
 }
 
+type ActionsType = Action[] | ((item: any) => Action[]);
+
 interface Props {
     columns: Column[];
     data: any[];
     clickable?: boolean;
     onRowClick?: (item: any) => void;
-    actions?: Action[];
+    actions?: ActionsType;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
     onSort?: (field: string) => void;
@@ -79,6 +81,15 @@ const handleSort = (field: string) => {
         props.onSort(field);
     }
 };
+
+// Get actions for a specific item (supports both array and function)
+const getActionsForItem = (item: any): Action[] => {
+    if (!props.actions) return [];
+    if (typeof props.actions === 'function') {
+        return props.actions(item);
+    }
+    return props.actions;
+};
 </script>
 
 <template>
@@ -106,14 +117,14 @@ const handleSort = (field: string) => {
                                 />
                             </div>
                         </th>
-                        <th v-if="actions && actions.length > 0" class="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                        <th v-if="actions && (Array.isArray(actions) ? actions.length > 0 : true)" class="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
                             Actions
                         </th>
                     </tr>
                 </thead>
                 <tbody class="bg-card dark:bg-card divide-y divide-border dark:divide-border">
                     <tr v-if="loading">
-                        <td :colspan="columns.length + (actions?.length ? 1 : 0)" class="px-6 py-12 text-center">
+                        <td :colspan="columns.length + (actions ? 1 : 0)" class="px-6 py-12 text-center">
                             <div class="flex items-center justify-center">
                                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                                 <span class="ml-2 text-muted-foreground dark:text-muted-foreground">Loading...</span>
@@ -144,7 +155,7 @@ const handleSort = (field: string) => {
                                 {{ item[column.key] }}
                             </slot>
                         </td>
-                        <td v-if="actions && actions.length > 0" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
+                        <td v-if="getActionsForItem(item) && getActionsForItem(item).length > 0" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
                             <div class="relative dropdown-container">
                                 <button
                                     @click="toggleActionsDropdown(item.id)"
@@ -160,7 +171,7 @@ const handleSort = (field: string) => {
                                 >
                                     <div class="py-1">
                                         <button
-                                            v-for="action in actions"
+                                            v-for="action in getActionsForItem(item)"
                                             :key="action.label"
                                             @click="handleActionClick(action, item)"
                                             :class="[
