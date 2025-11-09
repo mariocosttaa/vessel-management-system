@@ -61,10 +61,22 @@ class UpdateTransactionRequest extends FormRequest
 
         // Get vessel ID from route parameter
         $vesselId = $this->route('vessel');
+        if (!$vesselId) {
+            return false;
+        }
 
-        // Check if user has admin or supervisor role for this specific vessel
+        // Check if user has access to vessel
         /** @var \App\Models\User $user */
-        return $user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']);
+        $vesselIdInt = is_object($vesselId) ? $vesselId->id : (int) $vesselId;
+        if (!$user->hasAccessToVessel($vesselIdInt)) {
+            return false;
+        }
+
+        // Check transactions.edit permission from config
+        $userRole = $user->getRoleForVessel($vesselIdInt);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+        return $permissions['transactions.edit'] ?? false;
     }
 
     /**

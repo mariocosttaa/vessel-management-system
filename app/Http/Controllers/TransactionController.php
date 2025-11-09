@@ -30,9 +30,15 @@ class TransactionController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        // Check if user has permission to view transactions
-        // All users with vessel access can view transactions
+        // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
             abort(403, 'You do not have permission to view transactions.');
         }
 
@@ -195,8 +201,15 @@ class TransactionController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        // Check if user has permission to create transactions
-        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+        // Check if user has permission to create transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.create permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.create'] ?? false)) {
             abort(403, 'You do not have permission to create transactions.');
         }
 
@@ -447,8 +460,15 @@ class TransactionController extends Controller
             abort(403, 'Unauthorized access to transaction.');
         }
 
-        // Check if user has permission to view transactions
+        // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
             abort(403, 'You do not have permission to view transactions.');
         }
 
@@ -485,8 +505,15 @@ class TransactionController extends Controller
             abort(403, 'Unauthorized access to transaction.');
         }
 
-        // Check if user has permission to view transactions
+        // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
             abort(403, 'You do not have permission to view transaction details.');
         }
 
@@ -522,8 +549,15 @@ class TransactionController extends Controller
             abort(403, 'Unauthorized access to transaction.');
         }
 
-        // Check if user has permission to edit transactions
-        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+        // Check if user has permission to edit transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.edit permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.edit'] ?? false)) {
             abort(403, 'You do not have permission to edit transactions.');
         }
 
@@ -779,9 +813,10 @@ class TransactionController extends Controller
                 abort(403, 'Unauthorized access to transaction.');
             }
 
-            // Check vessel-specific permissions for deletion
-            // Only Administrator and Supervisor can delete transactions
-            if (!$user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor'])) {
+            // Check vessel-specific permissions for deletion using config permissions
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+            if (!($permissions['transactions.delete'] ?? false)) {
                 abort(403, 'You do not have permission to delete transactions for this vessel.');
             }
 
@@ -840,8 +875,11 @@ class TransactionController extends Controller
                 abort(403, 'Unauthorized access to file.');
             }
 
-            // Check vessel-specific permissions for deletion
-            if (!$user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor'])) {
+            // Check vessel-specific permissions for deletion using config permissions
+            // File deletion requires transactions.edit permission (users who can edit can delete files)
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+            if (!($permissions['transactions.edit'] ?? false)) {
                 abort(403, 'You do not have permission to delete files for this vessel.');
             }
 
@@ -861,17 +899,19 @@ class TransactionController extends Controller
             }
 
             // Delete database record
+            $fileName = $transactionFile->name;
             $transactionFile->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'File deleted successfully.',
-            ]);
+            // Return redirect for Inertia (not JSON)
+            return back()->with('success', "File '{$fileName}' has been deleted successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete file.',
-            ], 500);
+            Log::error('Failed to delete transaction file', [
+                'file_id' => $transactionFile->id,
+                'transaction_id' => $transaction->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to delete file. Please try again.');
         }
     }
 
@@ -887,8 +927,15 @@ class TransactionController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        // Check if user has permission to search transactions
+        // Check if user has permission to search transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config (search requires view permission)
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
             abort(403, 'You do not have permission to search transactions.');
         }
 
