@@ -125,22 +125,62 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     // Transactions (scoped to current vessel)
     Route::get('/transactions', [TransactionController::class, 'index'])->name('panel.transactions.index');
     Route::get('/transactions/create', [TransactionController::class, 'create'])->name('panel.transactions.create');
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('panel.transactions.show');
-    Route::get('/transactions/{transaction}/edit', [TransactionController::class, 'edit'])->name('panel.transactions.edit');
+    Route::get('/transactions/{transactionId}', [TransactionController::class, 'show'])->name('panel.transactions.show');
+    Route::get('/transactions/{transactionId}/edit', [TransactionController::class, 'edit'])->name('panel.transactions.edit');
     Route::get('/api/transactions/search', [TransactionController::class, 'search'])->name('panel.api.transactions.search');
-    Route::get('/api/transactions/{transaction}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');
+    Route::get('/api/transactions/{transactionId}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');
 
     Route::middleware('role:admin,manager')->group(function () {
         Route::post('/transactions', [TransactionController::class, 'store'])->name('panel.transactions.store');
-        Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->name('panel.transactions.update');
-        Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->name('panel.transactions.destroy');
-        Route::delete('/transactions/{transaction}/files/{transactionFile}', [TransactionController::class, 'deleteFile'])->name('panel.transactions.files.delete');
+        Route::put('/transactions/{transactionId}', [TransactionController::class, 'update'])->name('panel.transactions.update');
+        Route::delete('/transactions/{transactionId}', [TransactionController::class, 'destroy'])->name('panel.transactions.destroy');
+        Route::delete('/transactions/{transactionId}/files/{fileId}', [TransactionController::class, 'deleteFile'])->name('panel.transactions.files.delete');
     });
 
     // Vessel Settings (scoped to current vessel)
     Route::get('/settings', [VesselSettingController::class, 'edit'])->name('panel.settings.edit');
     Route::patch('/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');
     Route::patch('/settings/location', [VesselSettingController::class, 'updateLocation'])->name('panel.settings.update.location');
+
+    // Mareas (scoped to current vessel)
+    Route::get('/mareas', [App\Http\Controllers\MareaController::class, 'index'])->name('panel.mareas.index');
+    Route::get('/mareas/create', [App\Http\Controllers\MareaController::class, 'create'])->name('panel.mareas.create');
+    Route::post('/mareas', [App\Http\Controllers\MareaController::class, 'store'])->name('panel.mareas.store');
+    // Use string parameter instead of Route Model Binding to avoid conflicts
+    Route::get('/mareas/{mareaId}', [App\Http\Controllers\MareaController::class, 'show'])->name('panel.mareas.show');
+    Route::get('/mareas/{mareaId}/edit', [App\Http\Controllers\MareaController::class, 'edit'])->name('panel.mareas.edit');
+    Route::put('/mareas/{mareaId}', [App\Http\Controllers\MareaController::class, 'update'])->name('panel.mareas.update');
+    Route::delete('/mareas/{mareaId}', [App\Http\Controllers\MareaController::class, 'destroy'])->name('panel.mareas.destroy');
+
+    // Marea Actions
+    Route::post('/mareas/{mareaId}/mark-at-sea', [App\Http\Controllers\MareaController::class, 'markAtSea'])->name('panel.mareas.mark-at-sea');
+    Route::post('/mareas/{mareaId}/mark-returned', [App\Http\Controllers\MareaController::class, 'markReturned'])->name('panel.mareas.mark-returned');
+    Route::post('/mareas/{mareaId}/close', [App\Http\Controllers\MareaController::class, 'close'])->name('panel.mareas.close');
+    Route::post('/mareas/{mareaId}/cancel', [App\Http\Controllers\MareaController::class, 'cancel'])->name('panel.mareas.cancel');
+
+    // Marea Management
+    Route::post('/mareas/{mareaId}/add-transaction', [App\Http\Controllers\MareaController::class, 'addTransaction'])->name('panel.mareas.add-transaction');
+    Route::delete('/mareas/{mareaId}/remove-transaction/{transaction}', [App\Http\Controllers\MareaController::class, 'removeTransaction'])->name('panel.mareas.remove-transaction');
+    Route::post('/mareas/{mareaId}/add-crew', [App\Http\Controllers\MareaController::class, 'addCrew'])->name('panel.mareas.add-crew');
+    Route::delete('/mareas/{mareaId}/remove-crew/{crewMember}', [App\Http\Controllers\MareaController::class, 'removeCrew'])->name('panel.mareas.remove-crew');
+    Route::post('/mareas/{mareaId}/add-quantity-return', [App\Http\Controllers\MareaController::class, 'addQuantityReturn'])->name('panel.mareas.add-quantity-return');
+    Route::delete('/mareas/{mareaId}/remove-quantity-return/{quantityReturn}', [App\Http\Controllers\MareaController::class, 'removeQuantityReturn'])->name('panel.mareas.remove-quantity-return');
+
+    // Marea API Endpoints
+    Route::get('/mareas/{mareaId}/available-transactions', [App\Http\Controllers\MareaController::class, 'getAvailableTransactions'])->name('panel.mareas.available-transactions');
+    Route::get('/mareas/{mareaId}/available-crew', [App\Http\Controllers\MareaController::class, 'getAvailableCrew'])->name('panel.mareas.available-crew');
+
+    // Marea Distribution Items (for custom overrides)
+    Route::post('/mareas/{mareaId}/distribution-items', [App\Http\Controllers\MareaController::class, 'storeDistributionItems'])->name('panel.mareas.distribution-items.store');
+
+    // Marea Distribution Profiles (global, but vessel-scoped for consistency)
+    Route::get('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'index'])->name('panel.marea-distribution-profiles.index');
+    Route::get('/marea-distribution-profiles/create', [App\Http\Controllers\MareaDistributionProfileController::class, 'create'])->name('panel.marea-distribution-profiles.create');
+    Route::post('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'store'])->name('panel.marea-distribution-profiles.store');
+    Route::get('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'show'])->name('panel.marea-distribution-profiles.show');
+    Route::get('/marea-distribution-profiles/{id}/edit', [App\Http\Controllers\MareaDistributionProfileController::class, 'edit'])->name('panel.marea-distribution-profiles.edit');
+    Route::put('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'update'])->name('panel.marea-distribution-profiles.update');
+    Route::delete('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'destroy'])->name('panel.marea-distribution-profiles.destroy');
 });
 
 require __DIR__.'/settings.php';
