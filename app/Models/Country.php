@@ -141,4 +141,20 @@ class Country extends Model
         $currency = $this->getCurrency();
         return $currency ? $currency->code : null;
     }
+
+    /**
+     * Get the VAT profiles for this country.
+     */
+    public function vatProfiles(): HasMany
+    {
+        return $this->hasMany(VatProfile::class);
+    }
+
+    /**
+     * Get the default VAT profile for this country.
+     */
+    public function defaultVatProfile(): ?VatProfile
+    {
+        return $this->vatProfiles()->where('is_default', true)->where('is_active', true)->first();
+    }
 }

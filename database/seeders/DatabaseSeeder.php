@@ -17,11 +17,14 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             VesselRoleAccessSeeder::class,
             CrewPositionSeeder::class, // Run before UserVesselRoleSeeder so positions exist
+            CountrySeeder::class, // Run before VatProfileSeeder
+            CurrencySeeder::class, // Run before VesselSettingSeeder
+            VatProfileSeeder::class, // Run after CountrySeeder
             UserSeeder::class,
             DefaultVesselSeeder::class,
             UserVesselRoleSeeder::class, // This now assigns positions to users
-            VatRateSeeder::class,
             TransactionCategorySeeder::class,
+            VesselSettingSeeder::class, // Run after vessels are created
         ]);
 
         $withTestData = false;
