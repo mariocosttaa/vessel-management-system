@@ -51,7 +51,6 @@ class TransactionResource extends JsonResource
             'is_recurring' => $this->is_recurring,
 
             // Direct IDs for forms (always included)
-            'bank_account_id' => $this->bank_account_id,
             'category_id' => $this->category_id,
             'supplier_id' => $this->supplier_id,
             'crew_member_id' => $this->crew_member_id,
@@ -68,13 +67,6 @@ class TransactionResource extends JsonResource
                     'name' => $this->category->name,
                     'type' => $this->category->type,
                     'color' => $this->category->color,
-                ];
-            }),
-            'bank_account' => $this->whenLoaded('bankAccount', function () {
-                return [
-                    'id' => $this->bankAccount->id,
-                    'name' => $this->bankAccount->name,
-                    'bank_name' => $this->bankAccount->bank_name,
                 ];
             }),
             'supplier' => $this->whenLoaded('supplier', function () {
