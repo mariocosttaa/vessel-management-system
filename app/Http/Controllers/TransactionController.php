@@ -362,6 +362,8 @@ class TransactionController extends Controller
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
+                'amount_per_unit' => $request->amount_per_unit ?? null,
+                'quantity' => $request->quantity ?? null,
                 'vat_amount' => $vatAmount,
                 'total_amount' => $totalAmount,
                 'currency' => $currency,
@@ -752,6 +754,8 @@ class TransactionController extends Controller
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
+                'amount_per_unit' => $request->amount_per_unit ?? null,
+                'quantity' => $request->quantity ?? null,
                 'vat_amount' => $vatAmount,
                 'total_amount' => $totalAmount,
                 'currency' => $currency,

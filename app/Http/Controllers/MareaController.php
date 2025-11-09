@@ -108,6 +108,9 @@ class MareaController extends Controller
 
         return Inertia::render('Mareas/Index', [
             'mareas' => $mareas->through(function ($marea) {
+                // Count transactions for this marea
+                $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+
                 return [
                     'id' => $marea->id,
                     'marea_number' => $marea->marea_number,
@@ -122,6 +125,7 @@ class MareaController extends Controller
                     'total_expenses' => $marea->total_expenses,
                     'net_result' => $marea->net_result,
                     'created_at' => $marea->created_at ? $marea->created_at->format('Y-m-d H:i:s') : null,
+                    'transaction_count' => $transactionCount,
                 ];
             }),
             'statuses' => $statuses,
@@ -152,18 +156,11 @@ class MareaController extends Controller
             abort(403, 'You do not have permission to create mareas.');
         }
 
-        // Get distribution profiles
-        $distributionProfiles = MareaDistributionProfile::orderBy('name')->get();
+        // Get next marea number for this vessel
+        $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
 
-        return Inertia::render('Mareas/Create', [
-            'distributionProfiles' => $distributionProfiles->map(function ($profile) {
-                return [
-                    'id' => $profile->id,
-                    'name' => $profile->name,
-                    'description' => $profile->description,
-                    'is_default' => $profile->is_default,
-                ];
-            }),
+        return response()->json([
+            'next_marea_number' => $nextMareaNumber,
         ]);
     }
 
@@ -191,16 +188,11 @@ class MareaController extends Controller
                 abort(403, 'You do not have permission to create mareas.');
             }
 
-            // Validate request
+            // Validate request - only required fields
             $validated = $request->validate([
-                'name' => 'nullable|string|max:255',
-                'description' => 'nullable|string',
+                'marea_number' => 'required|string|max:255|unique:mareas,marea_number',
                 'estimated_departure_date' => 'nullable|date',
                 'estimated_return_date' => 'nullable|date|after_or_equal:estimated_departure_date',
-                'distribution_profile_id' => 'nullable|exists:marea_distribution_profiles,id',
-                'use_calculation' => 'nullable|boolean',
-                'currency' => 'nullable|string|size:3',
-                'house_of_zeros' => 'nullable|integer|min:0|max:4',
             ]);
 
             $vessel = \App\Models\Vessel::find($vesselId);
@@ -209,14 +201,13 @@ class MareaController extends Controller
 
             $marea = Marea::create([
                 'vessel_id' => $vesselId,
-                'name' => $validated['name'] ?? null,
-                'description' => $validated['description'] ?? null,
+                'marea_number' => $validated['marea_number'],
                 'estimated_departure_date' => $validated['estimated_departure_date'] ?? null,
                 'estimated_return_date' => $validated['estimated_return_date'] ?? null,
-                'distribution_profile_id' => $validated['distribution_profile_id'] ?? null,
-                'use_calculation' => $validated['use_calculation'] ?? true,
-                'currency' => $validated['currency'] ?? $defaultCurrency,
-                'house_of_zeros' => $validated['house_of_zeros'] ?? 2,
+                'distribution_profile_id' => null, // Not set during creation
+                'use_calculation' => false, // Default to false, can be enabled later
+                'currency' => $defaultCurrency,
+                'house_of_zeros' => 2, // Default
                 'status' => 'preparing',
                 'created_by' => $user->id,
             ]);
@@ -289,6 +280,7 @@ class MareaController extends Controller
                 $query->with([
                     'category:id,name,type,color',
                     'supplier:id,company_name',
+                    'crewMember:id,name,email',
                 ])->orderBy('transaction_date', 'desc');
             },
         ]);
@@ -316,10 +308,49 @@ class MareaController extends Controller
             : \App\Models\VatProfile::where('is_default', true)->first();
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
+        // Get salary category
+        $salaryCategory = \App\Models\TransactionCategory::where('name', 'Salários')
+            ->where('type', 'expense')
+            ->first();
+
+        // Get salary compensation data for crew members in this marea
+        $crewSalaryData = [];
+        foreach ($marea->crew as $crew) {
+            $salaryCompensation = \App\Models\SalaryCompensation::where('user_id', $crew->user_id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($salaryCompensation) {
+                // Calculate amount based on compensation type
+                $calculatedAmount = null;
+                if ($salaryCompensation->compensation_type === 'fixed') {
+                    $calculatedAmount = $salaryCompensation->fixed_amount;
+                } elseif ($salaryCompensation->compensation_type === 'percentage' && $salaryCompensation->percentage) {
+                    // Calculate percentage of marea total income
+                    $totalIncome = $marea->total_income;
+                    $percentage = (float) $salaryCompensation->percentage;
+                    $calculatedAmount = (int) round(($totalIncome * $percentage) / 100);
+                }
+
+                $crewSalaryData[$crew->user_id] = [
+                    'id' => $salaryCompensation->id,
+                    'compensation_type' => $salaryCompensation->compensation_type,
+                    'fixed_amount' => $salaryCompensation->fixed_amount,
+                    'percentage' => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
+                    'currency' => $salaryCompensation->currency,
+                    'calculated_amount' => $calculatedAmount,
+                ];
+            }
+        }
+
         // Load all distribution profiles for instant selection
         $distributionProfiles = MareaDistributionProfile::orderBy('name')->get();
 
+        // Count transactions for deletion warning
+        $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+
         return Inertia::render('Mareas/Show', [
+            'transactionCount' => $transactionCount,
             'defaultCurrency' => $defaultCurrency,
             'distributionProfiles' => $distributionProfiles->map(function ($profile) {
                 return [
@@ -365,6 +396,13 @@ class MareaController extends Controller
                 'percentage' => (float) $defaultVatProfile->percentage,
                 'country_id' => $defaultVatProfile->country_id,
             ] : null,
+            'salaryCategory' => $salaryCategory ? [
+                'id' => $salaryCategory->id,
+                'name' => $salaryCategory->name,
+                'type' => $salaryCategory->type,
+                'color' => $salaryCategory->color,
+            ] : null,
+            'crewSalaryData' => $crewSalaryData,
             'marea' => [
                 'id' => $marea->id,
                 'marea_number' => $marea->marea_number,
@@ -440,6 +478,9 @@ class MareaController extends Controller
                         'transaction_number' => $transaction->transaction_number,
                         'type' => $transaction->type,
                         'amount' => $transaction->amount,
+                        'amount_per_unit' => $transaction->amount_per_unit,
+                        'quantity' => $transaction->quantity,
+                        'vat_amount' => $transaction->vat_amount,
                         'total_amount' => $transaction->total_amount,
                         'currency' => $transaction->currency,
                         'transaction_date' => $transaction->transaction_date?->format('Y-m-d'),
@@ -453,6 +494,12 @@ class MareaController extends Controller
                         'supplier' => $transaction->supplier ? [
                             'id' => $transaction->supplier->id,
                             'company_name' => $transaction->supplier->company_name,
+                        ] : null,
+                        'crew_member_id' => $transaction->crew_member_id,
+                        'crew_member' => $transaction->crewMember ? [
+                            'id' => $transaction->crewMember->id,
+                            'name' => $transaction->crewMember->name,
+                            'email' => $transaction->crewMember->email,
                         ] : null,
                     ];
                 }),
@@ -650,11 +697,24 @@ class MareaController extends Controller
             }
 
             $mareaNumber = $marea->marea_number;
-            $marea->delete(); // Soft delete
+
+            // Count transactions before deletion
+            $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+
+            // Soft delete all transactions associated with this marea (they will appear in recycle bin)
+            \App\Models\Transaction::where('marea_id', $marea->id)->delete();
+
+            // Soft delete the marea (will appear in recycle bin)
+            $marea->delete();
+
+            $message = "Marea '{$mareaNumber}' has been deleted successfully.";
+            if ($transactionCount > 0) {
+                $message .= " {$transactionCount} transaction(s) associated with this marea have also been deleted.";
+            }
 
             return redirect()
                 ->route('panel.mareas.index', ['vessel' => $vesselId])
-                ->with('success', "Marea '{$mareaNumber}' has been deleted successfully.");
+                ->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Marea deletion failed', [
                 'error' => $e->getMessage(),
@@ -1146,9 +1206,9 @@ class MareaController extends Controller
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
-            // Can only add quantity returns to returned or closed mareas
-            if (!in_array($marea->status, ['returned', 'closed'])) {
-                abort(403, 'Can only add quantity returns to returned or closed mareas.');
+            // Can only add quantity returns to returned mareas (not closed)
+            if ($marea->status !== 'returned') {
+                abort(403, 'Can only add quantity returns to returned mareas. Closed mareas cannot be modified.');
             }
 
             $validated = $request->validate([
@@ -1487,6 +1547,182 @@ class MareaController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save distribution items: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a salary payment transaction for a crew member.
+     */
+    public function createSalaryPayment(Request $request, $vessel, $mareaId)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            // Get vessel_id from route parameter or request attributes
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            }
+
+            // CRITICAL: Get marea ID directly from route parameter
+            $mareaIdFromRoute = $request->route('mareaId');
+            $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
+
+            // Force fresh query with both vessel_id and id to ensure correct marea
+            $marea = Marea::where('vessel_id', $vesselId)
+                ->where('id', $mareaId)
+                ->firstOrFail();
+
+            // Check permissions
+            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $userRole = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+            if (!($permissions['mareas.edit'] ?? false)) {
+                abort(403, 'You do not have permission to edit mareas.');
+            }
+
+            // Cannot add salary payments to closed or cancelled mareas
+            if ($marea->status === 'closed' || $marea->status === 'cancelled') {
+                abort(403, 'Cannot add salary payments to a closed or cancelled marea.');
+            }
+
+            // Validate request
+            $validated = $request->validate([
+                'crew_member_id' => [
+                    'required',
+                    Rule::exists('users', 'id')->where(function ($query) use ($vesselId) {
+                        $query->where('vessel_id', $vesselId);
+                    }),
+                ],
+                'amount' => ['required', 'integer', 'min:1'],
+                'transaction_date' => ['required', 'date', 'before_or_equal:today'],
+                'description' => ['nullable', 'string', 'max:500'],
+                'notes' => ['nullable', 'string', 'max:1000'],
+            ]);
+
+            // Get salary category
+            $salaryCategory = \App\Models\TransactionCategory::where('name', 'Salários')
+                ->where('type', 'expense')
+                ->firstOrFail();
+
+            // Get vessel settings for currency
+            $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+            $vessel = \App\Models\Vessel::find($vesselId);
+            $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
+            // Create salary payment transaction
+            $transaction = Transaction::create([
+                'vessel_id' => $vesselId,
+                'marea_id' => $marea->id,
+                'category_id' => $salaryCategory->id,
+                'type' => 'expense',
+                'amount' => $validated['amount'],
+                'vat_amount' => 0,
+                'total_amount' => $validated['amount'],
+                'currency' => $defaultCurrency,
+                'house_of_zeros' => $marea->house_of_zeros ?? 2,
+                'vat_profile_id' => null, // Expenses don't have VAT
+                'transaction_date' => $validated['transaction_date'],
+                'description' => $validated['description'] ?? 'Salary payment',
+                'notes' => $validated['notes'] ?? null,
+                'crew_member_id' => $validated['crew_member_id'],
+                'status' => 'completed',
+                'created_by' => $user->id,
+            ]);
+
+            return back()
+                ->with('success', 'Salary payment has been created successfully.');
+        } catch (\Exception $e) {
+            Log::error('Salary payment creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create salary payment: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get salary compensation data for a crew member.
+     */
+    public function getCrewSalaryData(Request $request, $vessel, $mareaId)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            // Get vessel_id from route parameter or request attributes
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            }
+
+            // CRITICAL: Get marea ID directly from route parameter
+            $mareaIdFromRoute = $request->route('mareaId');
+            $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
+
+            // Force fresh query with both vessel_id and id to ensure correct marea
+            $marea = Marea::where('vessel_id', $vesselId)
+                ->where('id', $mareaId)
+                ->firstOrFail();
+
+            // Check permissions
+            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $crewMemberId = $request->input('crew_member_id');
+            if (!$crewMemberId) {
+                return response()->json(['error' => 'Crew member ID is required.'], 400);
+            }
+
+            // Get salary compensation
+            $salaryCompensation = \App\Models\SalaryCompensation::where('user_id', $crewMemberId)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$salaryCompensation) {
+                return response()->json([
+                    'compensation_type' => null,
+                    'fixed_amount' => null,
+                    'percentage' => null,
+                ]);
+            }
+
+            // Calculate amount based on compensation type
+            $amount = null;
+            if ($salaryCompensation->compensation_type === 'fixed') {
+                $amount = $salaryCompensation->fixed_amount;
+            } elseif ($salaryCompensation->compensation_type === 'percentage' && $salaryCompensation->percentage) {
+                // Calculate percentage of marea total income
+                $totalIncome = $marea->total_income;
+                $percentage = (float) $salaryCompensation->percentage;
+                $amount = (int) round(($totalIncome * $percentage) / 100);
+            }
+
+            return response()->json([
+                'compensation_type' => $salaryCompensation->compensation_type,
+                'fixed_amount' => $salaryCompensation->fixed_amount,
+                'percentage' => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
+                'calculated_amount' => $amount,
+                'currency' => $salaryCompensation->currency,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get crew salary data', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to get crew salary data: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }
