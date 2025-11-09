@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Currency;
+use App\Models\VesselSetting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -61,176 +63,34 @@ class HandleInertiaRequests extends Middleware
                 'info' => $request->session()->get('info'),
                 'notification_delay' => $request->session()->get('notification_delay'),
             ],
+            'currencies' => Currency::orderBy('name')->get(['code', 'name', 'symbol', 'decimal_separator'])->map(function ($currency) {
+                return [
+                    'code' => $currency->code,
+                    'name' => $currency->name,
+                    'symbol' => $currency->symbol,
+                    'decimal_separator' => $currency->decimal_separator,
+                ];
+            }),
         ];
     }
 
     /**
      * Get user permissions based on vessel role.
+     * Permissions are loaded from config/permissions.php for better organization and maintainability.
      */
     private function getUserPermissions($user, Request $request): array
     {
         $vesselRole = $this->getCurrentVesselRole($request);
 
-        // Default permissions for users without vessel access
-        $permissions = [
-            'vessels.create' => false,
-            'vessels.edit' => false,
-            'vessels.delete' => false,
-            'vessels.view' => false,
-            'crew.create' => false,
-            'crew.edit' => false,
-            'crew.delete' => false,
-            'crew.view' => false,
-            'crew-roles.create' => false,
-            'crew-roles.edit' => false,
-            'crew-roles.delete' => false,
-            'crew-roles.view' => false,
-            'suppliers.create' => false,
-            'suppliers.edit' => false,
-            'suppliers.delete' => false,
-            'suppliers.view' => false,
-            'bank-accounts.create' => false,
-            'bank-accounts.edit' => false,
-            'bank-accounts.delete' => false,
-            'bank-accounts.view' => false,
-            'transactions.create' => false,
-            'transactions.edit' => false,
-            'transactions.delete' => false,
-            'transactions.view' => false,
-            'reports.access' => false,
-            'settings.access' => false,
-            'users.manage' => false,
-        ];
+        // Get all permissions from config
+        $allPermissions = config('permissions', []);
 
-        // Set permissions based on vessel role
-        switch ($vesselRole) {
-            case 'Administrator':
-                $permissions = [
-                    'vessels.create' => true,
-                    'vessels.edit' => true,
-                    'vessels.delete' => true,
-                    'vessels.view' => true,
-                    'crew.create' => true,
-                    'crew.edit' => true,
-                    'crew.delete' => true,
-                    'crew.view' => true,
-                    'crew-roles.create' => true,
-                    'crew-roles.edit' => true,
-                    'crew-roles.delete' => true,
-                    'crew-roles.view' => true,
-                    'suppliers.create' => true,
-                    'suppliers.edit' => true,
-                    'suppliers.delete' => true,
-                    'suppliers.view' => true,
-                    'bank-accounts.create' => true,
-                    'bank-accounts.edit' => true,
-                    'bank-accounts.delete' => true,
-                    'bank-accounts.view' => true,
-                    'transactions.create' => true,
-                    'transactions.edit' => true,
-                    'transactions.delete' => true,
-                    'transactions.view' => true,
-                    'reports.access' => true,
-                    'settings.access' => true,
-                    'users.manage' => true,
-                ];
-                break;
+        // Get default permissions for users without vessel access
+        $permissions = $allPermissions['default'] ?? [];
 
-            case 'Supervisor':
-                $permissions = [
-                    'vessels.create' => false,
-                    'vessels.edit' => true,
-                    'vessels.delete' => false,
-                    'vessels.view' => true,
-                    'crew.create' => true,
-                    'crew.edit' => true,
-                    'crew.delete' => true,
-                    'crew.view' => true,
-                    'crew-roles.create' => true,
-                    'crew-roles.edit' => true,
-                    'crew-roles.delete' => true,
-                    'crew-roles.view' => true,
-                    'suppliers.create' => true,
-                    'suppliers.edit' => true,
-                    'suppliers.delete' => false,
-                    'suppliers.view' => true,
-                    'bank-accounts.create' => true,
-                    'bank-accounts.edit' => true,
-                    'bank-accounts.delete' => false,
-                    'bank-accounts.view' => true,
-                    'transactions.create' => true,
-                    'transactions.edit' => true,
-                    'transactions.delete' => false,
-                    'transactions.view' => true,
-                    'reports.access' => true,
-                    'settings.access' => false,
-                    'users.manage' => false,
-                ];
-                break;
-
-            case 'Moderator':
-                $permissions = [
-                    'vessels.create' => false,
-                    'vessels.edit' => true,
-                    'vessels.delete' => false,
-                    'vessels.view' => true,
-                    'crew.create' => false,
-                    'crew.edit' => true,
-                    'crew.delete' => false,
-                    'crew.view' => true,
-                    'crew-roles.create' => false,
-                    'crew-roles.edit' => true,
-                    'crew-roles.delete' => false,
-                    'crew-roles.view' => true,
-                    'suppliers.create' => false,
-                    'suppliers.edit' => true,
-                    'suppliers.delete' => false,
-                    'suppliers.view' => true,
-                    'bank-accounts.create' => false,
-                    'bank-accounts.edit' => true,
-                    'bank-accounts.delete' => false,
-                    'bank-accounts.view' => true,
-                    'transactions.create' => false,
-                    'transactions.edit' => true,
-                    'transactions.delete' => false,
-                    'transactions.view' => true,
-                    'reports.access' => true,
-                    'settings.access' => false,
-                    'users.manage' => false,
-                ];
-                break;
-
-            case 'Normal User':
-                $permissions = [
-                    'vessels.create' => false,
-                    'vessels.edit' => false,
-                    'vessels.delete' => false,
-                    'vessels.view' => true,
-                    'crew.create' => false,
-                    'crew.edit' => false,
-                    'crew.delete' => false,
-                    'crew.view' => true,
-                    'crew-roles.create' => false,
-                    'crew-roles.edit' => false,
-                    'crew-roles.delete' => false,
-                    'crew-roles.view' => true,
-                    'suppliers.create' => false,
-                    'suppliers.edit' => false,
-                    'suppliers.delete' => false,
-                    'suppliers.view' => true,
-                    'bank-accounts.create' => false,
-                    'bank-accounts.edit' => false,
-                    'bank-accounts.delete' => false,
-                    'bank-accounts.view' => true,
-                    'transactions.create' => false,
-                    'transactions.edit' => false,
-                    'transactions.delete' => false,
-                    'transactions.view' => true,
-                    'reports.access' => true,
-                    'settings.access' => false,
-                    'users.manage' => false,
-                ];
-                break;
+        // If user has a vessel role, load permissions from config
+        if ($vesselRole && isset($allPermissions[$vesselRole])) {
+            $permissions = $allPermissions[$vesselRole];
         }
 
         return $permissions;
@@ -279,12 +139,16 @@ class HandleInertiaRequests extends Middleware
                 return null;
             }
 
+            // Get currency from vessel_settings first, then fallback to vessel currency_code
+            $vesselSetting = VesselSetting::getForVessel($vesselId);
+            $currencyCode = $vesselSetting->currency_code ?? $vessel->currency_code;
+
             return [
                 'id' => $vessel->id,
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,
-                'currency_code' => $vessel->currency_code,
+                'currency_code' => $currencyCode,
             ];
         }
 
@@ -299,12 +163,16 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
+        // Get currency from vessel_settings first, then fallback to vessel currency_code
+        $vesselSetting = VesselSetting::getForVessel($vesselId);
+        $currencyCode = $vesselSetting->currency_code ?? $vesselModel->currency_code;
+
         return [
             'id' => $vesselModel->id,
             'name' => $vesselModel->name,
             'registration_number' => $vesselModel->registration_number,
             'status' => $vesselModel->status,
-            'currency_code' => $vesselModel->currency_code,
+            'currency_code' => $currencyCode,
         ];
     }
 
