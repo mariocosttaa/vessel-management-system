@@ -14,6 +14,7 @@ import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
 import transactions from '@/routes/panel/transactions/index';
 import mareas from '@/routes/panel/mareas/index';
+import maintenances from '@/routes/panel/maintenances/index';
 import financialReports from '@/routes/panel/financial-reports';
 import vatReports from '@/routes/panel/vat-reports';
 import { type NavItem } from '@/types';
@@ -33,13 +34,16 @@ import {
     ArrowLeft,
     FileText,
     BarChart3,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Wrench
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import { computed } from 'vue';
 
 const { canView, hasPermission, hasAnyRole, isAdmin } = usePermissions();
+const { t } = useI18n();
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -54,35 +58,44 @@ const mainNavItems = computed((): NavItem[] => {
 
     // Core Section - Most Used Items (Dashboard, Marea, Transaction)
     items.push({
-        title: 'Dashboard',
+        title: t('Dashboard'),
         href: `/panel/${vesselId}/dashboard`,
         icon: LayoutDashboard,
-        group: 'Core',
+        group: t('Core'),
     });
 
     if (canView('mareas')) {
         items.push({
-            title: 'Mareas',
+            title: t('Mareas'),
             href: mareas.index.url({ vessel: vesselId }),
             icon: Ship,
-            group: 'Core',
+            group: t('Core'),
+        });
+    }
+
+    if (canView('maintenances')) {
+        items.push({
+            title: t('Maintenances'),
+            href: maintenances.index.url({ vessel: vesselId }),
+            icon: Wrench,
+            group: t('Core'),
         });
     }
 
     if (canView('transactions')) {
         items.push({
-            title: 'Transactions',
+            title: t('Transactions'),
             href: transactions.index.url({ vessel: vesselId }),
             icon: Receipt,
-            group: 'Core',
+            group: t('Core'),
         });
         // Transaction History - requires reports.access permission
         if (hasPermission('reports.access')) {
             items.push({
-                title: 'Transaction History',
+                title: t('Transaction History'),
                 href: `/panel/${vesselId}/transactions/history`,
                 icon: Calculator,
-                group: 'Core',
+                group: t('Core'),
             });
         }
     }
@@ -90,30 +103,30 @@ const mainNavItems = computed((): NavItem[] => {
     // Crew Management Section
     if (canView('crew')) {
         items.push({
-            title: 'Crew Members',
+            title: t('Crew Members'),
             href: crewMembers.index.url({ vessel: vesselId }),
             icon: Users,
-            group: 'Crew Management',
+            group: t('Crew Management'),
         });
     }
 
     // Crew Roles - only for users with crew-roles view permission
     if (canView('crew-roles')) {
         items.push({
-            title: 'Crew Roles',
+            title: t('Crew Roles'),
             href: `/panel/${vesselId}/crew-roles`,
             icon: UserCog,
-            group: 'Crew Management',
+            group: t('Crew Management'),
         });
     }
 
     // Financial Section
     if (canView('suppliers')) {
         items.push({
-            title: 'Suppliers',
+            title: t('Suppliers'),
             href: suppliers.index.url({ vessel: vesselId }),
             icon: Building2,
-            group: 'Financial',
+            group: t('Financial'),
         });
     }
 
@@ -121,16 +134,16 @@ const mainNavItems = computed((): NavItem[] => {
         // Financial Reports - requires reports.access permission
         if (hasPermission('reports.access')) {
             items.push({
-                title: 'Financial Reports',
+                title: t('Financial Reports'),
                 href: financialReports.index.url({ vessel: vesselId }),
                 icon: BarChart3,
-                group: 'Financial',
+                group: t('Financial'),
             });
             items.push({
-                title: 'VAT Reports',
+                title: t('VAT Reports'),
                 href: vatReports.index.url({ vessel: vesselId }),
                 icon: FileSpreadsheet,
-                group: 'Financial',
+                group: t('Financial'),
             });
         }
     }
@@ -138,30 +151,30 @@ const mainNavItems = computed((): NavItem[] => {
     // Vessel Section - Distribution Profiles
     if (canView('distribution-profiles')) {
         items.push({
-            title: 'Distribution Profiles',
+            title: t('Distribution Profiles'),
             href: `/panel/${vesselId}/marea-distribution-profiles`,
             icon: Calculator,
-            group: 'Vessel',
+            group: t('Vessel'),
         });
     }
 
     // Settings Section - Only for users with settings.access permission
     if (hasPermission('settings.access')) {
         items.push({
-            title: 'Settings',
+            title: t('Settings'),
             href: `/panel/${vesselId}/settings`,
             icon: Settings,
-            group: 'Settings',
+            group: t('Settings'),
         });
     }
 
     // Recycle Bin - Only for users with recycle_bin.view permission
     if (hasPermission('recycle_bin.view')) {
         items.push({
-            title: 'Bin',
+            title: t('Bin'),
             href: `/panel/${vesselId}/recycle-bin`,
             icon: Trash2,
-            group: 'Settings',
+            group: t('Settings'),
         });
     }
 
@@ -170,23 +183,23 @@ const mainNavItems = computed((): NavItem[] => {
     // The backend also checks for these roles, so we match that logic
     if (isAdmin.value || hasAnyRole(['administrator', 'admin'])) {
         items.push({
-            title: 'Auditory',
+            title: t('Auditory'),
             href: `/panel/${vesselId}/audit-logs`,
             icon: FileText,
-            group: 'Settings',
+            group: t('Settings'),
         });
     }
 
     return items;
 });
 
-const footerNavItems: NavItem[] = [
+const footerNavItems = computed((): NavItem[] => [
     {
-        title: 'Back',
+        title: t('Back'),
         href: '/panel',
         icon: ArrowLeft,
     },
-];
+]);
 </script>
 
 <template>

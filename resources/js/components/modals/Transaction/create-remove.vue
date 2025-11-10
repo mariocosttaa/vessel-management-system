@@ -44,6 +44,7 @@ interface Props {
     defaultVatProfile?: any; // Keep for backward compatibility (not used)
     defaultCurrency?: string; // Default currency from vessel_settings (passed from controller)
     mareaId?: number | null; // Optional marea ID to link transaction to marea
+    maintenanceId?: number | null; // Optional maintenance ID to link transaction to maintenance
 }
 
 const props = defineProps<Props>();
@@ -178,12 +179,21 @@ const form = useForm({
     supplier_id: null as number | null,
     crew_member_id: null as number | null,
     marea_id: props.mareaId ?? null as number | null,
+    maintenance_id: props.maintenanceId ?? null as number | null,
     status: 'completed',
     files: [] as File[],
 });
 
 const selectedFiles = ref<File[]>([]);
 const fileUploadRef = ref<InstanceType<typeof MultiFileUpload> | null>(null);
+
+// Find maintenance category ID
+const maintenanceCategoryId = computed(() => {
+    const maintenanceCategory = props.categories.find(
+        cat => cat.type === 'expense' && (cat.name.toLowerCase() === 'manutenção' || cat.name.toLowerCase() === 'manutencao' || cat.name.toLowerCase() === 'maintenance')
+    );
+    return maintenanceCategory?.id ?? null;
+});
 
 // Reset form when modal opens
 watch(() => props.open, (isOpen, wasOpen) => {
@@ -202,7 +212,15 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.supplier_id = null;
         form.crew_member_id = null;
         form.marea_id = props.mareaId ?? null;
-        form.category_id = null;
+        form.maintenance_id = props.maintenanceId ?? null;
+
+        // Auto-select maintenance category if maintenanceId is provided
+        if (props.maintenanceId && maintenanceCategoryId.value) {
+            form.category_id = maintenanceCategoryId.value;
+        } else {
+            form.category_id = null;
+        }
+
         form.amount = null;
         form.amount_per_unit = null;
         form.quantity = null;
@@ -328,6 +346,11 @@ const submit = () => {
         form.marea_id = props.mareaId;
     }
 
+    // Set maintenance_id if provided
+    if (props.maintenanceId) {
+        form.maintenance_id = props.maintenanceId;
+    }
+
     form.post(transactions.store.url({ vessel: getCurrentVesselId() }), {
         forceFormData: true, // Required for file uploads
         preserveScroll: true,
@@ -345,7 +368,15 @@ const submit = () => {
             form.supplier_id = null;
             form.crew_member_id = null;
             form.marea_id = props.mareaId ?? null;
-            form.category_id = null;
+            form.maintenance_id = props.maintenanceId ?? null;
+
+            // Auto-select maintenance category if maintenanceId is provided
+            if (props.maintenanceId && maintenanceCategoryId.value) {
+                form.category_id = maintenanceCategoryId.value;
+            } else {
+                form.category_id = null;
+            }
+
             form.amount = null;
             form.amount_per_unit = null;
             form.quantity = null;
@@ -412,8 +443,12 @@ const submit = () => {
                         placeholder="Select a category"
                         searchable
                         :error="!!form.errors.category_id"
+                        :disabled="!!props.maintenanceId"
                     />
                     <InputError :message="form.errors.category_id" />
+                    <p v-if="props.maintenanceId" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
+                        Category is automatically set for maintenance transactions.
+                    </p>
                 </div>
 
                 <!-- Price Per Unit Checkbox -->
