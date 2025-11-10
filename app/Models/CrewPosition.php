@@ -12,6 +12,7 @@ class CrewPosition extends Model
         'name',
         'description',
         'vessel_id',
+        'vessel_role_access_id',
     ];
 
     /**
@@ -20,6 +21,14 @@ class CrewPosition extends Model
     public function vessel(): BelongsTo
     {
         return $this->belongsTo(Vessel::class);
+    }
+
+    /**
+     * Get the vessel role access associated with this crew position.
+     */
+    public function vesselRoleAccess(): BelongsTo
+    {
+        return $this->belongsTo(VesselRoleAccess::class);
     }
 
     /**

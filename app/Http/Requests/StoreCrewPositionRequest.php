@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
  * @property string $name
  * @property string|null $description
  * @property bool $is_global
+ * @property int|null $vessel_role_access_id
  *
  * Route parameters (for authorization only):
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -76,6 +77,11 @@ class StoreCrewPositionRequest extends FormRequest
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_global' => ['nullable', 'boolean'],
+            'vessel_role_access_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
+            ],
         ];
     }
 

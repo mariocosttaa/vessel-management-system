@@ -7,6 +7,8 @@ use App\Http\Requests\UpdateCrewPositionRequest;
 use App\Http\Resources\CrewPositionResource;
 use App\Models\CrewPosition;
 use App\Models\User;
+use App\Models\VesselRoleAccess;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -35,7 +37,7 @@ class CrewPositionController extends Controller
                 $q->where('vessel_id', $vesselId)
                   ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
             })
-            ->with(['vessel', 'crewMembers']);
+            ->with(['vessel', 'crewMembers', 'vesselRoleAccess']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -67,9 +69,39 @@ class CrewPositionController extends Controller
             return (new CrewPositionResource($position))->resolve();
         });
 
+        // Get all vessel role accesses for the dropdown
+        $vesselRoleAccesses = VesselRoleAccess::where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($roleAccess) {
+                return [
+                    'id' => $roleAccess->id,
+                    'name' => $roleAccess->name,
+                    'display_name' => $roleAccess->display_name,
+                    'description' => $roleAccess->description,
+                ];
+            });
+
+        // Get permissions configuration for info modal
+        $permissionsConfig = config('permissions', []);
+        // Remove 'default' from the config as it's not a role users can assign
+        unset($permissionsConfig['default']);
+        // Format permissions for display
+        $formattedPermissions = [];
+        foreach ($permissionsConfig as $roleName => $permissions) {
+            $formattedPermissions[$roleName] = [
+                'name' => $roleName,
+                'permissions' => $permissions,
+                // Group permissions by resource for easier display
+                'grouped_permissions' => $this->groupPermissionsByResource($permissions),
+            ];
+        }
+
         return Inertia::render('CrewRoles/Index', [
             'crewPositions' => $crewPositions,
             'filters' => $request->only(['search', 'scope', 'sort', 'direction']),
+            'vesselRoleAccesses' => $vesselRoleAccesses,
+            'permissionsConfig' => $formattedPermissions,
         ]);
     }
 
@@ -89,9 +121,18 @@ class CrewPositionController extends Controller
                 'name' => $request->name,
                 'description' => $request->description,
                 'vessel_id' => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
+                'vessel_role_access_id' => $request->vessel_role_access_id ?? null,
             ]);
 
-            $crewPosition->load(['vessel', 'crewMembers']);
+            $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
+
+            // Log the create action
+            AuditLogService::logCreate(
+                $crewPosition,
+                'Crew Position',
+                $crewPosition->name,
+                $vesselId
+            );
 
             return redirect()
                 ->route('panel.crew-roles.index', ['vessel' => $vesselId])
@@ -110,7 +151,7 @@ class CrewPositionController extends Controller
      */
     public function show(CrewPosition $crewPosition)
     {
-        $crewPosition->load(['vessel', 'crewMembers']);
+        $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
 
         return Inertia::render('CrewRoles/Show', [
             'crewPosition' => new CrewPositionResource($crewPosition),
@@ -144,14 +185,28 @@ class CrewPositionController extends Controller
                 abort(403, 'Unauthorized access to crew role.');
             }
 
+            // Store original state for change detection
+            $originalCrewPosition = $crewPosition->replicate();
+
             // Access validated values directly as properties (never use validated())
             $crewPosition->update([
                 'name' => $request->name,
                 'description' => $request->description,
+                'vessel_role_access_id' => $request->vessel_role_access_id ?? null,
                 // Note: vessel_id cannot be changed after creation (global vs vessel-specific)
             ]);
 
-            $crewPosition->load(['vessel', 'crewMembers']);
+            $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
+
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($crewPosition, $originalCrewPosition);
+            AuditLogService::logUpdate(
+                $crewPosition,
+                $changedFields,
+                'Crew Position',
+                $crewPosition->name,
+                $vesselId
+            );
 
             return redirect()
                 ->route('panel.crew-roles.index', ['vessel' => $vesselId])
@@ -208,7 +263,17 @@ class CrewPositionController extends Controller
                     ->with('notification_delay', 0);
             }
 
+            // Store identifier before deletion
             $crewPositionName = $crewPosition->name;
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $crewPosition,
+                'Crew Position',
+                $crewPositionName,
+                $vesselId
+            );
+
             $crewPosition->delete();
 
             return redirect()
@@ -251,7 +316,8 @@ class CrewPositionController extends Controller
                 abort(403, 'Unauthorized access to crew role.');
             }
 
-            // Load count only (no need to load full relationships for edit modal)
+            // Load relationships for edit modal
+            $crewPosition->load(['vesselRoleAccess']);
             $crewPosition->loadCount('crewMembers');
 
             return response()->json([
@@ -263,6 +329,24 @@ class CrewPositionController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Group permissions by resource for easier display in the info modal.
+     */
+    private function groupPermissionsByResource(array $permissions): array
+    {
+        $grouped = [];
+        foreach ($permissions as $permission => $value) {
+            if ($value) {
+                [$resource, $action] = explode('.', $permission, 2);
+                if (!isset($grouped[$resource])) {
+                    $grouped[$resource] = [];
+                }
+                $grouped[$resource][] = $action;
+            }
+        }
+        return $grouped;
     }
 }
 
