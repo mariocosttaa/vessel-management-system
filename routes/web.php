@@ -10,7 +10,8 @@ use App\Http\Controllers\{
     AttachmentController,
     TestDataController,
     VesselSettingController,
-    VesselFileController
+    VesselFileController,
+    AuditLogController
 };
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
@@ -123,10 +124,19 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     });
 
     // Transactions (scoped to current vessel)
+    // IMPORTANT: More specific routes must come before general routes
     Route::get('/transactions', [TransactionController::class, 'index'])->name('panel.transactions.index');
     Route::get('/transactions/create', [TransactionController::class, 'create'])->name('panel.transactions.create');
-    Route::get('/transactions/{transactionId}', [TransactionController::class, 'show'])->name('panel.transactions.show');
-    Route::get('/transactions/{transactionId}/edit', [TransactionController::class, 'edit'])->name('panel.transactions.edit');
+    Route::get('/transactions/history', [TransactionController::class, 'history'])->name('panel.transactions.history');
+    Route::get('/transactions/history/{year}/{month}', [TransactionController::class, 'historyMonth'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->name('panel.transactions.history.month');
+    Route::get('/transactions/{transactionId}', [TransactionController::class, 'show'])
+        ->where(['transactionId' => '[0-9]+'])
+        ->name('panel.transactions.show');
+    Route::get('/transactions/{transactionId}/edit', [TransactionController::class, 'edit'])
+        ->where(['transactionId' => '[0-9]+'])
+        ->name('panel.transactions.edit');
     Route::get('/api/transactions/search', [TransactionController::class, 'search'])->name('panel.api.transactions.search');
     Route::get('/api/transactions/{transactionId}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');
 
@@ -189,6 +199,11 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::post('/recycle-bin/{type}/{id}/restore', [App\Http\Controllers\RecycleBinController::class, 'restore'])->name('panel.recycle-bin.restore');
     Route::delete('/recycle-bin/{type}/{id}', [App\Http\Controllers\RecycleBinController::class, 'destroy'])->name('panel.recycle-bin.destroy');
     Route::post('/recycle-bin/empty', [App\Http\Controllers\RecycleBinController::class, 'empty'])->name('panel.recycle-bin.empty');
+
+    // Auditory (monitoring) - Only for administrators
+    Route::middleware('role:admin,administrator')->group(function () {
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('panel.audit-logs.index');
+    });
 });
 
 require __DIR__.'/settings.php';
