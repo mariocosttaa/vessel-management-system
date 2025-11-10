@@ -25,19 +25,9 @@ class AuditLogService
         $user = Auth::user();
         $userName = $user ? $user->name : 'System';
 
-        // Get user's language preference for translation
-        $locale = $user?->language ?? 'en';
-        $originalLocale = App::getLocale();
-        App::setLocale($locale);
-
+        // Always store message in English - will be translated when displayed
         $identifierText = $identifier ? " '{$identifier}'" : '';
-        $message = trans('notifications.:user created :model:identifier', [
-            'user' => $userName,
-            'model' => $modelName,
-            'identifier' => $identifierText,
-        ]);
-
-        App::setLocale($originalLocale);
+        $message = "{$userName} created {$modelName}{$identifierText}";
 
         return self::createLog([
             'user_id' => $user?->id,
@@ -73,43 +63,23 @@ class AuditLogService
         $user = Auth::user();
         $userName = $user ? $user->name : 'System';
 
-        // Get user's language preference for translation
-        $locale = $user?->language ?? 'en';
-        $originalLocale = App::getLocale();
-        App::setLocale($locale);
-
+        // Always store message in English - will be translated when displayed
         // Build change messages
         $changes = [];
         foreach ($changedFields as $field => $values) {
             $oldValue = $values['old'] ?? null;
             $newValue = $values['new'] ?? null;
             $fieldName = self::formatFieldName($field);
-            $changes[] = trans('notifications.changed :field from \':old\' to \':new\'', [
-                'field' => $fieldName,
-                'old' => $oldValue,
-                'new' => $newValue,
-            ]);
+            $changes[] = "{$fieldName} from '{$oldValue}' to '{$newValue}'";
         }
 
         if (empty($changes)) {
-            $changesText = trans('notifications.updated');
-            $message = trans('notifications.:user updated :model:identifier', [
-                'user' => $userName,
-                'model' => $modelName,
-                'identifier' => $identifier ? " '{$identifier}'" : '',
-            ]);
+            $message = "{$userName} updated in {$modelName}" . ($identifier ? " '{$identifier}'" : '');
         } else {
             $changesText = implode(', ', $changes);
             $identifierText = $identifier ? " '{$identifier}'" : '';
-            $message = trans('notifications.:user changed :changes in :model:identifier', [
-                'user' => $userName,
-                'changes' => $changesText,
-                'model' => $modelName,
-                'identifier' => $identifierText,
-            ]);
+            $message = "{$userName} changed {$changesText} in {$modelName}{$identifierText}";
         }
-
-        App::setLocale($originalLocale);
 
         return self::createLog([
             'user_id' => $user?->id,
@@ -139,19 +109,9 @@ class AuditLogService
         $user = Auth::user();
         $userName = $user ? $user->name : 'System';
 
-        // Get user's language preference for translation
-        $locale = $user?->language ?? 'en';
-        $originalLocale = App::getLocale();
-        App::setLocale($locale);
-
+        // Always store message in English - will be translated when displayed
         $identifierText = $identifier ? " '{$identifier}'" : '';
-        $message = trans('notifications.:user deleted :model:identifier', [
-            'user' => $userName,
-            'model' => $modelName,
-            'identifier' => $identifierText,
-        ]);
-
-        App::setLocale($originalLocale);
+        $message = "{$userName} deleted {$modelName}{$identifierText}";
 
         return self::createLog([
             'user_id' => $user?->id,
@@ -258,24 +218,20 @@ class AuditLogService
      */
     protected static function formatValue($value): string
     {
-        // Get user's language preference for translation
-        $user = Auth::user();
-        $locale = $user?->language ?? 'en';
-        $originalLocale = App::getLocale();
-        App::setLocale($locale);
-
+        // Always format in English - will be translated when displayed
         if (is_null($value)) {
-            $result = trans('notifications.(empty)');
-        } elseif (is_bool($value)) {
-            $result = $value ? trans('notifications.Yes') : trans('notifications.No');
-        } elseif (is_array($value) || is_object($value)) {
-            $result = json_encode($value);
-        } else {
-            $result = (string) $value;
+            return '(empty)';
         }
 
-        App::setLocale($originalLocale);
-        return $result;
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value);
+        }
+
+        return (string) $value;
     }
 
     /**

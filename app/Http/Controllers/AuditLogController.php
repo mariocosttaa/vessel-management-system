@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Resources\AuditLogResource;
 use App\Models\AuditLog;
 use App\Models\Vessel;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class AuditLogController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of audit logs (monitoring page).
      */
@@ -31,7 +33,7 @@ class AuditLogController extends Controller
         );
 
         if (!$hasAdminRole) {
-            abort(403, 'You do not have permission to view audit logs.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view audit logs.'));
         }
 
         // Start building query

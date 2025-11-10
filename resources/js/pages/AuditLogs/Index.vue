@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import Pagination from '@/components/ui/Pagination.vue';
 import AuditLogDetailsModal from '@/components/modals/AuditLog/Details.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 
 // Get current vessel ID from URL (if available)
 const getCurrentVesselId = () => {
@@ -26,12 +27,14 @@ interface AuditLog {
     model_name: string;
     page_name: string;
     action: string;
+    action_label?: string;
     message: string;
     vessel_id: number | null;
     vessel_name: string | null;
     ip_address: string | null;
     user_agent: string | null;
     created_at: string;
+    created_at_formatted?: string;
     created_at_human: string;
 }
 
@@ -71,6 +74,7 @@ const props = defineProps<Props>();
 
 // Permission check - Audit logs are only for administrators
 const { isAdmin, hasAnyRole } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to view audit logs
 onMounted(() => {
@@ -105,7 +109,7 @@ const vesselIdFilter = ref(props.filters.vessel_id || '');
 
 // Convert to Select component options format
 const actionOptions = computed(() => {
-    const options = [{ value: '', label: 'All Actions' }];
+    const options = [{ value: '', label: t('All Actions') }];
     props.actions.forEach(action => {
         options.push({ value: action, label: action.charAt(0).toUpperCase() + action.slice(1) });
     });
@@ -113,7 +117,7 @@ const actionOptions = computed(() => {
 });
 
 const modelTypeOptions = computed(() => {
-    const options = [{ value: '', label: 'All Pages' }];
+    const options = [{ value: '', label: t('All Pages') }];
     props.modelTypes.forEach(modelType => {
         options.push({ value: modelType.value, label: modelType.label });
     });
@@ -121,7 +125,7 @@ const modelTypeOptions = computed(() => {
 });
 
 const userOptions = computed(() => {
-    const options = [{ value: '', label: 'All Users' }];
+    const options = [{ value: '', label: t('All Users') }];
     props.users.forEach(user => {
         options.push({ value: String(user.id), label: user.name });
     });
@@ -130,7 +134,7 @@ const userOptions = computed(() => {
 
 const vesselOptions = computed(() => {
     if (!props.vessels) return [];
-    const options = [{ value: '', label: 'All Vessels' }];
+    const options = [{ value: '', label: t('All Vessels') }];
     props.vessels.forEach(vessel => {
         options.push({ value: String(vessel.id), label: vessel.name });
     });
@@ -226,10 +230,15 @@ const clearFilters = () => {
     applyFilters();
 };
 
-// Format date for display
-const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
+// Format date for display - use formatted date from backend if available
+const formatDate = (log: AuditLog) => {
+    // Use backend-formatted date if available (respects user locale)
+    if (log.created_at_formatted) {
+        return log.created_at_formatted;
+    }
+    // Fallback to frontend formatting
+    if (!log.created_at) return '';
+    const date = new Date(log.created_at);
     return date.toLocaleString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -248,24 +257,24 @@ const breadcrumbs = computed(() => {
     const id = vesselId.value;
     return id
         ? [
-              { title: 'Auditory', href: `/panel/${id}/audit-logs` }
+              { title: t('Auditory'), href: `/panel/${id}/audit-logs` }
           ]
         : [
-              { title: 'Auditory', href: '/audit-logs' }
+              { title: t('Auditory'), href: '/audit-logs' }
           ];
 });
 </script>
 
 <template>
-    <Head title="Auditory - Monitoring" />
+    <Head :title="`${t('Auditory')} - ${t('Monitoring')}`" />
 
     <VesselLayout v-if="isAdmin || hasAnyRole(['administrator', 'admin'])" :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div>
-                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Auditory</h1>
-                    <p class="text-muted-foreground dark:text-muted-foreground mt-1">Monitor all system activities and user actions</p>
+                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Auditory') }}</h1>
+                    <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Monitor all system activities and user actions') }}</p>
                 </div>
             </div>
 
@@ -279,7 +288,7 @@ const breadcrumbs = computed(() => {
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search audit logs..."
+                                :placeholder="t('Search audit logs...')"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
@@ -290,7 +299,7 @@ const breadcrumbs = computed(() => {
                         <Select
                             v-model="actionFilter"
                             :options="actionOptions"
-                            placeholder="All Actions"
+                            :placeholder="t('All Actions')"
                             searchable
                         />
                     </div>
@@ -300,7 +309,7 @@ const breadcrumbs = computed(() => {
                         <Select
                             v-model="modelTypeFilter"
                             :options="modelTypeOptions"
-                            placeholder="All Pages"
+                            :placeholder="t('All Pages')"
                             searchable
                         />
                     </div>
@@ -310,7 +319,7 @@ const breadcrumbs = computed(() => {
                         <Select
                             v-model="userIdFilter"
                             :options="userOptions"
-                            placeholder="All Users"
+                            :placeholder="t('All Users')"
                             searchable
                         />
                     </div>
@@ -320,7 +329,7 @@ const breadcrumbs = computed(() => {
                         <Select
                             v-model="vesselIdFilter"
                             :options="vesselOptions"
-                            placeholder="All Vessels"
+                            :placeholder="t('All Vessels')"
                             searchable
                         />
                     </div>
@@ -329,7 +338,7 @@ const breadcrumbs = computed(() => {
                     <div>
                         <DateInput
                             v-model="dateFromFilter"
-                            placeholder="Date From"
+                            :placeholder="t('Date From')"
                         />
                     </div>
 
@@ -337,7 +346,7 @@ const breadcrumbs = computed(() => {
                     <div>
                         <DateInput
                             v-model="dateToFilter"
-                            placeholder="Date To"
+                            :placeholder="t('Date To')"
                         />
                     </div>
 
@@ -348,7 +357,7 @@ const breadcrumbs = computed(() => {
                             class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <Icon name="x" class="h-4 w-4" />
-                            Clear
+                            {{ t('Clear') }}
                         </button>
                     </div>
                 </div>
@@ -356,7 +365,7 @@ const breadcrumbs = computed(() => {
 
             <!-- Auditory List -->
                 <div v-if="auditLogsData.length === 0" class="p-12 text-center">
-                    <p class="text-muted-foreground dark:text-muted-foreground">No audit logs found</p>
+                    <p class="text-muted-foreground dark:text-muted-foreground">{{ t('No audit logs found') }}</p>
                 </div>
 
                 <div v-else class="space-y-3">
@@ -377,7 +386,7 @@ const breadcrumbs = computed(() => {
                             <!-- Date & Time (right side, upper) -->
                             <div class="flex-shrink-0 text-right">
                                 <div :class="['text-xs font-semibold', getTextClasses(log.action)]">
-                                    {{ formatDate(log.created_at) }}
+                                    {{ formatDate(log) }}
                                 </div>
                                 <div class="text-xs opacity-70 mt-0.5" :class="getTextClasses(log.action)">
                                     {{ log.created_at_human }}
@@ -405,7 +414,7 @@ const breadcrumbs = computed(() => {
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view audit logs.</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('You do not have permission to view audit logs.') }}</p>
             </div>
         </div>
     </VesselLayout>
