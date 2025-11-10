@@ -55,6 +55,7 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     Route::patch('/profile', [App\Http\Controllers\Settings\ProfileController::class, 'update'])->name('panel.profile.update');
     Route::delete('/profile', [App\Http\Controllers\Settings\ProfileController::class, 'destroy'])->name('panel.profile.destroy');
     Route::put('/password', [App\Http\Controllers\Settings\PasswordController::class, 'update'])->name('panel.password.update');
+    Route::put('/language', [App\Http\Controllers\Settings\ProfileController::class, 'updateLanguage'])->name('panel.language.update');
 
     // Vessel Management (panel level)
     Route::get('/vessel/create', [VesselController::class, 'create'])->name('panel.vessel.create');
@@ -201,6 +202,8 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/maintenances/create', [App\Http\Controllers\MaintenanceController::class, 'create'])->name('panel.maintenances.create');
     Route::post('/maintenances', [App\Http\Controllers\MaintenanceController::class, 'store'])->name('panel.maintenances.store');
     Route::get('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'show'])->name('panel.maintenances.show');
+    Route::put('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'update'])->name('panel.maintenances.update');
+    Route::post('/maintenances/{maintenanceId}/finalize', [App\Http\Controllers\MaintenanceController::class, 'finalize'])->name('panel.maintenances.finalize');
     Route::delete('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'destroy'])->name('panel.maintenances.destroy');
     Route::delete('/maintenances/{maintenanceId}/remove-transaction/{transaction}', [App\Http\Controllers\MaintenanceController::class, 'removeTransaction'])->name('panel.maintenances.remove-transaction');
 
