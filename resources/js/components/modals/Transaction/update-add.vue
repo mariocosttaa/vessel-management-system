@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -94,7 +94,7 @@ const vesselCurrency = computed(() => {
     if (props.transaction?.currency) {
         return props.transaction.currency;
     }
-    const propsCurrency = (props as any).defaultCurrency;
+    const propsCurrency = props.defaultCurrency;
     if (propsCurrency) {
         return propsCurrency;
     }
@@ -127,7 +127,7 @@ const currentCurrency = computed(() => {
     if (props.transaction?.currency) {
         return props.transaction.currency;
     }
-    return vesselCurrencyData.value.code || 'EUR';
+    return vesselCurrencyData.value.code || props.defaultCurrency || 'EUR';
 });
 
 // Get current currency decimals
@@ -135,35 +135,16 @@ const currentCurrencyDecimals = computed(() => {
     if (vesselCurrencyData.value.decimals) {
         return vesselCurrencyData.value.decimals;
     }
-    return props.transaction.house_of_zeros || 2;
+    return props.transaction?.house_of_zeros || 2;
 });
 
 // Filter categories for income only
 const incomeCategories = computed(() => {
-    return props.categories.filter(cat => cat.type === 'income');
+    return (props.categories || []).filter(cat => cat.type === 'income');
 });
 
-// Determine if amount includes VAT based on existing transaction
-// First check if amount_includes_vat field exists, otherwise calculate based on amounts
-const initialAmountIncludesVat = computed(() => {
-    // If amount_includes_vat field is explicitly set, use it
-    if (props.transaction.amount_includes_vat !== undefined) {
-        return props.transaction.amount_includes_vat;
-    }
-    // Otherwise, try to infer from amounts
-    // If total_amount is very close to amount (within rounding error), VAT was included
-    if (props.transaction.vat_amount && props.transaction.total_amount) {
-        const expectedTotalIfExcluded = props.transaction.amount + props.transaction.vat_amount;
-        // If total is closer to amount than to amount + vat, VAT was included
-        const diffToAmount = Math.abs(props.transaction.total_amount - props.transaction.amount);
-        const diffToExpected = Math.abs(props.transaction.total_amount - expectedTotalIfExcluded);
-        return diffToAmount < diffToExpected;
-    }
-    return false;
-});
-
-// VAT handling - watch transaction changes to update the ref
-const amountIncludesVat = ref(initialAmountIncludesVat.value);
+// VAT handling - will be set when transaction loads
+const amountIncludesVat = ref(false);
 
 // Price per unit handling
 const usePricePerUnit = ref(false);
@@ -172,9 +153,12 @@ const quantity = ref<number | null>(null);
 
 // Initialize price per unit state from transaction
 const initializePricePerUnit = () => {
+    if (!props.transaction) return;
+
     // Read from amount_per_unit (preferred) or price_per_unit (fallback for backward compatibility)
     const amountPerUnit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
-    if (amountPerUnit !== null && amountPerUnit !== undefined && props.transaction.quantity !== null && props.transaction.quantity !== undefined) {
+    if (amountPerUnit !== null && amountPerUnit !== undefined && amountPerUnit > 0 &&
+        props.transaction.quantity !== null && props.transaction.quantity !== undefined && props.transaction.quantity > 0) {
         usePricePerUnit.value = true;
         pricePerUnit.value = amountPerUnit;
         quantity.value = props.transaction.quantity;
@@ -195,16 +179,17 @@ const calculatedAmount = computed(() => {
     return form.amount || 0;
 });
 
-// Watch transaction changes to update amountIncludesVat
-watch(() => props.transaction.id, () => {
-    amountIncludesVat.value = initialAmountIncludesVat.value;
-    initializePricePerUnit();
-});
+// Watch transaction changes separately for amountIncludesVat
+watch(() => props.transaction, (transaction) => {
+    if (transaction) {
+        initializePricePerUnit();
+    }
+}, { deep: true });
 
 // Initialize price per unit on component mount if transaction has price_per_unit
 onMounted(() => {
     if (props.open && props.transaction) {
-        initializePricePerUnit();
+        initializeFormFromTransaction();
     }
 });
 
@@ -248,22 +233,23 @@ const selectedVatProfile = computed(() => {
     return props.defaultVatProfile;
 });
 
-// Initialize form with transaction data
+// Initialize form - will be populated from transaction when modal opens
+// We'll initialize with empty/default values and populate from transaction in the watch
 const form = useForm({
-    category_id: props.transaction.category_id,
+    category_id: null as number | null,
     type: 'income' as string,
-    amount: props.transaction.amount,
-    amount_per_unit: (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit,
-    quantity: props.transaction.quantity,
-    currency: props.transaction.currency,
-    house_of_zeros: props.transaction.house_of_zeros,
-    vat_profile_id: props.transaction.vat_profile_id || props.defaultVatProfile?.id || null,
+    amount: null as number | null,
+    amount_per_unit: null as number | null,
+    quantity: null as number | null,
+    currency: props.defaultCurrency || 'EUR',
+    house_of_zeros: 2,
+    vat_profile_id: null as number | null,
     files: [] as File[],
-    amount_includes_vat: initialAmountIncludesVat.value,
-    transaction_date: props.transaction.transaction_date,
-    description: props.transaction.description || '',
-    notes: props.transaction.notes || '',
-    status: props.transaction.status,
+    amount_includes_vat: false,
+    transaction_date: '' as string,
+    description: '',
+    notes: '',
+    status: 'pending',
 });
 
 const selectedFiles = ref<File[]>([]);
@@ -274,31 +260,229 @@ const defaultVatProfile = computed(() => props.defaultVatProfile);
 // Get VAT profiles list
 const vatProfiles = computed(() => props.vatProfiles || []);
 
-// Reset form when modal opens/closes or transaction changes
-watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
-    if (isOpen && transactionId && props.transaction) {
-        form.category_id = props.transaction.category_id;
+// Function to initialize form from transaction
+const initializeFormFromTransaction = () => {
+    if (!props.transaction) {
+        console.warn('Cannot initialize form: transaction is not available');
+        return;
+    }
+
+    if (!props.open) {
+        return;
+    }
+
+    console.log('Initializing form from transaction:', {
+        id: props.transaction.id,
+        category_id: props.transaction.category_id,
+        amount: props.transaction.amount,
+        transaction_date: props.transaction.transaction_date,
+        description: props.transaction.description
+    });
+
+    try {
+        // Clear errors first
+        form.clearErrors();
+
+        // Set category_id - must be a valid positive integer
+        const categoryId = props.transaction.category_id ? Number(props.transaction.category_id) : null;
+        if (categoryId && categoryId > 0) {
+            form.category_id = categoryId;
+        } else {
+            console.error('Invalid category_id from transaction:', props.transaction.category_id);
+            form.category_id = null;
+        }
+
         form.type = 'income';
-        form.amount = props.transaction.amount;
-        form.amount_per_unit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
-        form.quantity = props.transaction.quantity;
-        form.currency = props.transaction.currency || vesselCurrencyData.value.code || 'EUR';
-        form.house_of_zeros = props.transaction.house_of_zeros || currentCurrencyDecimals.value;
-        form.vat_profile_id = props.transaction.vat_profile_id || props.defaultVatProfile?.id || null;
-        // Update amountIncludesVat from the transaction
-        amountIncludesVat.value = props.transaction.amount_includes_vat ?? initialAmountIncludesVat.value;
+
+        // Set amount - must be in cents (integer)
+        if (props.transaction.amount !== null && props.transaction.amount !== undefined) {
+            const amount = Number(props.transaction.amount);
+            if (!isNaN(amount) && amount > 0) {
+                form.amount = amount;
+            } else {
+                console.warn('Invalid amount from transaction:', props.transaction.amount);
+                form.amount = null;
+            }
+        } else {
+            form.amount = null;
+        }
+
+        // Set amount_per_unit and quantity
+        const amountPerUnit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit ?? null;
+        if (amountPerUnit !== null && amountPerUnit !== undefined) {
+            form.amount_per_unit = Number(amountPerUnit);
+        } else {
+            form.amount_per_unit = null;
+        }
+
+        if (props.transaction.quantity !== null && props.transaction.quantity !== undefined) {
+            form.quantity = Number(props.transaction.quantity);
+        } else {
+            form.quantity = null;
+        }
+
+        // Set currency and house_of_zeros
+        form.currency = props.transaction.currency || vesselCurrencyData.value.code || props.defaultCurrency || 'EUR';
+        form.house_of_zeros = props.transaction.house_of_zeros || currentCurrencyDecimals.value || 2;
+
+        // Set VAT profile
+        if (props.transaction.vat_profile_id) {
+            form.vat_profile_id = Number(props.transaction.vat_profile_id);
+        } else if (props.defaultVatProfile?.id) {
+            form.vat_profile_id = props.defaultVatProfile.id;
+        } else {
+            form.vat_profile_id = null;
+        }
+
+        // Set amount_includes_vat
+        if (props.transaction.amount_includes_vat !== undefined) {
+            amountIncludesVat.value = Boolean(props.transaction.amount_includes_vat);
+        } else {
+            // Calculate from amounts if not explicitly set
+            if (props.transaction.vat_amount && props.transaction.total_amount && props.transaction.amount) {
+                const expectedTotalIfExcluded = props.transaction.amount + props.transaction.vat_amount;
+                const diffToAmount = Math.abs(props.transaction.total_amount - props.transaction.amount);
+                const diffToExpected = Math.abs(props.transaction.total_amount - expectedTotalIfExcluded);
+                amountIncludesVat.value = diffToAmount < diffToExpected;
+            } else {
+                amountIncludesVat.value = false;
+            }
+        }
         form.amount_includes_vat = amountIncludesVat.value;
-        form.transaction_date = props.transaction.transaction_date;
+
+        // Normalize transaction_date to YYYY-MM-DD format
+        if (props.transaction.transaction_date) {
+            try {
+                let dateStr = String(props.transaction.transaction_date).trim();
+
+                // If it's already in YYYY-MM-DD format, use it directly
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                    form.transaction_date = dateStr;
+                } else {
+                    // Try to parse and format it
+                    const date = new Date(dateStr);
+                    if (!isNaN(date.getTime())) {
+                        // Format as YYYY-MM-DD (avoid timezone issues by using UTC methods or local methods consistently)
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        form.transaction_date = `${year}-${month}-${day}`;
+                    } else {
+                        // Fallback: try to extract date parts if it's in a different format
+                        const dateMatch = dateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                        if (dateMatch) {
+                            const [, year, month, day] = dateMatch;
+                            form.transaction_date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                        } else {
+                            // Last resort: use today's date
+                            const today = new Date();
+                            const year = today.getFullYear();
+                            const month = String(today.getMonth() + 1).padStart(2, '0');
+                            const day = String(today.getDate()).padStart(2, '0');
+                            form.transaction_date = `${year}-${month}-${day}`;
+                        }
+                    }
+                }
+                console.log('Set transaction_date to:', form.transaction_date, 'from original:', props.transaction.transaction_date);
+            } catch (e) {
+                console.error('Error parsing transaction_date:', e, 'Original value:', props.transaction.transaction_date);
+                // Fallback to today's date
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                form.transaction_date = `${year}-${month}-${day}`;
+            }
+        } else {
+            // No date provided, use today's date
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            form.transaction_date = `${year}-${month}-${day}`;
+        }
+
+        // Set description and notes
         form.description = props.transaction.description || '';
         form.notes = props.transaction.notes || '';
-        form.status = props.transaction.status;
+
+        // Set status
+        form.status = props.transaction.status || 'pending';
+
+        // Clear files
         form.files = [];
         selectedFiles.value = [];
 
-        // Initialize price per unit state
+        // Initialize price per unit state (this sets usePricePerUnit, pricePerUnit, quantity refs)
         initializePricePerUnit();
 
+        // Clear any previous errors
         form.clearErrors();
+
+        // Log final form state
+        console.log('Form initialized successfully:', {
+            category_id: form.category_id,
+            amount: form.amount,
+            transaction_date: form.transaction_date,
+            description: form.description,
+            currency: form.currency,
+            status: form.status,
+            vat_profile_id: form.vat_profile_id,
+            amount_includes_vat: form.amount_includes_vat
+        });
+    } catch (error) {
+        console.error('Error initializing form:', error);
+    }
+};
+
+// Watch for modal opening and transaction changes
+watch([() => props.open, () => props.transaction?.id], ([isOpen, transactionId]) => {
+    if (isOpen && transactionId && props.transaction) {
+        console.log('Watch triggered - initializing form', { isOpen, transactionId });
+        // Use nextTick to ensure DOM is ready
+        nextTick(() => {
+            initializeFormFromTransaction();
+            // Double-check form values after initialization
+            nextTick(() => {
+                console.log('Form values after initialization:', {
+                    category_id: form.category_id,
+                    amount: form.amount,
+                    transaction_date: form.transaction_date,
+                    description: form.description
+                });
+            });
+        });
+    }
+}, { immediate: true });
+
+// Watch form.amount to ensure it's always a number
+watch(() => form.amount, (newAmount) => {
+    if (newAmount !== null && newAmount !== undefined && typeof newAmount !== 'number') {
+        console.warn('Form amount is not a number, converting:', newAmount);
+        form.amount = Number(newAmount) || 0;
+    }
+});
+
+// Watch form.transaction_date to ensure it's properly set
+watch(() => form.transaction_date, (newDate) => {
+    if (!newDate && props.transaction?.transaction_date) {
+        console.warn('Transaction date is empty, re-initializing from transaction');
+        const dateStr = props.transaction.transaction_date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            form.transaction_date = dateStr;
+        } else {
+            try {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    form.transaction_date = `${year}-${month}-${day}`;
+                }
+            } catch (e) {
+                console.error('Error re-initializing date:', e);
+            }
+        }
     }
 });
 
@@ -401,37 +585,188 @@ const cancelDeleteFile = () => {
     isDeletingFile.value = false;
 };
 
-const submit = () => {
-    form.amount_includes_vat = amountIncludesVat.value;
+// Handle dialog update
+const handleDialogUpdate = (value: boolean) => {
+    // Only emit close when dialog is being closed (not opened)
+    if (!value) {
+        emit('close');
+    }
+};
 
-    // Calculate amount from price_per_unit * quantity if using price per unit
-    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
-        form.amount_per_unit = pricePerUnit.value;
-        form.quantity = Math.round(quantity.value); // Ensure quantity is integer
-        form.amount = calculatedAmount.value;
-    } else {
-        // If not using price per unit, ensure price_per_unit and quantity are null
-        form.amount_per_unit = null;
-        form.quantity = null;
+const submit = async () => {
+    if (!props.transaction?.id) {
+        addNotification({
+            type: 'error',
+            title: 'Error',
+            message: 'Transaction data is not available. Please try again.',
+        });
+        return;
     }
 
+    // Use nextTick to ensure form inputs have finished updating the form object
+    await nextTick();
+
+    // Read values directly from form object properties (reactive to v-model)
+    // These should be the current values from the form inputs
+    let categoryId = form.category_id ? Number(form.category_id) : null;
+    let transactionDate = form.transaction_date ? String(form.transaction_date).trim() : '';
+    let amountValue = form.amount ? Number(form.amount) : null;
+
+    // Ensure amount_includes_vat is set from the reactive ref
+    form.amount_includes_vat = amountIncludesVat.value;
+
+    // Handle price per unit vs amount
+    if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
+        form.amount_per_unit = Number(pricePerUnit.value);
+        form.quantity = Math.round(Number(quantity.value));
+        form.amount = calculatedAmount.value;
+        amountValue = calculatedAmount.value;
+        // Clear amount_per_unit and quantity if not using price per unit
+    } else {
+        form.amount_per_unit = null;
+        form.quantity = null;
+        // amountValue is already set from form.amount above
+    }
+
+    console.log('Pre-submission validation check:', {
+        categoryId,
+        transactionDate,
+        amountValue,
+        formCategoryId: form.category_id,
+        formTransactionDate: form.transaction_date,
+        formAmount: form.amount,
+        usePricePerUnit: usePricePerUnit.value,
+        pricePerUnit: pricePerUnit.value,
+        quantity: quantity.value,
+        amountIncludesVat: amountIncludesVat.value
+    });
+
+    // Validate category_id
+    if (!categoryId || categoryId === 0) {
+        console.error('Category validation failed:', categoryId, 'form.category_id:', form.category_id);
+        form.setError('category_id', 'Please select a category.');
+        addNotification({
+            type: 'error',
+            title: 'Validation Error',
+            message: 'Please select a category.',
+        });
+        return;
+    }
+
+    // Validate transaction_date
+    if (!transactionDate || transactionDate.trim() === '') {
+        console.error('Transaction date validation failed:', transactionDate, 'form.transaction_date:', form.transaction_date);
+        form.setError('transaction_date', 'Transaction date is required.');
+        addNotification({
+            type: 'error',
+            title: 'Validation Error',
+            message: 'Transaction date is required.',
+        });
+        return;
+    }
+
+    // Normalize transaction_date to YYYY-MM-DD format
+    let normalizedDate = transactionDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+        try {
+            const date = new Date(normalizedDate);
+            if (!isNaN(date.getTime())) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                normalizedDate = `${year}-${month}-${day}`;
+            } else {
+                throw new Error('Invalid date');
+            }
+        } catch (e) {
+            console.error('Error normalizing date:', e, 'Original:', normalizedDate);
+            form.setError('transaction_date', 'Transaction date is required.');
+            return;
+        }
+    }
+
+    // Validate amount is provided when not using price per unit
+    if (!usePricePerUnit.value && (!amountValue || amountValue === 0)) {
+        console.error('Amount validation failed:', amountValue, 'form.amount:', form.amount);
+        form.setError('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
+        addNotification({
+            type: 'error',
+            title: 'Validation Error',
+            message: 'Either amount or both amount_per_unit and quantity must be provided.',
+        });
+        return;
+    }
+
+    // Ensure all form fields are properly set with correct types
+    // Set values directly on form object - these will be sent to backend
+    form.category_id = Number(categoryId);
+    form.type = 'income';
+    form.transaction_date = normalizedDate;
+    form.amount = amountValue ? Number(amountValue) : null;
+
+    // Ensure currency and house_of_zeros are set
     if (!form.currency) {
-        form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
+        form.currency = vesselCurrencyData.value.code || props.transaction.currency || props.defaultCurrency || 'EUR';
+    } else {
+        form.currency = String(form.currency).toUpperCase();
     }
 
     if (!form.house_of_zeros) {
         form.house_of_zeros = currentCurrencyDecimals.value;
     }
 
+    // Set VAT profile if not set
     if (!form.vat_profile_id && defaultVatProfile.value) {
         form.vat_profile_id = defaultVatProfile.value.id;
     }
+    if (form.vat_profile_id) {
+        form.vat_profile_id = Number(form.vat_profile_id);
+    }
 
-    form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
-    form.house_of_zeros = currentCurrencyDecimals.value;
+    // Ensure description and notes are strings (not null)
+    form.description = form.description || '';
+    form.notes = form.notes || '';
+    form.status = form.status || 'pending';
 
-    form.put(transactions.update.url({ vessel: getCurrentVesselId(), transaction: props.transaction.id }), {
-        forceFormData: true, // Required for file uploads
+    console.log('Form data before submission (after setting all values):', {
+        transactionId: props.transaction.id,
+        category_id: form.category_id,
+        type: form.type,
+        amount: form.amount,
+        amount_per_unit: form.amount_per_unit,
+        quantity: form.quantity,
+        currency: form.currency,
+        house_of_zeros: form.house_of_zeros,
+        vat_profile_id: form.vat_profile_id,
+        amount_includes_vat: form.amount_includes_vat,
+        transaction_date: form.transaction_date,
+        description: form.description,
+        notes: form.notes,
+        status: form.status,
+        formData: form.data()
+    });
+
+    // Get files from selectedFiles (already synced with form.files via watcher)
+    // Ensure form.files is set from selectedFiles
+    if (selectedFiles.value && Array.isArray(selectedFiles.value) && selectedFiles.value.length > 0) {
+        form.files = Array.from(selectedFiles.value);
+    } else {
+        form.files = [];
+    }
+
+    // Double-check form data is set correctly before submission
+    const formDataBeforeSubmit = form.data();
+    console.log('Form data after setting properties:', {
+        category_id: form.category_id,
+        transaction_date: form.transaction_date,
+        amount: form.amount,
+        formData: formDataBeforeSubmit,
+        hasFiles: form.files.length > 0
+    });
+
+    // Only use forceFormData if we have files to upload
+    // Otherwise, use regular JSON submission which handles data better
+    const submitOptions: any = {
         preserveScroll: true,
         onSuccess: () => {
             addNotification({
@@ -442,20 +777,28 @@ const submit = () => {
             emit('success');
             emit('close');
         },
-        onError: (errors) => {
+        onError: (errors: any) => {
             console.error('Form submission errors:', errors);
+            console.error('Form data that was sent:', formDataBeforeSubmit);
             addNotification({
                 type: 'error',
                 title: 'Error',
                 message: 'Failed to update transaction. Please check the form for errors.',
             });
         },
-    });
+    };
+
+    // Only use forceFormData if we have files to upload
+    if (form.files && form.files.length > 0) {
+        submitOptions.forceFormData = true;
+    }
+
+    form.put(transactions.update.url({ vessel: getCurrentVesselId(), transactionId: props.transaction.id }), submitOptions);
 };
 </script>
 
 <template>
-    <Dialog :open="open" @update:open="emit('close')">
+    <Dialog :open="open" @update:open="handleDialogUpdate">
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
                 <DialogTitle class="text-green-600 dark:text-green-400">Update Transaction #{{ transaction.transaction_number }}</DialogTitle>
@@ -477,7 +820,7 @@ const submit = () => {
                         required
                     >
                         <option :value="null">Select a category</option>
-                        <option v-for="category in incomeCategories" :key="category.id" :value="category.id">
+                        <option v-for="category in incomeCategories" :key="category.id" :value="Number(category.id)">
                             {{ category.name }}
                         </option>
                     </select>
