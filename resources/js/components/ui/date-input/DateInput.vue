@@ -202,37 +202,32 @@ const closePopup = () => {
   }
 }
 
-// Handle click outside - use setTimeout to allow focus events to fire first
-const handleClickOutside = (event: MouseEvent) => {
-  // Use setTimeout to ensure this runs after focus/click handlers
-  setTimeout(() => {
-    const target = event.target as Node
-    
-    // Check if click is on this date input's container or popup
-    if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
-      // Click is inside this date input, don't close
-      if (isClickingInsidePopup.value) {
-        isClickingInsidePopup.value = false
-      }
-      return
-    }
+// Handle mousedown outside - use mousedown instead of click for better control
+const handleMouseDownOutside = (event: MouseEvent) => {
+  const target = event.target as Node
+  
+  // Check if mousedown is on this date input's container or popup
+  if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
+    // Mousedown is inside this date input
+    return
+  }
 
-    // Check if the target is an input element (might be another date input)
-    const targetElement = target as HTMLElement
-    if (targetElement && (targetElement.tagName === 'INPUT' || targetElement.closest('[data-date-input-container]'))) {
-      // Clicking on an input - let the focus handler of that input manage opening
-      // Just close this one if it's open
+  // If mousedown is outside this date input, close it
+  // The manager will handle opening another input if that's what was clicked
+  if (isOpen.value) {
+    // Use setTimeout to allow the focus event of the clicked element to fire first
+    setTimeout(() => {
+      // Double-check that we're still open and the click wasn't on another date input
       if (isOpen.value) {
-        closePopup()
+        const activeElement = document.activeElement
+        // If focus moved to another input, the manager should have handled it
+        // Otherwise, close this one
+        if (!activeElement || activeElement !== inputRef.value) {
+          closePopup()
+        }
       }
-      return
-    }
-
-    // If clicking outside all date inputs, close this one
-    if (isOpen.value) {
-      closePopup()
-    }
-  }, 0)
+    }, 10)
+  }
 }
 
 const handlePopupMouseDown = (event: MouseEvent) => {
@@ -259,8 +254,8 @@ const handleInputFocus = () => {
 const unregister = dateInputManager.register(instanceId, closePopup)
 
 onMounted(() => {
-  // Use capture phase but with setTimeout to ensure proper order
-  document.addEventListener('click', handleClickOutside, true)
+  // Use mousedown in bubble phase for better control
+  document.addEventListener('mousedown', handleMouseDownOutside)
   
   if (selectedDate.value) {
     currentView.value = new Date(selectedDate.value)
@@ -268,7 +263,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside, true)
+  document.removeEventListener('mousedown', handleMouseDownOutside)
   unregister()
 })
 </script>
