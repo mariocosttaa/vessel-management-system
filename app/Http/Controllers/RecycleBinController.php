@@ -7,12 +7,14 @@ use App\Models\Supplier;
 use App\Models\RecurringTransaction;
 use App\Models\Marea;
 use App\Models\Maintenance;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class RecycleBinController extends Controller
 {
+    use HasTranslations;
     /**
      * Display the recycle bin index page.
      */
@@ -26,7 +28,7 @@ class RecycleBinController extends Controller
 
         // Check permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole = $user->getRoleForVessel($vesselId);
@@ -271,14 +273,17 @@ class RecycleBinController extends Controller
                         ->restore();
                     break;
                 default:
-                    abort(404, 'Invalid item type.');
+                    abort(404, $this->transFrom('notifications', 'Invalid item type.'));
             }
 
             $item->restore();
 
             return redirect()
                 ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
-                ->with('success', "{$type} '{$itemName}' has been restored successfully.");
+                ->with('success', $this->transFrom('notifications', ":type ':name' has been restored successfully.", [
+                    'type' => $type,
+                    'name' => $itemName
+                ]));
         } catch (\Exception $e) {
             Log::error('Recycle bin restore failed', [
                 'error' => $e->getMessage(),
@@ -286,7 +291,9 @@ class RecycleBinController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to restore item: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to restore item: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -350,14 +357,17 @@ class RecycleBinController extends Controller
                         ->forceDelete();
                     break;
                 default:
-                    abort(404, 'Invalid item type.');
+                    abort(404, $this->transFrom('notifications', 'Invalid item type.'));
             }
 
             $item->forceDelete();
 
             return redirect()
                 ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
-                ->with('success', "{$type} '{$itemName}' has been permanently deleted.");
+                ->with('success', $this->transFrom('notifications', ":type ':name' has been permanently deleted.", [
+                    'type' => $type,
+                    'name' => $itemName
+                ]));
         } catch (\Exception $e) {
             Log::error('Recycle bin permanent delete failed', [
                 'error' => $e->getMessage(),
@@ -365,7 +375,9 @@ class RecycleBinController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to permanently delete item: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to permanently delete item: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -427,7 +439,9 @@ class RecycleBinController extends Controller
 
             return redirect()
                 ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
-                ->with('success', "Recycle bin has been emptied. {$totalCount} item(s) have been permanently deleted.");
+                ->with('success', $this->transFrom('notifications', 'Recycle bin has been emptied. :count item(s) have been permanently deleted.', [
+                    'count' => $totalCount
+                ]));
         } catch (\Exception $e) {
             Log::error('Recycle bin empty failed', [
                 'error' => $e->getMessage(),
@@ -435,7 +449,9 @@ class RecycleBinController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to empty recycle bin: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to empty recycle bin: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 }

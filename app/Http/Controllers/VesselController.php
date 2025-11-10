@@ -10,11 +10,13 @@ use App\Models\Country;
 use App\Models\Currency;
 use App\Models\VesselUser;
 use App\Services\AuditLogService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class VesselController extends BaseController
 {
+    use HasTranslations;
     /**
      * Display a listing of the resource.
      */
@@ -163,12 +165,14 @@ class VesselController extends BaseController
 
             return redirect()
                 ->route('panel.index')
-                ->with('success', "Vessel '{$vessel->name}' has been created successfully.")
+                ->with('success', $this->transFrom('notifications', "Vessel ':name' has been created successfully.", [
+                    'name' => $vessel->name
+                ]))
                 ->with('notification_delay', 3); // 3 seconds delay
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create vessel. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to create vessel. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error (0 = no auto-dismiss)
         }
     }
@@ -249,12 +253,14 @@ class VesselController extends BaseController
 
             return redirect()
                 ->route('panel.index')
-                ->with('success', "Vessel '{$vessel->name}' has been updated successfully.")
+                ->with('success', $this->transFrom('notifications', "Vessel ':name' has been updated successfully.", [
+                    'name' => $vessel->name
+                ]))
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update vessel. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update vessel. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
@@ -267,12 +273,16 @@ class VesselController extends BaseController
         try {
             // Check if vessel has crew members or transactions
             if ($vessel->crewMembers()->count() > 0) {
-                return back()->with('error', "Cannot delete vessel '{$vessel->name}' because it has crew members assigned. Please reassign or remove crew members first.")
+                return back()->with('error', $this->transFrom('notifications', "Cannot delete vessel ':name' because it has crew members assigned. Please reassign or remove crew members first.", [
+                    'name' => $vessel->name
+                ]))
                     ->with('notification_delay', 0); // Persistent error
             }
 
             if ($vessel->transactions()->count() > 0) {
-                return back()->with('error', "Cannot delete vessel '{$vessel->name}' because it has transactions. Please remove all transactions first.")
+                return back()->with('error', $this->transFrom('notifications', "Cannot delete vessel ':name' because it has transactions. Please remove all transactions first.", [
+                    'name' => $vessel->name
+                ]))
                     ->with('notification_delay', 0); // Persistent error
             }
 
@@ -290,11 +300,13 @@ class VesselController extends BaseController
 
             return redirect()
                 ->route('panel.index')
-                ->with('success', "Vessel '{$vesselName}' has been deleted successfully.")
+                ->with('success', $this->transFrom('notifications', "Vessel ':name' has been deleted successfully.", [
+                    'name' => $vesselName
+                ]))
                 ->with('notification_delay', 5); // 5 seconds delay
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to delete vessel. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to delete vessel. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
