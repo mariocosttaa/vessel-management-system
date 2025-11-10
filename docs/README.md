@@ -210,6 +210,42 @@ The documentation is organized into **core guides** and **pattern references** t
 - State management with Pinia
 - Complete component examples
 
+#### `translation-patterns.md`
+**Purpose**: Frontend translation and internationalization patterns
+**When to use**:
+- Adding translations to Vue.js components
+- Understanding the English-as-key pattern
+- Verifying translation keys exist
+- Adding new languages or translations
+- Working with multilingual frontend content
+
+**Key Content**:
+- English text as key pattern
+- Translation file structure and organization
+- Using translations in Vue components
+- Key verification and best practices
+- Adding new translations workflow
+- Common translation patterns
+- Troubleshooting translation issues
+
+#### `backend-translation-patterns.md`
+**Purpose**: Backend translation patterns for Laravel
+**When to use**:
+- Adding translations to controllers
+- Translating email templates
+- Creating notification messages
+- Working with backend multilingual content
+- Understanding HasTranslations trait
+
+**Key Content**:
+- HasTranslations trait usage
+- Controller notification patterns
+- Email translation patterns
+- User language preference handling
+- Translation file organization
+- Placeholder replacement patterns
+- Complete backend translation examples
+
 #### `modal-patterns.md`
 **Purpose**: Modal implementation patterns and conventions
 **When to use**:
@@ -276,6 +312,25 @@ The documentation is organized into **core guides** and **pattern references** t
 - Notification types and best practices
 - Complete notification examples with error handling
 
+#### `email-patterns.md`
+**Purpose**: Email template patterns and conventions
+**When to use**:
+- Creating email templates for system notifications
+- Implementing transaction email notifications
+- Creating marea-related email notifications
+- Understanding email design principles
+- Working with email template structure
+
+**Key Content**:
+- Email template structure and organization
+- Clean, minimal design principles
+- Notification email patterns
+- Transaction email templates
+- Marea email templates
+- Portuguese language formatting
+- Email template best practices
+- Usage examples and implementation workflow
+
 ### Development Workflow
 
 #### `git-commit-pattners.md`
@@ -306,6 +361,8 @@ The documentation is organized into **core guides** and **pattern references** t
    - **Requests**: Use `request-patterns.md`
    - **Resources**: Use `resource-patterns.md`
    - **Frontend**: Use `frontend-patterns.md`
+   - **Frontend Translations**: Use `translation-patterns.md`
+   - **Backend Translations**: Use `backend-translation-patterns.md`
    - **Modals**: Use `modal-patterns.md`
    - **BaseModal**: Use `base-modal-pattern.md`
    - **Show Modals**: Use `show-modal-pattern.md`
@@ -327,9 +384,12 @@ The documentation is organized into **core guides** and **pattern references** t
 6. Apply `request-patterns.md` for validation
 7. Use `resource-patterns.md` for API responses
 8. Follow `frontend-patterns.md` for Vue.js components
-9. Apply `permissions-patterns.md` for authorization
-10. Apply `notification-patterns.md` for user feedback
-11. Apply `layout-patterns.md` for UI consistency
+9. Use `translation-patterns.md` for frontend translations
+10. Use `backend-translation-patterns.md` for controller/email translations
+11. Apply `permissions-patterns.md` for authorization
+12. Apply `notification-patterns.md` for user feedback
+13. Apply `email-patterns.md` for email templates
+14. Apply `layout-patterns.md` for UI consistency
 
 #### When Working with Money:
 1. Always read `money-handling.md` first
@@ -342,10 +402,12 @@ The documentation is organized into **core guides** and **pattern references** t
 1. Start with `layout-patterns.md` for design system
 2. Use `theme-configuration.md` for colors
 3. Follow `frontend-patterns.md` for Vue.js patterns
-4. Use `base-modal-pattern.md` for all modal components
-5. Use `modal-patterns.md` for custom modal implementations
-6. Use `show-modal-pattern.md` for show modals with separate API requests
-7. Ensure responsive design and dark mode support
+4. Use `translation-patterns.md` for frontend translations (English as key)
+5. Use `backend-translation-patterns.md` for backend translations
+6. Use `base-modal-pattern.md` for all modal components
+7. Use `modal-patterns.md` for custom modal implementations
+8. Use `show-modal-pattern.md` for show modals with separate API requests
+9. Ensure responsive design and dark mode support
 
 #### When Implementing CRUD Operations:
 1. Follow the complete workflow in `implementation-guide.md`
@@ -356,8 +418,11 @@ The documentation is organized into **core guides** and **pattern references** t
    - Request: `request-patterns.md`
    - Resource: `resource-patterns.md`
    - Frontend: `frontend-patterns.md`
+   - Frontend Translations: `translation-patterns.md`
+   - Backend Translations: `backend-translation-patterns.md`
    - Permissions: `permissions-patterns.md`
    - Notifications: `notification-patterns.md`
+   - Emails: `email-patterns.md` (for system notifications)
 
 ### Critical Rules to Follow
 
@@ -443,11 +508,14 @@ docs/
     ├── request-patterns.md (validation)
     ├── resource-patterns.md (API resources)
     ├── frontend-patterns.md (Vue.js)
+    ├── translation-patterns.md (frontend i18n)
+    ├── backend-translation-patterns.md (backend i18n)
     ├── modal-patterns.md (modal components)
     ├── base-modal-pattern.md (unified BaseModal)
     ├── show-modal-pattern.md (show modals with API)
     ├── permissions-patterns.md (vessel-specific RBAC system)
     ├── notification-patterns.md (user feedback)
+    ├── email-patterns.md (email templates)
     ├── money-handling.md (monetary values)
     ├── multi-tenant-patterns.md (vessel-based architecture) ⭐ **ESSENTIAL**
     └── git-commit-pattners.md (commit rules)
