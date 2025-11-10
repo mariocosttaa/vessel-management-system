@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
@@ -53,6 +54,39 @@ const handleClose = () => {
     form.status = 'active';
     form.clearErrors();
 };
+
+// Convert to Select component options format
+const vesselTypeOptions = computed(() => {
+    const options = [{ value: '', label: 'Select vessel type' }];
+    Object.entries(props.vesselTypes).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const countryOptions = computed(() => {
+    const options = [{ value: '', label: 'Select country' }];
+    props.countries.forEach(country => {
+        options.push({ value: country.code, label: country.name });
+    });
+    return options;
+});
+
+const currencyOptions = computed(() => {
+    const options = [{ value: '', label: 'Select currency' }];
+    props.currencies.forEach(currency => {
+        options.push({ value: currency.code, label: `${currency.name} (${currency.symbol})` });
+    });
+    return options;
+});
 </script>
 
 <template>
@@ -105,18 +139,13 @@ const handleClose = () => {
                             <Label for="vessel_type" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Vessel Type <span class="text-destructive">*</span>
                             </Label>
-                            <select
+                            <Select
                                 id="vessel_type"
                                 v-model="form.vessel_type"
-                                required
-                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.vessel_type }"
-                            >
-                                <option value="">Select vessel type</option>
-                                <option v-for="(label, value) in vesselTypes" :key="value" :value="value">
-                                    {{ label }}
-                                </option>
-                            </select>
+                                :options="vesselTypeOptions"
+                                placeholder="Select vessel type"
+                                :error="!!form.errors.vessel_type"
+                            />
                             <InputError :message="form.errors.vessel_type" class="mt-1" />
                         </div>
 
@@ -125,17 +154,12 @@ const handleClose = () => {
                             <Label for="status" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Status <span class="text-destructive">*</span>
                             </Label>
-                            <select
+                            <Select
                                 id="status"
                                 v-model="form.status"
-                                required
-                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                            >
-                                <option v-for="(label, value) in statuses" :key="value" :value="value">
-                                    {{ label }}
-                                </option>
-                            </select>
+                                :options="statusOptions"
+                                :error="!!form.errors.status"
+                            />
                             <InputError :message="form.errors.status" class="mt-1" />
                         </div>
 
@@ -177,17 +201,14 @@ const handleClose = () => {
                             <Label for="country_code" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Country
                             </Label>
-                            <select
+                            <Select
                                 id="country_code"
                                 v-model="form.country_code"
-                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.country_code }"
-                            >
-                                <option value="">Select country</option>
-                                <option v-for="country in countries" :key="country.code" :value="country.code">
-                                    {{ country.name }}
-                                </option>
-                            </select>
+                                :options="countryOptions"
+                                placeholder="Select country"
+                                searchable
+                                :error="!!form.errors.country_code"
+                            />
                             <InputError :message="form.errors.country_code" class="mt-1" />
                         </div>
 
@@ -196,17 +217,14 @@ const handleClose = () => {
                             <Label for="currency_code" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Currency
                             </Label>
-                            <select
+                            <Select
                                 id="currency_code"
                                 v-model="form.currency_code"
-                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.currency_code }"
-                            >
-                                <option value="">Select currency</option>
-                                <option v-for="currency in currencies" :key="currency.code" :value="currency.code">
-                                    {{ currency.name }} ({{ currency.symbol }})
-                                </option>
-                            </select>
+                                :options="currencyOptions"
+                                placeholder="Select currency"
+                                searchable
+                                :error="!!form.errors.currency_code"
+                            />
                             <InputError :message="form.errors.currency_code" class="mt-1" />
                         </div>
 

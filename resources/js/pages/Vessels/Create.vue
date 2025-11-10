@@ -54,36 +54,28 @@
             <!-- Vessel Type -->
             <div class="space-y-2">
               <Label for="vessel_type">Vessel Type *</Label>
-              <select
+              <Select
                 id="vessel_type"
                 name="vessel_type"
-                required
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                :class="{ 'border-destructive': errors.vessel_type }"
-              >
-                <option value="">Select vessel type</option>
-                <option v-for="(label, value) in vesselTypes" :key="value" :value="value">
-                  {{ label }}
-                </option>
-              </select>
+                v-model="vesselType"
+                :options="vesselTypeOptions"
+                placeholder="Select vessel type"
+                :error="!!errors.vessel_type"
+              />
               <InputError :message="errors.vessel_type" />
             </div>
 
             <!-- Status -->
             <div class="space-y-2">
               <Label for="status">Status *</Label>
-              <select
+              <Select
                 id="status"
                 name="status"
-                required
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                :class="{ 'border-destructive': errors.status }"
-              >
-                <option value="">Select status</option>
-                <option v-for="(label, value) in statuses" :key="value" :value="value">
-                  {{ label }}
-                </option>
-              </select>
+                v-model="status"
+                :options="statusOptions"
+                placeholder="Select status"
+                :error="!!errors.status"
+              />
               <InputError :message="errors.status" />
             </div>
           </div>
@@ -122,34 +114,30 @@
             <!-- Country -->
             <div class="space-y-2">
               <Label for="country_code">Country</Label>
-              <select
+              <Select
                 id="country_code"
                 name="country_code"
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                :class="{ 'border-destructive': errors.country_code }"
-              >
-                <option value="">Select country</option>
-                <option v-for="country in countries" :key="country.code" :value="country.code">
-                  {{ country.name }}
-                </option>
-              </select>
+                v-model="countryCode"
+                :options="countryOptions"
+                placeholder="Select country"
+                searchable
+                :error="!!errors.country_code"
+              />
               <InputError :message="errors.country_code" />
             </div>
 
             <!-- Currency -->
             <div class="space-y-2">
               <Label for="currency_code">Currency</Label>
-              <select
+              <Select
                 id="currency_code"
                 name="currency_code"
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                :class="{ 'border-destructive': errors.currency_code }"
-              >
-                <option value="">Select currency</option>
-                <option v-for="currency in currencies" :key="currency.code" :value="currency.code">
-                  {{ currency.name }} ({{ currency.symbol }})
-                </option>
-              </select>
+                v-model="currencyCode"
+                :options="currencyOptions"
+                placeholder="Select currency"
+                searchable
+                :error="!!errors.currency_code"
+              />
               <InputError :message="errors.currency_code" />
             </div>
           </div>
@@ -215,11 +203,13 @@
 
 <script setup lang="ts">
 import { Form, router } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
 import { ArrowLeft, Plus, LoaderCircle } from 'lucide-vue-next'
 import Icon from '@/Components/Icon.vue'
 import InputError from '@/Components/InputError.vue'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
+import { Select } from '@/Components/ui/select'
 import { Label } from '@/Components/ui/label'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import type { BreadcrumbItemType } from '@/types'
@@ -232,6 +222,45 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// Form values for Select components
+const vesselType = ref('')
+const status = ref('')
+const countryCode = ref('')
+const currencyCode = ref('')
+
+// Convert to Select component options format
+const vesselTypeOptions = computed(() => {
+    const options = [{ value: '', label: 'Select vessel type' }];
+    Object.entries(props.vesselTypes).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options = [{ value: '', label: 'Select status' }];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const countryOptions = computed(() => {
+    const options = [{ value: '', label: 'Select country' }];
+    props.countries.forEach(country => {
+        options.push({ value: country.code, label: country.name });
+    });
+    return options;
+});
+
+const currencyOptions = computed(() => {
+    const options = [{ value: '', label: 'Select currency' }];
+    props.currencies.forEach(currency => {
+        options.push({ value: currency.code, label: `${currency.name} (${currency.symbol})` });
+    });
+    return options;
+});
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItemType[] = [
