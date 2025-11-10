@@ -28,6 +28,8 @@ use Illuminate\Validation\Rule;
  * @property string|null $reference
  * @property int|null $supplier_id
  * @property int|null $crew_member_id
+ * @property int|null $marea_id
+ * @property int|null $maintenance_id
  * @property string $status
  *
  * Route parameters:
@@ -102,6 +104,7 @@ class StoreTransactionRequest extends FormRequest
             'supplier_id' => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
             'crew_member_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'marea_id' => ['nullable', 'integer', Rule::exists('mareas', 'id')],
+            'maintenance_id' => ['nullable', 'integer', Rule::exists('maintenances', 'id')],
             'status' => ['nullable', 'string', 'in:pending,completed,cancelled'],
             'files' => ['nullable', 'array', 'max:10'],
             'files.*' => [
@@ -162,6 +165,16 @@ class StoreTransactionRequest extends FormRequest
 
                 if ($marea && $marea->vessel_id !== (int) $vesselId) {
                     $validator->errors()->add('marea_id', 'The selected marea does not belong to this vessel.');
+                }
+            }
+
+            // Validate maintenance belongs to current vessel (if provided)
+            if ($this->maintenance_id) {
+                $vesselId = $this->route('vessel');
+                $maintenance = \App\Models\Maintenance::find($this->maintenance_id);
+
+                if ($maintenance && $maintenance->vessel_id !== (int) $vesselId) {
+                    $validator->errors()->add('maintenance_id', 'The selected maintenance does not belong to this vessel.');
                 }
             }
         });
