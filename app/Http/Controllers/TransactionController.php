@@ -11,6 +11,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\VesselSetting;
+use App\Services\AuditLogService;
 use App\Services\MoneyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -98,7 +99,12 @@ class TransactionController extends Controller
             'supplier:id,company_name,description',
             'crewMember:id,name,email',
             'files:id,transaction_id,src,name,size,type',
-        ])->paginate(15)->withQueryString();
+        ])->paginate(20)->withQueryString();
+
+        // Transform the data manually to preserve pagination metadata
+        $transactions->through(function ($transaction) {
+            return (new TransactionResource($transaction))->resolve();
+        });
 
         // Related data for filters/forms
         $categories = TransactionCategory::orderBy('name')->get();
@@ -145,7 +151,7 @@ class TransactionController extends Controller
         ];
 
         return Inertia::render('Transactions/Index', [
-            'transactions' => TransactionResource::collection($transactions),
+            'transactions' => $transactions,
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories' => $categories->map(function ($category) {
                 return [
@@ -428,6 +434,14 @@ class TransactionController extends Controller
             'vatProfile',
             'files',
             ]);
+
+            // Log the create action
+            AuditLogService::logCreate(
+                $transaction,
+                'Transaction',
+                $transaction->transaction_number,
+                $vesselId
+            );
 
             return back()
                 ->with('success', "Transaction '{$transaction->transaction_number}' has been created successfully.")
@@ -746,6 +760,9 @@ class TransactionController extends Controller
 
             $totalAmount = $amount + $vatAmount;
 
+            // Store original state for change detection
+            $originalTransaction = $transaction->replicate();
+
             // Access validated values directly as properties (never use validated())
             /** @var \App\Models\User $user */
             $user = $request->user();
@@ -821,6 +838,16 @@ class TransactionController extends Controller
             'files',
             ]);
 
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($transaction, $originalTransaction);
+            AuditLogService::logUpdate(
+                $transaction,
+                $changedFields,
+                'Transaction',
+                $transaction->transaction_number,
+                $vesselId
+            );
+
             return back()
                 ->with('success', "Transaction '{$transaction->transaction_number}' has been updated successfully.")
                 ->with('notification_delay', 4);
@@ -885,6 +912,15 @@ class TransactionController extends Controller
             }
 
             $transactionNumber = $transaction->transaction_number;
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $transaction,
+                'Transaction',
+                $transactionNumber,
+                $vesselId
+            );
+
             $transaction->delete(); // Cascade delete will remove TransactionFile records
 
             return redirect()
@@ -970,6 +1006,233 @@ class TransactionController extends Controller
 
             return back()->with('error', 'Failed to delete file. Please try again.');
         }
+    }
+
+    /**
+     * Display transaction history page with month/year cards.
+     */
+    public function history(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
+            abort(403, 'You do not have permission to view transactions.');
+        }
+
+        // Get all month/year combinations from transactions (only those with transactions)
+        $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
+            ->selectRaw('DISTINCT transaction_month as month, transaction_year as year, COUNT(*) as count')
+            ->whereNotNull('transaction_month')
+            ->whereNotNull('transaction_year')
+            ->groupBy('transaction_month', 'transaction_year')
+            ->orderBy('transaction_year', 'desc')
+            ->orderBy('transaction_month', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'month' => (int) $item->month,
+                    'year' => (int) $item->year,
+                    'month_label' => date('F', mktime(0, 0, 0, $item->month, 1)),
+                    'count' => (int) $item->count,
+                ];
+            })
+            ->values();
+
+        return Inertia::render('Transactions/History', [
+            'monthYearCombinations' => $monthYearCombinations,
+        ]);
+    }
+
+    /**
+     * Display transactions for a specific month and year.
+     */
+    public function historyMonth(Request $request, $year, $month)
+    {
+        // Get parameters from route (ensures correct binding)
+        $year = (int) $request->route('year');
+        $month = (int) $request->route('month');
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
+            abort(403, 'You do not have permission to view transactions.');
+        }
+
+        // Validate month and year
+        if ($month < 1 || $month > 12) {
+            abort(404, 'Invalid month.');
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            abort(404, 'Invalid year.');
+        }
+
+        // Main data query - filter by vessel, month and year
+        $query = Transaction::query()->where('vessel_id', $vesselId)
+            ->where('transaction_month', $month)
+            ->where('transaction_year', $year);
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_number', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('reference', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by type
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by category
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Sorting - default to transaction_date descending (newest first)
+        $sortField = $request->get('sort', 'transaction_date');
+        $sortDirection = $request->get('direction', 'desc');
+
+        $query->orderBy($sortField, $sortDirection)
+              ->orderBy('created_at', 'desc');
+
+        // Eager load relationships for performance
+        $transactions = $query->with([
+            'category:id,name,type,color',
+            'supplier:id,company_name,description',
+            'crewMember:id,name,email',
+            'files:id,transaction_id,src,name,size,type',
+        ])->paginate(20)->withQueryString();
+
+        // Transform the data manually to preserve pagination metadata
+        $transactions->through(function ($transaction) {
+            return (new TransactionResource($transaction))->resolve();
+        });
+
+        // Related data for filters/forms
+        $categories = TransactionCategory::orderBy('name')->get();
+        $suppliers = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
+        $crewMembers = User::where('vessel_id', $vesselId)
+            ->whereNotNull('position_id')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        // Get VAT profiles and default VAT profile from vessel settings
+        $vatProfiles = VatProfile::active()->orderBy('name')->get();
+        $vesselSetting = VesselSetting::getForVessel($vesselId);
+        $vessel = \App\Models\Vessel::find($vesselId);
+        $defaultVatProfile = $vesselSetting->vat_profile_id
+            ? VatProfile::find($vesselSetting->vat_profile_id)
+            : VatProfile::where('is_default', true)->first();
+
+        // Get default currency: vessel_settings > vessel currency_code > EUR
+        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
+        // Current filters
+        $filters = $request->only([
+            'search',
+            'type',
+            'status',
+            'category_id',
+            'sort',
+            'direction',
+        ]);
+
+        // Options for filter dropdowns
+        $types = [
+            'income' => 'Income',
+            'expense' => 'Expense',
+            'transfer' => 'Transfer',
+        ];
+
+        $statuses = [
+            'pending' => 'Pending',
+            'completed' => 'Completed',
+            'cancelled' => 'Cancelled',
+        ];
+
+        // Get month label
+        $monthLabel = date('F', mktime(0, 0, 0, $month, 1));
+
+        return Inertia::render('Transactions/HistoryMonth', [
+            'transactions' => $transactions,
+            'defaultCurrency' => $defaultCurrency,
+            'categories' => $categories->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'type' => $category->type,
+                    'color' => $category->color,
+                ];
+            }),
+            'suppliers' => $suppliers->map(function ($supplier) {
+                return [
+                    'id' => $supplier->id,
+                    'company_name' => $supplier->company_name,
+                    'description' => $supplier->description,
+                ];
+            }),
+            'crewMembers' => $crewMembers->map(function ($member) {
+                return [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'email' => $member->email,
+                ];
+            }),
+            'vatProfiles' => $vatProfiles->map(function ($profile) {
+                return [
+                    'id' => $profile->id,
+                    'name' => $profile->name,
+                    'percentage' => (float) $profile->percentage,
+                    'country_id' => $profile->country_id,
+                ];
+            }),
+            'defaultVatProfile' => $defaultVatProfile ? [
+                'id' => $defaultVatProfile->id,
+                'name' => $defaultVatProfile->name,
+                'percentage' => (float) $defaultVatProfile->percentage,
+                'country_id' => $defaultVatProfile->country_id,
+            ] : null,
+            'transactionTypes' => $types,
+            'statuses' => $statuses,
+            'filters' => $filters,
+            'month' => $month,
+            'year' => $year,
+            'monthLabel' => $monthLabel,
+        ]);
     }
 
     /**
