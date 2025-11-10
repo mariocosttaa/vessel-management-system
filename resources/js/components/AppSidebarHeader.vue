@@ -8,7 +8,8 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Globe } from 'lucide-vue-next';
+import NotificationDropdown from '@/components/NotificationDropdown.vue';
+import { Globe } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import type { BreadcrumbItemType } from '@/types';
@@ -28,13 +29,7 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const { getInitials } = useInitials();
 
-const showNotifications = ref(false);
 const showLanguageMenu = ref(false);
-
-const handleNotificationClick = () => {
-    showNotifications.value = !showNotifications.value;
-    // TODO: Implement notification dropdown/modal
-};
 
 const handleLanguageClick = () => {
     showLanguageMenu.value = !showLanguageMenu.value;
@@ -58,16 +53,8 @@ const handleLanguageClick = () => {
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-            <!-- Notification Icon -->
-            <button
-                @click="handleNotificationClick"
-                class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-muted/40 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/40 transition-all duration-200 relative group"
-                title="Notifications"
-            >
-                <Bell class="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                <!-- Notification badge placeholder - can be made dynamic later -->
-                <!-- <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background"></span> -->
-            </button>
+            <!-- Notification Dropdown -->
+            <NotificationDropdown />
 
             <!-- Language Change Icon -->
             <button
