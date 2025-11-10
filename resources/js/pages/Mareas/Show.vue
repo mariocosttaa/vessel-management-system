@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
@@ -827,16 +828,36 @@ const updateProfileForm = useForm({
     distribution_profile_id: props.marea.distribution_profile_id as number | null,
 });
 
-const updateProfile = (eventOrValue: Event | string | number | null) => {
-    if (updatingProfile.value) return;
+// Convert to Select component options format
+const distributionProfileOptions = computed(() => {
+    if (!props.distributionProfiles) return [];
+    const options = [{ value: null, label: 'No Profile (Optional)' }];
+    props.distributionProfiles.forEach(profile => {
+        const label = profile.is_default ? `${profile.name} (Default)` : profile.name;
+        options.push({ value: profile.id, label });
+    });
+    return options;
+});
 
-    // Extract value from event if it's an event
-    let profileId: string | number | null;
-    if (eventOrValue instanceof Event) {
-        profileId = (eventOrValue.target as HTMLSelectElement).value;
-    } else {
-        profileId = eventOrValue;
-    }
+const availableCrewMemberOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a crew member' }];
+    availableCrewMembers.value.forEach(member => {
+        options.push({ value: member.id, label: `${member.name} (${member.email})` });
+    });
+    return options;
+});
+
+const mareaCrewMemberOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a crew member' }];
+    (props.marea.crew_members || []).forEach(member => {
+        const label = member.email ? `${member.name} (${member.email})` : member.name;
+        options.push({ value: member.id, label });
+    });
+    return options;
+});
+
+const updateProfile = (profileId: string | number | null) => {
+    if (updatingProfile.value) return;
 
     // Convert empty string to null
     const profileIdValue = (profileId === '' || profileId === null || profileId === undefined || profileId === 'null') ? null : Number(profileId);
@@ -1273,22 +1294,15 @@ const cancelDeleteMarea = () => {
                                             Distribution Profile:
                                         </Label>
                                         <div class="flex items-center gap-2 flex-1 max-w-md">
-                                            <select
+                                            <Select
                                                 id="distribution-profile"
-                                                :value="selectedProfileId"
-                                                @change="updateProfile($event.target.value)"
+                                                :model-value="selectedProfileId"
+                                                @update:model-value="updateProfile"
+                                                :options="distributionProfileOptions"
+                                                placeholder="No Profile (Optional)"
                                                 :disabled="updatingProfile || isProcessing"
-                                                class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <option :value="null">No Profile (Optional)</option>
-                                                <option
-                                                    v-for="profile in (distributionProfiles || [])"
-                                                    :key="profile.id"
-                                                    :value="profile.id"
-                                                >
-                                                    {{ profile.name }}{{ profile.is_default ? ' (Default)' : '' }}
-                                                </option>
-                                            </select>
+                                                searchable
+                                            />
                                             <Icon
                                                 v-if="updatingProfile"
                                                 name="loader-circle"
@@ -2246,22 +2260,15 @@ const cancelDeleteMarea = () => {
                     <div v-else>
                         <div>
                             <Label for="crew_member">Crew Member</Label>
-                            <select
+                            <Select
                                 id="crew_member"
                                 v-model="addCrewForm.user_id"
-                                class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': addCrewForm.errors.user_id }"
+                                :options="availableCrewMemberOptions"
+                                placeholder="Select a crew member"
                                 :disabled="addCrewForm.processing || availableCrewMembers.length === 0"
-                            >
-                                <option :value="null">Select a crew member</option>
-                                <option
-                                    v-for="member in availableCrewMembers"
-                                    :key="member.id"
-                                    :value="member.id"
-                                >
-                                    {{ member.name }} ({{ member.email }})
-                                </option>
-                            </select>
+                                searchable
+                                :error="!!addCrewForm.errors.user_id"
+                            />
                             <InputError :message="addCrewForm.errors.user_id" class="mt-1" />
                             <p v-if="availableCrewMembers.length === 0" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
                                 No available crew members to assign
@@ -2404,21 +2411,15 @@ const cancelDeleteMarea = () => {
                 <div class="py-4 space-y-4">
                     <div>
                         <Label for="crew_member_salary">Crew Member *</Label>
-                        <select
+                        <Select
                             id="crew_member_salary"
                             v-model="salaryPaymentForm.crew_member_id"
-                            class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :options="mareaCrewMemberOptions"
+                            placeholder="Select a crew member"
                             :disabled="isProcessing || loadingSalaryData"
-                        >
-                            <option :value="null">Select a crew member</option>
-                            <option
-                                v-for="member in marea.crew_members"
-                                :key="member.id"
-                                :value="member.id"
-                            >
-                                {{ member.name }} {{ member.email ? `(${member.email})` : '' }}
-                            </option>
-                        </select>
+                            searchable
+                            :error="!!salaryPaymentForm.errors.crew_member_id"
+                        />
                         <p v-if="salaryPaymentForm.errors.crew_member_id" class="text-sm text-red-600 dark:text-red-400 mt-1">
                             {{ salaryPaymentForm.errors.crew_member_id }}
                         </p>

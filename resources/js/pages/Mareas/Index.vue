@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -81,6 +82,15 @@ const sortDirection = ref(props.filters.direction || 'desc');
 // Search and filters
 const search = ref(props.filters.search || '');
 const statusFilter = ref(props.filters.status || '');
+
+// Convert to Select component options format
+const statusOptions = computed(() => {
+    const options = [{ value: '', label: 'All Statuses' }];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
 const dateFromFilter = ref(props.filters.date_from || '');
 const dateToFilter = ref(props.filters.date_to || '');
 
@@ -258,18 +268,13 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                     </div>
 
                     <!-- Status Filter -->
-                    <div class="relative min-w-[140px]">
-                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[140px]">
+                        <Select
                             v-model="statusFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Statuses</option>
-                            <option v-for="(label, value) in statuses" :key="value" :value="value">
-                                {{ label }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="statusOptions"
+                            placeholder="All Statuses"
+                            searchable
+                        />
                     </div>
 
                     <!-- Date From -->

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import mareas from '@/routes/panel/mareas';
 
@@ -47,6 +49,16 @@ const form = useForm({
     estimated_departure_date: props.marea.estimated_departure_date || '',
     estimated_return_date: props.marea.estimated_return_date || '',
     distribution_profile_id: props.marea.distribution_profile_id,
+});
+
+// Convert to Select component options format
+const distributionProfileOptions = computed(() => {
+    const options = [{ value: null, label: 'No Distribution Profile' }];
+    props.distributionProfiles.forEach(profile => {
+        const label = profile.is_default ? `${profile.name} (Default)` : profile.name;
+        options.push({ value: profile.id, label });
+    });
+    return options;
 });
 
 const handleSubmit = () => {
@@ -159,22 +171,14 @@ const handleCancel = () => {
                             <Label for="distribution_profile_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Distribution Profile (Optional)
                             </Label>
-                            <select
+                            <Select
                                 id="distribution_profile_id"
                                 v-model="form.distribution_profile_id"
-                                class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.distribution_profile_id }"
-                            >
-                                <option :value="null">No Distribution Profile</option>
-                                <option
-                                    v-for="profile in distributionProfiles"
-                                    :key="profile.id"
-                                    :value="profile.id"
-                                >
-                                    {{ profile.name }}
-                                    <span v-if="profile.is_default"> (Default)</span>
-                                </option>
-                            </select>
+                                :options="distributionProfileOptions"
+                                placeholder="No Distribution Profile"
+                                searchable
+                                :error="!!form.errors.distribution_profile_id"
+                            />
                             <InputError :message="form.errors.distribution_profile_id" class="mt-1" />
                         </div>
 
