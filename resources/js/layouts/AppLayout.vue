@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
-import DefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
+import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import VesselLayout from '@/layouts/VesselLayout.vue'
 import type { BreadcrumbItemType } from '@/types'
 
@@ -17,19 +17,32 @@ const page = usePage()
 
 // Determine which layout to use based on the current route
 const layout = computed(() => {
-    const url = page.url?.value || ''
+    // Get URL from page props or window location - most reliable
+    let url = ''
+    if (typeof window !== 'undefined') {
+        url = window.location.pathname
+    }
+    if (page.url?.value) {
+        url = page.url.value
+    }
 
-    // Routes that should use IndexDefaultLayout (navbar + footer only)
-    const indexLayoutRoutes = [
-        '/panel'
-    ]
+    // Landing page (public website at /) uses IndexDefaultLayout
+    if (url === '/' || url === '') {
+        return IndexDefaultLayout
+    }
 
-    // Check if current route matches index layout routes
-    const shouldUseIndexLayout = indexLayoutRoutes.some(route => {
-        return url === route
-    })
+    // Panel selector page uses IndexDefaultLayout (but different navbar)
+    if (url === '/panel' || url === '/panel/') {
+        return IndexDefaultLayout
+    }
 
-    return shouldUseIndexLayout ? 'IndexDefaultLayout' : 'VesselLayout'
+    // All panel routes with vessel ID use VesselLayout (app sidebar)
+    if (url.startsWith('/panel/')) {
+        return VesselLayout
+    }
+
+    // Default to VesselLayout for other routes
+    return VesselLayout
 })
 </script>
 
