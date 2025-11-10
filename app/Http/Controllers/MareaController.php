@@ -10,6 +10,7 @@ use App\Models\MareaQuantityReturn;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\EmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -197,7 +198,12 @@ class MareaController extends Controller
 
             // Validate request - only required fields
             $validated = $request->validate([
-                'marea_number' => 'required|string|max:255|unique:mareas,marea_number',
+                'marea_number' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('mareas', 'marea_number')->whereNull('deleted_at'),
+                ],
                 'estimated_departure_date' => 'nullable|date',
                 'estimated_return_date' => 'nullable|date|after_or_equal:estimated_departure_date',
             ]);
@@ -226,6 +232,10 @@ class MareaController extends Controller
                 $marea->marea_number,
                 $vesselId
             );
+
+            // Create email notification for other users (not the user who created it)
+            // Note: We don't send notification on creation, only when marea goes to sea
+            // But we create the notification record for tracking
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
@@ -803,6 +813,33 @@ class MareaController extends Controller
 
             $marea->markAsAtSea($validated['date'] ?? null);
 
+            // Reload marea to get updated dates
+            $marea->refresh();
+
+            // Create email notification for other users (not the user who marked it as at sea)
+            try {
+                EmailNotificationService::createNotification(
+                    type: 'marea_started',
+                    subjectType: Marea::class,
+                    subjectId: $marea->id,
+                    vesselId: $vesselId,
+                    actionByUserId: $user->id,
+                    subjectData: [
+                        'marea_number' => $marea->marea_number,
+                        'name' => $marea->name,
+                        'started_at' => $marea->actual_departure_date?->toIso8601String(),
+                        'expected_return_date' => $marea->estimated_return_date?->toIso8601String(),
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail the status change
+                Log::warning('Failed to create email notification for marea started', [
+                    'marea_id' => $marea->id,
+                    'vessel_id' => $vesselId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
                 ->with('success', "Marea '{$marea->marea_number}' has been marked as at sea.");
@@ -852,6 +889,33 @@ class MareaController extends Controller
             ]);
 
             $marea->markAsReturned($validated['date'] ?? null);
+
+            // Reload marea to get updated dates
+            $marea->refresh();
+
+            // Create email notification for other users (not the user who marked it as returned)
+            try {
+                EmailNotificationService::createNotification(
+                    type: 'marea_completed',
+                    subjectType: Marea::class,
+                    subjectId: $marea->id,
+                    vesselId: $vesselId,
+                    actionByUserId: $user->id,
+                    subjectData: [
+                        'marea_number' => $marea->marea_number,
+                        'name' => $marea->name,
+                        'started_at' => $marea->actual_departure_date?->toIso8601String(),
+                        'returned_at' => $marea->actual_return_date?->toIso8601String(),
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail the status change
+                Log::warning('Failed to create email notification for marea completed', [
+                    'marea_id' => $marea->id,
+                    'vessel_id' => $vesselId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
