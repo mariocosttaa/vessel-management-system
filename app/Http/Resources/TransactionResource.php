@@ -128,8 +128,10 @@ class TransactionResource extends JsonResource
             // Timestamps
             'created_at' => $this->created_at?->format('c'), // ISO 8601 format for sorting
             'created_at_formatted' => $this->created_at?->format('d/m/Y H:i'),
+            'created_at_datetime' => $this->created_at?->format('Y-m-d H:i:s'), // Base datetime format
             'updated_at' => $this->updated_at?->format('c'), // ISO 8601 format for sorting
             'updated_at_formatted' => $this->updated_at?->format('d/m/Y H:i'),
+            'updated_at_datetime' => $this->updated_at?->format('Y-m-d H:i:s'), // Base datetime format
         ];
     }
 }

@@ -77,8 +77,10 @@ interface Transaction {
     }[];
     created_at?: string; // ISO 8601 format for sorting
     created_at_formatted?: string;
+    created_at_datetime?: string; // Base datetime format (Y-m-d H:i:s)
     updated_at?: string; // ISO 8601 format for sorting
     updated_at_formatted?: string;
+    updated_at_datetime?: string; // Base datetime format (Y-m-d H:i:s)
 }
 
 interface TransactionCategory {
@@ -749,6 +751,9 @@ const clearFilters = () => {
                                             <div class="mt-1">
                                                 <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
                                                     {{ transaction.description || 'No description' }}
+                                                </p>
+                                                <p v-if="transaction.created_at_datetime" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                                    {{ transaction.created_at_datetime }}
                                                 </p>
                                             </div>
                                         </div>

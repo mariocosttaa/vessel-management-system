@@ -37,6 +37,7 @@ interface Transaction {
     formatted_transaction_date: string;
     description: string | null;
     reference: string | null;
+    created_at_datetime?: string; // Base datetime format (Y-m-d H:i:s)
     status: string;
     status_label: string;
     category: {
@@ -349,6 +350,9 @@ const closeModals = () => {
                                         <div class="mt-1">
                                             <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
                                                 {{ transaction.description || 'No description' }}
+                                            </p>
+                                            <p v-if="transaction.created_at_datetime" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                                {{ transaction.created_at_datetime }}
                                             </p>
                                         </div>
                                     </div>
