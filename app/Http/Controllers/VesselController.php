@@ -9,6 +9,7 @@ use App\Models\Vessel;
 use App\Models\Country;
 use App\Models\Currency;
 use App\Models\VesselUser;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -152,6 +153,14 @@ class VesselController extends BaseController
             // Set the vessel owner
             $vessel->update(['owner_id' => $user->id]);
 
+            // Log the create action
+            AuditLogService::logCreate(
+                $vessel,
+                'Vessel',
+                $vessel->name,
+                null // Vessels are not vessel-scoped (they're global entities)
+            );
+
             return redirect()
                 ->route('panel.index')
                 ->with('success', "Vessel '{$vessel->name}' has been created successfully.")
@@ -213,6 +222,9 @@ class VesselController extends BaseController
     public function update(UpdateVesselRequest $request, Vessel $vessel)
     {
         try {
+            // Store original state for change detection
+            $originalVessel = $vessel->replicate();
+
             $vessel->update([
                 'name' => $request->name,
                 'registration_number' => $request->registration_number,
@@ -224,6 +236,16 @@ class VesselController extends BaseController
                 'country_code' => $request->country_code,
                 'currency_code' => $request->currency_code,
             ]);
+
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($vessel, $originalVessel);
+            AuditLogService::logUpdate(
+                $vessel,
+                $changedFields,
+                'Vessel',
+                $vessel->name,
+                null // Vessels are not vessel-scoped (they're global entities)
+            );
 
             return redirect()
                 ->route('panel.index')
@@ -255,6 +277,15 @@ class VesselController extends BaseController
             }
 
             $vesselName = $vessel->name;
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $vessel,
+                'Vessel',
+                $vesselName,
+                null // Vessels are not vessel-scoped (they're global entities)
+            );
+
             $vessel->delete();
 
             return redirect()
