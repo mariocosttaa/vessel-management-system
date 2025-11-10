@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\EmailNotificationService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ use Inertia\Inertia;
 
 class MareaController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of mareas for the current vessel.
      */
@@ -239,7 +241,9 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been created successfully.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been created successfully.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Marea creation failed', [
                 'error' => $e->getMessage(),
@@ -249,7 +253,9 @@ class MareaController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create marea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to create marea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -685,7 +691,9 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been updated successfully.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been updated successfully.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Marea update failed', [
                 'error' => $e->getMessage(),
@@ -695,7 +703,9 @@ class MareaController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update marea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to update marea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -753,9 +763,14 @@ class MareaController extends Controller
             // Soft delete the marea (will appear in recycle bin)
             $marea->delete();
 
-            $message = "Marea '{$mareaNumber}' has been deleted successfully.";
+            $message = $this->transFrom('notifications', "Marea ':number' has been deleted successfully.", [
+                'number' => $mareaNumber
+            ]);
             if ($transactionCount > 0) {
-                $message .= " {$transactionCount} transaction(s) associated with this marea have also been deleted.";
+                $message = $this->transFrom('notifications', "Marea ':number' has been deleted successfully. :count transaction(s) associated with this marea have also been deleted.", [
+                    'number' => $mareaNumber,
+                    'count' => $transactionCount
+                ]);
             }
 
             return redirect()
@@ -768,7 +783,9 @@ class MareaController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to delete marea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to delete marea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -842,10 +859,14 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been marked as at sea.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been marked as at sea.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to mark marea as at sea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to mark marea as at sea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -919,10 +940,14 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been marked as returned.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been marked as returned.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to mark marea as returned: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to mark marea as returned: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -965,10 +990,14 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been closed.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been closed.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to close marea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to close marea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1011,10 +1040,14 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', "Marea '{$marea->marea_number}' has been cancelled.");
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been cancelled.", [
+                    'number' => $marea->marea_number
+                ]));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to cancel marea: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to cancel marea: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1077,10 +1110,12 @@ class MareaController extends Controller
             $transaction->update(['marea_id' => $marea->id]);
 
             return back()
-                ->with('success', 'Transaction has been added to the marea.');
+                ->with('success', $this->transFrom('notifications', 'Transaction has been added to the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to add transaction: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to add transaction: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1131,10 +1166,12 @@ class MareaController extends Controller
             $transaction->update(['marea_id' => null]);
 
             return back()
-                ->with('success', 'Transaction has been removed from the marea.');
+                ->with('success', $this->transFrom('notifications', 'Transaction has been removed from the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to remove transaction: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to remove transaction: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1200,7 +1237,7 @@ class MareaController extends Controller
             // Check if already added
             if ($marea->crew()->where('user_id', $validated['user_id'])->exists()) {
                 return back()
-                    ->with('error', 'Crew member is already assigned to this marea.');
+                    ->with('error', $this->transFrom('notifications', 'Crew member is already assigned to this marea.'));
             }
 
             // Add crew member using MareaCrew model
@@ -1211,10 +1248,12 @@ class MareaController extends Controller
             ]);
 
             return back()
-                ->with('success', 'Crew member has been added to the marea.');
+                ->with('success', $this->transFrom('notifications', 'Crew member has been added to the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to add crew member: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to add crew member: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1264,10 +1303,12 @@ class MareaController extends Controller
             $marea->crewMembers()->detach($userId);
 
             return back()
-                ->with('success', 'Crew member has been removed from the marea.');
+                ->with('success', $this->transFrom('notifications', 'Crew member has been removed from the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to remove crew member: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to remove crew member: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1326,10 +1367,12 @@ class MareaController extends Controller
             ]);
 
             return back()
-                ->with('success', 'Quantity return has been added to the marea.');
+                ->with('success', $this->transFrom('notifications', 'Quantity return has been added to the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to add quantity return: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to add quantity return: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1379,10 +1422,12 @@ class MareaController extends Controller
             $quantityReturn->delete();
 
             return back()
-                ->with('success', 'Quantity return has been removed from the marea.');
+                ->with('success', $this->transFrom('notifications', 'Quantity return has been removed from the marea.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to remove quantity return: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to remove quantity return: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1636,7 +1681,7 @@ class MareaController extends Controller
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
-                ->with('success', 'Distribution calculation override has been saved successfully.');
+                ->with('success', $this->transFrom('notifications', 'Distribution calculation override has been saved successfully.'));
         } catch (\Exception $e) {
             Log::error('Failed to store distribution items', [
                 'error' => $e->getMessage(),
@@ -1646,7 +1691,9 @@ class MareaController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to save distribution items: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to save distribution items: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -1735,7 +1782,7 @@ class MareaController extends Controller
             ]);
 
             return back()
-                ->with('success', 'Salary payment has been created successfully.');
+                ->with('success', $this->transFrom('notifications', 'Salary payment has been created successfully.'));
         } catch (\Exception $e) {
             Log::error('Salary payment creation failed', [
                 'error' => $e->getMessage(),
@@ -1745,7 +1792,9 @@ class MareaController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create salary payment: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to create salary payment: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
