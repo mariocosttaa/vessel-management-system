@@ -6,6 +6,7 @@ use App\Http\Requests\StoreSupplierRequest;
 use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -95,6 +96,14 @@ class SupplierController extends Controller
                 'vessel_id' => $vesselId,
             ]);
 
+            // Log the create action
+            AuditLogService::logCreate(
+                $supplier,
+                'Supplier',
+                $supplier->company_name,
+                $vesselId
+            );
+
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
                 ->with('success', "Supplier '{$supplier->company_name}' has been created successfully.")
@@ -156,6 +165,9 @@ class SupplierController extends Controller
                 abort(403, 'Unauthorized access to supplier.');
             }
 
+            // Store original state for change detection
+            $originalSupplier = $supplier->replicate();
+
             // Access validated values directly as properties (never use validated())
             $supplier->update([
                 'company_name' => $request->company_name,
@@ -165,6 +177,16 @@ class SupplierController extends Controller
                 'address' => $request->address,
                 'notes' => $request->notes,
             ]);
+
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($supplier, $originalSupplier);
+            AuditLogService::logUpdate(
+                $supplier,
+                $changedFields,
+                'Supplier',
+                $supplier->company_name,
+                $vesselId
+            );
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
@@ -202,6 +224,15 @@ class SupplierController extends Controller
             }
 
             $supplierName = $supplier->company_name;
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $supplier,
+                'Supplier',
+                $supplierName,
+                $vesselId
+            );
+
             $supplier->delete();
 
             return redirect()

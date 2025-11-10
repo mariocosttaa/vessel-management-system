@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MareaDistributionProfile;
 use App\Models\MareaDistributionProfileItem;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -159,6 +160,14 @@ class MareaDistributionProfileController extends Controller
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             $vesselId = $request->attributes->get('vessel_id');
 
+            // Log the create action
+            AuditLogService::logCreate(
+                $profile,
+                'Distribution Profile',
+                $profile->name,
+                null // Distribution profiles are not vessel-scoped (they're global entities)
+            );
+
             return redirect()
                 ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselId])
                 ->with('success', 'Distribution profile created successfully.');
@@ -265,6 +274,9 @@ class MareaDistributionProfileController extends Controller
         if ($profile->is_system) {
             abort(403, 'System profiles cannot be updated.');
         }
+
+        // Store original state for change detection
+        $originalProfile = $profile->replicate();
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -384,6 +396,16 @@ class MareaDistributionProfileController extends Controller
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             $vesselId = $request->attributes->get('vessel_id');
 
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($profile, $originalProfile);
+            AuditLogService::logUpdate(
+                $profile,
+                $changedFields,
+                'Distribution Profile',
+                $profile->name,
+                null // Distribution profiles are not vessel-scoped (they're global entities)
+            );
+
             return redirect()
                 ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselId])
                 ->with('success', 'Distribution profile updated successfully.');
@@ -417,6 +439,16 @@ class MareaDistributionProfileController extends Controller
         }
 
         try {
+            $profileName = $profile->name;
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $profile,
+                'Distribution Profile',
+                $profileName,
+                null // Distribution profiles are not vessel-scoped (they're global entities)
+            );
+
             $profile->delete();
 
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)

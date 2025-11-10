@@ -13,6 +13,7 @@ use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
 use App\Models\VesselUser;
 use App\Models\VesselUserRole;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 
 class CrewMemberController extends Controller
@@ -266,6 +267,14 @@ class CrewMemberController extends Controller
                 ]
             );
 
+            // Log the create action
+            AuditLogService::logCreate(
+                $crewMember,
+                'Crew Member',
+                $crewMember->name,
+                $vesselId
+            );
+
             return redirect()
                 ->route('panel.crew-members.index', ['vessel' => $vesselId])
                 ->with('success', "Crew member '{$crewMember->name}' has been created successfully.")
@@ -339,6 +348,9 @@ class CrewMemberController extends Controller
                 abort(403, 'Unauthorized access to crew member.');
             }
 
+            // Store original state for change detection BEFORE update
+            $originalCrewMember = $crewMember->replicate();
+
             // Check if user has an existing account (not just a crew member account)
             $hasExistingAccount = $crewMember->hasExistingAccount();
 
@@ -396,6 +408,16 @@ class CrewMemberController extends Controller
                 $salaryData
             );
 
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($crewMember, $originalCrewMember);
+            AuditLogService::logUpdate(
+                $crewMember,
+                $changedFields,
+                'Crew Member',
+                $crewMember->name,
+                $vesselId
+            );
+
             return redirect()
                 ->route('panel.crew-members.index', ['vessel' => $vesselId])
                 ->with('success', "Crew member '{$crewMember->name}' has been updated successfully.")
@@ -434,24 +456,72 @@ class CrewMemberController extends Controller
 
             $crewMemberName = $crewMember->name;
 
-            // If this is a crew member (has vessel_id and position_id), remove crew member data
-            if ($crewMember->isCrewMember()) {
-                $crewMember->update([
-                    'vessel_id' => null,
-                    'position_id' => null,
-                    'phone' => null,
-                    'date_of_birth' => null,
-                    'hire_date' => null,
-                    'salary_amount' => null,
-                    'salary_currency' => null,
-                    'house_of_zeros' => null,
-                    'payment_frequency' => null,
-                    'status' => null,
-                    'notes' => null,
-                ]);
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $crewMember,
+                'Crew Member',
+                $crewMemberName,
+                $vesselId
+            );
+
+            // Remove vessel access - delete vessel_user_roles entries for this user and vessel
+            // This removes their permission-based access (RBAC system)
+            VesselUserRole::where('user_id', $crewMember->id)
+                ->where('vessel_id', $vesselId)
+                ->delete();
+
+            // Remove vessel access - delete vessel_users entries for this user and vessel
+            // This removes their legacy vessel access (tenant access)
+            VesselUser::where('user_id', $crewMember->id)
+                ->where('vessel_id', $vesselId)
+                ->delete();
+
+            // Check if user has access to other vessels (after removing current vessel access)
+            $hasOtherVesselAccess = VesselUserRole::where('user_id', $crewMember->id)
+                ->where('is_active', true)
+                ->exists();
+
+            $hasOtherVesselUsers = VesselUser::where('user_id', $crewMember->id)
+                ->where('is_active', true)
+                ->exists();
+
+            // Check if user owns other vessels
+            $ownsOtherVessels = Vessel::where('owner_id', $crewMember->id)
+                ->where('id', '!=', $vesselId)
+                ->exists();
+
+            // If this is a crew member (has vessel_id and position_id), handle crew member data
+            if ($crewMember->isCrewMember() && $crewMember->vessel_id == $vesselId) {
+                // If user has no other vessel access, no other vessel users, doesn't own other vessels,
+                // and is only an employee of vessel, delete the user entirely
+                if (!$hasOtherVesselAccess && !$hasOtherVesselUsers && !$ownsOtherVessels
+                    && $crewMember->user_type === 'employee_of_vessel') {
+                    // Delete the user completely - this will cascade delete any remaining records
+                    $crewMember->delete();
+                } else {
+                    // User has access to other vessels or owns other vessels, just clear crew member data for this vessel
+                    $crewMember->update([
+                        'vessel_id' => null,
+                        'position_id' => null,
+                        'phone' => null,
+                        'date_of_birth' => null,
+                        'hire_date' => null,
+                        'salary_amount' => null,
+                        'salary_currency' => null,
+                        'house_of_zeros' => null,
+                        'payment_frequency' => null,
+                        'status' => null,
+                        'notes' => null,
+                    ]);
+                }
             } else {
-                // If it's a system user, just delete them
-                $crewMember->delete();
+                // If it's a system user or crew member from different vessel
+                // Only delete the user if they have no other vessel access and don't own other vessels
+                if (!$hasOtherVesselAccess && !$hasOtherVesselUsers && !$ownsOtherVessels) {
+                    // Delete the user completely - this will cascade delete any remaining records
+                    $crewMember->delete();
+                }
+                // If user has access to other vessels or owns other vessels, we've already removed their access to this vessel above
             }
 
             return redirect()
