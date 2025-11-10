@@ -20,6 +20,7 @@ class Vessel extends Model
         'year_built',
         'status',
         'notes',
+        'logo',
         'owner_id',
         'country_code',
         'currency_code',
@@ -187,5 +188,37 @@ class Vessel extends Model
     {
         $pivot = $this->users()->where('user_id', $userId)->first()?->pivot;
         return $pivot?->role;
+    }
+
+    /**
+     * Get the logo URL.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        if (!$this->logo) {
+            return null;
+        }
+
+        // If logo is already a full URL, return it
+        if (filter_var($this->logo, FILTER_VALIDATE_URL)) {
+            return $this->logo;
+        }
+
+        // Otherwise, return the storage URL
+        return asset('storage/' . $this->logo);
+    }
+
+    /**
+     * Get the status label.
+     */
+    public function getStatusLabelAttribute(): string
+    {
+        return match($this->status) {
+            'active' => 'Active',
+            'suspended' => 'Suspended',
+            'maintenance' => 'Maintenance',
+            'inactive' => 'Inactive',
+            default => ucfirst($this->status),
+        };
     }
 }
