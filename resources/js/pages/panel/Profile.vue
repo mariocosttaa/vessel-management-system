@@ -1,26 +1,61 @@
 <template>
   <IndexDefaultLayout :breadcrumbs="breadcrumbs">
     <!-- Main Content -->
-    <main class="flex-1 p-6">
-      <div class="max-w-4xl mx-auto">
+    <main class="flex-1 pt-6 pb-4 px-4">
+      <div class="max-w-7xl mx-auto">
         <!-- Header -->
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold text-card-foreground dark:text-card-foreground mb-2">
+        <div class="mb-5">
+          <h1 class="text-2xl font-bold text-card-foreground dark:text-card-foreground mb-1.5">
             {{ t('Profile Settings') }}
           </h1>
-          <p class="text-muted-foreground dark:text-muted-foreground">
+          <p class="text-sm text-muted-foreground dark:text-muted-foreground">
             {{ t('Manage your account settings and preferences') }}
           </p>
         </div>
 
-        <!-- Profile Settings Card -->
-        <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6 mb-6">
-          <h2 class="text-xl font-semibold text-card-foreground dark:text-card-foreground mb-6">
-            {{ t('Profile Information') }}
-          </h2>
+        <!-- Tab Navigation -->
+        <div class="mb-5 border-b border-border dark:border-sidebar-border">
+          <nav class="flex space-x-1">
+            <button
+              @click="activeTab = 'profile'"
+              :class="[
+                'px-4 py-2 text-sm font-medium transition-colors border-b-2',
+                activeTab === 'profile'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-card-foreground hover:border-muted-foreground'
+              ]"
+            >
+              {{ t('Profile Information') }}
+            </button>
+            <button
+              @click="activeTab = 'password'"
+              :class="[
+                'px-4 py-2 text-sm font-medium transition-colors border-b-2',
+                activeTab === 'password'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-card-foreground hover:border-muted-foreground'
+              ]"
+            >
+              {{ t('Password Settings') }}
+            </button>
+            <button
+              @click="activeTab = 'account'"
+              :class="[
+                'px-4 py-2 text-sm font-medium transition-colors border-b-2',
+                activeTab === 'account'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-card-foreground hover:border-muted-foreground'
+              ]"
+            >
+              {{ t('Account Actions') }}
+            </button>
+          </nav>
+        </div>
 
-          <form @submit.prevent="updateProfile" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Profile Settings Card -->
+        <div v-show="activeTab === 'profile'" class="rounded-lg border border-border dark:border-sidebar-border bg-card dark:bg-card p-5 mb-4">
+          <form @submit.prevent="updateProfile" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- Name -->
               <div class="space-y-2">
                 <Label for="name">{{ t('Name') }}</Label>
@@ -51,14 +86,14 @@
             </div>
 
             <!-- Email Verification Notice -->
-            <div v-if="mustVerifyEmail && !user.email_verified_at" class="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+            <div v-if="mustVerifyEmail && !user.email_verified_at" class="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-3">
               <div class="flex items-center">
-                <Icon name="alert-triangle" class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2" />
+                <Icon name="alert-triangle" class="w-4 h-4 text-yellow-600 dark:text-yellow-400 mr-2 flex-shrink-0" />
                 <div>
-                  <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  <p class="text-xs font-medium text-yellow-800 dark:text-yellow-200">
                     {{ t('Email Address Unverified') }}
                   </p>
-                  <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                  <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                     {{ t('Your email address is unverified.') }}
                     <Link
                       href="/email/verification-notification"
@@ -73,23 +108,23 @@
             </div>
 
             <!-- Success Message -->
-            <div v-if="status === 'verification-link-sent'" class="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
+            <div v-if="status === 'verification-link-sent'" class="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
               <div class="flex items-center">
-                <Icon name="check-circle" class="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                <p class="text-sm font-medium text-green-800 dark:text-green-200">
+                <Icon name="check-circle" class="w-4 h-4 text-green-600 dark:text-green-400 mr-2 flex-shrink-0" />
+                <p class="text-xs font-medium text-green-800 dark:text-green-200">
                   {{ t('A new verification link has been sent to your email address.') }}
                 </p>
               </div>
             </div>
 
             <!-- Notification Settings (only show if user has high vessel access) -->
-            <div v-if="hasHighVesselAccess" class="space-y-4 pt-4 border-t border-sidebar-border/70 dark:border-sidebar-border">
+            <div v-if="hasHighVesselAccess" class="space-y-3 pt-4 border-t border-border dark:border-sidebar-border">
               <div class="flex items-center justify-between">
                 <div class="space-y-1">
-                  <Label for="vessel_admin_notification" class="text-base font-medium">
+                  <Label for="vessel_admin_notification" class="text-sm font-medium">
                     {{ t('Administration Notifications') }}
                   </Label>
-                  <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                  <p class="text-xs text-muted-foreground dark:text-muted-foreground">
                     {{ t('Receive email notifications when other people make important changes to transactions and mareas of your vessels.') }}
                   </p>
                 </div>
@@ -102,13 +137,14 @@
             </div>
 
             <!-- Save Button -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between pt-2">
               <Button
                 type="submit"
                 :disabled="form.processing"
+                size="sm"
                 class="inline-flex items-center"
               >
-                <Icon name="save" class="w-4 h-4 mr-2" />
+                <Icon name="save" class="w-3.5 h-3.5 mr-1.5" />
                 {{ form.processing ? t('Saving...') : t('Save Changes') }}
               </Button>
             </div>
@@ -116,13 +152,9 @@
         </div>
 
         <!-- Password Settings Card -->
-        <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6 mb-6">
-          <h2 class="text-xl font-semibold text-card-foreground dark:text-card-foreground mb-6">
-            {{ t('Password Settings') }}
-          </h2>
-
-          <form @submit.prevent="updatePassword" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div v-show="activeTab === 'password'" class="rounded-lg border border-border dark:border-sidebar-border bg-card dark:bg-card p-5 mb-4">
+          <form @submit.prevent="updatePassword" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- Current Password -->
               <div class="space-y-2">
                 <Label for="current_password">{{ t('Current Password') }}</Label>
@@ -167,14 +199,15 @@
             </div>
 
             <!-- Update Password Button -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between pt-2">
               <Button
                 type="submit"
                 variant="outline"
+                size="sm"
                 :disabled="passwordForm.processing"
                 class="inline-flex items-center"
               >
-                <Icon name="key" class="w-4 h-4 mr-2" />
+                <Icon name="key" class="w-3.5 h-3.5 mr-1.5" />
                 {{ passwordForm.processing ? t('Updating...') : t('Update Password') }}
               </Button>
             </div>
@@ -182,11 +215,7 @@
         </div>
 
         <!-- Account Actions Card -->
-        <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-          <h2 class="text-xl font-semibold text-card-foreground dark:text-card-foreground mb-6">
-            {{ t('Account Actions') }}
-          </h2>
-
+        <div v-show="activeTab === 'account'" class="rounded-lg border border-border dark:border-sidebar-border bg-card dark:bg-card p-5">
           <div class="space-y-4">
             <!-- Delete Account -->
             <div class="flex items-center justify-between p-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
@@ -194,7 +223,7 @@
                 <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
                   {{ t('Delete Account') }}
                 </h3>
-                <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                <p class="text-xs text-red-700 dark:text-red-300 mt-1">
                   {{ t('Permanently delete your account and all associated data. This action cannot be undone.') }}
                 </p>
               </div>
@@ -204,7 +233,7 @@
                 @click="showDeleteModal = true"
                 class="ml-4"
               >
-                <Icon name="trash-2" class="w-4 h-4 mr-2" />
+                <Icon name="trash-2" class="w-3.5 h-3.5 mr-1.5" />
                 {{ t('Delete Account') }}
               </Button>
             </div>
@@ -223,10 +252,10 @@
         class="bg-card dark:bg-card rounded-lg p-6 max-w-md w-full mx-4"
         @click.stop
       >
-        <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
+        <h3 class="text-base font-semibold text-card-foreground dark:text-card-foreground mb-3">
           {{ t('Delete Account') }}
         </h3>
-        <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-6">
+        <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-5">
           {{ t('Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.') }}
         </p>
         <div class="flex justify-end space-x-3">
@@ -291,7 +320,7 @@ const { t } = useI18n()
 // Breadcrumbs
 const breadcrumbs = computed<BreadcrumbItemType[]>(() => [
   {
-    title: t('Vessels'),
+    title: t('Panel'),
     href: '/panel',
   },
   {
@@ -301,6 +330,7 @@ const breadcrumbs = computed<BreadcrumbItemType[]>(() => [
 ])
 
 const showDeleteModal = ref(false)
+const activeTab = ref<'profile' | 'password' | 'account'>('profile')
 
 // Computed property for high vessel access
 const hasHighVesselAccess = computed(() => props.hasHighVesselAccess ?? false)

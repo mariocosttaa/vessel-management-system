@@ -4,22 +4,22 @@
     <Navbar :user="user" />
 
     <!-- Breadcrumbs -->
-    <div v-if="breadcrumbs && breadcrumbs.length > 0" class="pt-8 pb-3 dark:bg-[#121212] bg-background">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div v-if="breadcrumbs && breadcrumbs.length > 0" class="pt-28 pb-5 dark:bg-[#121212] bg-background">
+      <div class="max-w-7xl mx-auto px-4">
         <nav class="flex items-center space-x-2">
-          <Icon name="home" class="w-4 h-4 text-muted-foreground" />
+          <Icon name="home" class="w-3.5 h-3.5 text-muted-foreground" />
           <template v-for="(breadcrumb, index) in breadcrumbs" :key="index">
-            <Icon name="chevron-right" class="w-4 h-4 text-muted-foreground mx-1" />
+            <Icon name="chevron-right" class="w-3.5 h-3.5 text-muted-foreground mx-1" />
             <span
               v-if="index === breadcrumbs.length - 1"
-              class="text-sm font-medium text-card-foreground"
+              class="text-xs font-medium text-card-foreground"
             >
               {{ breadcrumb.title }}
             </span>
             <Link
               v-else
               :href="breadcrumb.href"
-              class="text-sm text-muted-foreground hover:text-card-foreground transition-colors"
+              class="text-xs text-muted-foreground hover:text-card-foreground transition-colors"
             >
               {{ breadcrumb.title }}
             </Link>

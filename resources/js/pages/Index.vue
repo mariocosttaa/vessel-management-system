@@ -53,34 +53,34 @@
     />
 
     <!-- Main Content -->
-    <main class="flex-1 p-6" :class="{ 'pointer-events-none opacity-50': isEntering || loadingVessel }">
+    <main class="flex-1 pt-6 pb-4 px-4" :class="{ 'pointer-events-none opacity-50': isEntering || loadingVessel }">
       <div class="max-w-7xl mx-auto">
         <!-- Simple Header (only show if user has permission to create vessels) -->
-        <div v-if="permissions.can_create_vessels" class="text-center mb-8">
-          <h1 class="text-4xl font-bold text-foreground mb-4">
+        <div v-if="permissions.can_create_vessels" class="text-center mb-5">
+          <h1 class="text-2xl font-bold text-foreground mb-1.5">
             {{ t('Your Vessels') }}
           </h1>
-          <p class="text-lg text-muted-foreground">
+          <p class="text-sm text-muted-foreground">
             {{ t('Choose a vessel to manage its financial operations') }}
           </p>
         </div>
 
         <!-- Vessels Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <!-- Blank Vessel Card for Creating New Vessel (only if user has permission) -->
           <div
             v-if="permissions.can_create_vessels"
             @click="createVessel"
-            class="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-lg group flex flex-col items-center justify-center min-h-[200px]"
+            class="rounded-lg border-2 border-dashed border-border bg-card/50 p-4 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-lg group flex flex-col items-center justify-center min-h-[140px]"
           >
             <div class="flex flex-col items-center justify-center text-center">
-              <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors group-hover:scale-110">
-                <Icon name="plus" class="w-6 h-6 text-primary" />
+              <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2.5 group-hover:bg-primary/20 transition-colors group-hover:scale-110">
+                <Icon name="plus" class="w-4 h-4 text-primary" />
               </div>
-              <h3 class="text-lg font-semibold text-card-foreground mb-2 group-hover:text-primary transition-colors">
+              <h3 class="text-sm font-semibold text-card-foreground mb-1 group-hover:text-primary transition-colors">
                 {{ t('Create New Vessel') }}
               </h3>
-              <p class="text-sm text-muted-foreground">
+              <p class="text-xs text-muted-foreground leading-tight">
                 {{ t('Add a new vessel to your fleet') }}
               </p>
             </div>
@@ -91,7 +91,7 @@
             v-for="vessel in vessels"
             :key="vessel.id"
             @click="handleCardClick(vessel)"
-            class="rounded-xl border border-border bg-card p-6 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-xl group relative overflow-hidden"
+            class="rounded-lg border border-border bg-card p-3 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-xl group relative overflow-hidden"
             :class="{
               'opacity-50 cursor-not-allowed': isEntering
             }"
@@ -99,72 +99,83 @@
             <!-- Hover effect overlay -->
             <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
+            <!-- Vessel Logo -->
+            <div v-if="vessel.logo_url" class="mb-2.5 relative z-10 flex justify-center">
+              <div class="w-14 h-14 rounded-lg overflow-hidden border-2 border-border bg-card shadow-sm">
+                <img
+                  :src="vessel.logo_url"
+                  :alt="vessel.name"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
             <!-- Vessel Header -->
-            <div class="flex items-start justify-between mb-4 relative z-10">
-              <div>
-                <h3 class="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors">
+            <div class="flex items-start justify-between mb-2.5 relative z-10">
+              <div class="flex-1 min-w-0">
+                <h3 class="text-sm font-semibold text-card-foreground group-hover:text-primary transition-colors">
                   {{ vessel.name }}
                 </h3>
-                <p class="text-sm text-muted-foreground">
+                <p class="text-xs text-muted-foreground leading-tight">
                   {{ vessel.registration_number }}
                 </p>
               </div>
-              <Badge :variant="getStatusVariant(vessel.status)">
+              <Badge :variant="getStatusVariant(vessel.status)" class="ml-1.5 flex-shrink-0 text-xs px-1.5 py-0.5">
                 {{ vessel.status_label }}
               </Badge>
             </div>
 
             <!-- Vessel Details -->
-            <div class="space-y-2 mb-4 relative z-10">
-              <div class="flex items-center text-sm text-muted-foreground">
-                <Icon name="ship" class="w-4 h-4 mr-2" />
-                {{ vessel.vessel_type }}
+            <div class="space-y-1 mb-2.5 relative z-10">
+              <div class="flex items-center text-xs text-muted-foreground leading-tight">
+                <Icon name="ship" class="w-3 h-3 mr-1.5 flex-shrink-0" />
+                <span class="truncate">{{ vessel.vessel_type }}</span>
               </div>
-              <div class="flex items-center text-sm text-muted-foreground">
-                <Icon name="users" class="w-4 h-4 mr-2" />
-                {{ vessel.crew_count }} {{ t('crew members') }}
+              <div class="flex items-center text-xs text-muted-foreground leading-tight">
+                <Icon name="users" class="w-3 h-3 mr-1.5 flex-shrink-0" />
+                <span>{{ vessel.crew_count }} {{ t('crew members') }}</span>
               </div>
-              <div class="flex items-center text-sm text-muted-foreground">
-                <Icon name="receipt" class="w-4 h-4 mr-2" />
-                {{ vessel.transaction_count }} {{ t('transactions') }}
+              <div class="flex items-center text-xs text-muted-foreground leading-tight">
+                <Icon name="receipt" class="w-3 h-3 mr-1.5 flex-shrink-0" />
+                <span>{{ vessel.transaction_count }} {{ t('transactions') }}</span>
               </div>
             </div>
 
             <!-- User Role and Actions -->
             <div class="flex items-center justify-between relative z-10">
               <div class="flex items-center">
-                <Icon name="shield" class="w-4 h-4 mr-2 text-primary" />
-                <span class="text-sm font-medium text-primary capitalize">
+                <Icon name="shield" class="w-3 h-3 mr-1 text-primary flex-shrink-0" />
+                <span class="text-xs font-medium text-primary capitalize leading-tight">
                   {{ vessel.user_role }}
                 </span>
               </div>
 
               <!-- Action Buttons -->
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-1">
                 <!-- Edit Button -->
                 <button
                   v-if="vessel.permissions.can_edit"
                   @click.stop="editVessel(vessel.id)"
-                  class="p-1 text-muted-foreground hover:text-primary transition-colors rounded hover:bg-primary/10"
+                  class="p-0.5 text-muted-foreground hover:text-primary transition-colors rounded hover:bg-primary/10"
                   :title="t('Edit vessel')"
                 >
-                  <Icon name="edit" class="w-4 h-4" />
+                  <Icon name="edit" class="w-3 h-3" />
                 </button>
 
                 <!-- Delete Button -->
                 <button
                   v-if="vessel.permissions.can_delete"
                   @click.stop="deleteVessel(vessel.id, vessel.name)"
-                  class="p-1 text-muted-foreground hover:text-destructive transition-colors rounded hover:bg-destructive/10"
+                  class="p-0.5 text-muted-foreground hover:text-destructive transition-colors rounded hover:bg-destructive/10"
                   :title="t('Delete vessel')"
                 >
-                  <Icon name="trash-2" class="w-4 h-4" />
+                  <Icon name="trash-2" class="w-3 h-3" />
                 </button>
 
                 <!-- Select Arrow -->
                 <Icon
                   name="arrow-right"
-                  class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all duration-300 group-hover:translate-x-1"
+                  class="w-3 h-3 text-muted-foreground group-hover:text-primary transition-all duration-300 group-hover:translate-x-1"
                 />
               </div>
             </div>
@@ -172,55 +183,55 @@
         </div>
 
         <!-- Empty State (when no vessels exist and user can't create vessels) -->
-            <div v-if="vessels.length === 0 && !permissions.can_create_vessels" class="text-center py-12">
-              <h3 class="text-lg font-semibold text-foreground mb-2">
+            <div v-if="vessels.length === 0 && !permissions.can_create_vessels" class="text-center py-10">
+              <h3 class="text-base font-semibold text-foreground mb-1.5">
                 {{ t("You don't have any vessel yet") }}
               </h3>
-              <p class="text-muted-foreground mb-6">
+              <p class="text-sm text-muted-foreground mb-5">
                 {{ t('Get started by creating your first vessel or contact us for a subscription upgrade.') }}
               </p>
 
               <!-- CTA Card for Paid System -->
-              <div class="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-8 max-w-lg mx-auto">
-                <div class="flex items-center justify-center mb-4">
-                  <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Icon name="crown" class="h-6 w-6 text-primary" />
+              <div class="rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-6 max-w-lg mx-auto">
+                <div class="flex items-center justify-center mb-3">
+                  <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Icon name="crown" class="h-5 w-5 text-primary" />
                   </div>
                 </div>
-                <h4 class="text-xl font-semibold text-card-foreground mb-2">
+                <h4 class="text-lg font-semibold text-card-foreground mb-1.5">
                   {{ t('Upgrade to Paid System') }}
                 </h4>
-                <p class="text-sm text-muted-foreground mb-6">
+                <p class="text-xs text-muted-foreground mb-5">
                   {{ t('Get full access to vessel management, crew tracking, and financial operations with our professional plan.') }}
                 </p>
-                <div class="space-y-3">
-                  <div class="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Icon name="check" class="w-4 h-4 text-green-500" />
+                <div class="space-y-2">
+                  <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                    <Icon name="check" class="w-3.5 h-3.5 text-green-500" />
                     <span>{{ t('Unlimited vessel management') }}</span>
                   </div>
-                  <div class="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Icon name="check" class="w-4 h-4 text-green-500" />
+                  <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                    <Icon name="check" class="w-3.5 h-3.5 text-green-500" />
                     <span>{{ t('Crew member tracking') }}</span>
                   </div>
-                  <div class="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Icon name="check" class="w-4 h-4 text-green-500" />
+                  <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                    <Icon name="check" class="w-3.5 h-3.5 text-green-500" />
                     <span>{{ t('Financial operations') }}</span>
                   </div>
-                  <div class="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Icon name="check" class="w-4 h-4 text-green-500" />
+                  <div class="flex items-center space-x-2 text-xs text-muted-foreground">
+                    <Icon name="check" class="w-3.5 h-3.5 text-green-500" />
                     <span>{{ t('Priority support') }}</span>
                   </div>
                 </div>
-            <div class="mt-6">
+            <div class="mt-5">
               <a
                 href="mailto:geral@bindamy.site?subject=Vessel Management System - Upgrade Request"
-                class="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                class="inline-flex items-center px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
               >
-                <Icon name="mail" class="w-4 h-4 mr-2" />
+                <Icon name="mail" class="w-3.5 h-3.5 mr-1.5" />
                 {{ t('Contact for Upgrade') }}
               </a>
             </div>
-                <p class="text-xs text-muted-foreground mt-3">
+                <p class="text-xs text-muted-foreground mt-2.5">
                   {{ t('Email') }}: geral@bindamy.site
                 </p>
           </div>
@@ -309,6 +320,8 @@ interface Vessel {
   vessel_type: string
   status: string
   status_label: string
+  logo?: string | null
+  logo_url?: string | null
   user_role: string
   role_access?: {
     name: string
