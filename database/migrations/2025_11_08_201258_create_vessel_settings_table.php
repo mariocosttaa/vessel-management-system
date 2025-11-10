@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('country_code', 2)->nullable()->after('vessel_id');
             $table->string('currency_code', 3)->nullable()->after('country_code');
             $table->foreignId('vat_profile_id')->nullable()->after('currency_code')->constrained('vat_profiles')->onDelete('set null');
+            $table->integer('starting_marea_number')->nullable()->after('vat_profile_id')->default(1);
             $table->timestamps();
 
             // Foreign key constraints (skip for SQLite due to nullable foreign key issues)

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('monthly_balances', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('bank_account_id')->nullable()->constrained()->onDelete('cascade');
+            // Note: bank_account_id was removed as bank_accounts table was dropped
             $table->tinyInteger('month'); // 1-12
             $table->year('year');
 
@@ -31,7 +31,8 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['vessel_id', 'bank_account_id', 'year', 'month'], 'unique_balance');
+            // Updated unique constraint: removed bank_account_id
+            $table->unique(['vessel_id', 'year', 'month'], 'unique_balance');
             $table->index(['year', 'month']);
         });
     }

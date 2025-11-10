@@ -16,8 +16,7 @@ return new class extends Migration
             $table->foreignId('marea_id')->constrained('mareas')->onDelete('cascade');
             $table->string('name', 255); // Nome do produto/peixe (ex: "MERMA - PEQUENA", "MERMA - GRANDE", "REBENTADOS")
             $table->decimal('quantity', 10, 2); // Quantidade retornada
-            $table->bigInteger('unit_price')->nullable(); // Preço unitário em centavos (opcional, pode vir de transações)
-            $table->bigInteger('total_value')->nullable(); // Valor total em centavos (opcional, calculado)
+            // Note: unit_price and total_value were removed
             $table->text('notes')->nullable();
             $table->timestamps();
 
