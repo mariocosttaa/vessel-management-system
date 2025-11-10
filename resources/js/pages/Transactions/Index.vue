@@ -110,7 +110,20 @@ interface Props {
     transactions: {
         data: Transaction[];
         links: any[];
-        meta: any;
+        current_page?: number;
+        last_page?: number;
+        per_page?: number;
+        total?: number;
+        from?: number;
+        to?: number;
+        meta?: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
     };
     filters: {
         search?: string;
@@ -135,6 +148,9 @@ interface Props {
 const props = defineProps<Props>();
 const { canCreate, canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+
+// Computed property for transactions pagination (same pattern as Suppliers/CrewMembers)
+const paginatedTransactions = computed(() => props.transactions);
 
 // Modal states
 const showCreateAddModal = ref(false);
@@ -833,9 +849,9 @@ const clearFilters = () => {
 
             <!-- Pagination -->
             <Pagination
-                v-if="transactions?.links && transactions.links.length > 3"
-                :links="transactions.links"
-                :meta="transactions"
+                v-if="paginatedTransactions?.links && (paginatedTransactions.last_page ?? paginatedTransactions.meta?.last_page ?? 1) > 1"
+                :links="paginatedTransactions.links"
+                :meta="paginatedTransactions"
             />
         </div>
 
