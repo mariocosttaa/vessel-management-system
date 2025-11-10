@@ -24,9 +24,7 @@ import {
     Users,
     UserCog,
     Building2,
-    Wallet,
     Receipt,
-    Home,
     Settings,
     Ship,
     Calculator,
@@ -56,7 +54,7 @@ const mainNavItems = computed((): NavItem[] => {
     const vesselId = getCurrentVesselId();
     const items: NavItem[] = [];
 
-    // Core Section - Most Used Items (Dashboard, Marea, Transaction)
+    // Core Section - Most Used Items
     items.push({
         title: t('Dashboard'),
         href: `/panel/${vesselId}/dashboard`,
@@ -64,12 +62,25 @@ const mainNavItems = computed((): NavItem[] => {
         group: t('Core'),
     });
 
+    // Mareas with nested Distribution Profiles
     if (canView('mareas')) {
+        const mareaChildren: NavItem[] = [];
+
+        // Distribution Profiles nested under Mareas
+        if (canView('distribution-profiles')) {
+            mareaChildren.push({
+                title: t('Distribution Profiles'),
+                href: `/panel/${vesselId}/marea-distribution-profiles`,
+                icon: FileSpreadsheet,
+            });
+        }
+
         items.push({
             title: t('Mareas'),
             href: mareas.index.url({ vessel: vesselId }),
             icon: Ship,
             group: t('Core'),
+            children: mareaChildren.length > 0 ? mareaChildren : undefined,
         });
     }
 
@@ -82,111 +93,106 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
+    // Transactions with nested Transaction History
     if (canView('transactions')) {
+        const transactionChildren: NavItem[] = [];
+
+        // Transaction History nested under Transactions
+        if (hasPermission('reports.access')) {
+            transactionChildren.push({
+                title: t('Transaction History'),
+                href: `/panel/${vesselId}/transactions/history`,
+                icon: Calculator,
+            });
+        }
+
         items.push({
             title: t('Transactions'),
             href: transactions.index.url({ vessel: vesselId }),
             icon: Receipt,
             group: t('Core'),
+            children: transactionChildren.length > 0 ? transactionChildren : undefined,
         });
-        // Transaction History - requires reports.access permission
-        if (hasPermission('reports.access')) {
-            items.push({
-                title: t('Transaction History'),
-                href: `/panel/${vesselId}/transactions/history`,
-                icon: Calculator,
-                group: t('Core'),
-            });
-        }
     }
 
-    // Crew Management Section
+    // Crew Management Section with nested Crew Roles
     if (canView('crew')) {
+        const crewChildren: NavItem[] = [];
+
+        // Crew Roles nested under Crew Members
+        if (canView('crew-roles')) {
+            crewChildren.push({
+                title: t('Crew Roles'),
+                href: `/panel/${vesselId}/crew-roles`,
+                icon: UserCog,
+            });
+        }
+
         items.push({
             title: t('Crew Members'),
             href: crewMembers.index.url({ vessel: vesselId }),
             icon: Users,
             group: t('Crew Management'),
+            children: crewChildren.length > 0 ? crewChildren : undefined,
         });
     }
 
-    // Crew Roles - only for users with crew-roles view permission
-    if (canView('crew-roles')) {
+    // Reports Section - Financial Reports and VAT Reports
+    if (canView('transactions') && hasPermission('reports.access')) {
         items.push({
-            title: t('Crew Roles'),
-            href: `/panel/${vesselId}/crew-roles`,
-            icon: UserCog,
-            group: t('Crew Management'),
+            title: t('Financial Reports'),
+            href: financialReports.index.url({ vessel: vesselId }),
+            icon: BarChart3,
+            group: t('Reports'),
+        });
+        items.push({
+            title: t('VAT Reports'),
+            href: vatReports.index.url({ vessel: vesselId }),
+            icon: FileSpreadsheet,
+            group: t('Reports'),
         });
     }
 
-    // Financial Section
+    // Settings Section
+
+
+     // Financial Section
     if (canView('suppliers')) {
         items.push({
             title: t('Suppliers'),
             href: suppliers.index.url({ vessel: vesselId }),
             icon: Building2,
-            group: t('Financial'),
+            group: t('Others'),
         });
     }
 
-    if (canView('transactions')) {
-        // Financial Reports - requires reports.access permission
-        if (hasPermission('reports.access')) {
-            items.push({
-                title: t('Financial Reports'),
-                href: financialReports.index.url({ vessel: vesselId }),
-                icon: BarChart3,
-                group: t('Financial'),
-            });
-            items.push({
-                title: t('VAT Reports'),
-                href: vatReports.index.url({ vessel: vesselId }),
-                icon: FileSpreadsheet,
-                group: t('Financial'),
-            });
-        }
-    }
-
-    // Vessel Section - Distribution Profiles
-    if (canView('distribution-profiles')) {
-        items.push({
-            title: t('Distribution Profiles'),
-            href: `/panel/${vesselId}/marea-distribution-profiles`,
-            icon: Calculator,
-            group: t('Vessel'),
-        });
-    }
-
-    // Settings Section - Only for users with settings.access permission
     if (hasPermission('settings.access')) {
         items.push({
             title: t('Settings'),
             href: `/panel/${vesselId}/settings`,
             icon: Settings,
-            group: t('Settings'),
+            group: t('Others'),
         });
     }
 
-    // Recycle Bin - Only for users with recycle_bin.view permission
-    if (hasPermission('recycle_bin.view')) {
-        items.push({
-            title: t('Bin'),
-            href: `/panel/${vesselId}/recycle-bin`,
-            icon: Trash2,
-            group: t('Settings'),
-        });
-    }
 
-    // Auditory - Only for administrators
-    // Check if user has Administrator role (vessel role) or admin/administrator global roles
-    // The backend also checks for these roles, so we match that logic
+    // Audit Logs
     if (isAdmin.value || hasAnyRole(['administrator', 'admin'])) {
         items.push({
             title: t('Auditory'),
             href: `/panel/${vesselId}/audit-logs`,
             icon: FileText,
-            group: t('Settings'),
+            group: t('Others'),
+        });
+    }
+
+        // Recycle Bin
+        if (hasPermission('recycle_bin.view')) {
+        items.push({
+            title: t('Recycle Bin'),
+            href: `/panel/${vesselId}/recycle-bin`,
+            icon: Trash2,
+            group: t('Others'),
         });
     }
 
