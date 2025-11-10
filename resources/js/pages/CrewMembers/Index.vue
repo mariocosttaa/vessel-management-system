@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import DataTable from '@/components/ui/DataTable.vue';
+import { Select } from '@/components/ui/select';
 import Pagination from '@/components/ui/Pagination.vue';
 import CrewMemberCreateModal from '@/components/modals/CrewMember/create.vue';
 import CrewMemberUpdateModal from '@/components/modals/CrewMember/update.vue';
@@ -92,6 +93,23 @@ const vesselFilter = ref('');
 const positionFilter = ref(props.filters.position_id || '');
 const sortField = ref(props.filters.sort || 'created_at');
 const sortDirection = ref(props.filters.direction || 'desc');
+
+// Convert to Select component options format
+const statusOptions = computed(() => {
+    const options = [{ value: '', label: 'All Statuses' }];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const positionOptions = computed(() => {
+    const options = [{ value: '', label: 'All Positions' }];
+    props.positions.forEach(position => {
+        options.push({ value: String(position.id), label: position.name });
+    });
+    return options;
+});
 
 // Modal state
 const isCreateModalOpen = ref(false);
@@ -292,33 +310,23 @@ const formatDate = (dateString: string) => {
                     </div>
 
                     <!-- Status Filter -->
-                    <div class="relative min-w-[140px]">
-                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[140px]">
+                        <Select
                             v-model="statusFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Statuses</option>
-                            <option v-for="(label, value) in statuses" :key="value" :value="value">
-                                {{ label }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="statusOptions"
+                            placeholder="All Statuses"
+                            searchable
+                        />
                     </div>
 
                     <!-- Position Filter -->
-                    <div class="relative min-w-[150px]">
-                        <Icon name="user" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[150px]">
+                        <Select
                             v-model="positionFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Positions</option>
-                            <option v-for="position in positions" :key="position.id" :value="position.id">
-                                {{ position.name }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="positionOptions"
+                            placeholder="All Positions"
+                            searchable
+                        />
                     </div>
 
                     <!-- Clear Filters Button -->

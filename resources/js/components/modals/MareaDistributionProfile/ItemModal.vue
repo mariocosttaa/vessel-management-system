@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import Icon from '@/components/Icon.vue';
 import InputError from '@/components/InputError.vue';
@@ -105,6 +106,22 @@ const availableReferenceItems = computed(() => {
     return props.existingItems.filter((item, index) => item.order_index < props.orderIndex);
 });
 
+// Convert to Select component options format
+const valueTypeOptions = computed(() => {
+    return valueTypes.map(type => ({
+        value: type.value,
+        label: `${type.label} - ${type.description}`
+    }));
+});
+
+const referenceItemOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a step' }];
+    availableReferenceItems.value.forEach(item => {
+        options.push({ value: item.order_index, label: `Step ${item.order_index}: ${item.name}` });
+    });
+    return options;
+});
+
 const getOperationInfo = (operation: string) => {
     return operations.find(op => op.value === operation) || operations[0];
 };
@@ -199,19 +216,12 @@ const handleSave = () => {
                 <!-- Value Type -->
                 <div>
                     <Label for="value_type">Value Type *</Label>
-                    <select
+                    <Select
                         id="value_type"
                         v-model="form.value_type"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option
-                            v-for="type in valueTypes"
-                            :key="type.value"
-                            :value="type.value"
-                        >
-                            {{ type.label }} - {{ type.description }}
-                        </option>
-                    </select>
+                        :options="valueTypeOptions"
+                        :error="!!errors.value_type"
+                    />
                     <p class="text-xs text-muted-foreground mt-1">{{ selectedValueType?.description }}</p>
                 </div>
 
@@ -237,21 +247,13 @@ const handleSave = () => {
                 <!-- Reference Item (for reference_item type) -->
                 <div v-if="form.value_type === 'reference_item'">
                     <Label for="reference_item_order_index">Reference Step *</Label>
-                    <select
+                    <Select
                         id="reference_item_order_index"
-                        v-model.number="form.reference_item_order_index"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        :class="{ 'border-destructive': errors.reference_item_order_index }"
-                    >
-                        <option :value="null">Select a step</option>
-                        <option
-                            v-for="refItem in availableReferenceItems"
-                            :key="refItem.order_index"
-                            :value="refItem.order_index"
-                        >
-                            Step {{ refItem.order_index }}: {{ refItem.name }}
-                        </option>
-                    </select>
+                        v-model="form.reference_item_order_index"
+                        :options="referenceItemOptions"
+                        placeholder="Select a step"
+                        :error="!!errors.reference_item_order_index"
+                    />
                     <InputError v-if="errors.reference_item_order_index" :message="errors.reference_item_order_index" class="mt-1" />
                     <p class="text-xs text-muted-foreground mt-1">
                         Select a previous step to use its result as the value

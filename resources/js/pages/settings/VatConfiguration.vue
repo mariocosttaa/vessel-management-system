@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
@@ -35,6 +37,18 @@ const { addNotification } = useNotifications();
 
 const form = useForm({
     default_vat_profile_id: props.defaultVatProfileId as number | null,
+});
+
+// Convert to Select component options format
+const vatProfileOptions = computed(() => {
+    const options = [{ value: null, label: 'No default VAT profile' }];
+    props.vatProfiles.forEach(profile => {
+        const countryPart = profile.country ? ` (${profile.country.name})` : '';
+        const defaultPart = profile.is_default ? ' (Default)' : '';
+        const label = `${profile.name}${countryPart} - ${profile.percentage}%${defaultPart}`;
+        options.push({ value: profile.id, label });
+    });
+    return options;
 });
 
 const submit = () => {
@@ -79,23 +93,14 @@ const breadcrumbItems: BreadcrumbItem[] = [
                 <form @submit.prevent="submit" class="space-y-6">
                     <div class="space-y-2">
                         <Label for="default_vat_profile_id">Default VAT Profile</Label>
-                        <select
+                        <Select
                             id="default_vat_profile_id"
                             v-model="form.default_vat_profile_id"
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            :class="{ 'border-destructive dark:border-destructive': form.errors.default_vat_profile_id }"
-                        >
-                            <option :value="null">No default VAT profile</option>
-                            <option
-                                v-for="profile in vatProfiles"
-                                :key="profile.id"
-                                :value="profile.id"
-                            >
-                                {{ profile.name }}
-                                <span v-if="profile.country">({{ profile.country.name }})</span>
-                                - {{ profile.percentage }}%
-                            </option>
-                        </select>
+                            :options="vatProfileOptions"
+                            placeholder="No default VAT profile"
+                            searchable
+                            :error="!!form.errors.default_vat_profile_id"
+                        />
                         <InputError :message="form.errors.default_vat_profile_id" />
                         <p class="text-sm text-muted-foreground">
                             This VAT profile will be used as the default for new transactions when no specific profile is selected.
