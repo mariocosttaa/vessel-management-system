@@ -13,6 +13,7 @@ use App\Models\Vessel;
 use App\Models\VesselSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class VesselSettingController extends Controller
@@ -76,18 +77,70 @@ class VesselSettingController extends Controller
 
             // Get the vessel and update
             $vessel = Vessel::findOrFail($vesselId);
-            $vessel->update([
-                'name' => $request->name,
-                'registration_number' => $request->registration_number,
-                'vessel_type' => $request->vessel_type,
-                'capacity' => $request->capacity,
-                'year_built' => $request->year_built,
-                'status' => $request->status,
-                'notes' => $request->notes,
+
+            // Log received data for debugging
+            Log::info('Vessel settings update request', [
+                'method' => $request->method(),
+                'vessel_id' => $vesselId,
+                'has_logo_file' => $request->hasFile('logo'),
+                'remove_logo' => $request->boolean('remove_logo'),
+                'all_input_keys' => array_keys($request->all()),
+                'received_fields' => [
+                    'name' => $request->has('name') ? 'present' : 'missing',
+                    'registration_number' => $request->has('registration_number') ? 'present' : 'missing',
+                    'vessel_type' => $request->has('vessel_type') ? 'present' : 'missing',
+                    'status' => $request->has('status') ? 'present' : 'missing',
+                    'capacity' => $request->has('capacity') ? 'present' : 'missing',
+                    'year_built' => $request->has('year_built') ? 'present' : 'missing',
+                    'notes' => $request->has('notes') ? 'present' : 'missing',
+                ],
+                'field_values' => [
+                    'name' => $request->input('name'),
+                    'registration_number' => $request->input('registration_number'),
+                    'vessel_type' => $request->input('vessel_type'),
+                    'status' => $request->input('status'),
+                    'capacity' => $request->input('capacity'),
+                    'year_built' => $request->input('year_built'),
+                    'notes' => $request->input('notes'),
+                ],
+                'content_type' => $request->header('Content-Type'),
+                'is_json' => $request->isJson(),
             ]);
 
-            return redirect()
-                ->route('panel.settings.edit', ['vessel' => $vesselId])
+            $updateData = [
+                'name' => $request->input('name'),
+                'registration_number' => $request->input('registration_number'),
+                'vessel_type' => $request->input('vessel_type'),
+                'capacity' => $request->input('capacity'),
+                'year_built' => $request->input('year_built'),
+                'status' => $request->input('status'),
+                'notes' => $request->input('notes'),
+            ];
+
+            // Handle logo upload
+            if ($request->hasFile('logo')) {
+                // Delete old logo if exists
+                if ($vessel->logo && Storage::disk('public')->exists($vessel->logo)) {
+                    Storage::disk('public')->delete($vessel->logo);
+                }
+
+                // Store new logo
+                $logoPath = $request->file('logo')->store('vessels/logos', 'public');
+                $updateData['logo'] = $logoPath;
+            } elseif ($request->boolean('remove_logo')) {
+                // Delete logo if remove_logo is true
+                if ($vessel->logo && Storage::disk('public')->exists($vessel->logo)) {
+                    Storage::disk('public')->delete($vessel->logo);
+                }
+                $updateData['logo'] = null;
+            }
+
+            $vessel->update($updateData);
+
+            // Reload vessel to get updated logo URL
+            $vessel->refresh();
+
+            return back()
                 ->with('success', 'Vessel information has been updated successfully.')
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {

@@ -33,6 +33,8 @@ class VesselSelectorController extends Controller
                     'vessel_type' => $vessel->vessel_type,
                     'status' => $vessel->status,
                     'status_label' => $vessel->status_label,
+                    'logo' => $vessel->logo,
+                    'logo_url' => $vessel->logo_url,
                     'user_role' => $user->getRoleForVessel($vessel->id),
                     'role_access' => $roleAccess ? [
                         'name' => $roleAccess->name,
