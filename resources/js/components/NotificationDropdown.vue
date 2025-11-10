@@ -93,6 +93,19 @@ const getDotColor = (action: string) => {
     }
 };
 
+// Format date and time for display
+const formatDateTime = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
 // Get audit logs page URL
 const getAuditLogsUrl = () => {
     const vesselId = getCurrentVesselId();
@@ -162,6 +175,11 @@ const shouldShow = computed(() => isAdmin.value);
                 >
                     <!-- Notification Message -->
                     <div class="flex-1 min-w-0">
+                        <!-- Date and Time -->
+                        <p class="text-xs text-muted-foreground mb-1.5">
+                            {{ formatDateTime(log.created_at) }}
+                        </p>
+                        <!-- Message -->
                         <p class="text-sm text-card-foreground leading-relaxed">
                             {{ log.message }}
                         </p>
