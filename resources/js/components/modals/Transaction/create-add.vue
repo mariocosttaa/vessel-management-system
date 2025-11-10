@@ -5,6 +5,7 @@ import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
@@ -520,13 +521,11 @@ const submit = () => {
                     <!-- Transaction Date -->
                     <div class="space-y-2">
                         <Label for="transaction_date">Transaction Date <span class="text-destructive">*</span></Label>
-                        <Input
+                        <DateInput
                             id="transaction_date"
                             v-model="form.transaction_date"
-                            type="date"
                             :max="new Date().toISOString().split('T')[0]"
                             :class="{ 'border-destructive dark:border-destructive': form.errors.transaction_date }"
-                            required
                         />
                         <InputError :message="form.errors.transaction_date" />
                     </div>
@@ -628,7 +627,7 @@ const submit = () => {
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <!-- File Upload -->
                         <div class="space-y-2">
-                            <Label class="text-base font-semibold">Attach Files</Label>
+                            <Label class="text-base font-semibold"></Label>
                             <MultiFileUpload
                                 ref="fileUploadRef"
                                 v-model="selectedFiles"
