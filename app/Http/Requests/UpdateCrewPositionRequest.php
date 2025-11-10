@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
  * Input fields:
  * @property string $name
  * @property string|null $description
+ * @property int|null $vessel_role_access_id
  *
  * Route parameters:
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -94,6 +95,11 @@ class UpdateCrewPositionRequest extends FormRequest
                     }),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
+            'vessel_role_access_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
+            ],
         ];
     }
 
