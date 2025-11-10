@@ -4,8 +4,8 @@ import { Head, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import { DateInput } from '@/components/ui/date-input';
-import DataTable from '@/components/ui/DataTable.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import AuditLogDetailsModal from '@/components/modals/AuditLog/Details.vue';
 
 // Get current vessel ID from URL (if available)
 const getCurrentVesselId = () => {
@@ -18,9 +18,11 @@ interface AuditLog {
     id: number;
     user_id: number | null;
     user_name: string;
+    user_email: string | null;
     model_type: string;
     model_id: number | null;
     model_name: string;
+    page_name: string;
     action: string;
     message: string;
     vessel_id: number | null;
@@ -87,27 +89,53 @@ const dateFromFilter = ref(props.filters.date_from || '');
 const dateToFilter = ref(props.filters.date_to || '');
 const vesselIdFilter = ref(props.filters.vessel_id || '');
 
-// Table configuration
-const columns = [
-    { key: 'created_at', label: 'Date & Time', sortable: true },
-    { key: 'user_name', label: 'User', sortable: false },
-    { key: 'action', label: 'Action', sortable: false },
-    { key: 'model_name', label: 'Model', sortable: false },
-    { key: 'message', label: 'Message', sortable: false },
-    { key: 'vessel_name', label: 'Vessel', sortable: false },
-];
+// Selected audit log for modal
+const selectedAuditLog = ref<AuditLog | null>(null);
+const isModalOpen = ref(false);
 
-// Action badges colors
-const getActionBadgeClass = (action: string) => {
+// Open modal with audit log details
+const openModal = (auditLog: AuditLog) => {
+    selectedAuditLog.value = auditLog;
+    isModalOpen.value = true;
+};
+
+// Close modal
+const closeModal = () => {
+    isModalOpen.value = false;
+    selectedAuditLog.value = null;
+};
+
+// Get card classes based on action type (for color coding)
+const getCardClasses = (action: string) => {
+    const baseClasses = 'p-4 cursor-pointer transition-all duration-200 border-l-4 rounded-lg';
+
     switch (action) {
         case 'create':
-            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            // Success/Green - for create actions
+            return `${baseClasses} bg-green-50/60 dark:bg-green-900/15 border-green-500 hover:bg-green-50 dark:hover:bg-green-900/25 hover:shadow-md hover:border-green-600`;
         case 'update':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+            // Info/Blue - for update actions
+            return `${baseClasses} bg-blue-50/60 dark:bg-blue-900/15 border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/25 hover:shadow-md hover:border-blue-600`;
         case 'delete':
-            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+            // Danger/Red - for delete actions
+            return `${baseClasses} bg-red-50/60 dark:bg-red-900/15 border-red-500 hover:bg-red-50 dark:hover:bg-red-900/25 hover:shadow-md hover:border-red-600`;
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+            // Default/Gray - for unknown actions
+            return `${baseClasses} bg-card dark:bg-card border-sidebar-border/70 hover:bg-muted/30 dark:hover:bg-muted/20 hover:shadow-sm`;
+    }
+};
+
+// Get text color classes based on action type
+const getTextClasses = (action: string) => {
+    switch (action) {
+        case 'create':
+            return 'text-green-900 dark:text-green-200';
+        case 'update':
+            return 'text-blue-900 dark:text-blue-200';
+        case 'delete':
+            return 'text-red-900 dark:text-red-200';
+        default:
+            return 'text-card-foreground dark:text-card-foreground';
     }
 };
 
@@ -172,23 +200,23 @@ const breadcrumbs = computed(() => {
     const id = vesselId.value;
     return id
         ? [
-              { title: 'Audit Logs', href: `/panel/${id}/audit-logs` }
+              { title: 'Auditory', href: `/panel/${id}/audit-logs` }
           ]
         : [
-              { title: 'Audit Logs', href: '/audit-logs' }
+              { title: 'Auditory', href: '/audit-logs' }
           ];
 });
 </script>
 
 <template>
-    <Head title="Audit Logs - Monitoring" />
+    <Head title="Auditory - Monitoring" />
 
-    <VesselLayout :breadcrumbs="breadcrumbs.value">
+    <VesselLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div>
-                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Audit Logs</h1>
+                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Auditory</h1>
                     <p class="text-muted-foreground dark:text-muted-foreground mt-1">Monitor all system activities and user actions</p>
                 </div>
             </div>
@@ -223,13 +251,13 @@ const breadcrumbs = computed(() => {
                         <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
-                    <!-- Model Type Filter -->
+                    <!-- Page Type Filter -->
                     <div class="relative">
                         <select
                             v-model="modelTypeFilter"
                             class="w-full pl-3 pr-10 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none"
                         >
-                            <option value="">All Models</option>
+                            <option value="">All Pages</option>
                             <option v-for="modelType in modelTypes" :key="modelType.value" :value="modelType.value">
                                 {{ modelType.label }}
                             </option>
@@ -294,70 +322,38 @@ const breadcrumbs = computed(() => {
                 </div>
             </div>
 
-            <!-- Data Table -->
-            <DataTable
-                :columns="columns"
-                :data="auditLogsData"
-                :clickable="false"
-                :actions="[]"
-                :loading="false"
-                empty-message="No audit logs found"
-            >
-                <!-- Custom cell for date -->
-                <template #cell-created_at="{ item }">
-                    <div>
-                        <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            {{ formatDate(item.created_at) }}
-                        </div>
-                        <div class="text-xs text-muted-foreground dark:text-muted-foreground">
-                            {{ item.created_at_human }}
-                        </div>
-                    </div>
-                </template>
+            <!-- Auditory List -->
+                <div v-if="auditLogsData.length === 0" class="p-12 text-center">
+                    <p class="text-muted-foreground dark:text-muted-foreground">No audit logs found</p>
+                </div>
 
-                <!-- Custom cell for user -->
-                <template #cell-user_name="{ item }">
-                    <div class="text-sm text-card-foreground dark:text-card-foreground">
-                        {{ item.user_name }}
-                    </div>
-                </template>
-
-                <!-- Custom cell for action -->
-                <template #cell-action="{ item }">
-                    <span
-                        :class="[
-                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                            getActionBadgeClass(item.action)
-                        ]"
+                <div v-else class="space-y-3">
+                    <div
+                        v-for="log in auditLogsData"
+                        :key="log.id"
+                        @click="openModal(log)"
+                        :class="getCardClasses(log.action)"
                     >
-                        {{ item.action.charAt(0).toUpperCase() + item.action.slice(1) }}
-                    </span>
-                </template>
+                        <div class="flex items-start justify-between gap-4">
+                            <!-- Message (left side) -->
+                            <div class="flex-1 min-w-0">
+                                <p :class="['text-sm font-medium leading-relaxed', getTextClasses(log.action)]">
+                                    {{ log.message }}
+                                </p>
+                            </div>
 
-                <!-- Custom cell for model -->
-                <template #cell-model_name="{ item }">
-                    <div class="text-sm text-card-foreground dark:text-card-foreground">
-                        {{ item.model_name }}
+                            <!-- Date & Time (right side, upper) -->
+                            <div class="flex-shrink-0 text-right">
+                                <div :class="['text-xs font-semibold', getTextClasses(log.action)]">
+                                    {{ formatDate(log.created_at) }}
+                                </div>
+                                <div class="text-xs opacity-70 mt-0.5" :class="getTextClasses(log.action)">
+                                    {{ log.created_at_human }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div v-if="item.model_id" class="text-xs text-muted-foreground dark:text-muted-foreground">
-                        ID: {{ item.model_id }}
-                    </div>
-                </template>
-
-                <!-- Custom cell for message -->
-                <template #cell-message="{ item }">
-                    <div class="text-sm text-card-foreground dark:text-card-foreground max-w-md">
-                        {{ item.message }}
-                    </div>
-                </template>
-
-                <!-- Custom cell for vessel -->
-                <template #cell-vessel_name="{ item }">
-                    <div class="text-sm text-card-foreground dark:text-card-foreground">
-                        {{ item.vessel_name || '-' }}
-                    </div>
-                </template>
-            </DataTable>
+                </div>
 
             <!-- Pagination -->
             <Pagination
@@ -366,6 +362,13 @@ const breadcrumbs = computed(() => {
                 :meta="paginatedAuditLogs.meta"
             />
         </div>
+
+        <!-- Auditoryog Details Modal -->
+        <AuditLogDetailsModal
+            :audit-log="selectedAuditLog"
+            :is-open="isModalOpen"
+            @close="closeModal"
+        />
     </VesselLayout>
 </template>
 
