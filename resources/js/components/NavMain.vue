@@ -17,15 +17,15 @@ const props = defineProps<{
 
 const page = usePage();
 
-// Define the order of groups for consistent display
-const groupOrder = ['Platform', 'Crew Management', 'Financial', 'Vessel', 'Settings'];
+// Define the order of groups for consistent display - Core items first
+const groupOrder = ['Core', 'Crew Management', 'Financial', 'Vessel', 'Settings'];
 
-// Group items by their group property, or use 'Platform' as default
+// Group items by their group property, or use 'Core' as default
 const groupedItems = computed(() => {
     const groups: Record<string, NavItem[]> = {};
 
     props.items.forEach((item) => {
-        const group = item.group || 'Platform';
+        const group = item.group || 'Core';
         if (!groups[group]) {
             groups[group] = [];
         }
@@ -55,9 +55,9 @@ const groupedItems = computed(() => {
 
 <template>
     <template v-for="group in groupedItems" :key="group.label">
-        <SidebarGroup class="px-2 py-0">
+        <SidebarGroup class="px-2 py-1 first:pt-1">
             <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
-            <SidebarMenu>
+            <SidebarMenu class="mt-1 space-y-0.5">
                 <SidebarMenuItem v-for="item in group.items" :key="item.title">
                     <SidebarMenuButton
                         as-child
