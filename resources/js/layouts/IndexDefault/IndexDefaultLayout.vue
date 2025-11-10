@@ -4,8 +4,8 @@
     <Navbar :user="user" />
 
     <!-- Breadcrumbs -->
-    <div v-if="breadcrumbs && breadcrumbs.length > 0" class="pt-4 pb-2 dark:bg-[#121212] bg-background">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div v-if="breadcrumbs && breadcrumbs.length > 0" class="pt-8 pb-3 dark:bg-[#121212] bg-background">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav class="flex items-center space-x-2">
           <Icon name="home" class="w-4 h-4 text-muted-foreground" />
           <template v-for="(breadcrumb, index) in breadcrumbs" :key="index">

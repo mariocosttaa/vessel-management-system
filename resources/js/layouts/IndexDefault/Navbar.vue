@@ -3,11 +3,11 @@
     <!-- Floating scroll indicator when navbar is hidden -->
     <div
       v-if="!isNavbarVisible"
-      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 bg-card/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg border border-border transition-all duration-500 ease-in-out"
+      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 bg-card/50 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg border border-border/50 transition-all duration-500 ease-in-out"
     >
       <div class="flex items-center space-x-2 text-xs text-muted-foreground">
         <Icon name="chevron-up" class="w-4 h-4 animate-bounce" />
-        <span>Scroll up for navigation</span>
+        <span>{{ t('Scroll up for navigation') }}</span>
       </div>
     </div>
 
@@ -18,56 +18,72 @@
         isScrolled ? 'top-0' : 'top-4'
       ]"
     >
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-4xl px-4 sm:px-6">
         <div
           :class="[
-            'grid grid-cols-3 items-center rounded-2xl border px-4 md:px-6 will-change-transform transition-all duration-300 ring-1',
-            isScrolled ? 'h-12 lg:h-14' : 'h-14 lg:h-16',
+            'grid grid-cols-3 items-center rounded-lg border px-3 md:px-4 will-change-transform transition-all duration-300 ring-1',
+            isScrolled ? 'h-14' : 'h-16',
             isScrolled
-              ? 'bg-card/90 backdrop-blur-xl border-border shadow-xl ring-ring/10'
-              : 'bg-card/60 backdrop-blur-md border-border/60 shadow-lg ring-ring/5'
+              ? 'bg-card/40 backdrop-blur-xl border-border/50 shadow-lg ring-ring/5'
+              : 'bg-card/30 backdrop-blur-md border-border/40 shadow-md ring-ring/3'
           ]"
         >
           <!-- Left: Logo -->
           <div class="flex items-center">
             <button
               @click="goToVesselSelector"
-              class="flex items-center space-x-2.5"
+              class="flex items-center space-x-2"
             >
-              <div class="bg-primary rounded-full p-2">
-                <Icon name="ship" class="h-5 w-5 text-primary-foreground" />
+              <div class="bg-primary/80 rounded-full p-1.5">
+                <Icon name="ship" class="h-4 w-4 text-primary-foreground" />
               </div>
-              <div class="text-left">
-                <h1 class="text-base font-semibold text-foreground lg:text-lg">
-                  Bindamy Mareas
+              <div class="text-left hidden sm:block">
+                <h1 class="text-sm font-semibold text-foreground leading-tight">
+                  {{ t('Bindamy Mareas') }}
                 </h1>
-                <p class="text-xs text-muted-foreground -mt-1">
-                  Vessel Management
+                <p class="text-xs text-muted-foreground -mt-0.5 leading-tight opacity-80">
+                  {{ t('Vessel Management') }}
                 </p>
               </div>
             </button>
           </div>
 
           <!-- Center: Desktop Navigation -->
-          <div class="hidden md:flex items-center justify-center space-x-2 lg:space-x-3">
+          <div class="hidden md:flex items-center justify-center space-x-2">
+            <button
+              @click="goToHome"
+              :class="[
+                'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 hover:underline underline-offset-4 decoration-muted-foreground',
+                isHomePage
+                  ? 'text-foreground bg-muted/60 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              ]"
+            >
+              {{ t('Home') }}
+            </button>
             <button
               @click="goToProfile"
               :class="[
-                'px-3 py-2 rounded-lg text-[15px] font-medium transition-all duration-200 hover:underline underline-offset-8 decoration-muted-foreground hover:scale-105',
+                'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 hover:underline underline-offset-4 decoration-muted-foreground',
                 isProfilePage
-                  ? 'text-foreground bg-muted shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:shadow-sm'
+                  ? 'text-foreground bg-muted/60 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               ]"
             >
-              Profile
+              {{ t('Profile') }}
             </button>
           </div>
 
-          <!-- Right: Theme Toggle & User Menu -->
+          <!-- Right: Language Switcher, Theme Toggle & User Menu -->
           <div class="flex items-center justify-end gap-2">
+            <!-- Desktop Language Switcher -->
+            <div class="hidden md:flex items-center">
+              <LanguageSwitcher />
+            </div>
+
             <!-- Desktop Theme Toggle -->
             <div class="hidden md:flex items-center">
-              <div class="flex items-center space-x-1 px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors duration-200">
+              <div class="flex items-center space-x-1 px-2 py-1.5 rounded-md hover:bg-muted/40 transition-colors duration-200">
                 <ThemeToggle />
               </div>
             </div>
@@ -76,10 +92,10 @@
             <div class="relative">
               <button
                 @click="toggleDropdown"
-                class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-muted transition-all duration-200"
-                title="User Menu"
+                class="flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/40 transition-all duration-200"
+                :title="t('User Menu')"
               >
-                <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                <div class="h-8 w-8 rounded-full bg-primary/80 flex items-center justify-center">
                   <span class="text-sm font-semibold text-primary-foreground">
                     {{ userInitials }}
                   </span>
@@ -102,11 +118,11 @@
               >
                 <div
                   v-if="showDropdown"
-                  class="absolute right-0 mt-2 w-64 rounded-xl shadow-xl bg-card border border-border z-50 overflow-hidden"
+                  class="absolute right-0 mt-2 w-64 rounded-xl shadow-xl bg-card/90 backdrop-blur-xl border border-border/50 z-50 overflow-hidden"
                 >
                   <div class="py-2">
                     <!-- User Info -->
-                    <div class="px-4 py-3 border-b border-border bg-muted">
+                    <div class="px-4 py-3 border-b border-border/50 bg-muted/60">
                       <p class="text-sm font-semibold text-card-foreground">
                         {{ user.name }}
                       </p>
@@ -119,17 +135,17 @@
                     <div class="py-1">
                       <button
                         @click="goToProfile"
-                        class="flex items-center w-full px-4 py-3 text-sm text-card-foreground hover:bg-muted transition-all duration-200"
+                        class="flex items-center w-full px-4 py-3 text-sm text-card-foreground hover:bg-muted/40 transition-all duration-200"
                       >
                         <Icon name="user" class="w-4 h-4 mr-3 text-muted-foreground" />
-                        <span>Profile Settings</span>
+                        <span>{{ t('Profile Settings') }}</span>
                       </button>
                       <button
                         @click="logout"
                         class="flex items-center w-full px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-all duration-200"
                       >
                         <Icon name="log-out" class="w-4 h-4 mr-3 text-destructive" />
-                        <span>Logout</span>
+                        <span>{{ t('Logout') }}</span>
                       </button>
                     </div>
                   </div>
@@ -141,7 +157,7 @@
             <div class="md:hidden">
               <button
                 @click="toggleMobileMenu"
-                class="p-1.5 hover:bg-muted rounded-lg transition-colors duration-200"
+                class="p-1.5 hover:bg-muted/40 rounded-md transition-colors duration-200"
               >
                 <Icon :name="isMobileMenuOpen ? 'x' : 'menu'" class="h-5 w-5 text-muted-foreground" />
               </button>
@@ -158,26 +174,36 @@
           leave-from-class="transform scale-100 opacity-100"
           leave-to-class="transform scale-95 opacity-0"
         >
-          <div v-if="isMobileMenuOpen" class="space-y-1 border-t border-border bg-card/70 backdrop-blur-md py-3 md:hidden rounded-2xl mx-4 mt-2 shadow-lg ring-1 ring-border">
+          <div v-if="isMobileMenuOpen" class="space-y-1 border-t border-border/50 bg-card/50 backdrop-blur-md py-3 md:hidden rounded-xl mx-4 mt-2 shadow-lg ring-1 ring-border/30">
             <nav class="space-y-1">
+              <button
+                @click="goToHome"
+                :class="[
+                  'block px-4 py-2.5 rounded-lg mx-2 transition-all duration-200',
+                  isHomePage
+                    ? 'font-medium text-card-foreground bg-muted/60 shadow-sm'
+                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
+                ]"
+              >
+                {{ t('Home') }}
+              </button>
               <button
                 @click="goToProfile"
                 :class="[
-                  'block px-4 py-2.5 rounded-lg mx-2 transition-all duration-200 hover:scale-105',
+                  'block px-4 py-2.5 rounded-lg mx-2 transition-all duration-200',
                   isProfilePage
-                    ? 'font-medium text-card-foreground bg-muted shadow-sm'
-                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/80 hover:shadow-sm'
+                    ? 'font-medium text-card-foreground bg-muted/60 shadow-sm'
+                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
                 ]"
               >
-                Profile
+                {{ t('Profile') }}
               </button>
             </nav>
 
-            <!-- Mobile Theme Toggle -->
-            <div class="flex items-center justify-center px-4 py-3 border-t border-border">
-              <div class="flex items-center space-x-2">
-                <ThemeToggle />
-              </div>
+            <!-- Mobile Language Switcher & Theme Toggle -->
+            <div class="flex items-center justify-center px-4 py-3 border-t border-border/50 gap-3">
+              <LanguageSwitcher />
+              <ThemeToggle />
             </div>
           </div>
         </Transition>
@@ -191,6 +217,8 @@ import { computed, ref, onMounted, onUnmounted, Transition } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { useI18n } from '@/composables/useI18n'
 
 interface User {
   id: number
@@ -204,6 +232,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const page = usePage()
+const { t } = useI18n()
 
 const showDropdown = ref(false)
 const isMobileMenuOpen = ref(false)
@@ -220,6 +249,11 @@ const userInitials = computed(() => {
     .slice(0, 2)
 })
 
+const isHomePage = computed(() => {
+  const url = page.props.url || window.location.pathname
+  return url === '/panel' || url === '/panel/'
+})
+
 const isProfilePage = computed(() => {
   const url = page.props.url || window.location.pathname
   return url === '/panel/profile'
@@ -231,6 +265,12 @@ const toggleDropdown = () => {
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
+}
+
+const goToHome = () => {
+  showDropdown.value = false
+  isMobileMenuOpen.value = false
+  router.visit('/panel')
 }
 
 const goToVesselSelector = () => {
