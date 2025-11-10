@@ -208,25 +208,30 @@ const handleMouseDownOutside = (event: MouseEvent) => {
   
   // Check if mousedown is on this date input's container or popup
   if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
-    // Mousedown is inside this date input
+    // Mousedown is inside this date input, don't close
     return
   }
 
-  // If mousedown is outside this date input, close it
-  // The manager will handle opening another input if that's what was clicked
+  // Check if clicking on another date input
+  const clickedDateInput = (target as HTMLElement)?.closest('[data-date-input-container]')
+  if (clickedDateInput && clickedDateInput !== containerRef.value && clickedDateInput !== popupRef.value) {
+    // Clicking on another date input - close this one immediately
+    // The other input's focus handler will open it via the manager
+    if (isOpen.value) {
+      closePopup()
+    }
+    return
+  }
+
+  // If mousedown is outside all date inputs, close this one
   if (isOpen.value) {
-    // Use setTimeout to allow the focus event of the clicked element to fire first
+    // Small delay to ensure we're not interfering with other events
     setTimeout(() => {
-      // Double-check that we're still open and the click wasn't on another date input
-      if (isOpen.value) {
-        const activeElement = document.activeElement
-        // If focus moved to another input, the manager should have handled it
-        // Otherwise, close this one
-        if (!activeElement || activeElement !== inputRef.value) {
-          closePopup()
-        }
+      // Only close if still open and not focused
+      if (isOpen.value && document.activeElement !== inputRef.value) {
+        closePopup()
       }
-    }, 10)
+    }, 0)
   }
 }
 
