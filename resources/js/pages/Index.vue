@@ -6,10 +6,10 @@
         <!-- Simple Header (only show if user has permission to create vessels) -->
         <div v-if="permissions.can_create_vessels" class="text-center mb-8">
           <h1 class="text-4xl font-bold text-foreground mb-4">
-            Your Vessels
+            {{ t('Your Vessels') }}
           </h1>
           <p class="text-lg text-muted-foreground">
-            Choose a vessel to manage its financial operations
+            {{ t('Choose a vessel to manage its financial operations') }}
           </p>
         </div>
 
@@ -26,10 +26,10 @@
                 <Icon name="plus" class="w-6 h-6 text-primary" />
               </div>
               <h3 class="text-lg font-semibold text-card-foreground mb-2 group-hover:text-primary transition-colors">
-                Create New Vessel
+                {{ t('Create New Vessel') }}
               </h3>
               <p class="text-sm text-muted-foreground">
-                Add a new vessel to your fleet
+                {{ t('Add a new vessel to your fleet') }}
               </p>
             </div>
           </div>
@@ -64,11 +64,11 @@
                   </div>
                   <div class="flex items-center text-sm text-muted-foreground">
                     <Icon name="users" class="w-4 h-4 mr-2" />
-                    {{ vessel.crew_count }} crew members
+                    {{ vessel.crew_count }} {{ t('crew members') }}
                   </div>
                   <div class="flex items-center text-sm text-muted-foreground">
                     <Icon name="receipt" class="w-4 h-4 mr-2" />
-                    {{ vessel.transaction_count }} transactions
+                    {{ vessel.transaction_count }} {{ t('transactions') }}
                   </div>
                 </div>
 
@@ -88,7 +88,7 @@
                   v-if="vessel.permissions.can_edit"
                   @click.stop="editVessel(vessel.id)"
                   class="p-1 text-muted-foreground hover:text-primary transition-colors"
-                  title="Edit vessel"
+                  :title="t('Edit vessel')"
                 >
                   <Icon name="edit" class="w-4 h-4" />
                 </button>
@@ -98,7 +98,7 @@
                   v-if="vessel.permissions.can_delete"
                   @click.stop="deleteVessel(vessel.id, vessel.name)"
                   class="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete vessel"
+                  :title="t('Delete vessel')"
                 >
                   <Icon name="trash-2" class="w-4 h-4" />
                 </button>
@@ -113,10 +113,10 @@
         <!-- Empty State (when no vessels exist and user can't create vessels) -->
             <div v-if="vessels.length === 0 && !permissions.can_create_vessels" class="text-center py-12">
               <h3 class="text-lg font-semibold text-foreground mb-2">
-                You don't have any vessel yet
+                {{ t("You don't have any vessel yet") }}
               </h3>
               <p class="text-muted-foreground mb-6">
-                Get started by creating your first vessel or contact us for a subscription upgrade.
+                {{ t('Get started by creating your first vessel or contact us for a subscription upgrade.') }}
               </p>
 
               <!-- CTA Card for Paid System -->
@@ -127,27 +127,27 @@
                   </div>
                 </div>
                 <h4 class="text-xl font-semibold text-card-foreground mb-2">
-                  Upgrade to Paid System
+                  {{ t('Upgrade to Paid System') }}
                 </h4>
                 <p class="text-sm text-muted-foreground mb-6">
-                  Get full access to vessel management, crew tracking, and financial operations with our professional plan.
+                  {{ t('Get full access to vessel management, crew tracking, and financial operations with our professional plan.') }}
                 </p>
                 <div class="space-y-3">
                   <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Icon name="check" class="w-4 h-4 text-green-500" />
-                    <span>Unlimited vessel management</span>
+                    <span>{{ t('Unlimited vessel management') }}</span>
                   </div>
                   <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Icon name="check" class="w-4 h-4 text-green-500" />
-                    <span>Crew member tracking</span>
+                    <span>{{ t('Crew member tracking') }}</span>
                   </div>
                   <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Icon name="check" class="w-4 h-4 text-green-500" />
-                    <span>Financial operations</span>
+                    <span>{{ t('Financial operations') }}</span>
                   </div>
                   <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Icon name="check" class="w-4 h-4 text-green-500" />
-                    <span>Priority support</span>
+                    <span>{{ t('Priority support') }}</span>
                   </div>
                 </div>
             <div class="mt-6">
@@ -156,11 +156,11 @@
                 class="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
               >
                 <Icon name="mail" class="w-4 h-4 mr-2" />
-                Contact for Upgrade
+                {{ t('Contact for Upgrade') }}
               </a>
             </div>
                 <p class="text-xs text-muted-foreground mt-3">
-                  Email: geral@bindamy.site
+                  {{ t('Email') }}: geral@bindamy.site
                 </p>
           </div>
         </div>
@@ -184,24 +184,24 @@
                 </div>
               </div>
               <h3 class="text-xl font-semibold text-card-foreground mb-2">
-                Upgrade Required
+                {{ t('Upgrade Required') }}
               </h3>
               <p class="text-sm text-muted-foreground mb-6">
-                You need a paid subscription to create and manage vessels. Upgrade to our professional plan to get started.
+                {{ t('You need a paid subscription to create and manage vessels. Upgrade to our professional plan to get started.') }}
               </p>
 
               <div class="space-y-3 mb-6">
                 <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Icon name="check" class="w-4 h-4 text-green-500" />
-                  <span>Create unlimited vessels</span>
+                  <span>{{ t('Create unlimited vessels') }}</span>
                 </div>
                 <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Icon name="check" class="w-4 h-4 text-green-500" />
-                  <span>Full vessel management</span>
+                  <span>{{ t('Full vessel management') }}</span>
                 </div>
                 <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Icon name="check" class="w-4 h-4 text-green-500" />
-                  <span>Priority support</span>
+                  <span>{{ t('Priority support') }}</span>
                 </div>
               </div>
 
@@ -211,18 +211,18 @@
               class="block w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-center"
             >
               <Icon name="mail" class="w-4 h-4 mr-2 inline" />
-              Contact for Upgrade
+              {{ t('Contact for Upgrade') }}
             </a>
             <button
               @click="showUpgradeModal = false"
               class="block w-full px-6 py-2 text-muted-foreground hover:text-card-foreground transition-colors"
             >
-              Maybe Later
+              {{ t('Maybe Later') }}
             </button>
           </div>
 
               <p class="text-xs text-muted-foreground mt-4">
-                Email: geral@bindamy.site
+                {{ t('Email') }}: geral@bindamy.site
               </p>
         </div>
       </div>
@@ -237,6 +237,7 @@ import Icon from '@/components/Icon.vue'
 import Badge from '@/components/ui/badge/Badge.vue'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import type { BreadcrumbItemType } from '@/types'
+import { useI18n } from '@/composables/useI18n'
 
 interface Vessel {
   id: number
@@ -279,14 +280,15 @@ interface Props {
 
 const props = defineProps<Props>()
 const page = usePage()
+const { t } = useI18n()
 
 // Breadcrumbs
-const breadcrumbs: BreadcrumbItemType[] = [
+const breadcrumbs = computed<BreadcrumbItemType[]>(() => [
   {
-    title: 'Vessels',
+    title: t('Vessels'),
     href: '/panel',
   },
-]
+])
 
 const user = computed(() => page.props.auth?.user || props.user)
 
@@ -329,7 +331,7 @@ const editVessel = (vesselId: number) => {
 }
 
 const deleteVessel = (vesselId: number, vesselName: string) => {
-  if (confirm(`Are you sure you want to delete "${vesselName}"? This action cannot be undone.`)) {
+  if (confirm(t('Are you sure you want to delete') + ` "${vesselName}"? ` + t('This action cannot be undone.'))) {
     router.delete(`/panel/vessel/${vesselId}`, {
       onSuccess: () => {
         // Vessel will be removed from the list automatically
