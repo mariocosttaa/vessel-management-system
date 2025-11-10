@@ -23,6 +23,7 @@ class ComprehensiveTestSeeder extends Seeder
             PermissionTestSeeder::class,
             VesselTestSeeder::class,
             UserTestSeeder::class,
+            TransactionTestSeeder::class,
         ]);
 
         // Create additional test scenarios
@@ -181,6 +182,27 @@ class ComprehensiveTestSeeder extends Seeder
         foreach ($roleDistribution as $role) {
             $this->command->info("  {$role->vesselRoleAccess->name}: {$role->count} users");
         }
+
+        // Transaction summary
+        $totalTransactions = \App\Models\Transaction::count();
+        $incomeTransactions = \App\Models\Transaction::where('type', 'income')->count();
+        $expenseTransactions = \App\Models\Transaction::where('type', 'expense')->count();
+        $transferTransactions = \App\Models\Transaction::where('type', 'transfer')->count();
+
+        $monthYearCombinations = \App\Models\Transaction::selectRaw('DISTINCT transaction_month, transaction_year, COUNT(*) as count')
+            ->whereNotNull('transaction_month')
+            ->whereNotNull('transaction_year')
+            ->groupBy('transaction_month', 'transaction_year')
+            ->orderBy('transaction_year', 'desc')
+            ->orderBy('transaction_month', 'desc')
+            ->get();
+
+        $this->command->info("\n💰 TRANSACTIONS:");
+        $this->command->info("  Total: {$totalTransactions}");
+        $this->command->info("  Income: {$incomeTransactions}");
+        $this->command->info("  Expense: {$expenseTransactions}");
+        $this->command->info("  Transfer: {$transferTransactions}");
+        $this->command->info("  Month/Year Combinations: " . $monthYearCombinations->count());
 
         // Display test credentials
         $this->displayTestCredentials();
