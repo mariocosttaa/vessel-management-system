@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import DataTable from '@/components/ui/DataTable.vue';
+import { Select } from '@/components/ui/select';
 import Pagination from '@/components/ui/Pagination.vue';
 import CrewRoleCreateModal from '@/components/modals/CrewRole/create.vue';
 import CrewRoleUpdateModal from '@/components/modals/CrewRole/update.vue';
@@ -75,6 +76,15 @@ const search = ref(props.filters.search || '');
 const scopeFilter = ref(props.filters.scope || '');
 const sortField = ref(props.filters.sort || 'name');
 const sortDirection = ref(props.filters.direction || 'asc');
+
+// Convert to Select component options format
+const scopeOptions = computed(() => {
+    return [
+        { value: '', label: 'All Scopes' },
+        { value: 'global', label: 'Default' },
+        { value: 'vessel', label: 'Created' }
+    ];
+});
 
 // Modal state
 const isCreateModalOpen = ref(false);
@@ -273,17 +283,12 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                     </div>
 
                     <!-- Scope Filter -->
-                    <div class="relative min-w-[150px]">
-                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[150px]">
+                        <Select
                             v-model="scopeFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Scopes</option>
-                            <option value="global">Default</option>
-                            <option value="vessel">Created</option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="scopeOptions"
+                            placeholder="All Scopes"
+                        />
                     </div>
                 </div>
             </div>

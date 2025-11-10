@@ -3,6 +3,7 @@ import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
+import { Select } from '@/components/ui/select';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -54,6 +55,17 @@ const canDeleteRecycleBin = (resource: string) => hasPermission(`${resource}.del
 // Filters
 const typeFilter = ref(props.filters.type || 'all');
 const search = ref(props.filters.search || '');
+
+// Convert to Select component options format
+const typeOptions = computed(() => {
+    return [
+        { value: 'all', label: 'All Types' },
+        { value: 'transaction', label: 'Transactions' },
+        { value: 'supplier', label: 'Suppliers' },
+        { value: 'recurring_transaction', label: 'Recurring Transactions' },
+        { value: 'marea', label: 'Mareas' }
+    ];
+});
 
 // Confirmation dialogs
 const showRestoreDialog = ref(false);
@@ -294,17 +306,12 @@ const totalCount = computed(() => {
                         <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
                             Type
                         </label>
-                        <select
+                        <Select
                             v-model="typeFilter"
-                            @change="applyFilters"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        >
-                            <option value="all">All Types</option>
-                            <option value="transaction">Transactions</option>
-                            <option value="supplier">Suppliers</option>
-                            <option value="recurring_transaction">Recurring Transactions</option>
-                            <option value="marea">Mareas</option>
-                        </select>
+                            :options="typeOptions"
+                            placeholder="All Types"
+                            @update:model-value="applyFilters"
+                        />
                     </div>
 
                     <!-- Search -->
