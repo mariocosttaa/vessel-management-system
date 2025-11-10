@@ -3,19 +3,12 @@
     <div class="flex flex-col items-center w-full max-w-xs">
       <!-- Logo -->
       <div class="mb-6 animate-pulse">
-        <div class="flex items-center justify-center space-x-2">
-          <div class="bg-primary/80 rounded-full p-2">
-            <Icon name="ship" class="h-8 w-8 text-primary-foreground" />
-          </div>
-          <div class="text-left">
-            <h1 class="text-lg font-semibold text-white leading-tight">
-              {{ t('Bindamy Mareas') }}
-            </h1>
-            <p class="text-xs text-gray-400 -mt-0.5 leading-tight">
-              {{ t('Vessel Management') }}
-            </p>
-          </div>
-        </div>
+        <Logo
+          variant="auto"
+          type="svg"
+          height="50px"
+          className="h-12 max-w-[250px]"
+        />
       </div>
 
       <!-- Vessel Logo or Icon with pulse animation -->
@@ -79,6 +72,7 @@
 
 <script setup lang="ts">
 import Icon from '@/components/Icon.vue'
+import Logo from '@/components/Logo.vue'
 import { useI18n } from '@/composables/useI18n'
 
 interface Vessel {
