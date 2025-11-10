@@ -821,8 +821,7 @@ class TransactionController extends Controller
             'files',
             ]);
 
-            return redirect()
-                ->route('panel.transactions.index', ['vessel' => $vesselId])
+            return back()
                 ->with('success', "Transaction '{$transaction->transaction_number}' has been updated successfully.")
                 ->with('notification_delay', 4);
         } catch (\Exception $e) {

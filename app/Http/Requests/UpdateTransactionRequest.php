@@ -202,6 +202,7 @@ class UpdateTransactionRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+
         // Get vessel ID from route parameter (validated by EnsureVesselAccess middleware)
         // CRITICAL: Never get vessel_id from transaction model in prepareForValidation
         // Route model binding may not have occurred yet, and we should trust the route parameter
@@ -213,38 +214,97 @@ class UpdateTransactionRequest extends FormRequest
         $vessel = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel?->currency_code ?? 'EUR';
 
-        $data = [
-            'type' => $this->type ?? 'expense',
-            'status' => $this->status ?? 'completed',
-            // Use currency from request if provided, otherwise use vessel settings currency (not EUR hardcoded)
-            'currency' => strtoupper($this->currency ?? $defaultCurrency),
-            'house_of_zeros' => $this->house_of_zeros ?? 2,
-            'description' => $this->description ? trim($this->description) : null,
-            'notes' => $this->notes ? trim($this->notes) : null,
-            'reference' => $this->reference ? trim($this->reference) : null,
-        ];
+        // IMPORTANT: Preserve ALL fields from request, especially category_id, transaction_date, and amount
+        // These are required fields and must be preserved exactly as sent
+        $data = [];
 
-        // Normalize amount_per_unit and quantity if provided
-        if ($this->filled('amount_per_unit')) {
-            $data['amount_per_unit'] = $this->normalizeMoney($this->amount_per_unit);
-        }
-        if ($this->filled('quantity')) {
-            $data['quantity'] = (int) $this->quantity;
+        // Preserve category_id - required field, must be present
+        if ($this->has('category_id') && $this->category_id !== null) {
+            $data['category_id'] = (int) $this->category_id;
         }
 
-        // Calculate amount from amount_per_unit * quantity if both are provided
-        if ($this->filled('amount_per_unit') && $this->filled('quantity')) {
+        // Preserve transaction_date - required field, must be present
+        if ($this->has('transaction_date') && $this->transaction_date !== null && $this->transaction_date !== '') {
+            $data['transaction_date'] = $this->normalizeDate($this->transaction_date);
+        }
+
+        // Preserve type - required field
+        if ($this->has('type')) {
+            $data['type'] = $this->type ?? 'expense';
+        } else {
+            $data['type'] = 'expense';
+        }
+
+        // Preserve status - required field
+        if ($this->has('status')) {
+            $data['status'] = $this->status ?? 'completed';
+        } else {
+            $data['status'] = 'completed';
+        }
+
+        // Handle amount - can come from amount_per_unit * quantity OR direct amount
+        // Priority: amount_per_unit * quantity > direct amount
+        if ($this->has('amount_per_unit') && $this->has('quantity') &&
+            $this->amount_per_unit !== null && $this->quantity !== null) {
+            // Calculate amount from amount_per_unit * quantity
             $amountPerUnit = $this->normalizeMoney($this->amount_per_unit);
             $quantity = (int) $this->quantity;
             $data['amount'] = (int) round($amountPerUnit * $quantity);
-        } elseif ($this->filled('amount')) {
-            // Normalize money amount - handle both string and numeric inputs
+            $data['amount_per_unit'] = $amountPerUnit;
+            $data['quantity'] = $quantity;
+        } elseif ($this->has('amount') && $this->amount !== null) {
+            // Use direct amount
             $data['amount'] = $this->normalizeMoney($this->amount);
+            $data['amount_per_unit'] = null;
+            $data['quantity'] = null;
+        } else {
+            // No amount provided - set to null (validation will catch this)
+            $data['amount'] = null;
+            $data['amount_per_unit'] = null;
+            $data['quantity'] = null;
         }
 
-        // Normalize transaction date
-        if ($this->filled('transaction_date')) {
-            $data['transaction_date'] = $this->normalizeDate($this->transaction_date);
+        // Preserve currency - use from request if provided, otherwise use vessel settings
+        if ($this->has('currency') && $this->currency !== null && $this->currency !== '') {
+            $data['currency'] = strtoupper($this->currency);
+        } else {
+            $data['currency'] = strtoupper($defaultCurrency);
+        }
+
+        // Preserve house_of_zeros
+        if ($this->has('house_of_zeros')) {
+            $data['house_of_zeros'] = $this->house_of_zeros ?? 2;
+        } else {
+            $data['house_of_zeros'] = 2;
+        }
+
+        // Preserve optional fields
+        if ($this->has('vat_profile_id')) {
+            $data['vat_profile_id'] = $this->vat_profile_id ? (int) $this->vat_profile_id : null;
+        }
+
+        if ($this->has('amount_includes_vat')) {
+            $data['amount_includes_vat'] = (bool) $this->amount_includes_vat;
+        }
+
+        if ($this->has('description')) {
+            $data['description'] = $this->description ? trim($this->description) : null;
+        }
+
+        if ($this->has('notes')) {
+            $data['notes'] = $this->notes ? trim($this->notes) : null;
+        }
+
+        if ($this->has('reference')) {
+            $data['reference'] = $this->reference ? trim($this->reference) : null;
+        }
+
+        if ($this->has('supplier_id')) {
+            $data['supplier_id'] = $this->supplier_id ? (int) $this->supplier_id : null;
+        }
+
+        if ($this->has('crew_member_id')) {
+            $data['crew_member_id'] = $this->crew_member_id ? (int) $this->crew_member_id : null;
         }
 
         $this->merge($data);
