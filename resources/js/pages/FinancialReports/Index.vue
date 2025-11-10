@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import financialReports from '@/routes/panel/financial-reports';
 
 // Get current vessel ID from URL
@@ -16,13 +17,33 @@ interface MonthYearCombination {
     year: number;
     month_label: string;
     count: number;
+    total_income: number;
+    total_expenses: number;
+    net_balance: number;
 }
 
 interface Props {
     monthYearCombinations: MonthYearCombination[];
+    defaultCurrency?: string;
 }
 
 const props = defineProps<Props>();
+
+// Get currency data from shared props
+const page = usePage();
+const currencies = computed(() => {
+    return (page.props as any)?.currencies || [];
+});
+
+// Get currency details
+const getCurrencyData = (currencyCode: string) => {
+    const currency = currencies.value.find((c: any) => c.code === currencyCode);
+    return currency || { code: currencyCode, symbol: currencyCode, decimal_separator: 2 };
+};
+
+// Default currency from props or fallback
+const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
+const currencyData = computed(() => getCurrencyData(defaultCurrency.value));
 
 // Navigate to month/year page
 const viewMonthYear = (month: number, year: number) => {
@@ -100,8 +121,43 @@ const groupedByYear = computed(() => {
                                 <div class="text-2xl text-card-foreground dark:text-card-foreground mb-2">
                                     {{ item.month_label }}
                                 </div>
-                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-3">
                                     {{ item.count }} {{ item.count === 1 ? 'transaction' : 'transactions' }}
+                                </div>
+                                <!-- Net Balance (Main Value) -->
+                                <div class="text-lg font-semibold mb-2" :class="item.net_balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                                    <MoneyDisplay
+                                        :value="item.net_balance"
+                                        :currency="defaultCurrency"
+                                        :decimals="currencyData.decimal_separator"
+                                        :variant="item.net_balance >= 0 ? 'positive' : 'negative'"
+                                        size="sm"
+                                    />
+                                </div>
+                                <!-- Income and Expenses (Smaller) -->
+                                <div class="space-y-1 w-full text-xs">
+                                    <div class="flex justify-between text-green-600 dark:text-green-400">
+                                        <span>Income:</span>
+                                        <MoneyDisplay
+                                            :value="item.total_income"
+                                            :currency="defaultCurrency"
+                                            :decimals="currencyData.decimal_separator"
+                                            variant="positive"
+                                            size="xs"
+                                            :show-symbol="false"
+                                        />
+                                    </div>
+                                    <div class="flex justify-between text-red-600 dark:text-red-400">
+                                        <span>Expenses:</span>
+                                        <MoneyDisplay
+                                            :value="item.total_expenses"
+                                            :currency="defaultCurrency"
+                                            :decimals="currencyData.decimal_separator"
+                                            variant="negative"
+                                            size="xs"
+                                            :show-symbol="false"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </button>
