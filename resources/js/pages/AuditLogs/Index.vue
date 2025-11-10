@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import { DateInput } from '@/components/ui/date-input';
 import { Select } from '@/components/ui/select';
 import Pagination from '@/components/ui/Pagination.vue';
 import AuditLogDetailsModal from '@/components/modals/AuditLog/Details.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 // Get current vessel ID from URL (if available)
 const getCurrentVesselId = () => {
@@ -67,6 +68,18 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permission check - Audit logs are only for administrators
+const { isAdmin, hasAnyRole } = usePermissions();
+
+// Check if user has permission to view audit logs
+onMounted(() => {
+    if (!isAdmin.value && !hasAnyRole(['administrator', 'admin'])) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Convert currentVesselId to number if it's a string
 const currentVesselId = computed(() => {
@@ -246,7 +259,7 @@ const breadcrumbs = computed(() => {
 <template>
     <Head title="Auditory - Monitoring" />
 
-    <VesselLayout :breadcrumbs="breadcrumbs">
+    <VesselLayout v-if="isAdmin || hasAnyRole(['administrator', 'admin'])" :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
@@ -388,6 +401,13 @@ const breadcrumbs = computed(() => {
             :is-open="isModalOpen"
             @close="closeModal"
         />
+    </VesselLayout>
+    <VesselLayout v-else :breadcrumbs="[]">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
+                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view audit logs.</p>
+            </div>
+        </div>
     </VesselLayout>
 </template>
 

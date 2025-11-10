@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import financialReports from '@/routes/panel/financial-reports';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-vue-next';
 
@@ -72,6 +73,18 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permission check
+const { hasPermission } = usePermissions();
+
+// Check if user has permission to access reports
+onMounted(() => {
+    if (!hasPermission('reports.access')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Get currency data from shared props
 const page = usePage();
@@ -145,7 +158,7 @@ const getChangeColor = (change: number) => {
 <template>
     <Head :title="`Financial Report - ${monthLabel} ${year}`" />
 
-    <VesselLayout :breadcrumbs="[
+    <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
         { title: 'Financial Reports', href: financialReports.index.url({ vessel: getCurrentVesselId() }) },
         { title: `${monthLabel} ${year}`, href: financialReports.show.url({ vessel: getCurrentVesselId(), year: year, month: month }) }
     ]">
@@ -470,6 +483,13 @@ const getChangeColor = (change: number) => {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </VesselLayout>
+    <VesselLayout v-else :breadcrumbs="[]">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
+                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view financial reports.</p>
             </div>
         </div>
     </VesselLayout>

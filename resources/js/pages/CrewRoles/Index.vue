@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import DataTable from '@/components/ui/DataTable.vue';
 import { Select } from '@/components/ui/select';
@@ -66,7 +66,16 @@ interface Props {
 const props = defineProps<Props>();
 
 // Permissions
-const { can } = usePermissions();
+const { can, canView } = usePermissions();
+
+// Check if user has permission to view crew roles
+onMounted(() => {
+    if (!canView('crew-roles')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Computed property for crew positions data
 const crewPositionsData = computed(() => props.crewPositions?.data || []);

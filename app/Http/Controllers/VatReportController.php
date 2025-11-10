@@ -27,10 +27,10 @@ class VatReportController extends Controller
             abort(403, 'You do not have access to this vessel.');
         }
 
-        // Check transactions.view permission from config (reports require view permission)
+        // Check reports.access permission from config (reports require specific access permission)
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['transactions.view'] ?? false)) {
+        if (!($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view VAT reports.');
         }
 
@@ -89,10 +89,10 @@ class VatReportController extends Controller
             abort(403, 'You do not have access to this vessel.');
         }
 
-        // Check transactions.view permission from config
+        // Check reports.access permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['transactions.view'] ?? false)) {
+        if (!($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view VAT reports.');
         }
 

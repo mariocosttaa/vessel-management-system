@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -33,8 +33,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { canCreate, canEdit, canDelete } = usePermissions();
+const { canCreate, canEdit, canDelete, canView } = usePermissions();
 const { addNotification } = useNotifications();
+
+// Check if user has permission to view distribution profiles
+onMounted(() => {
+    if (!canView('distribution-profiles')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Confirmation dialog state
 const showDeleteDialog = ref(false);
