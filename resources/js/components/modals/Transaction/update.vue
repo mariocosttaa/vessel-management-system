@@ -5,6 +5,7 @@ import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
@@ -312,13 +313,11 @@ const submit = () => {
                     <!-- Transaction Date -->
                     <div class="space-y-2">
                         <Label for="transaction_date">Transaction Date <span class="text-destructive">*</span></Label>
-                        <Input
+                        <DateInput
                             id="transaction_date"
                             v-model="form.transaction_date"
-                            type="date"
                             :max="new Date().toISOString().split('T')[0]"
                             :class="{ 'border-destructive dark:border-destructive': form.errors.transaction_date }"
-                            required
                         />
                         <InputError :message="form.errors.transaction_date" />
                     </div>
