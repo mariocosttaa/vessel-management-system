@@ -35,9 +35,21 @@ class FinancialReportController extends Controller
             abort(403, 'You do not have permission to view financial reports.');
         }
 
-        // Get all month/year combinations from transactions (only those with transactions)
+        // Get vessel settings for default currency
+        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel = \App\Models\Vessel::find($vesselId);
+        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
+        // Get all month/year combinations from transactions with summary data
         $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
-            ->selectRaw('DISTINCT transaction_month as month, transaction_year as year, COUNT(*) as count')
+            ->where('status', 'completed')
+            ->selectRaw('
+                DISTINCT transaction_month as month, 
+                transaction_year as year, 
+                COUNT(*) as count,
+                SUM(CASE WHEN type = "income" THEN total_amount ELSE 0 END) as total_income,
+                SUM(CASE WHEN type = "expense" THEN total_amount ELSE 0 END) as total_expenses
+            ')
             ->whereNotNull('transaction_month')
             ->whereNotNull('transaction_year')
             ->groupBy('transaction_month', 'transaction_year')
@@ -45,17 +57,25 @@ class FinancialReportController extends Controller
             ->orderBy('transaction_month', 'desc')
             ->get()
             ->map(function ($item) {
+                $totalIncome = (int) $item->total_income;
+                $totalExpenses = (int) $item->total_expenses;
+                $netBalance = $totalIncome - $totalExpenses;
+                
                 return [
                     'month' => (int) $item->month,
                     'year' => (int) $item->year,
                     'month_label' => date('F', mktime(0, 0, 0, $item->month, 1)),
                     'count' => (int) $item->count,
+                    'total_income' => $totalIncome,
+                    'total_expenses' => $totalExpenses,
+                    'net_balance' => $netBalance,
                 ];
             })
             ->values();
 
         return Inertia::render('FinancialReports/Index', [
             'monthYearCombinations' => $monthYearCombinations,
+            'defaultCurrency' => $defaultCurrency,
         ]);
     }
 

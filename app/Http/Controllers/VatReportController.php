@@ -34,6 +34,11 @@ class VatReportController extends Controller
             abort(403, 'You do not have permission to view VAT reports.');
         }
 
+        // Get vessel settings for default currency
+        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel = \App\Models\Vessel::find($vesselId);
+        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
         // Get all month/year combinations from transactions with VAT (only income transactions have VAT)
         $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
             ->where('type', 'income') // Only income transactions have VAT
@@ -59,6 +64,7 @@ class VatReportController extends Controller
 
         return Inertia::render('VatReports/Index', [
             'monthYearCombinations' => $monthYearCombinations,
+            'defaultCurrency' => $defaultCurrency,
         ]);
     }
 
@@ -70,7 +76,7 @@ class VatReportController extends Controller
         // Get parameters from route (ensures correct binding)
         $year = (int) $request->route('year');
         $month = (int) $request->route('month');
-        
+
         /** @var \App\Models\User|null $user */
         $user = $request->user();
 
@@ -131,7 +137,7 @@ class VatReportController extends Controller
             $transactionsList = $profileTransactions->map(function ($transaction) {
                 $date = $transaction->transaction_date;
                 $formattedDate = null;
-                
+
                 if ($date) {
                     try {
                         if ($date instanceof \Carbon\Carbon || $date instanceof \DateTimeInterface) {
@@ -143,7 +149,7 @@ class VatReportController extends Controller
                         $formattedDate = null;
                     }
                 }
-                
+
                 return [
                     'id' => $transaction->id,
                     'transaction_number' => $transaction->transaction_number,
@@ -248,11 +254,11 @@ class VatReportController extends Controller
         $previousMonthVat = $previousMonthTransactions->sum('vat_amount');
         $previousMonthBase = $previousMonthTransactions->sum('amount');
 
-        $vatChange = $previousMonthVat > 0 
-            ? (($totalVat - $previousMonthVat) / $previousMonthVat) * 100 
+        $vatChange = $previousMonthVat > 0
+            ? (($totalVat - $previousMonthVat) / $previousMonthVat) * 100
             : 0;
-        $baseChange = $previousMonthBase > 0 
-            ? (($totalBaseAmount - $previousMonthBase) / $previousMonthBase) * 100 
+        $baseChange = $previousMonthBase > 0
+            ? (($totalBaseAmount - $previousMonthBase) / $previousMonthBase) * 100
             : 0;
 
         // Get all transactions list for detailed view
@@ -260,7 +266,7 @@ class VatReportController extends Controller
             $date = $transaction->transaction_date;
             $formattedDate = null;
             $formattedDateLong = null;
-            
+
             if ($date) {
                 try {
                     if ($date instanceof \Carbon\Carbon || $date instanceof \DateTimeInterface) {
@@ -277,7 +283,7 @@ class VatReportController extends Controller
                     $formattedDateLong = null;
                 }
             }
-            
+
             return [
                 'id' => $transaction->id,
                 'transaction_number' => $transaction->transaction_number,
