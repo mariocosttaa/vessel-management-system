@@ -28,12 +28,15 @@ const page = usePage();
             <SidebarMenu>
                 <SidebarMenuItem v-for="item in items" :key="item.title">
                     <SidebarMenuButton
-                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                        class="text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-muted/30 font-medium transition-all duration-200"
                         as-child
                         :is-active="urlIsActive(item.href, page.url)"
                     >
-                        <Link :href="item.href">
-                            <component :is="item.icon" />
+                        <Link
+                            :href="item.href"
+                            class="flex items-center gap-2"
+                        >
+                            <component :is="item.icon" class="w-4 h-4" />
                             <span>{{ item.title }}</span>
                         </Link>
                     </SidebarMenuButton>

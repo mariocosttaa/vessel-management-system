@@ -9,18 +9,30 @@ import {
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
-import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { LogOut, Settings, Home } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 interface Props {
     user: User;
 }
 
+const props = defineProps<Props>();
+const page = usePage();
+
+// Check if we're on a vessel page
+const isVesselPage = computed(() => {
+    const url = page.url?.value || window.location.pathname;
+    return /^\/panel\/(\d+)\//.test(url);
+});
+
 const handleLogout = () => {
     router.flushAll();
 };
 
-defineProps<Props>();
+const goToVesselSelector = () => {
+    router.visit('/panel');
+};
 </script>
 
 <template>
@@ -36,6 +48,15 @@ defineProps<Props>();
                 <Settings class="mr-2 h-4 w-4" />
                 Settings
             </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+            v-if="isVesselPage"
+            @click="goToVesselSelector"
+            as="button"
+            class="w-full"
+        >
+            <Home class="mr-2 h-4 w-4" />
+            Back to Vessels
         </DropdownMenuItem>
     </DropdownMenuGroup>
     <DropdownMenuSeparator />
