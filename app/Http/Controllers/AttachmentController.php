@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAttachmentRequest;
 use App\Models\Attachment;
+use App\Services\AuditLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -64,6 +65,28 @@ class AttachmentController extends Controller
             'uploaded_by' => Auth::id(),
         ]);
 
+        // Get vessel_id from attachable model if it exists
+        $vesselId = null;
+        if ($attachableType && $attachableId && class_exists($attachableType)) {
+            try {
+                /** @var \Illuminate\Database\Eloquent\Model|null $attachable */
+                $attachable = call_user_func([$attachableType, 'find'], $attachableId);
+                if ($attachable && property_exists($attachable, 'vessel_id') && isset($attachable->vessel_id)) {
+                    $vesselId = (int) $attachable->vessel_id;
+                }
+            } catch (\Exception $e) {
+                // Ignore if model doesn't exist or doesn't have vessel_id
+            }
+        }
+
+        // Log the create action
+        AuditLogService::logCreate(
+            $attachment,
+            'Attachment',
+            $attachment->file_name,
+            $vesselId
+        );
+
         return back()->with('success', 'File uploaded successfully.');
     }
 
@@ -99,6 +122,29 @@ class AttachmentController extends Controller
      */
     public function destroy(Attachment $attachment): RedirectResponse
     {
+        // Get vessel_id from attachable model if it exists
+        $vesselId = null;
+        if ($attachment->attachable_type && $attachment->attachable_id) {
+            try {
+                $attachable = $attachment->attachable;
+                if ($attachable && isset($attachable->vessel_id)) {
+                    $vesselId = (int) $attachable->vessel_id;
+                }
+            } catch (\Exception $e) {
+                // Ignore if model doesn't exist or doesn't have vessel_id
+            }
+        }
+
+        $fileName = $attachment->file_name;
+
+        // Log the delete action BEFORE deletion
+        AuditLogService::logDelete(
+            $attachment,
+            'Attachment',
+            $fileName,
+            $vesselId
+        );
+
         // Delete file from storage
         if (Storage::disk('public')->exists($attachment->file_path)) {
             Storage::disk('public')->delete($attachment->file_path);

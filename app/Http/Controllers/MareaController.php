@@ -9,6 +9,7 @@ use App\Models\MareaCrew;
 use App\Models\MareaQuantityReturn;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +107,11 @@ class MareaController extends Controller
             'cancelled' => 'Cancelled',
         ];
 
+        // Get vessel settings for default currency
+        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel = \App\Models\Vessel::find($vesselId);
+        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
         return Inertia::render('Mareas/Index', [
             'mareas' => $mareas->through(function ($marea) {
                 // Count transactions for this marea
@@ -130,6 +136,7 @@ class MareaController extends Controller
             }),
             'statuses' => $statuses,
             'filters' => $filters,
+            'defaultCurrency' => $defaultCurrency,
         ]);
     }
 
@@ -211,6 +218,14 @@ class MareaController extends Controller
                 'status' => 'preparing',
                 'created_by' => $user->id,
             ]);
+
+            // Log the create action
+            AuditLogService::logCreate(
+                $marea,
+                'Marea',
+                $marea->marea_number,
+                $vesselId
+            );
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
@@ -622,6 +637,9 @@ class MareaController extends Controller
                 abort(403, 'Cannot edit a closed or cancelled marea.');
             }
 
+            // Store original state for change detection
+            $originalMarea = $marea->replicate();
+
             // Validate request
             $validated = $request->validate([
                 'name' => 'nullable|string|max:255',
@@ -644,6 +662,16 @@ class MareaController extends Controller
                 'currency' => $validated['currency'] ?? $marea->currency,
                 'house_of_zeros' => $validated['house_of_zeros'] ?? $marea->house_of_zeros ?? 2,
             ]);
+
+            // Get changed fields and log the update action
+            $changedFields = AuditLogService::getChangedFields($marea, $originalMarea);
+            AuditLogService::logUpdate(
+                $marea,
+                $changedFields,
+                'Marea',
+                $marea->marea_number,
+                $vesselId
+            );
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $vesselId, 'mareaId' => $marea->id])
@@ -700,6 +728,14 @@ class MareaController extends Controller
 
             // Count transactions before deletion
             $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+
+            // Log the delete action BEFORE deletion
+            AuditLogService::logDelete(
+                $marea,
+                'Marea',
+                $mareaNumber,
+                $vesselId
+            );
 
             // Soft delete all transactions associated with this marea (they will appear in recycle bin)
             \App\Models\Transaction::where('marea_id', $marea->id)->delete();
