@@ -4,6 +4,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/Icon.vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { useDateInputManager } from '@/composables/useDateInputManager'
 
 const props = defineProps<{
   defaultValue?: string
@@ -19,10 +20,24 @@ const emits = defineEmits<{
   (e: 'update:modelValue', payload: string): void
 }>()
 
-const isOpen = ref(false)
+const dateInputManager = useDateInputManager()
+const instanceId = dateInputManager.generateId()
 const inputRef = ref<HTMLInputElement>()
 const popupRef = ref<HTMLDivElement>()
+const containerRef = ref<HTMLDivElement>()
 const isClickingInsidePopup = ref(false)
+
+// Local state for popup visibility
+const isOpen = computed({
+  get: () => dateInputManager.isOpen(instanceId),
+  set: (value: boolean) => {
+    if (value) {
+      dateInputManager.open(instanceId)
+    } else {
+      dateInputManager.close(instanceId)
+    }
+  }
+})
 
 // Current viewing month/year (for calendar display)
 const currentView = ref(new Date())
@@ -163,14 +178,14 @@ const selectDate = (date: Date) => {
   }
 
   emits('update:modelValue', formatDateForInput(date))
-  isOpen.value = false
+  closePopup()
 }
 
 // Clear date
 const clearDate = () => {
   if (props.disabled) return
   emits('update:modelValue', '')
-  isOpen.value = false
+  closePopup()
 }
 
 // Select today
@@ -180,75 +195,88 @@ const selectToday = () => {
   selectDate(today)
 }
 
-// Toggle popup
-const togglePopup = () => {
-  if (props.disabled) return
-  isOpen.value = !isOpen.value
-  if (isOpen.value && selectedDate.value) {
-    currentView.value = new Date(selectedDate.value)
+// Close function for the manager
+const closePopup = () => {
+  if (isOpen.value) {
+    dateInputManager.close(instanceId)
   }
 }
 
 // Handle click outside
 const handleClickOutside = (event: MouseEvent) => {
-  if (isClickingInsidePopup.value) {
-    isClickingInsidePopup.value = false
+  const target = event.target as Node
+  
+  // Check if click is on this date input's container or popup
+  if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
+    // Click is inside this date input, don't close
+    if (isClickingInsidePopup.value) {
+      isClickingInsidePopup.value = false
+    }
     return
   }
 
-  if (isOpen.value &&
-      inputRef.value &&
-      popupRef.value &&
-      !inputRef.value.contains(event.target as Node) &&
-      !popupRef.value.contains(event.target as Node)) {
-    isOpen.value = false
+  // If clicking outside this date input, close it
+  // (If clicking on another date input, the manager will handle opening that one and closing this one)
+  if (isOpen.value) {
+    closePopup()
   }
 }
 
-const handlePopupMouseDown = () => {
+const handlePopupMouseDown = (event: MouseEvent) => {
+  // Don't prevent default - we want to allow normal interaction
+  // Just mark that we're clicking inside the popup
   isClickingInsidePopup.value = true
 }
 
-const handleInputFocus = () => {
-  if (!props.disabled) {
-    isOpen.value = true
-  }
-}
-
-const handleInputBlur = (event: FocusEvent) => {
-  const relatedTarget = event.relatedTarget as HTMLElement | null
-  if (relatedTarget && popupRef.value?.contains(relatedTarget)) {
-    return
-  }
-
-  if (isClickingInsidePopup.value) {
-    isClickingInsidePopup.value = false
-    return
-  }
-
-  setTimeout(() => {
-    const activeElement = document.activeElement
-    if (activeElement && popupRef.value?.contains(activeElement)) {
-      return
+const handleInputClick = (event: MouseEvent) => {
+  if (props.disabled) return
+  // Don't prevent default - let focus handle opening
+  // This handler is mainly to ensure the popup opens when clicking
+  if (!isOpen.value) {
+    dateInputManager.open(instanceId)
+    if (selectedDate.value) {
+      currentView.value = new Date(selectedDate.value)
+    } else {
+      currentView.value = new Date()
     }
-    isOpen.value = false
-  }, 150)
+  }
 }
+
+const handleInputFocus = () => {
+  if (props.disabled) return
+  // Open on focus
+  if (!isOpen.value) {
+    dateInputManager.open(instanceId)
+    if (selectedDate.value) {
+      currentView.value = new Date(selectedDate.value)
+    } else {
+      currentView.value = new Date()
+    }
+  }
+}
+
+// Don't use blur - let click outside handle closing
+// This prevents issues when clicking between date inputs
+
+// Register this instance with the manager
+const unregister = dateInputManager.register(instanceId, closePopup)
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('click', handleClickOutside, true)
+  
   if (selectedDate.value) {
     currentView.value = new Date(selectedDate.value)
   }
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('click', handleClickOutside, true)
+  unregister()
 })
 </script>
 
 <template>
-  <div class="relative">
+  <div ref="containerRef" class="relative" data-date-input-container>
     <div class="relative">
       <Icon
         name="calendar"
@@ -262,8 +290,7 @@ onUnmounted(() => {
         :disabled="disabled"
         readonly
         @focus="handleInputFocus"
-        @blur="handleInputBlur"
-        @click="togglePopup"
+        @click="handleInputClick"
         :class="cn(
           'placeholder:text-muted-foreground selection:bg-primary/20 selection:text-primary-foreground dark:bg-input/30 border-input/80 flex h-9 w-full min-w-0 rounded-lg border-2 bg-transparent pl-10 pr-3 py-1 text-base text-foreground transition-all duration-200 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer',
           'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-offset-1',
@@ -287,6 +314,7 @@ onUnmounted(() => {
         v-if="isOpen"
         ref="popupRef"
         class="absolute z-50 mt-1 w-[280px] rounded-lg border border-border dark:border-border bg-card dark:bg-card shadow-lg p-4"
+        data-date-input-container
         @click.stop
         @mousedown="handlePopupMouseDown"
       >
