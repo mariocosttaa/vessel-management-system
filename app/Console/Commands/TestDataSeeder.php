@@ -6,6 +6,7 @@ use Database\Seeders\Test\ComprehensiveTestSeeder;
 use Database\Seeders\Test\UserTestSeeder;
 use Database\Seeders\Test\VesselTestSeeder;
 use Database\Seeders\Test\PermissionTestSeeder;
+use Database\Seeders\Test\TransactionTestSeeder;
 use Illuminate\Console\Command;
 
 class TestDataSeeder extends Command
@@ -15,12 +16,7 @@ class TestDataSeeder extends Command
      *
      * @var string
      */
-    protected $signature = 'test:seed
-                            {--fresh : Run fresh migrations before seeding}
-                            {--users : Only seed test users}
-                            {--vessels : Only seed test vessels}
-                            {--permissions : Only seed test permissions}
-                            {--comprehensive : Run comprehensive test seeding}';
+    protected $signature = 'test:seed {--fresh : Run fresh migrations before seeding} {--users : Only seed test users} {--vessels : Only seed test vessels} {--permissions : Only seed test permissions} {--transactions : Only seed test transactions} {--comprehensive : Run comprehensive test seeding}';
 
     /**
      * The console command description.
@@ -54,6 +50,8 @@ class TestDataSeeder extends Command
             $this->runVesselSeeding();
         } elseif ($this->option('permissions')) {
             $this->runPermissionSeeding();
+        } elseif ($this->option('transactions')) {
+            $this->runTransactionSeeding();
         } else {
             $this->runAllSeeding();
         }
@@ -84,6 +82,12 @@ class TestDataSeeder extends Command
     {
         $this->info('🎭 Seeding test permissions...');
         $this->call('db:seed', ['--class' => PermissionTestSeeder::class]);
+    }
+
+    private function runTransactionSeeding(): void
+    {
+        $this->info('💰 Seeding test transactions...');
+        $this->call('db:seed', ['--class' => TransactionTestSeeder::class]);
     }
 
     private function runAllSeeding(): void
