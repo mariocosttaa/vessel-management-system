@@ -5,6 +5,7 @@ import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
@@ -68,6 +69,15 @@ const showInitialBalanceField = computed(() => hasInitialBalance.value);
 const showCountrySelect = computed(() => {
     // Show country select only when account_number is used (not IBAN)
     return useAccountNumber.value && !useIban.value;
+});
+
+// Convert to Select component options format
+const countryOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a country' }];
+    props.countries.forEach(country => {
+        options.push({ value: country.id, label: `${country.name} (${country.code})` });
+    });
+    return options;
 });
 
 // Watch for changes in checkbox states
@@ -273,21 +283,14 @@ const submit = () => {
                     <!-- Country Select (only shown when account_number is used) -->
                     <div class="space-y-2" v-if="showCountrySelect">
                         <Label for="country_id">Country *</Label>
-                        <select
+                        <Select
                             id="country_id"
                             v-model="form.country_id"
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            :class="{ 'border-destructive dark:border-destructive': form.errors.country_id }"
-                        >
-                            <option value="">Select a country</option>
-                            <option
-                                v-for="country in countries"
-                                :key="country.id"
-                                :value="country.id"
-                            >
-                                {{ country.name }} ({{ country.code }})
-                            </option>
-                        </select>
+                            :options="countryOptions"
+                            placeholder="Select a country"
+                            searchable
+                            :error="!!form.errors.country_id"
+                        />
                         <InputError :message="form.errors.country_id" />
                     </div>
                 </div>
