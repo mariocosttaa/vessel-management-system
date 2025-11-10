@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
-import NavUser from '@/components/NavUser.vue';
 import {
     Sidebar,
     SidebarContent,
@@ -28,13 +27,15 @@ import {
     Settings,
     Ship,
     Calculator,
-    Trash2
+    Trash2,
+    ArrowLeft,
+    FileText
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { computed } from 'vue';
 
-const { canView, hasPermission } = usePermissions();
+const { canView, hasPermission, hasAnyRole, isAdmin } = usePermissions();
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -47,13 +48,37 @@ const mainNavItems = computed((): NavItem[] => {
     const vesselId = getCurrentVesselId();
     const items: NavItem[] = [];
 
-    // Platform Section - Always visible
+    // Core Section - Most Used Items (Dashboard, Marea, Transaction)
     items.push({
         title: 'Dashboard',
         href: `/panel/${vesselId}/dashboard`,
         icon: LayoutDashboard,
-        group: 'Platform',
+        group: 'Core',
     });
+
+    if (canView('mareas')) {
+        items.push({
+            title: 'Mareas',
+            href: mareas.index.url({ vessel: vesselId }),
+            icon: Ship,
+            group: 'Core',
+        });
+    }
+
+    if (canView('transactions')) {
+        items.push({
+            title: 'Transactions',
+            href: transactions.index.url({ vessel: vesselId }),
+            icon: Receipt,
+            group: 'Core',
+        });
+        items.push({
+            title: 'Transaction History',
+            href: `/panel/${vesselId}/transactions/history`,
+            icon: Calculator,
+            group: 'Core',
+        });
+    }
 
     // Crew Management Section
     if (canView('crew')) {
@@ -85,25 +110,7 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
-    if (canView('transactions')) {
-        items.push({
-            title: 'Transactions',
-            href: transactions.index.url({ vessel: vesselId }),
-            icon: Receipt,
-            group: 'Financial',
-        });
-    }
-
-    // Vessel Section - Mareas and Distribution Profiles
-    if (canView('mareas')) {
-        items.push({
-            title: 'Mareas',
-            href: mareas.index.url({ vessel: vesselId }),
-            icon: Ship,
-            group: 'Vessel',
-        });
-    }
-
+    // Vessel Section - Distribution Profiles
     if (canView('distribution-profiles')) {
         items.push({
             title: 'Distribution Profiles',
@@ -116,7 +123,7 @@ const mainNavItems = computed((): NavItem[] => {
     // Settings Section - Only for users with settings.access permission
     if (hasPermission('settings.access')) {
         items.push({
-            title: 'Vessel Settings',
+            title: 'Settings',
             href: `/panel/${vesselId}/settings`,
             icon: Settings,
             group: 'Settings',
@@ -126,9 +133,21 @@ const mainNavItems = computed((): NavItem[] => {
     // Recycle Bin - Only for users with recycle_bin.view permission
     if (hasPermission('recycle_bin.view')) {
         items.push({
-            title: 'Recycle Bin',
+            title: 'Bin',
             href: `/panel/${vesselId}/recycle-bin`,
             icon: Trash2,
+            group: 'Settings',
+        });
+    }
+
+    // Auditory - Only for administrators
+    // Check if user has Administrator role (vessel role) or admin/administrator global roles
+    // The backend also checks for these roles, so we match that logic
+    if (isAdmin.value || hasAnyRole(['administrator', 'admin'])) {
+        items.push({
+            title: 'Auditory',
+            href: `/panel/${vesselId}/audit-logs`,
+            icon: FileText,
             group: 'Settings',
         });
     }
@@ -138,9 +157,9 @@ const mainNavItems = computed((): NavItem[] => {
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Vessel Selector',
+        title: 'Back',
         href: '/panel',
-        icon: Home,
+        icon: ArrowLeft,
     },
 ];
 </script>
@@ -165,7 +184,6 @@ const footerNavItems: NavItem[] = [
 
         <SidebarFooter>
             <NavFooter :items="footerNavItems" />
-            <NavUser />
         </SidebarFooter>
     </Sidebar>
     <slot />
