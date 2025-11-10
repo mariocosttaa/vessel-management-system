@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import BaseModal from '../BaseModal.vue';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import { useNotifications } from '@/composables/useNotifications';
@@ -64,6 +65,23 @@ const form = useForm({
     initial_balance: 0,
     status: 'active',
     notes: '',
+});
+
+// Convert to Select component options format
+const countryOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a country' }];
+    props.countries.forEach(country => {
+        options.push({ value: country.id, label: `${country.name} (${country.code})` });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
 });
 
 // Watch for data loaded from API
@@ -162,21 +180,14 @@ const submit = () => {
 
                         <div>
                             <Label for="country_id">Country</Label>
-                            <select
+                            <Select
                                 id="country_id"
                                 v-model="form.country_id"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                :class="{ 'border-red-500': form.errors.country_id }"
-                            >
-                                <option value="">Select a country</option>
-                                <option
-                                    v-for="country in countries"
-                                    :key="country.id"
-                                    :value="country.id"
-                                >
-                                    {{ country.name }} ({{ country.code }})
-                                </option>
-                            </select>
+                                :options="countryOptions"
+                                placeholder="Select a country"
+                                searchable
+                                :error="!!form.errors.country_id"
+                            />
                             <InputError :message="form.errors.country_id" />
                         </div>
                     </div>
@@ -184,20 +195,12 @@ const submit = () => {
                     <div class="space-y-4">
                         <div>
                             <Label for="status">Status *</Label>
-                            <select
+                            <Select
                                 id="status"
                                 v-model="form.status"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                :class="{ 'border-red-500': form.errors.status }"
-                            >
-                                <option
-                                    v-for="(label, value) in statuses"
-                                    :key="value"
-                                    :value="value"
-                                >
-                                    {{ label }}
-                                </option>
-                            </select>
+                                :options="statusOptions"
+                                :error="!!form.errors.status"
+                            />
                             <InputError :message="form.errors.status" />
                         </div>
 

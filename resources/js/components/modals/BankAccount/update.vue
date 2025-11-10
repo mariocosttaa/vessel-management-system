@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import BaseModal from '../BaseModal.vue';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import { useNotifications } from '@/composables/useNotifications';
@@ -69,6 +70,15 @@ const form = useForm({
     bank_name: '',
     status: 'active',
     notes: '',
+});
+
+// Convert to Select component options format
+const statusOptions = computed(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
 });
 
 // Store read-only account information
@@ -192,20 +202,12 @@ const submit = () => {
                 <!-- Status -->
                 <div class="space-y-2">
                     <Label for="status">Status *</Label>
-                    <select
+                    <Select
                         id="status"
                         v-model="form.status"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                    >
-                        <option
-                            v-for="(label, value) in statuses"
-                            :key="value"
-                            :value="value"
-                        >
-                            {{ label }}
-                        </option>
-                    </select>
+                        :options="statusOptions"
+                        :error="!!form.errors.status"
+                    />
                     <InputError :message="form.errors.status" />
                 </div>
 
