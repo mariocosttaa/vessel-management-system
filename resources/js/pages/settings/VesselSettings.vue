@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import InputError from '@/components/InputError.vue';
+import VesselLogoUpload from '@/components/VesselLogoUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import settings from '@/routes/panel/settings';
 import { Settings, Globe } from 'lucide-vue-next';
 
@@ -54,6 +56,8 @@ interface Vessel {
     year_built: number | null;
     status: string;
     notes: string | null;
+    logo: string | null;
+    logo_url: string | null;
     country_code: string | null;
     currency_code: string | null;
 }
@@ -70,6 +74,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 const page = usePage();
 
 // Get current vessel ID from URL
@@ -92,6 +97,10 @@ const vesselData = computed(() => {
 // Active tab
 const activeTab = ref<'general' | 'location'>('general');
 
+// Logo state
+const logoFile = ref<File | null>(null)
+const removeLogo = ref(false)
+
 // General form (vessel information)
 const generalForm = useForm({
     name: vesselData.value?.name || '',
@@ -101,6 +110,8 @@ const generalForm = useForm({
     year_built: vesselData.value?.year_built || null,
     status: vesselData.value?.status || 'active',
     notes: vesselData.value?.notes || null,
+    logo: null as File | null,
+    remove_logo: false,
 });
 
 // Location form (country, currency, VAT)
@@ -113,13 +124,14 @@ const locationForm = useForm({
 // Watch for prop changes and update form values
 watch(() => vesselData.value, (newVessel) => {
     if (newVessel) {
+        // Ensure all required fields are set from vessel data
         generalForm.name = newVessel.name || '';
         generalForm.registration_number = newVessel.registration_number || '';
         generalForm.vessel_type = newVessel.vessel_type || '';
-        generalForm.capacity = newVessel.capacity || null;
-        generalForm.year_built = newVessel.year_built || null;
+        generalForm.capacity = newVessel.capacity ?? null;
+        generalForm.year_built = newVessel.year_built ?? null;
         generalForm.status = newVessel.status || 'active';
-        generalForm.notes = newVessel.notes || null;
+        generalForm.notes = newVessel.notes ?? null;
     }
 }, { immediate: true, deep: true });
 
@@ -168,40 +180,171 @@ const statusOptions = computed(() => {
 });
 
 const submitGeneral = () => {
-    generalForm.patch(settings.update.general.url({ vessel: getCurrentVesselId() }), {
-        onSuccess: () => {
-            addNotification({
-                type: 'success',
-                title: 'Success',
-                message: 'Vessel information has been updated successfully.',
-            });
-        },
-        onError: (errors) => {
-            console.error('Form submission errors:', errors);
-            addNotification({
-                type: 'error',
-                title: 'Error',
-                message: 'Failed to update vessel information. Please try again.',
-            });
-        },
-    });
+    // Always ensure form has latest values from v-model bindings
+    // The form object should have the current values, but we'll use vesselData as ultimate fallback
+    const formData: Record<string, any> = {
+        name: String(generalForm.name || vesselData.value?.name || ''),
+        registration_number: String(generalForm.registration_number || vesselData.value?.registration_number || ''),
+        vessel_type: String(generalForm.vessel_type || vesselData.value?.vessel_type || ''),
+        capacity: generalForm.capacity !== null && generalForm.capacity !== undefined ? Number(generalForm.capacity) : (vesselData.value?.capacity ?? null),
+        year_built: generalForm.year_built !== null && generalForm.year_built !== undefined ? Number(generalForm.year_built) : (vesselData.value?.year_built ?? null),
+        status: String(generalForm.status || vesselData.value?.status || 'active'),
+        notes: generalForm.notes !== null && generalForm.notes !== undefined ? String(generalForm.notes) : (vesselData.value?.notes ?? null),
+    }
+
+    // Add logo fields if needed
+    if (logoFile.value) {
+        formData.logo = logoFile.value
+        formData.remove_logo = false
+    } else if (removeLogo.value) {
+        formData.remove_logo = true
+    }
+
+    // Log data before submission for debugging
+    console.log('=== FORM SUBMISSION DEBUG ===')
+    console.log('Form values from generalForm:', {
+        name: generalForm.name,
+        registration_number: generalForm.registration_number,
+        vessel_type: generalForm.vessel_type,
+        status: generalForm.status,
+    })
+    console.log('VesselData values:', {
+        name: vesselData.value?.name,
+        registration_number: vesselData.value?.registration_number,
+        vessel_type: vesselData.value?.vessel_type,
+        status: vesselData.value?.status,
+    })
+    console.log('Final formData being sent:', formData)
+    console.log('Has logo file:', !!logoFile.value)
+    console.log('Remove logo:', removeLogo.value)
+
+    const submitUrl = settings.update.general.url({ vessel: getCurrentVesselId() })
+
+    // ALWAYS use POST when files are present (required for multipart/form-data)
+    // Laravel will handle method spoofing via _method field
+    if (logoFile.value || removeLogo.value) {
+        // Create a new form instance with ALL data explicitly set
+        // This ensures FormData includes all fields
+        const uploadForm = useForm({
+            _method: 'PATCH',
+            name: formData.name,
+            registration_number: formData.registration_number,
+            vessel_type: formData.vessel_type,
+            capacity: formData.capacity,
+            year_built: formData.year_built,
+            status: formData.status,
+            notes: formData.notes,
+            ...(logoFile.value ? { logo: logoFile.value } : {}),
+            remove_logo: formData.remove_logo || false,
+        })
+
+        console.log('Using POST method with FormData')
+        console.log('Upload form data keys:', Object.keys(uploadForm.data()))
+
+        uploadForm.post(submitUrl, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                logoFile.value = null
+                // If logo was removed, keep removeLogo false since it's now removed on server
+                // The vessel data will be refreshed by Inertia, so logoUrl will be null
+                removeLogo.value = false
+
+                // Update vessel data from the response if available
+                if (page.props.vessel) {
+                    const updatedVessel = page.props.vessel?.data || page.props.vessel
+                    if (updatedVessel) {
+                        // Vessel data will be automatically updated by Inertia
+                        // The displayLogoUrl computed will reflect the new state
+                    }
+                }
+
+                addNotification({
+                    type: 'success',
+                    title: t('Success'),
+                    message: t('Vessel information has been updated successfully.'),
+                });
+            },
+            onError: (errors) => {
+                console.error('=== FORM SUBMISSION ERROR ===')
+                console.error('Errors:', errors)
+                console.error('Form data that was sent:', uploadForm.data())
+                addNotification({
+                    type: 'error',
+                    title: t('Error'),
+                    message: t('Failed to update vessel information. Please try again.'),
+                });
+            },
+        })
+    } else {
+        // Use regular PATCH when no files
+        console.log('Using PATCH method (no files)')
+        generalForm.patch(submitUrl, {
+            preserveScroll: true,
+            onSuccess: () => {
+                addNotification({
+                    type: 'success',
+                    title: t('Success'),
+                    message: t('Vessel information has been updated successfully.'),
+                });
+            },
+            onError: (errors) => {
+                console.error('Form submission errors:', errors);
+                addNotification({
+                    type: 'error',
+                    title: t('Error'),
+                    message: t('Failed to update vessel information. Please try again.'),
+                });
+            },
+        })
+    }
 };
+
+const handleLogoChange = (file: File | null) => {
+    logoFile.value = file
+    if (file) {
+        removeLogo.value = false
+    }
+}
+
+const handleLogoRemove = () => {
+    // Set flag to remove logo - this will hide it immediately in the UI
+    removeLogo.value = true
+    logoFile.value = null
+    // The logo will be permanently removed when the form is submitted
+}
+
+// Computed logo URL that hides the logo when removal is pending
+// This provides immediate visual feedback when user confirms removal
+const displayLogoUrl = computed(() => {
+    // If removeLogo is true, hide the logo immediately
+    if (removeLogo.value) {
+        return null
+    }
+    // Otherwise, show the logo from vessel data
+    return vesselData.value?.logo_url || null
+})
+
+// Computed to check if logo removal is pending
+const isLogoRemovalPending = computed(() => {
+    // Removal is pending if removeLogo is true and there was originally a logo
+    return removeLogo.value && !!vesselData.value?.logo_url
+})
 
 const submitLocation = () => {
     locationForm.patch(settings.update.location.url({ vessel: getCurrentVesselId() }), {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Vessel location settings have been updated successfully.',
+                title: t('Success'),
+                message: t('Vessel location settings have been updated successfully.'),
             });
         },
         onError: (errors) => {
             console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to update vessel location settings. Please try again.',
+                title: t('Error'),
+                message: t('Failed to update vessel location settings. Please try again.'),
             });
         },
     });
@@ -209,16 +352,16 @@ const submitLocation = () => {
 </script>
 
 <template>
-    <Head title="Vessel Settings" />
+    <Head :title="t('Vessel Settings')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Settings', href: settings.edit.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Settings'), href: settings.edit.url({ vessel: getCurrentVesselId() }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="mb-6">
-                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Vessel Settings</h1>
+                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Vessel Settings') }}</h1>
                     <p class="text-muted-foreground dark:text-muted-foreground mt-1">
-                        Manage vessel information and configuration settings
+                        {{ t('Manage vessel information and configuration settings') }}
                     </p>
                 </div>
 
@@ -235,7 +378,7 @@ const submitLocation = () => {
                             ]"
                         >
                             <Settings class="h-4 w-4" />
-                            General
+                            {{ t('General') }}
                         </button>
                         <button
                             @click="activeTab = 'location'"
@@ -247,7 +390,7 @@ const submitLocation = () => {
                             ]"
                         >
                             <Globe class="h-4 w-4" />
-                            Location & Currency
+                            {{ t('Location & Currency') }}
                         </button>
                     </div>
                 </div>
@@ -257,7 +400,7 @@ const submitLocation = () => {
                     <form @submit.prevent="submitGeneral" class="space-y-6">
                         <!-- Vessel Name -->
                         <div class="space-y-2">
-                            <Label for="name">Vessel Name</Label>
+                            <Label for="name">{{ t('Vessel Name') }}</Label>
                             <Input
                                 id="name"
                                 v-model="generalForm.name"
@@ -271,7 +414,7 @@ const submitLocation = () => {
 
                         <!-- Registration Number -->
                         <div class="space-y-2">
-                            <Label for="registration_number">Registration Number</Label>
+                            <Label for="registration_number">{{ t('Registration Number') }}</Label>
                             <Input
                                 id="registration_number"
                                 v-model="generalForm.registration_number"
@@ -283,14 +426,24 @@ const submitLocation = () => {
                             <InputError :message="generalForm.errors.registration_number" />
                         </div>
 
+                        <!-- Vessel Logo -->
+                        <VesselLogoUpload
+                            :logo-url="displayLogoUrl"
+                            :is-removal-pending="isLogoRemovalPending"
+                            v-model="logoFile"
+                            :error="generalForm.errors.logo"
+                            @remove="handleLogoRemove"
+                            @update:model-value="handleLogoChange"
+                        />
+
                         <!-- Vessel Type -->
                         <div class="space-y-2">
-                            <Label for="vessel_type">Vessel Type</Label>
+                            <Label for="vessel_type">{{ t('Vessel Type') }}</Label>
                             <Select
                                 id="vessel_type"
                                 v-model="generalForm.vessel_type"
                                 :options="vesselTypeOptions"
-                                placeholder="Select a vessel type"
+                                :placeholder="t('Select a vessel type')"
                                 :error="!!generalForm.errors.vessel_type"
                                 class="w-full"
                             />
@@ -300,7 +453,7 @@ const submitLocation = () => {
                         <!-- Capacity and Year Built -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="capacity">Capacity</Label>
+                                <Label for="capacity">{{ t('Capacity') }}</Label>
                                 <Input
                                     id="capacity"
                                     v-model.number="generalForm.capacity"
@@ -313,7 +466,7 @@ const submitLocation = () => {
                             </div>
 
                             <div class="space-y-2">
-                                <Label for="year_built">Year Built</Label>
+                                <Label for="year_built">{{ t('Year Built') }}</Label>
                                 <Input
                                     id="year_built"
                                     v-model.number="generalForm.year_built"
@@ -329,12 +482,12 @@ const submitLocation = () => {
 
                         <!-- Status -->
                         <div class="space-y-2">
-                            <Label for="status">Status</Label>
+                            <Label for="status">{{ t('Status') }}</Label>
                             <Select
                                 id="status"
                                 v-model="generalForm.status"
                                 :options="statusOptions"
-                                placeholder="Select a status"
+                                :placeholder="t('Select a status')"
                                 :error="!!generalForm.errors.status"
                                 class="w-full"
                             />
@@ -343,7 +496,7 @@ const submitLocation = () => {
 
                         <!-- Notes -->
                         <div class="space-y-2">
-                            <Label for="notes">Notes</Label>
+                            <Label for="notes">{{ t('Notes') }}</Label>
                             <textarea
                                 id="notes"
                                 v-model="generalForm.notes"
@@ -361,13 +514,13 @@ const submitLocation = () => {
                                 variant="outline"
                                 @click="router.visit('/panel/' + getCurrentVesselId() + '/dashboard')"
                             >
-                                Cancel
+                                {{ t('Cancel') }}
                             </Button>
                             <Button
                                 type="submit"
                                 :disabled="generalForm.processing"
                             >
-                                {{ generalForm.processing ? 'Saving...' : 'Save Changes' }}
+                                {{ generalForm.processing ? t('Saving...') : t('Save Changes') }}
                             </Button>
                         </div>
                     </form>
@@ -378,72 +531,72 @@ const submitLocation = () => {
                     <form @submit.prevent="submitLocation" class="space-y-6">
                         <!-- Default Country -->
                         <div class="space-y-2">
-                            <Label for="country_code">Default Country</Label>
+                            <Label for="country_code">{{ t('Default Country') }}</Label>
                             <Select
                                 id="country_code"
                                 v-model="locationForm.country_code"
                                 :options="countryOptions"
-                                placeholder="Select a country"
+                                :placeholder="t('Select a country')"
                                 :searchable="true"
                                 :error="!!locationForm.errors.country_code"
                                 class="w-full"
                             />
                             <InputError :message="locationForm.errors.country_code" />
                             <p class="text-xs text-muted-foreground">
-                                This country will be used as the default for new transactions and other vessel operations.
+                                {{ t('This country will be used as the default for new transactions and other vessel operations.') }}
                             </p>
                         </div>
 
                         <!-- Default Currency -->
                         <div class="space-y-2">
-                            <Label for="currency_code">Default Currency</Label>
+                            <Label for="currency_code">{{ t('Default Currency') }}</Label>
                             <Select
                                 id="currency_code"
                                 v-model="locationForm.currency_code"
                                 :options="currencyOptions"
-                                placeholder="Select a currency"
+                                :placeholder="t('Select a currency')"
                                 :searchable="true"
                                 :error="!!locationForm.errors.currency_code"
                                 class="w-full"
                             />
                             <InputError :message="locationForm.errors.currency_code" />
                             <p class="text-xs text-muted-foreground">
-                                This currency will be used as the default for new transactions when no specific currency is selected.
+                                {{ t('This currency will be used as the default for new transactions when no specific currency is selected.') }}
                             </p>
                         </div>
 
                         <!-- Default VAT Profile -->
                         <div class="space-y-2">
-                            <Label for="vat_profile_id">Default VAT Profile</Label>
+                            <Label for="vat_profile_id">{{ t('Default VAT Profile') }}</Label>
                             <Select
                                 id="vat_profile_id"
                                 v-model="locationForm.vat_profile_id"
                                 :options="vatProfileOptions"
-                                placeholder="Select a VAT profile"
+                                :placeholder="t('Select a VAT profile')"
                                 :searchable="true"
                                 :error="!!locationForm.errors.vat_profile_id"
                                 class="w-full"
                             />
                             <InputError :message="locationForm.errors.vat_profile_id" />
                             <p class="text-xs text-muted-foreground">
-                                This VAT profile will be used as the default for new income transactions (Add Transaction). Expenses (Remove Transaction) do not use VAT.
+                                {{ t('This VAT profile will be used as the default for new income transactions (Add Transaction). Expenses (Remove Transaction) do not use VAT.') }}
                             </p>
                         </div>
 
                         <!-- Current Settings Display -->
                         <div v-if="settingData?.country || settingData?.currency || settingData?.vat_profile" class="rounded-lg border p-4 bg-muted/50 space-y-3">
-                            <h3 class="font-semibold text-sm">Current Settings</h3>
+                            <h3 class="font-semibold text-sm">{{ t('Current Settings') }}</h3>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div v-if="settingData?.country">
-                                    <p class="text-muted-foreground">Country:</p>
+                                    <p class="text-muted-foreground">{{ t('Country') }}:</p>
                                     <p class="font-medium">{{ settingData.country.name }}</p>
                                 </div>
                                 <div v-if="settingData?.currency">
-                                    <p class="text-muted-foreground">Currency:</p>
+                                    <p class="text-muted-foreground">{{ t('Currency') }}:</p>
                                     <p class="font-medium">{{ settingData.currency.name }} ({{ settingData.currency.symbol }})</p>
                                 </div>
                                 <div v-if="settingData?.vat_profile">
-                                    <p class="text-muted-foreground">VAT Profile:</p>
+                                    <p class="text-muted-foreground">{{ t('VAT Profile') }}:</p>
                                     <p class="font-medium">{{ settingData.vat_profile.name }} - {{ settingData.vat_profile.percentage }}%</p>
                                 </div>
                             </div>
@@ -456,13 +609,13 @@ const submitLocation = () => {
                                 variant="outline"
                                 @click="router.visit('/panel/' + getCurrentVesselId() + '/dashboard')"
                             >
-                                Cancel
+                                {{ t('Cancel') }}
                             </Button>
                             <Button
                                 type="submit"
                                 :disabled="locationForm.processing"
                             >
-                                {{ locationForm.processing ? 'Saving...' : 'Save Changes' }}
+                                {{ locationForm.processing ? t('Saving...') : t('Save Changes') }}
                             </Button>
                         </div>
                     </form>
