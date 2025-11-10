@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreAttachmentRequest;
 use App\Models\Attachment;
 use App\Services\AuditLogService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,6 +16,7 @@ use Inertia\Response;
 
 class AttachmentController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of attachments for a specific model.
      */
@@ -108,7 +110,7 @@ class AttachmentController extends Controller
     public function download(Attachment $attachment)
     {
         if (!Storage::disk('public')->exists($attachment->file_path)) {
-            abort(404, 'File not found.');
+            abort(404, $this->transFrom('notifications', 'File not found.'));
         }
 
         return response()->download(
