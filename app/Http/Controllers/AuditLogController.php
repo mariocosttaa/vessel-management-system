@@ -140,7 +140,7 @@ class AuditLogController extends Controller
 
     /**
      * Get recent audit logs for notification dropdown.
-     * Returns the last 6 audit logs for the current vessel (if vessel-scoped) or all vessels.
+     * Returns the last 5 audit logs for the current vessel (if vessel-scoped) or all vessels.
      */
     public function recent(Request $request)
     {
@@ -171,8 +171,8 @@ class AuditLogController extends Controller
             $query->where('vessel_id', $vesselId);
         }
 
-        // Get last 6 audit logs
-        $auditLogs = $query->limit(6)->get();
+        // Get last 5 audit logs
+        $auditLogs = $query->limit(5)->get();
 
         return response()->json([
             'data' => AuditLogResource::collection($auditLogs),
