@@ -3,13 +3,74 @@ import { Head, Link } from '@inertiajs/vue3'
 import { login } from '@/routes'
 import Icon from '@/components/Icon.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useI18n } from '@/composables/useI18n'
 
 const page = usePage()
 const { t } = useI18n()
 const user = computed(() => page.props.auth?.user)
+
+// Animation state
+const visibleSections = ref<Set<string>>(new Set())
+
+// Observe all sections on mount
+onMounted(() => {
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const sectionId = entry.target.getAttribute('data-section-id')
+                    if (sectionId) {
+                        visibleSections.value.add(sectionId)
+                    }
+                }
+            })
+        },
+        { threshold: 0.1 }
+    )
+
+    // Observe all sections
+    const sections = [
+        'features-header',
+        'features',
+        'operations-header',
+        'operations-1',
+        'operations-2',
+        'operations-3',
+        'operations-4',
+        'testimonials-header',
+        'testimonials',
+        'contact-header',
+        'contact-card',
+        'cta'
+    ]
+
+    sections.forEach((sectionId) => {
+        const element = document.getElementById(sectionId)
+        if (element) {
+            element.setAttribute('data-section-id', sectionId)
+            observer.observe(element)
+        }
+    })
+
+    // Also observe pricing and contact sections
+    const additionalSections = [
+        'pricing-header',
+        'pricing-card',
+        'pricing-features',
+        'contact-header',
+        'contact-card',
+        'contact-info'
+    ]
+    additionalSections.forEach((sectionId) => {
+        const element = document.getElementById(sectionId)
+        if (element) {
+            element.setAttribute('data-section-id', sectionId)
+            observer.observe(element)
+        }
+    })
+})
 
 const features = computed(() => [
     {
@@ -166,7 +227,7 @@ const testimonials = computed(() => [
         <!-- Build up the whole picture Section -->
         <section id="features" class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-10">
+                <div id="features-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('features-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
                         {{ t('Build up the whole picture') }}
                     </h2>
@@ -176,11 +237,15 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Features Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div id="features" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div
-                        v-for="feature in features"
+                        v-for="(feature, index) in features"
                         :key="feature.title"
-                        class="group rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card/80 dark:bg-card/50 backdrop-blur-sm p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:shadow-md hover:bg-card dark:hover:bg-card/70"
+                        :class="[
+                            'group rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card/80 dark:bg-card/50 backdrop-blur-sm p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:shadow-md hover:bg-card dark:hover:bg-card/70',
+                            visibleSections.has('features') ? 'animate-fade-in-up' : 'opacity-0',
+                        ]"
+                        :style="{ animationDelay: `${index * 0.1}s` }"
                     >
                         <div class="mb-3 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors">
                             <Icon :name="feature.icon" class="w-5 h-5 text-primary" />
@@ -199,7 +264,7 @@ const testimonials = computed(() => [
         <!-- Complete Operations Management Section -->
         <section class="py-12 lg:py-16 bg-background dark:bg-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-10">
+                <div id="operations-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('operations-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
                         {{ t('Complete Operations Management') }}
                     </h2>
@@ -209,7 +274,7 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Workflow Block 1: Mareas Management -->
-                <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div id="operations-1" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-1') }">
                     <div>
                         <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
                             {{ t('Fishing Trip Control') }}
@@ -232,7 +297,7 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Workflow Block 2: Financial Control -->
-                <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div id="operations-2" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-2') }">
                     <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
                         <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
                             <div class="text-center">
@@ -255,7 +320,7 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Workflow Block 3: Salary & Distribution -->
-                <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div id="operations-3" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-3') }">
                     <div>
                         <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
                             {{ t('Automated Calculations') }}
@@ -278,7 +343,7 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Workflow Block 4: Monitoring & Security -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div id="operations-4" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-4') }">
                     <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
                         <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
                             <div class="text-center">
@@ -305,7 +370,7 @@ const testimonials = computed(() => [
         <!-- Customer Testimonials Section -->
         <section class="py-12 lg:py-16 bg-gradient-to-b from-muted/20 to-card/50 dark:from-[#0a0a0a] dark:to-[#0f0f0f] border-t border-border/50 dark:border-sidebar-border">
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-10">
+                <div id="testimonials-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('testimonials-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
                         {{ t('Customer testimonials') }}
                     </h2>
@@ -315,11 +380,15 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Testimonials Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div id="testimonials" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div
                         v-for="(testimonial, index) in testimonials"
                         :key="index"
-                        class="relative rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-background dark:bg-card/50 p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300"
+                        :class="[
+                            'relative rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-background dark:bg-card/50 p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300',
+                            visibleSections.has('testimonials') ? 'animate-fade-in-up' : 'opacity-0',
+                        ]"
+                        :style="{ animationDelay: `${index * 0.15}s` }"
                     >
                         <div class="mb-4">
                             <Icon name="message-square" class="w-8 h-8 text-primary/30 dark:text-primary/20" />
@@ -340,10 +409,170 @@ const testimonials = computed(() => [
             </div>
         </section>
 
+        <!-- Contact Section -->
+        <section id="contact" class="py-12 lg:py-16 bg-background dark:bg-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
+            <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <div id="contact-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('contact-header') }">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        {{ t('Get in Touch') }}
+                    </h2>
+                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        {{ t('Have questions or need more information? Our team is here to help you get started with Bindamy Mareas. Whether you need a demo, have technical questions, or want to discuss your specific requirements, we\'re ready to assist you.') }}
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    <!-- Left: Description -->
+                    <div id="contact-info" :class="{ 'animate-fade-in-left': visibleSections.has('contact-info') }">
+                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-4">
+                            {{ t('Contact Us') }}
+                        </h3>
+                        <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-6 leading-relaxed">
+                            {{ t('Send us an email at the address below and we\'ll respond as soon as possible. We typically respond within 24 hours during business days. For urgent matters, please mention it in your message.') }}
+                        </p>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-3">
+                                <Icon name="mail" class="w-5 h-5 text-primary flex-shrink-0" />
+                                <a href="mailto:geral@mareas.bindamy.site" class="text-sm text-card-foreground dark:text-card-foreground hover:text-primary transition-colors">
+                                    geral@mareas.bindamy.site
+                                </a>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <Icon name="clock" class="w-5 h-5 text-primary flex-shrink-0" />
+                                <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                    {{ t('Response time: Within 24 hours') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Contact Card -->
+                    <div id="contact-card" class="rounded-xl bg-gradient-to-br from-card/80 to-card/60 dark:from-card/50 dark:to-card/30 backdrop-blur-sm border border-border/50 dark:border-sidebar-border/50 p-6 shadow-lg" :class="{ 'animate-fade-in-right': visibleSections.has('contact-card') }">
+                        <div class="text-center">
+                            <h4 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-3">
+                                {{ t('Ready to get started?') }}
+                            </h4>
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-6">
+                                {{ t('Contact us for a personalized demo and pricing information tailored to your needs.') }}
+                            </p>
+                            <a
+                                href="mailto:geral@mareas.bindamy.site"
+                                class="inline-flex items-center justify-center w-full px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                            >
+                                <Icon name="mail" class="w-4 h-4 mr-2" />
+                                {{ t('Send Email') }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing" class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
+            <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <div id="pricing-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('pricing-header') }">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        {{ t('Pricing') }}
+                    </h2>
+                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        {{ t('Flexible pricing plans designed to meet your vessel management needs. Our pricing adapts to your fleet size, user count, and specific requirements. Contact us for personalized pricing that fits your business.') }}
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Left: Features List -->
+                    <div id="pricing-features" :class="{ 'animate-fade-in-left': visibleSections.has('pricing-features') }">
+                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-4">
+                            {{ t('What\'s Included') }}
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-3 group">
+                                <div class="mt-0.5 flex-shrink-0">
+                                    <Icon name="check" class="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
+                                        {{ t('Scalable pricing based on your fleet size') }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        {{ t('Pay only for what you need, scale as you grow') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 group">
+                                <div class="mt-0.5 flex-shrink-0">
+                                    <Icon name="check" class="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
+                                        {{ t('No hidden fees or setup costs') }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        {{ t('Transparent pricing with no surprises') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 group">
+                                <div class="mt-0.5 flex-shrink-0">
+                                    <Icon name="check" class="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
+                                        {{ t('Full feature access included') }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        {{ t('All features available from day one') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 group">
+                                <div class="mt-0.5 flex-shrink-0">
+                                    <Icon name="check" class="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
+                                        {{ t('Dedicated support and training') }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        {{ t('Expert support team ready to help') }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Pricing Card -->
+                    <div id="pricing-card" class="rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 dark:from-primary/10 dark:via-primary/20 dark:to-primary/10 border-2 border-primary/20 dark:border-primary/30 p-8 shadow-xl" :class="{ 'animate-fade-in-right': visibleSections.has('pricing-card') }">
+                        <div class="text-center mb-6">
+                            <h3 class="text-2xl font-bold text-card-foreground dark:text-card-foreground mb-2">
+                                {{ t('Custom Pricing') }}
+                            </h3>
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ t('Tailored to your needs') }}
+                            </p>
+                        </div>
+                        <div class="mb-6">
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-6 leading-relaxed text-center">
+                                {{ t('Our pricing is tailored to your specific needs. We offer flexible plans based on the number of vessels, users, and features you require.') }}
+                            </p>
+                        </div>
+                        <a
+                            href="mailto:geral@mareas.bindamy.site"
+                            class="inline-flex items-center justify-center w-full px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                        >
+                            <Icon name="mail" class="w-4 h-4 mr-2" />
+                            {{ t('Get a Quote') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Final CTA Section -->
         <section class="py-12 lg:py-16 bg-gradient-to-b from-background via-muted/20 to-background dark:from-[#121212] dark:via-[#0a0a0a] dark:to-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
             <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-                <div class="rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 dark:from-primary/20 dark:via-primary/10 dark:to-primary/20 border border-primary/20 dark:border-primary/30 p-6 lg:p-8">
+                <div id="cta" class="rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 dark:from-primary/20 dark:via-primary/10 dark:to-primary/20 border border-primary/20 dark:border-primary/30 p-6 lg:p-8" :class="{ 'animate-fade-in-up': visibleSections.has('cta') }">
                     <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
                         <div class="text-center lg:text-left">
                             <h3 class="text-xl lg:text-2xl font-bold text-card-foreground dark:text-card-foreground mb-2">
