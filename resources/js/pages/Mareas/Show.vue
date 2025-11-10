@@ -8,6 +8,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
@@ -16,6 +17,8 @@ import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, P
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
+import UpdateAddModal from '@/components/modals/Transaction/update-add.vue';
+import UpdateRemoveModal from '@/components/modals/Transaction/update-remove.vue';
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
 import EditMareaModal from '@/components/modals/Marea/edit.vue';
 import TransactionShowModal from '@/components/modals/Transaction/show.vue';
@@ -228,6 +231,88 @@ const closeTransactionModal = () => {
     selectedTransaction.value = null;
 };
 
+// Open update modal for transaction
+const openUpdateModal = async (transaction: any) => {
+    transactionToEdit.value = transaction;
+
+    // Fetch full transaction details from API
+    try {
+        const vesselId = getCurrentVesselId();
+        const response = await fetch(`/panel/${vesselId}/api/transactions/${transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                transactionToEdit.value = data.transaction;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load transaction details:', error);
+    }
+
+    // Determine which update modal to show based on transaction type
+    if (transaction.type === 'income') {
+        showUpdateAddModal.value = true;
+    } else if (transaction.type === 'expense') {
+        showUpdateRemoveModal.value = true;
+    }
+};
+
+// Close update modals
+const closeUpdateModals = () => {
+    showUpdateAddModal.value = false;
+    showUpdateRemoveModal.value = false;
+    transactionToEdit.value = null;
+};
+
+// Handle update success
+const handleUpdateSuccess = () => {
+    closeUpdateModals();
+    router.reload();
+};
+
+// Handle delete transaction
+const openDeleteTransactionDialog = (transactionId: number) => {
+    transactionToDelete.value = transactionId;
+    showDeleteTransactionDialog.value = true;
+};
+
+const confirmDeleteTransaction = () => {
+    if (!transactionToDelete.value) return;
+
+    isProcessing.value = true;
+    router.delete(mareas.removeTransaction.url({
+        vessel: getCurrentVesselId(),
+        mareaId: props.marea.id,
+        transaction: transactionToDelete.value
+    }), {
+        onSuccess: () => {
+            isProcessing.value = false;
+            showDeleteTransactionDialog.value = false;
+            transactionToDelete.value = null;
+            addNotification({
+                type: 'success',
+                title: 'Success',
+                message: 'Transaction has been removed from the marea.',
+            });
+        },
+        onError: () => {
+            isProcessing.value = false;
+        },
+    });
+};
+
+const cancelDeleteTransaction = () => {
+    showDeleteTransactionDialog.value = false;
+    transactionToDelete.value = null;
+};
+
 // Confirmation dialogs
 const showMarkAtSeaDialog = ref(false);
 const showMarkReturnedDialog = ref(false);
@@ -248,6 +333,11 @@ const showSalaryPaymentDialog = ref(false);
 const showTransactionModal = ref(false);
 const selectedTransaction = ref<any>(null);
 const loadingTransaction = ref(false);
+const showUpdateAddModal = ref(false);
+const showUpdateRemoveModal = ref(false);
+const transactionToEdit = ref<any>(null);
+const showDeleteTransactionDialog = ref(false);
+const transactionToDelete = ref<number | null>(null);
 
 // Distribution section collapsed state - default to collapsed, especially when calculation is not active
 const isDistributionExpanded = ref(false);
@@ -462,6 +552,15 @@ const nonSalaryExpenseTransactions = computed(() =>
     )
 );
 
+// Filter categories by type
+const incomeCategories = computed(() => {
+    return props.categories?.filter(cat => cat.type === 'income') || [];
+});
+
+const expenseCategories = computed(() => {
+    return props.categories?.filter(cat => cat.type === 'expense') || [];
+});
+
 // Sort distribution items by order_index for display
 const sortedDistributionItems = computed(() => {
     if (!props.marea.distribution?.items) return [];
@@ -578,26 +677,9 @@ const handleEditMareaSuccess = () => {
     router.reload();
 };
 
-// Handle remove transaction
+// Handle remove transaction (deprecated - use openDeleteTransactionDialog instead)
 const handleRemoveTransaction = (transactionId: number) => {
-    isProcessing.value = true;
-    router.delete(mareas.removeTransaction.url({
-        vessel: getCurrentVesselId(),
-        mareaId: props.marea.id,
-        transaction: transactionId
-    }), {
-        onSuccess: () => {
-            isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: 'Success',
-                message: 'Transaction has been removed from the marea.',
-            });
-        },
-        onError: () => {
-            isProcessing.value = false;
-        },
-    });
+    openDeleteTransactionDialog(transactionId);
 };
 
 // Handle add crew
@@ -1640,14 +1722,41 @@ const cancelDeleteMarea = () => {
                                             </div>
                                         </template>
                                     </div>
-                                    <button
-                                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                                        @click.stop="handleRemoveTransaction(transaction.id)"
-                                        class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                        :disabled="isProcessing"
+                                    <!-- Action Buttons (View, Edit, Delete) -->
+                                    <div
+                                        @click.stop
+                                        class="flex items-center gap-1 flex-shrink-0 ml-2"
                                     >
-                                        <X class="w-4 h-4" />
-                                    </button>
+                                        <!-- View Button -->
+                                        <button
+                                            @click.stop="openTransactionModal(transaction)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                            title="View transaction details"
+                                        >
+                                            <Icon name="eye" class="w-4 h-4" />
+                                        </button>
+
+                                        <!-- Edit Button -->
+                                        <button
+                                            v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            @click.stop="openUpdateModal(transaction)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                            title="Edit transaction"
+                                        >
+                                            <Icon name="edit" class="w-4 h-4" />
+                                        </button>
+
+                                        <!-- Delete Button -->
+                                        <button
+                                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            @click.stop="openDeleteTransactionDialog(transaction.id)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
+                                            title="Remove transaction from marea"
+                                            :disabled="isProcessing"
+                                        >
+                                            <Icon name="x" class="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1754,14 +1863,41 @@ const cancelDeleteMarea = () => {
                                             </div>
                                         </template>
                                     </div>
-                                    <button
-                                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                                        @click.stop="handleRemoveTransaction(transaction.id)"
-                                        class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                        :disabled="isProcessing"
+                                    <!-- Action Buttons (View, Edit, Delete) -->
+                                    <div
+                                        @click.stop
+                                        class="flex items-center gap-1 flex-shrink-0 ml-2"
                                     >
-                                        <X class="w-4 h-4" />
-                                    </button>
+                                        <!-- View Button -->
+                                        <button
+                                            @click.stop="openTransactionModal(transaction)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                            title="View transaction details"
+                                        >
+                                            <Icon name="eye" class="w-4 h-4" />
+                                        </button>
+
+                                        <!-- Edit Button -->
+                                        <button
+                                            v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            @click.stop="openUpdateModal(transaction)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                            title="Edit transaction"
+                                        >
+                                            <Icon name="edit" class="w-4 h-4" />
+                                        </button>
+
+                                        <!-- Delete Button -->
+                                        <button
+                                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            @click.stop="openDeleteTransactionDialog(transaction.id)"
+                                            class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
+                                            title="Remove transaction from marea"
+                                            :disabled="isProcessing"
+                                        >
+                                            <Icon name="x" class="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1962,10 +2098,8 @@ const cancelDeleteMarea = () => {
                     <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
                         Departure Date
                     </label>
-                    <input
+                    <DateInput
                         v-model="markAtSeaForm.date"
-                        type="date"
-                        class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground"
                     />
                 </div>
             </template>
@@ -1989,10 +2123,8 @@ const cancelDeleteMarea = () => {
                     <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
                         Return Date
                     </label>
-                    <input
+                    <DateInput
                         v-model="markReturnedForm.date"
-                        type="date"
-                        class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground"
                     />
                 </div>
             </template>
@@ -2114,13 +2246,26 @@ const cancelDeleteMarea = () => {
                     <div v-else>
                         <div>
                             <Label for="crew_member">Crew Member</Label>
-                            <Select
+                            <select
+                                id="crew_member"
                                 v-model="addCrewForm.user_id"
-                                :options="availableCrewMembers.map(m => ({ value: m.id, label: `${m.name} (${m.email})` }))"
-                                placeholder="Select a crew member"
-                                searchable
-                                :error="addCrewForm.errors.user_id"
-                            />
+                                class="flex h-10 w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                :class="{ 'border-destructive dark:border-destructive': addCrewForm.errors.user_id }"
+                                :disabled="addCrewForm.processing || availableCrewMembers.length === 0"
+                            >
+                                <option :value="null">Select a crew member</option>
+                                <option
+                                    v-for="member in availableCrewMembers"
+                                    :key="member.id"
+                                    :value="member.id"
+                                >
+                                    {{ member.name }} ({{ member.email }})
+                                </option>
+                            </select>
+                            <InputError :message="addCrewForm.errors.user_id" class="mt-1" />
+                            <p v-if="availableCrewMembers.length === 0" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
+                                No available crew members to assign
+                            </p>
                         </div>
                         <div>
                             <Label for="crew_notes">Notes (Optional)</Label>
@@ -2363,11 +2508,10 @@ const cancelDeleteMarea = () => {
                     </div>
                     <div>
                         <Label for="salary_date">Payment Date *</Label>
-                        <Input
+                        <DateInput
                             id="salary_date"
                             v-model="salaryPaymentForm.transaction_date"
-                            type="date"
-                            :error="salaryPaymentForm.errors.transaction_date"
+                            :class="{ 'border-destructive dark:border-destructive': salaryPaymentForm.errors.transaction_date }"
                             :disabled="isProcessing"
                         />
                     </div>
@@ -2410,6 +2554,46 @@ const cancelDeleteMarea = () => {
             :open="showTransactionModal"
             :transaction="selectedTransaction"
             @close="closeTransactionModal"
+        />
+
+        <!-- Update Transaction Modals -->
+        <UpdateAddModal
+            v-if="transactionToEdit && transactionToEdit.type === 'income'"
+            :open="showUpdateAddModal"
+            :transaction="transactionToEdit"
+            :categories="incomeCategories"
+            :vat-profiles="vatProfiles"
+            :default-vat-profile="defaultVatProfile"
+            :default-currency="props.defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
+
+        <UpdateRemoveModal
+            v-if="transactionToEdit && transactionToEdit.type === 'expense'"
+            :open="showUpdateRemoveModal"
+            :transaction="transactionToEdit"
+            :categories="expenseCategories"
+            :suppliers="suppliers"
+            :crew-members="crewMembers"
+            :default-currency="props.defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
+
+        <!-- Delete Transaction Confirmation Dialog -->
+        <ConfirmationDialog
+            v-model:open="showDeleteTransactionDialog"
+            title="Remove Transaction from Marea"
+            description="This will remove the transaction from this marea. The transaction itself will not be deleted."
+            message="Are you sure you want to remove this transaction from the marea?"
+            confirm-text="Remove Transaction"
+            cancel-text="Cancel"
+            variant="destructive"
+            type="warning"
+            :loading="isProcessing"
+            @confirm="confirmDeleteTransaction"
+            @cancel="cancelDeleteTransaction"
         />
     </VesselLayout>
 </template>

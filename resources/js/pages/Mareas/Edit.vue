@@ -5,6 +5,7 @@ import Icon from '@/components/Icon.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import mareas from '@/routes/panel/mareas';
 
@@ -131,10 +132,9 @@ const handleCancel = () => {
                                 <Label for="estimated_departure_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                     Estimated Departure Date
                                 </Label>
-                                <Input
+                                <DateInput
                                     id="estimated_departure_date"
                                     v-model="form.estimated_departure_date"
-                                    type="date"
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.estimated_departure_date }"
                                 />
                                 <InputError :message="form.errors.estimated_departure_date" class="mt-1" />
@@ -145,10 +145,9 @@ const handleCancel = () => {
                                 <Label for="estimated_return_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                     Estimated Return Date
                                 </Label>
-                                <Input
+                                <DateInput
                                     id="estimated_return_date"
                                     v-model="form.estimated_return_date"
-                                    type="date"
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.estimated_return_date }"
                                 />
                                 <InputError :message="form.errors.estimated_return_date" class="mt-1" />
