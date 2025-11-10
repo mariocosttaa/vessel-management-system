@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
@@ -123,6 +124,38 @@ const currencyOptions = computed(() => {
         value: currency.code,
         label: formatCurrencyDisplay(currency.code, currency.name, currency.symbol)
     }));
+});
+
+// Convert to Select component options format
+const positionOptions = computed(() => {
+    const options = [{ value: '', label: 'Choose an option!' }];
+    props.positions.forEach(position => {
+        options.push({ value: position.id, label: position.name });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options = [{ value: '', label: 'Choose an option!' }];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const compensationTypeOptions = computed(() => {
+    return [
+        { value: 'fixed', label: 'Fixed Salary' },
+        { value: 'percentage', label: 'Percentage of Revenue' }
+    ];
+});
+
+const paymentFrequencyOptions = computed(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    Object.entries(props.paymentFrequencies).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
 });
 
 const paymentFrequencies = {
@@ -556,20 +589,14 @@ const handleClose = () => {
                                 <Label for="position_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                     Position <span class="text-destructive">*</span>
                                 </Label>
-                                <select
+                                <Select
                                     id="position_id"
                                     v-model="form.position_id"
-                                    required
-                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    :class="{
-                                        'border-destructive dark:border-destructive': form.errors.position_id || getStepErrors('crew-info').some(e => e.includes('Position'))
-                                    }"
-                                >
-                                    <option value="">Choose an option!</option>
-                                    <option v-for="position in positions" :key="position.id" :value="position.id">
-                                        {{ position.name }}
-                                    </option>
-                                </select>
+                                    :options="positionOptions"
+                                    placeholder="Choose an option!"
+                                    searchable
+                                    :error="!!(form.errors.position_id || getStepErrors('crew-info').some(e => e.includes('Position')))"
+                                />
                                 <InputError :message="form.errors.position_id" class="mt-1" />
                                 <div v-if="getStepErrors('crew-info').some(e => e.includes('Position'))" class="text-sm text-destructive mt-1">
                                     {{ getStepErrors('crew-info').find(e => e.includes('Position')) }}
@@ -581,20 +608,13 @@ const handleClose = () => {
                                 <Label for="status" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                     Status <span class="text-destructive">*</span>
                                 </Label>
-                                <select
+                                <Select
                                     id="status"
                                     v-model="form.status"
-                                    required
-                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    :class="{
-                                        'border-destructive dark:border-destructive': form.errors.status || getStepErrors('crew-info').some(e => e.includes('Status'))
-                                    }"
-                                >
-                                    <option value="">Choose an option!</option>
-                                    <option v-for="(label, value) in statuses" :key="value" :value="value">
-                                        {{ label }}
-                                    </option>
-                                </select>
+                                    :options="statusOptions"
+                                    placeholder="Choose an option!"
+                                    :error="!!(form.errors.status || getStepErrors('crew-info').some(e => e.includes('Status')))"
+                                />
                                 <InputError :message="form.errors.status" class="mt-1" />
                                 <div v-if="getStepErrors('crew-info').some(e => e.includes('Status'))" class="text-sm text-destructive mt-1">
                                     {{ getStepErrors('crew-info').find(e => e.includes('Status')) }}
@@ -647,16 +667,12 @@ const handleClose = () => {
                                     <Label for="compensation_type" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                         Compensation Type <span class="text-destructive">*</span>
                                     </Label>
-                                    <select
+                                    <Select
                                         id="compensation_type"
                                         v-model="form.compensation_type"
-                                        required
-                                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        :class="{ 'border-destructive dark:border-destructive': form.errors.compensation_type || getStepErrors('salary').some(e => e.includes('Compensation type')) }"
-                                    >
-                                        <option value="fixed">Fixed Salary</option>
-                                        <option value="percentage">Percentage of Revenue</option>
-                                    </select>
+                                        :options="compensationTypeOptions"
+                                        :error="!!(form.errors.compensation_type || getStepErrors('salary').some(e => e.includes('Compensation type')))"
+                                    />
                                     <InputError :message="form.errors.compensation_type" class="mt-1" />
                                     <div v-if="getStepErrors('salary').some(e => e.includes('Compensation type'))" class="text-sm text-destructive mt-1">
                                         {{ getStepErrors('salary').find(e => e.includes('Compensation type')) }}
@@ -707,17 +723,13 @@ const handleClose = () => {
                                     <Label for="currency" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                         Currency <span class="text-destructive">*</span>
                                     </Label>
-                                    <select
+                                    <Select
                                         id="currency"
                                         v-model="form.currency"
-                                        required
-                                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        :class="{ 'border-destructive dark:border-destructive': form.errors.currency || getStepErrors('salary').some(e => e.includes('Currency')) }"
-                                    >
-                                        <option v-for="currency in currencyOptions" :key="currency.value" :value="currency.value">
-                                            {{ currency.label }}
-                                        </option>
-                                    </select>
+                                        :options="currencyOptions"
+                                        searchable
+                                        :error="!!(form.errors.currency || getStepErrors('salary').some(e => e.includes('Currency')))"
+                                    />
                                     <InputError :message="form.errors.currency" class="mt-1" />
                                     <div v-if="getStepErrors('salary').some(e => e.includes('Currency'))" class="text-sm text-destructive mt-1">
                                         {{ getStepErrors('salary').find(e => e.includes('Currency')) }}
@@ -729,17 +741,12 @@ const handleClose = () => {
                                     <Label for="payment_frequency" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                         Payment Frequency <span class="text-destructive">*</span>
                                     </Label>
-                                    <select
+                                    <Select
                                         id="payment_frequency"
                                         v-model="form.payment_frequency"
-                                        required
-                                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        :class="{ 'border-destructive dark:border-destructive': form.errors.payment_frequency || getStepErrors('salary').some(e => e.includes('Payment frequency')) }"
-                                    >
-                                        <option v-for="(label, value) in paymentFrequencies" :key="value" :value="value">
-                                            {{ label }}
-                                        </option>
-                                    </select>
+                                        :options="paymentFrequencyOptions"
+                                        :error="!!(form.errors.payment_frequency || getStepErrors('salary').some(e => e.includes('Payment frequency')))"
+                                    />
                                     <InputError :message="form.errors.payment_frequency" class="mt-1" />
                                     <div v-if="getStepErrors('salary').some(e => e.includes('Payment frequency'))" class="text-sm text-destructive mt-1">
                                         {{ getStepErrors('salary').find(e => e.includes('Payment frequency')) }}
