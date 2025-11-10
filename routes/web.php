@@ -14,20 +14,16 @@ use App\Http\Controllers\{
     AuditLogController,
     FinancialReportController,
     VatReportController,
-    DashboardController
+    DashboardController,
+    LandingController
 };
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
-// Redirect root to panel if authenticated, otherwise to auth login
-Route::get('/', function () {
-    if (Auth::check()) {
-        return redirect()->route('panel.index');
-    }
-    return redirect()->route('login');
-});
+// Landing page route
+Route::get('/', [LandingController::class, 'index'])->name('landing');
 
 // Files Routes
 Route::prefix('file/{vesselIdHashed}')->group(function () {
@@ -75,6 +71,7 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     if (app()->environment(['local', 'testing'])) {
         Route::get('/test-data', [TestDataController::class, 'index'])->name('panel.test-data');
         Route::get('/test-permissions', [TestDataController::class, 'permissions'])->name('panel.test-permissions');
+        Route::get('/test-pdf', [TestDataController::class, 'testPdf'])->name('panel.test-pdf');
         Route::get('/email-test', function () {
             return view('emails.test', [
                 'title' => 'Email Template Test - ' . config('app.name')
@@ -161,7 +158,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
 
     // Vessel Settings (scoped to current vessel)
     Route::get('/settings', [VesselSettingController::class, 'edit'])->name('panel.settings.edit');
-    Route::patch('/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');
+    Route::match(['patch', 'post'], '/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');
     Route::patch('/settings/location', [VesselSettingController::class, 'updateLocation'])->name('panel.settings.update.location');
 
     // Mareas (scoped to current vessel)
