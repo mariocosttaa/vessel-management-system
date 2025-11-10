@@ -56,90 +56,105 @@ const getPageNumbers = () => {
 </script>
 
 <template>
-    <div v-if="links.length > 3" class="bg-card dark:bg-card px-4 py-3 border-t border-border dark:border-border sm:px-6">
-        <div class="flex items-center justify-between">
-            <!-- Mobile pagination -->
-            <div class="flex-1 flex justify-between sm:hidden">
-                <Link
-                    v-if="links[0]?.url"
-                    :href="links[0].url"
-                    class="relative inline-flex items-center px-4 py-2 border border-border dark:border-border text-sm font-medium rounded-lg text-card-foreground dark:text-card-foreground bg-background dark:bg-background hover:bg-muted dark:hover:bg-muted transition-colors"
-                >
-                    Previous
-                </Link>
-                <Link
-                    v-if="links[links.length - 1]?.url"
-                    :href="links[links.length - 1].url"
-                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-border dark:border-border text-sm font-medium rounded-lg text-card-foreground dark:text-card-foreground bg-background dark:bg-background hover:bg-muted dark:hover:bg-muted transition-colors"
-                >
-                    Next
-                </Link>
-            </div>
-
-            <!-- Desktop pagination -->
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <!-- Info -->
-                <div v-if="showInfo">
-                    <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                        Showing
-                        <span class="font-medium">{{ meta.from }}</span>
-                        to
-                        <span class="font-medium">{{ meta.to }}</span>
-                        of
-                        <span class="font-medium">{{ meta.total }}</span>
-                        results
-                    </p>
+    <div v-if="links.length > 3" class="bg-card dark:bg-card border-t border-border dark:border-border">
+        <div class="px-4 py-4 sm:px-6">
+            <div class="flex items-center justify-between">
+                <!-- Mobile pagination -->
+                <div class="flex-1 flex justify-between sm:hidden gap-3">
+                    <Link
+                        v-if="links[0]?.url"
+                        :href="links[0].url"
+                        preserve-scroll
+                        class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg border border-border dark:border-border bg-background dark:bg-background text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Previous
+                    </Link>
+                    <Link
+                        v-if="links[links.length - 1]?.url"
+                        :href="links[links.length - 1].url"
+                        preserve-scroll
+                        class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg border border-border dark:border-border bg-background dark:bg-background text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                        Next
+                        <svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
                 </div>
 
-                <!-- Pagination controls -->
-                <div>
-                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        <!-- Previous button -->
-                        <Link
-                            v-if="links[0]?.url"
-                            :href="links[0].url"
-                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
-                        >
-                            <span class="sr-only">Previous</span>
-                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </Link>
+                <!-- Desktop pagination -->
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between gap-4">
+                    <!-- Info -->
+                    <div v-if="showInfo">
+                        <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                            Showing
+                            <span class="font-semibold text-card-foreground dark:text-card-foreground">{{ meta.from }}</span>
+                            to
+                            <span class="font-semibold text-card-foreground dark:text-card-foreground">{{ meta.to }}</span>
+                            of
+                            <span class="font-semibold text-card-foreground dark:text-card-foreground">{{ meta.total }}</span>
+                            results
+                        </p>
+                    </div>
 
-                        <!-- Page numbers -->
-                        <template v-for="page in getPageNumbers()" :key="page">
-                            <span
-                                v-if="page === '...'"
-                                class="relative inline-flex items-center px-4 py-2 border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-muted-foreground dark:text-muted-foreground"
-                            >
-                                ...
-                            </span>
+                    <!-- Pagination controls -->
+                    <div class="flex items-center gap-1">
+                        <nav class="relative z-0 inline-flex items-center gap-1" aria-label="Pagination">
+                            <!-- Previous button -->
                             <Link
-                                v-else
-                                :href="links.find(link => link.label === page.toString())?.url || '#'"
-                                :class="[
-                                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-colors',
-                                    links.find(link => link.label === page.toString())?.active
-                                        ? 'z-10 bg-primary border-primary text-primary-foreground'
-                                        : 'bg-background dark:bg-background border-border dark:border-border text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted'
-                                ]"
+                                v-if="links[0]?.url"
+                                :href="links[0].url"
+                                preserve-scroll
+                                class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 hover:text-primary dark:hover:text-primary active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
+                                title="Previous page"
                             >
-                                {{ page }}
+                                <span class="sr-only">Previous</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
                             </Link>
-                        </template>
 
-                        <!-- Next button -->
-                        <Link
-                            v-if="links[links.length - 1]?.url"
-                            :href="links[links.length - 1].url"
-                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
-                        >
-                            <span class="sr-only">Next</span>
-                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                            </svg>
-                        </Link>
-                    </nav>
+                            <!-- Page numbers -->
+                            <template v-for="page in getPageNumbers()" :key="page">
+                                <span
+                                    v-if="page === '...'"
+                                    class="relative inline-flex items-center justify-center w-9 h-9 text-sm font-medium text-muted-foreground dark:text-muted-foreground"
+                                >
+                                    ...
+                                </span>
+                                <Link
+                                    v-else
+                                    :href="links.find(link => link.label === page.toString())?.url || '#'"
+                                    preserve-scroll
+                                    :class="[
+                                        'relative inline-flex items-center justify-center min-w-[2.25rem] h-9 px-3 rounded-lg text-sm font-medium transition-all duration-200',
+                                        links.find(link => link.label === page.toString())?.active
+                                            ? 'z-10 bg-primary text-primary-foreground shadow-md shadow-primary/20 border border-primary/20 scale-105'
+                                            : 'border border-border dark:border-border bg-background dark:bg-background text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 hover:text-primary dark:hover:text-primary active:scale-95 shadow-sm hover:shadow'
+                                    ]"
+                                >
+                                    {{ page }}
+                                </Link>
+                            </template>
+
+                            <!-- Next button -->
+                            <Link
+                                v-if="links[links.length - 1]?.url"
+                                :href="links[links.length - 1].url"
+                                preserve-scroll
+                                class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 hover:text-primary dark:hover:text-primary active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
+                                title="Next page"
+                            >
+                                <span class="sr-only">Next</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        </nav>
+                    </div>
                 </div>
             </div>
         </div>
