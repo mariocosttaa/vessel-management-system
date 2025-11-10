@@ -7,11 +7,13 @@ use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
 use App\Services\AuditLogService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SupplierController extends Controller
 {
+    use HasTranslations;
     public function index(Request $request)
     {
         /** @var \App\Models\User|null $user */
@@ -24,7 +26,7 @@ class SupplierController extends Controller
         // Check if user has permission to view suppliers (moderator and administrator only)
         // Normal users should not have access to this page
         if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to view suppliers.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         $query = Supplier::query()->where('vessel_id', $vesselId);
@@ -106,12 +108,14 @@ class SupplierController extends Controller
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
-                ->with('success', "Supplier '{$supplier->company_name}' has been created successfully.")
+                ->with('success', $this->transFrom('notifications', "Supplier ':name' has been created successfully.", [
+                    'name' => $supplier->company_name
+                ]))
                 ->with('notification_delay', 3); // 3 seconds delay
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create supplier. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to create supplier. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error (0 = no auto-dismiss)
         }
     }
@@ -162,7 +166,7 @@ class SupplierController extends Controller
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
             if ($supplier->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to supplier.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             // Store original state for change detection
@@ -190,7 +194,9 @@ class SupplierController extends Controller
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
-                ->with('success', "Supplier '{$supplier->company_name}' has been updated successfully.")
+                ->with('success', $this->transFrom('notifications', "Supplier ':name' has been updated successfully.", [
+                    'name' => $supplier->company_name
+                ]))
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Exception $e) {
             // Log the exception for debugging
@@ -202,7 +208,7 @@ class SupplierController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update supplier. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update supplier. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
@@ -214,12 +220,14 @@ class SupplierController extends Controller
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
             if ($supplier->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to supplier.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             // Check if supplier has transactions
             if ($supplier->transactions()->count() > 0) {
-                return back()->with('error', "Cannot delete supplier '{$supplier->company_name}' because they have transactions. Please remove all transactions first.")
+                return back()->with('error', $this->transFrom('notifications', "Cannot delete supplier ':name' because they have transactions. Please remove all transactions first.", [
+                    'name' => $supplier->company_name
+                ]))
                     ->with('notification_delay', 0); // Persistent error
             }
 
@@ -237,11 +245,13 @@ class SupplierController extends Controller
 
             return redirect()
                 ->route('panel.suppliers.index', ['vessel' => $vesselId])
-                ->with('success', "Supplier '{$supplierName}' has been deleted successfully.")
+                ->with('success', $this->transFrom('notifications', "Supplier ':name' has been deleted successfully.", [
+                    'name' => $supplierName
+                ]))
                 ->with('notification_delay', 5); // 5 seconds delay
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to delete supplier. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to delete supplier. Please try again.'))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
