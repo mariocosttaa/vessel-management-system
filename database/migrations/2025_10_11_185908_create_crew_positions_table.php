@@ -13,9 +13,18 @@ return new class extends Migration
     {
         Schema::create('crew_positions', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100)->unique(); // captain, sailor, mechanic, cook
+            $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('cascade');
+            $table->foreignId('vessel_role_access_id')->nullable()->constrained('vessel_role_accesses')->onDelete('set null');
+            $table->string('name', 100); // captain, sailor, mechanic, cook
             $table->text('description')->nullable();
             $table->timestamps();
+
+            // Unique constraint: vessel_id + name (positions can be duplicated across vessels)
+            $table->unique(['vessel_id', 'name'], 'crew_positions_vessel_name_unique');
+
+            // Indexes
+            $table->index('vessel_id');
+            $table->index('vessel_role_access_id');
         });
     }
 

@@ -15,10 +15,39 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->enum('user_type', ['paid_system', 'employee_of_vessel'])->default('employee_of_vessel');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+
+            // Two factor authentication
+            $table->text('two_factor_secret')->nullable();
+            $table->text('two_factor_recovery_codes')->nullable();
+            $table->timestamp('two_factor_confirmed_at')->nullable();
+
+            // Crew member fields (unified crew system)
+            $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('position_id')->nullable()->constrained('crew_positions')->onDelete('restrict');
+            $table->string('phone', 50)->nullable();
+            $table->date('date_of_birth')->nullable();
+            $table->date('hire_date')->nullable();
+            $table->tinyInteger('house_of_zeros')->nullable()->default(2);
+            $table->enum('status', ['active', 'inactive', 'on_leave'])->nullable()->default('active');
+            $table->text('notes')->nullable();
+
+            // System access fields
+            $table->boolean('login_permitted')->default(true);
+            $table->string('temporary_password')->nullable();
+
             $table->timestamps();
+
+            // Indexes
+            $table->index('email');
+            $table->index('user_type');
+            $table->index(['vessel_id', 'status']);
+            $table->index(['position_id', 'status']);
+            $table->index(['login_permitted', 'status']);
+            $table->index(['user_type', 'login_permitted']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
