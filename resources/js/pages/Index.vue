@@ -1,7 +1,59 @@
 <template>
   <IndexDefaultLayout :breadcrumbs="breadcrumbs">
+    <!-- Cool Animation Overlay -->
+    <Transition
+      enter-active-class="transition-opacity duration-500"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-300"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="showCoolAnimation"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-background dark:bg-[#121212]"
+      >
+        <div class="text-center">
+          <!-- Animated Vessel SVG -->
+          <div class="mb-8 animate-bounce">
+            <VesselSvgAnimation />
+          </div>
+
+          <!-- Animated text -->
+          <h2 class="text-3xl font-bold mb-4 animate-pulse text-foreground">
+            {{ t('Preparing your experience...') }}
+          </h2>
+
+          <!-- Animated dots -->
+          <div class="flex justify-center space-x-2">
+            <div
+              class="w-3 h-3 bg-primary rounded-full animate-bounce"
+              style="animation-delay: 0ms"
+            />
+            <div
+              class="w-3 h-3 bg-primary rounded-full animate-bounce"
+              style="animation-delay: 150ms"
+            />
+            <div
+              class="w-3 h-3 bg-primary rounded-full animate-bounce"
+              style="animation-delay: 300ms"
+            />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Loading Overlay -->
+    <VesselLoading
+      v-if="loadingVessel"
+      :vessel="loadingVessel"
+      :loading-progress="loadingProgress"
+      :on-back="handleBackFromLoading"
+      :on-skip="handleSkipLoading"
+    />
+
     <!-- Main Content -->
-    <main class="flex-1 p-6">
+    <main class="flex-1 p-6" :class="{ 'pointer-events-none opacity-50': isEntering || loadingVessel }">
       <div class="max-w-7xl mx-auto">
         <!-- Simple Header (only show if user has permission to create vessels) -->
         <div v-if="permissions.can_create_vessels" class="text-center mb-8">
@@ -19,10 +71,10 @@
           <div
             v-if="permissions.can_create_vessels"
             @click="createVessel"
-            class="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 cursor-pointer hover:bg-muted/50 transition-colors group flex flex-col items-center justify-center min-h-[200px]"
+            class="rounded-xl border-2 border-dashed border-border bg-card/50 p-8 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-lg group flex flex-col items-center justify-center min-h-[200px]"
           >
             <div class="flex flex-col items-center justify-center text-center">
-              <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+              <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors group-hover:scale-110">
                 <Icon name="plus" class="w-6 h-6 text-primary" />
               </div>
               <h3 class="text-lg font-semibold text-card-foreground mb-2 group-hover:text-primary transition-colors">
@@ -38,11 +90,17 @@
           <div
             v-for="vessel in vessels"
             :key="vessel.id"
-            @click="selectVessel(vessel.id)"
-            class="rounded-xl border border-border bg-card p-6 cursor-pointer hover:bg-muted/50 transition-colors group"
+            @click="handleCardClick(vessel)"
+            class="rounded-xl border border-border bg-card p-6 cursor-pointer hover:bg-muted/50 transition-all duration-300 hover:scale-105 hover:shadow-xl group relative overflow-hidden"
+            :class="{
+              'opacity-50 cursor-not-allowed': isEntering
+            }"
           >
+            <!-- Hover effect overlay -->
+            <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
             <!-- Vessel Header -->
-            <div class="flex items-start justify-between mb-4">
+            <div class="flex items-start justify-between mb-4 relative z-10">
               <div>
                 <h3 class="text-lg font-semibold text-card-foreground group-hover:text-primary transition-colors">
                   {{ vessel.name }}
@@ -57,23 +115,23 @@
             </div>
 
             <!-- Vessel Details -->
-                <div class="space-y-2 mb-4">
-                  <div class="flex items-center text-sm text-muted-foreground">
-                    <Icon name="ship" class="w-4 h-4 mr-2" />
-                    {{ vessel.vessel_type }}
-                  </div>
-                  <div class="flex items-center text-sm text-muted-foreground">
-                    <Icon name="users" class="w-4 h-4 mr-2" />
-                    {{ vessel.crew_count }} {{ t('crew members') }}
-                  </div>
-                  <div class="flex items-center text-sm text-muted-foreground">
-                    <Icon name="receipt" class="w-4 h-4 mr-2" />
-                    {{ vessel.transaction_count }} {{ t('transactions') }}
-                  </div>
-                </div>
+            <div class="space-y-2 mb-4 relative z-10">
+              <div class="flex items-center text-sm text-muted-foreground">
+                <Icon name="ship" class="w-4 h-4 mr-2" />
+                {{ vessel.vessel_type }}
+              </div>
+              <div class="flex items-center text-sm text-muted-foreground">
+                <Icon name="users" class="w-4 h-4 mr-2" />
+                {{ vessel.crew_count }} {{ t('crew members') }}
+              </div>
+              <div class="flex items-center text-sm text-muted-foreground">
+                <Icon name="receipt" class="w-4 h-4 mr-2" />
+                {{ vessel.transaction_count }} {{ t('transactions') }}
+              </div>
+            </div>
 
             <!-- User Role and Actions -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between relative z-10">
               <div class="flex items-center">
                 <Icon name="shield" class="w-4 h-4 mr-2 text-primary" />
                 <span class="text-sm font-medium text-primary capitalize">
@@ -87,7 +145,7 @@
                 <button
                   v-if="vessel.permissions.can_edit"
                   @click.stop="editVessel(vessel.id)"
-                  class="p-1 text-muted-foreground hover:text-primary transition-colors"
+                  class="p-1 text-muted-foreground hover:text-primary transition-colors rounded hover:bg-primary/10"
                   :title="t('Edit vessel')"
                 >
                   <Icon name="edit" class="w-4 h-4" />
@@ -97,14 +155,17 @@
                 <button
                   v-if="vessel.permissions.can_delete"
                   @click.stop="deleteVessel(vessel.id, vessel.name)"
-                  class="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                  class="p-1 text-muted-foreground hover:text-destructive transition-colors rounded hover:bg-destructive/10"
                   :title="t('Delete vessel')"
                 >
                   <Icon name="trash-2" class="w-4 h-4" />
                 </button>
 
-                    <!-- Select Arrow -->
-                    <Icon name="arrow-right" class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                <!-- Select Arrow -->
+                <Icon
+                  name="arrow-right"
+                  class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all duration-300 group-hover:translate-x-1"
+                />
               </div>
             </div>
           </div>
@@ -231,11 +292,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import Badge from '@/components/ui/badge/Badge.vue'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
+import VesselLoading from '@/components/VesselLoading.vue'
+import VesselSvgAnimation from '@/components/VesselSvgAnimation.vue'
 import type { BreadcrumbItemType } from '@/types'
 import { useI18n } from '@/composables/useI18n'
 
@@ -294,6 +357,12 @@ const user = computed(() => page.props.auth?.user || props.user)
 
 const isSelecting = ref(false)
 const showUpgradeModal = ref(false)
+const isEntering = ref(false)
+const showCoolAnimation = ref(false)
+const loadingVessel = ref<Vessel | null>(null)
+const loadingProgress = ref(0)
+const shouldRedirectRef = ref(true)
+let intervalId: ReturnType<typeof setInterval> | null = null
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -308,29 +377,122 @@ const getStatusVariant = (status: string) => {
   }
 }
 
-const selectVessel = (vesselId: number) => {
-  if (isSelecting.value) return
+const handleCardClick = (vessel: Vessel) => {
+  if (isEntering.value || isSelecting.value) return
 
-  isSelecting.value = true
+  setIsEntering(true)
+  setShowCoolAnimation(true)
 
-  router.post('/panel/select', {
-    vessel_id: vesselId
-  }, {
-    onFinish: () => {
-      isSelecting.value = false
+  // Cool animation for 1 second
+  setTimeout(() => {
+    setShowCoolAnimation(false)
+    setIsEntering(false)
+    handleAccessDashboard(vessel)
+  }, 1000)
+}
+
+const setIsEntering = (value: boolean) => {
+  isEntering.value = value
+}
+
+const setShowCoolAnimation = (value: boolean) => {
+  showCoolAnimation.value = value
+}
+
+const handleAccessDashboard = (vessel: Vessel) => {
+  loadingVessel.value = vessel
+  loadingProgress.value = 0
+  shouldRedirectRef.value = true
+
+  const dashboardRoute = `/panel/${vessel.id}/dashboard`
+
+  // Animate progress over 4 seconds
+  intervalId = setInterval(() => {
+    loadingProgress.value += 2.5 // 100% / 4 seconds = 2.5% per 100ms
+
+    if (loadingProgress.value >= 100) {
+      loadingProgress.value = 100
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+
+      // Only redirect if user didn't click back
+      if (shouldRedirectRef.value) {
+        router.visit(dashboardRoute, {
+          onError: (errors: any) => {
+            loadingVessel.value = null
+            loadingProgress.value = 0
+            console.error('Error accessing dashboard:', errors)
+          },
+          onSuccess: () => {
+            // Success - page will redirect
+          },
+          onFinish: () => {
+            loadingVessel.value = null
+            loadingProgress.value = 0
+          }
+        })
+      }
     }
-  })
+  }, 100)
+}
+
+const handleSkipLoading = () => {
+  if (loadingVessel.value) {
+    if (intervalId) {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+    shouldRedirectRef.value = true
+
+    const dashboardRoute = `/panel/${loadingVessel.value.id}/dashboard`
+
+    router.visit(dashboardRoute, {
+      onError: (errors: any) => {
+        loadingVessel.value = null
+        loadingProgress.value = 0
+        console.error('Error accessing dashboard:', errors)
+      },
+      onFinish: () => {
+        loadingVessel.value = null
+        loadingProgress.value = 0
+      }
+    })
+  }
+}
+
+const handleBackFromLoading = () => {
+  shouldRedirectRef.value = false
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+  loadingVessel.value = null
+  loadingProgress.value = 0
+}
+
+const selectVessel = (vesselId: number) => {
+  if (isSelecting.value || isEntering.value) return
+
+  const vessel = props.vessels.find(v => v.id === vesselId)
+  if (vessel) {
+    handleCardClick(vessel)
+  }
 }
 
 const createVessel = () => {
+  if (isEntering.value) return
   router.visit('/panel/vessel/create')
 }
 
 const editVessel = (vesselId: number) => {
+  if (isEntering.value) return
   router.visit(`/panel/vessel/${vesselId}/edit`)
 }
 
 const deleteVessel = (vesselId: number, vesselName: string) => {
+  if (isEntering.value) return
   if (confirm(t('Are you sure you want to delete') + ` "${vesselName}"? ` + t('This action cannot be undone.'))) {
     router.delete(`/panel/vessel/${vesselId}`, {
       onSuccess: () => {
@@ -342,4 +504,12 @@ const deleteVessel = (vesselId: number, vesselName: string) => {
     })
   }
 }
+
+// Cleanup interval on unmount
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+})
 </script>
