@@ -29,7 +29,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="flex-1 pt-6">
+    <main class="flex-1 pt-0">
       <slot />
     </main>
 

@@ -1,81 +1,88 @@
 <template>
   <div>
-    <!-- Floating scroll indicator when navbar is hidden -->
-    <div
-      v-if="!isNavbarVisible"
-      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 bg-card/50 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg border border-border/50 transition-all duration-500 ease-in-out"
-    >
-      <div class="flex items-center space-x-2 text-xs text-muted-foreground">
-        <Icon name="chevron-up" class="w-4 h-4 animate-bounce" />
-        <span>{{ t('Scroll up for navigation') }}</span>
-      </div>
-    </div>
-
     <!-- Main Navbar -->
-    <nav
-      :class="[
-        'sticky z-50 bg-transparent transition-all duration-300',
-        isScrolled ? 'top-0' : 'top-4'
-      ]"
-    >
-      <div class="mx-auto max-w-4xl px-4 sm:px-6">
-        <div
-          :class="[
-            'grid grid-cols-3 items-center rounded-lg border px-3 md:px-4 will-change-transform transition-all duration-300 ring-1',
-            isScrolled ? 'h-14' : 'h-16',
-            isScrolled
-              ? 'bg-card/40 backdrop-blur-xl border-border/50 shadow-lg ring-ring/5'
-              : 'bg-card/30 backdrop-blur-md border-border/40 shadow-md ring-ring/3'
-          ]"
-        >
+    <nav class="fixed top-0 left-0 right-0 z-50 border-b transition-all duration-300" :class="navbarClasses">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-14 rounded-full transition-all duration-300 mt-3 px-6 shadow-sm" :class="navbarInnerClasses">
           <!-- Left: Logo -->
           <div class="flex items-center">
-            <button
-              @click="goToVesselSelector"
+            <Link
+              :href="isLandingPage ? '/' : '/panel'"
               class="flex items-center space-x-2"
             >
               <div class="bg-primary/80 rounded-full p-1.5">
                 <Icon name="ship" class="h-4 w-4 text-primary-foreground" />
               </div>
-              <div class="text-left hidden sm:block">
-                <h1 class="text-sm font-semibold text-foreground leading-tight">
-                  {{ t('Bindamy Mareas') }}
+              <div class="text-left">
+                <h1 class="text-sm font-semibold text-card-foreground dark:text-card-foreground leading-tight">
+                  Bindamy Mareas
                 </h1>
-                <p class="text-xs text-muted-foreground -mt-0.5 leading-tight opacity-80">
-                  {{ t('Vessel Management') }}
-                </p>
               </div>
-            </button>
+            </Link>
           </div>
 
           <!-- Center: Desktop Navigation -->
-          <div class="hidden md:flex items-center justify-center space-x-2">
-            <button
-              @click="goToHome"
-              :class="[
-                'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 hover:underline underline-offset-4 decoration-muted-foreground',
-                isHomePage
-                  ? 'text-foreground bg-muted/60 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-              ]"
-            >
-              {{ t('Home') }}
-            </button>
-            <button
-              @click="goToProfile"
-              :class="[
-                'px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 hover:underline underline-offset-4 decoration-muted-foreground',
-                isProfilePage
-                  ? 'text-foreground bg-muted/60 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-              ]"
-            >
-              {{ t('Profile') }}
-            </button>
+          <div class="hidden md:flex items-center justify-center space-x-1">
+            <!-- Landing Page Navigation -->
+            <template v-if="isLandingPage">
+              <a
+                href="/"
+                :class="[
+                  'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  'text-card-foreground dark:text-card-foreground bg-muted/50'
+                ]"
+              >
+                Home
+              </a>
+              <a
+                href="#contact"
+                class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
+              >
+                Pricing
+              </a>
+              <a
+                href="mailto:info@bindamy.com"
+                class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
+              >
+                Contact
+              </a>
+            </template>
+
+            <!-- Panel Navigation (logged in users) -->
+            <template v-else>
+              <Link
+                href="/panel"
+                :class="[
+                  'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  isHomePage
+                    ? 'text-card-foreground dark:text-card-foreground bg-muted/50'
+                    : 'text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30'
+                ]"
+              >
+                Home
+              </Link>
+              <Link
+                href="/panel/profile"
+                :class="[
+                  'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  isProfilePage
+                    ? 'text-card-foreground dark:text-card-foreground bg-muted/50'
+                    : 'text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30'
+                ]"
+              >
+                Profile
+              </Link>
+              <Link
+                href="/"
+                class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
+              >
+                Website
+              </Link>
+            </template>
           </div>
 
-          <!-- Right: Language Switcher, Theme Toggle & User Menu -->
-          <div class="flex items-center justify-end gap-2">
+          <!-- Right: Actions -->
+          <div class="flex items-center gap-3">
             <!-- Desktop Language Switcher -->
             <div class="hidden md:flex items-center">
               <LanguageSwitcher />
@@ -88,8 +95,8 @@
               </div>
             </div>
 
-            <!-- User Avatar Dropdown -->
-            <div class="relative">
+            <!-- Panel Page: User Avatar Dropdown (only shown when user is logged in on panel) -->
+            <div v-if="props.user && !isLandingPage" class="relative">
               <button
                 @click="toggleDropdown"
                 class="flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/40 transition-all duration-200"
@@ -124,10 +131,10 @@
                     <!-- User Info -->
                     <div class="px-4 py-3 border-b border-border/50 bg-muted/60">
                       <p class="text-sm font-semibold text-card-foreground">
-                        {{ user.name }}
+                        {{ props.user.name }}
                       </p>
                       <p class="text-xs text-muted-foreground">
-                        {{ user.email }}
+                        {{ props.user.email }}
                       </p>
                     </div>
 
@@ -153,6 +160,26 @@
               </Transition>
             </div>
 
+            <!-- Landing Page: Panel Button (when user is logged in) -->
+            <Link
+              v-else-if="isLandingPage && props.user"
+              href="/panel"
+              class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
+            >
+              <Icon name="grid" class="w-4 h-4 mr-2" />
+              Panel
+            </Link>
+
+            <!-- Landing Page: Login Button (when user is not logged in) -->
+            <Link
+              v-else-if="isLandingPage && !props.user"
+              :href="login()"
+              class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
+            >
+              <Icon name="log-in" class="w-4 h-4 mr-2" />
+              Login
+            </Link>
+
             <!-- Mobile Menu Button -->
             <div class="md:hidden">
               <button
@@ -174,30 +201,61 @@
           leave-from-class="transform scale-100 opacity-100"
           leave-to-class="transform scale-95 opacity-0"
         >
-          <div v-if="isMobileMenuOpen" class="space-y-1 border-t border-border/50 bg-card/50 backdrop-blur-md py-3 md:hidden rounded-xl mx-4 mt-2 shadow-lg ring-1 ring-border/30">
-            <nav class="space-y-1">
-              <button
-                @click="goToHome"
-                :class="[
-                  'block px-4 py-2.5 rounded-lg mx-2 transition-all duration-200',
-                  isHomePage
-                    ? 'font-medium text-card-foreground bg-muted/60 shadow-sm'
-                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
-                ]"
-              >
-                {{ t('Home') }}
-              </button>
-              <button
-                @click="goToProfile"
-                :class="[
-                  'block px-4 py-2.5 rounded-lg mx-2 transition-all duration-200',
-                  isProfilePage
-                    ? 'font-medium text-card-foreground bg-muted/60 shadow-sm'
-                    : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
-                ]"
-              >
-                {{ t('Profile') }}
-              </button>
+          <div v-if="isMobileMenuOpen" class="border-t border-border/50 bg-card/95 backdrop-blur-md py-3 md:hidden">
+            <nav class="space-y-1 px-4">
+              <!-- Landing Page Mobile Menu -->
+              <template v-if="isLandingPage">
+                <a
+                  href="/"
+                  class="block px-4 py-2.5 rounded-lg font-medium text-card-foreground bg-muted/60 transition-all duration-200"
+                >
+                  Home
+                </a>
+                <a
+                  href="#contact"
+                  class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
+                >
+                  Pricing
+                </a>
+                <a
+                  href="mailto:info@bindamy.com"
+                  class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
+                >
+                  Contact
+                </a>
+              </template>
+
+              <!-- Panel Mobile Menu -->
+              <template v-else>
+                <Link
+                  href="/panel"
+                  :class="[
+                    'block px-4 py-2.5 rounded-lg transition-all duration-200',
+                    isHomePage
+                      ? 'font-medium text-card-foreground bg-muted/60'
+                      : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
+                  ]"
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/panel/profile"
+                  :class="[
+                    'block px-4 py-2.5 rounded-lg transition-all duration-200',
+                    isProfilePage
+                      ? 'font-medium text-card-foreground bg-muted/60'
+                      : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
+                  ]"
+                >
+                  Profile
+                </Link>
+                <Link
+                  href="/"
+                  class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
+                >
+                  Website
+                </Link>
+              </template>
             </nav>
 
             <!-- Mobile Language Switcher & Theme Toggle -->
@@ -214,11 +272,12 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, Transition } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { router, usePage, Link } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { useI18n } from '@/composables/useI18n'
+import { login } from '@/routes'
 
 interface User {
   id: number
@@ -227,26 +286,33 @@ interface User {
 }
 
 interface Props {
-  user: User
+  user?: User | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  user: null
+})
 const page = usePage()
 const { t } = useI18n()
 
 const showDropdown = ref(false)
 const isMobileMenuOpen = ref(false)
-const isNavbarVisible = ref(true)
-const isScrolled = ref(false)
-const lastScrollY = ref(0)
+const scrollY = ref(0)
+const isScrolled = computed(() => scrollY.value > 20)
 
 const userInitials = computed(() => {
+  if (!props.user) return ''
   return props.user.name
     .split(' ')
     .map(name => name.charAt(0))
     .join('')
     .toUpperCase()
     .slice(0, 2)
+})
+
+const isLandingPage = computed(() => {
+  const url = page.props.url || window.location.pathname
+  return url === '/' || url === ''
 })
 
 const isHomePage = computed(() => {
@@ -259,24 +325,29 @@ const isProfilePage = computed(() => {
   return url === '/panel/profile'
 })
 
+// Dynamic navbar classes based on scroll
+const navbarClasses = computed(() => {
+  if (isScrolled.value) {
+    return 'border-sidebar-border/50 dark:border-sidebar-border/50'
+  }
+  return 'border-transparent'
+})
+
+const navbarInnerClasses = computed(() => {
+  if (isScrolled.value) {
+    // More opaque when scrolled
+    return 'bg-card/80 dark:bg-card/40 backdrop-blur-xl'
+  }
+  // More transparent when at top
+  return 'bg-card/30 dark:bg-card/10 backdrop-blur-md'
+})
+
 const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
 }
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
-}
-
-const goToHome = () => {
-  showDropdown.value = false
-  isMobileMenuOpen.value = false
-  router.visit('/panel')
-}
-
-const goToVesselSelector = () => {
-  showDropdown.value = false
-  isMobileMenuOpen.value = false
-  router.visit('/panel')
 }
 
 const goToProfile = () => {
@@ -291,23 +362,6 @@ const logout = () => {
   router.post('/logout')
 }
 
-// Scroll behavior logic
-const handleScroll = () => {
-  const currentScrollY = window.scrollY
-
-  // Show navbar when scrolling up, hide when scrolling down
-  if (currentScrollY > lastScrollY.value && currentScrollY > 100) {
-    isNavbarVisible.value = false
-  } else {
-    isNavbarVisible.value = true
-  }
-
-  // Update scrolled state for styling
-  isScrolled.value = currentScrollY > 50
-
-  lastScrollY.value = currentScrollY
-}
-
 // Close dropdown when clicking outside
 const handleClickOutside = (event: Event) => {
   const target = event.target as HTMLElement
@@ -316,9 +370,15 @@ const handleClickOutside = (event: Event) => {
   }
 }
 
+// Handle scroll for dynamic transparency
+const handleScroll = () => {
+  scrollY.value = window.scrollY || window.pageYOffset
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll() // Initial check
 })
 
 onUnmounted(() => {
