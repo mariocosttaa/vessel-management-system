@@ -276,62 +276,59 @@ const formatDate = (dateString: string) => {
             </div>
 
             <!-- Filters Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="flex flex-wrap items-center gap-3">
                     <!-- Search -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Search
-                        </label>
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search crew members..."
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        />
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="relative">
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search crew members..."
+                                class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                            />
+                        </div>
                     </div>
 
                     <!-- Status Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Status
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="statusFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Statuses</option>
                             <option v-for="(label, value) in statuses" :key="value" :value="value">
                                 {{ label }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
                     <!-- Position Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Position
-                        </label>
+                    <div class="relative min-w-[150px]">
+                        <Icon name="user" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="positionFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Positions</option>
                             <option v-for="position in positions" :key="position.id" :value="position.id">
                                 {{ position.name }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
-                    <!-- Clear Filters -->
-                    <div class="flex items-end">
-                        <button
-                            @click="clearFilters"
-                            class="w-full px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
-                        >
-                            Clear Filters
-                        </button>
-                    </div>
+                    <!-- Clear Filters Button -->
+                    <button
+                        @click="clearFilters"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Icon name="x" class="h-4 w-4" />
+                        Clear
+                    </button>
                 </div>
             </div>
 

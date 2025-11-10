@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -50,6 +50,7 @@ interface Props {
         direction?: string;
     };
     statuses: Record<string, string>;
+    defaultCurrency?: string;
 }
 
 const props = defineProps<Props>();
@@ -210,8 +211,8 @@ const formatDate = (dateString: string | null) => {
     });
 };
 
-// Get default currency (assuming EUR for now, can be enhanced)
-const defaultCurrency = 'EUR';
+// Get default currency from props (vessel settings)
+const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 </script>
 
 <template>
@@ -239,75 +240,73 @@ const defaultCurrency = 'EUR';
             </div>
 
             <!-- Filters Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="flex flex-wrap items-center gap-3">
                     <!-- Search -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Search
-                        </label>
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search mareas..."
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        />
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="relative">
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search mareas..."
+                                @keyup.enter="applyFilters"
+                                class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                            />
+                        </div>
                     </div>
 
                     <!-- Status Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Status
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="statusFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Statuses</option>
                             <option v-for="(label, value) in statuses" :key="value" :value="value">
                                 {{ label }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
                     <!-- Date From -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Date From
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
                             v-model="dateFromFilter"
                             type="date"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
                         />
                     </div>
 
                     <!-- Date To -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Date To
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
                             v-model="dateToFilter"
                             type="date"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
                         />
                     </div>
-                </div>
 
-                <!-- Filter Actions -->
-                <div class="flex gap-3 mt-4">
+                    <!-- Apply Filters Button -->
                     <button
                         @click="applyFilters"
-                        class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                     >
-                        Apply Filters
+                        <Icon name="check" class="h-4 w-4" />
+                        Apply
                     </button>
+
+                    <!-- Clear Filters Button -->
                     <button
                         @click="clearFilters"
-                        class="px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        Clear Filters
+                        <Icon name="x" class="h-4 w-4" />
+                        Clear
                     </button>
                 </div>
             </div>

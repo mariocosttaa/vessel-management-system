@@ -212,19 +212,19 @@ const formatDate = (dateString: string) => {
             </div>
 
             <!-- Filters Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div>
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="flex items-center gap-3">
                     <!-- Search -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Search
-                        </label>
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search suppliers..."
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        />
+                    <div class="flex-1 max-w-md">
+                        <div class="relative">
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search suppliers..."
+                                class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
