@@ -2,10 +2,10 @@
   <div class="relative">
     <button
       @click="toggleTheme"
-      class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card hover:bg-muted/50 dark:hover:bg-muted/50 transition-colors"
+      class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-muted/40 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/40 transition-all duration-200 group"
       :title="themeTitle"
     >
-      <Icon :name="themeIcon" class="w-4 h-4 text-card-foreground dark:text-card-foreground" />
+      <Icon :name="themeIcon" class="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
     </button>
   </div>
 </template>
