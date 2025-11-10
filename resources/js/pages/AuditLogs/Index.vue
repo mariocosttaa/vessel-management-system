@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import Pagination from '@/components/ui/Pagination.vue';
 import AuditLogDetailsModal from '@/components/modals/AuditLog/Details.vue';
 
@@ -88,6 +89,40 @@ const userIdFilter = ref(props.filters.user_id || '');
 const dateFromFilter = ref(props.filters.date_from || '');
 const dateToFilter = ref(props.filters.date_to || '');
 const vesselIdFilter = ref(props.filters.vessel_id || '');
+
+// Convert to Select component options format
+const actionOptions = computed(() => {
+    const options = [{ value: '', label: 'All Actions' }];
+    props.actions.forEach(action => {
+        options.push({ value: action, label: action.charAt(0).toUpperCase() + action.slice(1) });
+    });
+    return options;
+});
+
+const modelTypeOptions = computed(() => {
+    const options = [{ value: '', label: 'All Pages' }];
+    props.modelTypes.forEach(modelType => {
+        options.push({ value: modelType.value, label: modelType.label });
+    });
+    return options;
+});
+
+const userOptions = computed(() => {
+    const options = [{ value: '', label: 'All Users' }];
+    props.users.forEach(user => {
+        options.push({ value: String(user.id), label: user.name });
+    });
+    return options;
+});
+
+const vesselOptions = computed(() => {
+    if (!props.vessels) return [];
+    const options = [{ value: '', label: 'All Vessels' }];
+    props.vessels.forEach(vessel => {
+        options.push({ value: String(vessel.id), label: vessel.name });
+    });
+    return options;
+});
 
 // Selected audit log for modal
 const selectedAuditLog = ref<AuditLog | null>(null);
@@ -238,59 +273,43 @@ const breadcrumbs = computed(() => {
                     </div>
 
                     <!-- Action Filter -->
-                    <div class="relative">
-                        <select
+                    <div>
+                        <Select
                             v-model="actionFilter"
-                            class="w-full pl-3 pr-10 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none"
-                        >
-                            <option value="">All Actions</option>
-                            <option v-for="action in actions" :key="action" :value="action">
-                                {{ action.charAt(0).toUpperCase() + action.slice(1) }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="actionOptions"
+                            placeholder="All Actions"
+                            searchable
+                        />
                     </div>
 
                     <!-- Page Type Filter -->
-                    <div class="relative">
-                        <select
+                    <div>
+                        <Select
                             v-model="modelTypeFilter"
-                            class="w-full pl-3 pr-10 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none"
-                        >
-                            <option value="">All Pages</option>
-                            <option v-for="modelType in modelTypes" :key="modelType.value" :value="modelType.value">
-                                {{ modelType.label }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="modelTypeOptions"
+                            placeholder="All Pages"
+                            searchable
+                        />
                     </div>
 
                     <!-- User Filter -->
-                    <div class="relative">
-                        <select
+                    <div>
+                        <Select
                             v-model="userIdFilter"
-                            class="w-full pl-3 pr-10 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none"
-                        >
-                            <option value="">All Users</option>
-                            <option v-for="user in users" :key="user.id" :value="user.id">
-                                {{ user.name }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="userOptions"
+                            placeholder="All Users"
+                            searchable
+                        />
                     </div>
 
                     <!-- Vessel Filter (only if not vessel-scoped) -->
-                    <div v-if="!currentVesselId && vessels" class="relative">
-                        <select
+                    <div v-if="!currentVesselId && vessels">
+                        <Select
                             v-model="vesselIdFilter"
-                            class="w-full pl-3 pr-10 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none"
-                        >
-                            <option value="">All Vessels</option>
-                            <option v-for="vessel in vessels" :key="vessel.id" :value="vessel.id">
-                                {{ vessel.name }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="vesselOptions"
+                            placeholder="All Vessels"
+                            searchable
+                        />
                     </div>
 
                     <!-- Date From Filter -->
