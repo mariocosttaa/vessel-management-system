@@ -14,6 +14,8 @@ import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
 import transactions from '@/routes/panel/transactions/index';
 import mareas from '@/routes/panel/mareas/index';
+import financialReports from '@/routes/panel/financial-reports';
+import vatReports from '@/routes/panel/vat-reports';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
 import {
@@ -29,7 +31,9 @@ import {
     Calculator,
     Trash2,
     ArrowLeft,
-    FileText
+    FileText,
+    BarChart3,
+    FileSpreadsheet
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -106,6 +110,21 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'Suppliers',
             href: suppliers.index.url({ vessel: vesselId }),
             icon: Building2,
+            group: 'Financial',
+        });
+    }
+
+    if (canView('transactions')) {
+        items.push({
+            title: 'Financial Reports',
+            href: financialReports.index.url({ vessel: vesselId }),
+            icon: BarChart3,
+            group: 'Financial',
+        });
+        items.push({
+            title: 'VAT Reports',
+            href: vatReports.index.url({ vessel: vesselId }),
+            icon: FileSpreadsheet,
             group: 'Financial',
         });
     }
