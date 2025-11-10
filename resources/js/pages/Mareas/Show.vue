@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import mareas from '@/routes/panel/mareas';
 import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-vue-next';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -179,6 +180,7 @@ interface Props {
 const props = defineProps<Props>();
 const { canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 const page = usePage();
 
 // Get currency data from shared props
@@ -299,8 +301,8 @@ const confirmDeleteTransaction = () => {
             transactionToDelete.value = null;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Transaction has been removed from the marea.',
+                title: t('Success'),
+                message: t('Transaction has been removed from the marea.'),
             });
         },
         onError: () => {
@@ -442,8 +444,8 @@ const handleMarkAtSea = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Marea has been marked as at sea.',
+                title: t('Success'),
+                message: t('Marea has been marked as at sea.'),
             });
         },
         onError: () => {
@@ -460,8 +462,8 @@ const handleMarkReturned = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Marea has been marked as returned.',
+                title: t('Success'),
+                message: t('Marea has been marked as returned.'),
             });
         },
         onError: () => {
@@ -478,8 +480,8 @@ const handleClose = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Marea has been closed.',
+                title: t('Success'),
+                message: t('Marea has been closed.'),
             });
         },
         onError: () => {
@@ -496,8 +498,8 @@ const handleCancel = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Marea has been cancelled.',
+                title: t('Success'),
+                message: t('Marea has been cancelled.'),
             });
         },
         onError: () => {
@@ -514,8 +516,8 @@ const handleDelete = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Marea has been deleted successfully.',
+                title: t('Success'),
+                message: t('Marea has been deleted successfully.'),
             });
         },
         onError: () => {
@@ -584,8 +586,8 @@ const loadAvailableTransactions = async () => {
         console.error('Failed to load available transactions:', error);
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Failed to load available transactions.',
+            title: t('Error'),
+            message: t('Failed to load available transactions.'),
         });
     } finally {
         loadingTransactions.value = false;
@@ -603,8 +605,8 @@ const loadAvailableCrew = async () => {
         console.error('Failed to load available crew:', error);
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Failed to load available crew members.',
+            title: t('Error'),
+            message: t('Failed to load available crew members.'),
         });
     } finally {
         loadingCrew.value = false;
@@ -638,8 +640,8 @@ const handleAddTransaction = () => {
     if (!selectedTransactionId.value && !addTransactionForm.transaction_id) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Please select a transaction.',
+            title: t('Error'),
+            message: t('Please select a transaction.'),
         });
         return;
     }
@@ -658,8 +660,8 @@ const handleAddTransaction = () => {
             selectedTransactionId.value = null;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Transaction has been added to the marea.',
+                title: t('Success'),
+                message: t('Transaction has been added to the marea.'),
             });
         },
         onError: () => {
@@ -688,8 +690,8 @@ const handleAddCrew = () => {
     if (!addCrewForm.user_id) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Please select a crew member.',
+            title: t('Error'),
+            message: t('Please select a crew member.'),
         });
         return;
     }
@@ -702,8 +704,8 @@ const handleAddCrew = () => {
             addCrewForm.reset();
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Crew member has been added to the marea.',
+                title: t('Success'),
+                message: t('Crew member has been added to the marea.'),
             });
         },
         onError: () => {
@@ -724,8 +726,8 @@ const handleRemoveCrew = (userId: number) => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Crew member has been removed from the marea.',
+                title: t('Success'),
+                message: t('Crew member has been removed from the marea.'),
             });
         },
         onError: () => {
@@ -739,8 +741,8 @@ const handleAddQuantityReturn = () => {
     if (!addQuantityReturnForm.name || !addQuantityReturnForm.quantity) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Please fill in all required fields.',
+            title: t('Error'),
+            message: t('Please fill in all required fields.'),
         });
         return;
     }
@@ -753,8 +755,8 @@ const handleAddQuantityReturn = () => {
             addQuantityReturnForm.reset();
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Product return has been added to the marea.',
+                title: t('Success'),
+                message: t('Product return has been added to the marea.'),
             });
         },
         onError: () => {
@@ -771,8 +773,8 @@ const handleCreateTransactionSuccess = () => {
     router.reload();
     addNotification({
         type: 'success',
-        title: 'Success',
-        message: 'Transaction has been created and linked to the marea.',
+        title: t('Success'),
+        message: t('Transaction has been created and linked to the marea.'),
     });
 };
 
@@ -788,8 +790,8 @@ const handleRemoveQuantityReturn = (quantityReturnId: number) => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Product return has been removed from the marea.',
+                title: t('Success'),
+                message: t('Product return has been removed from the marea.'),
             });
         },
         onError: () => {
@@ -811,8 +813,8 @@ const toggleCalculation = () => {
             isProcessing.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: `Calculation ${!props.marea.use_calculation ? 'enabled' : 'disabled'} for this marea.`,
+                title: t('Success'),
+                message: `${t('Calculation')} ${!props.marea.use_calculation ? t('enabled') : t('disabled')} ${t('for this marea.')}`,
             });
         },
         onError: () => {
@@ -831,16 +833,16 @@ const updateProfileForm = useForm({
 // Convert to Select component options format
 const distributionProfileOptions = computed(() => {
     if (!props.distributionProfiles) return [];
-    const options = [{ value: null, label: 'No Profile (Optional)' }];
+    const options = [{ value: null, label: t('No Profile (Optional)') }];
     props.distributionProfiles.forEach(profile => {
-        const label = profile.is_default ? `${profile.name} (Default)` : profile.name;
+        const label = profile.is_default ? `${profile.name} (${t('Default')})` : profile.name;
         options.push({ value: profile.id, label });
     });
     return options;
 });
 
 const availableCrewMemberOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a crew member' }];
+    const options = [{ value: null, label: t('Select a crew member') }];
     availableCrewMembers.value.forEach(member => {
         options.push({ value: member.id, label: `${member.name} (${member.email})` });
     });
@@ -848,7 +850,7 @@ const availableCrewMemberOptions = computed(() => {
 });
 
 const mareaCrewMemberOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a crew member' }];
+    const options = [{ value: null, label: t('Select a crew member') }];
     (props.marea.crew_members || []).forEach(member => {
         const label = member.email ? `${member.name} (${member.email})` : member.name;
         options.push({ value: member.id, label });
@@ -872,8 +874,8 @@ const updateProfile = (profileId: string | number | null) => {
             updatingProfile.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: profileIdValue ? 'Distribution profile updated successfully.' : 'Distribution profile removed successfully.',
+                title: t('Success'),
+                message: profileIdValue ? t('Distribution profile updated successfully.') : t('Distribution profile removed successfully.'),
             });
         },
         onError: () => {
@@ -881,8 +883,8 @@ const updateProfile = (profileId: string | number | null) => {
             selectedProfileId.value = props.marea.distribution_profile_id; // Revert on error
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to update distribution profile.',
+                title: t('Error'),
+                message: t('Failed to update distribution profile.'),
             });
         },
     });
@@ -965,7 +967,7 @@ watch(() => salaryPaymentForm.crew_member_id, (newValue) => {
         // Auto-fill description
         const crewMember = props.marea.crew_members.find(m => m.id === newValue);
         if (crewMember) {
-            salaryPaymentForm.description = `Salary payment for ${crewMember.name}`;
+            salaryPaymentForm.description = `${t('Salary payment for')} ${crewMember.name}`;
         }
     } else {
         salaryPaymentForm.amount = null;
@@ -986,8 +988,8 @@ const handleSalaryPayment = () => {
     if (!salaryPaymentForm.crew_member_id || !salaryPaymentForm.amount) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Please select a crew member and enter an amount.',
+            title: t('Error'),
+            message: t('Please select a crew member and enter an amount.'),
         });
         return;
     }
@@ -1001,8 +1003,8 @@ const handleSalaryPayment = () => {
             salaryPaymentForm.transaction_date = new Date().toISOString().split('T')[0];
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Salary payment has been created successfully.',
+                title: t('Success'),
+                message: t('Salary payment has been created successfully.'),
             });
         },
         onError: () => {
@@ -1038,8 +1040,8 @@ const confirmDeleteMarea = () => {
             isDeleting.value = false;
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to delete marea. Please try again.',
+                title: t('Error'),
+                message: t('Failed to delete marea. Please try again.'),
             });
         },
     });
@@ -1055,7 +1057,7 @@ const cancelDeleteMarea = () => {
     <Head :title="`Marea ${marea.marea_number}`" />
 
     <VesselLayout :breadcrumbs="[
-        { title: 'Mareas', href: mareas.index.url({ vessel: getCurrentVesselId() }) },
+        { title: t('Mareas'), href: mareas.index.url({ vessel: getCurrentVesselId() }) },
         { title: marea.marea_number, href: mareas.show.url({ vessel: getCurrentVesselId(), mareaId: marea.id }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -1073,11 +1075,11 @@ const cancelDeleteMarea = () => {
                                     getStatusColor(marea.status)
                                 ]"
                             >
-                                {{ marea.status === 'preparing' ? 'Preparing' :
-                                   marea.status === 'at_sea' ? 'At Sea' :
-                                   marea.status === 'returned' ? 'Returned' :
-                                   marea.status === 'closed' ? 'Closed' :
-                                   marea.status === 'cancelled' ? 'Cancelled' : marea.status }}
+                                {{ marea.status === 'preparing' ? t('Preparing') :
+                                   marea.status === 'at_sea' ? t('At Sea') :
+                                   marea.status === 'returned' ? t('Returned') :
+                                   marea.status === 'closed' ? t('Closed') :
+                                   marea.status === 'cancelled' ? t('Cancelled') : marea.status }}
                             </span>
                         </div>
                         <p v-if="marea.name" class="text-lg text-muted-foreground dark:text-muted-foreground mb-2">
@@ -1094,7 +1096,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Ship class="w-4 h-4 mr-2" />
-                            Mark At Sea
+                            {{ t('Mark At Sea') }}
                         </button>
                         <button
                             v-if="marea.status === 'at_sea' && canEdit('mareas')"
@@ -1102,7 +1104,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Ship class="w-4 h-4 mr-2" />
-                            Mark Returned
+                            {{ t('Mark Returned') }}
                         </button>
                         <button
                             v-if="(marea.status === 'returned' || marea.status === 'at_sea') && canEdit('mareas')"
@@ -1110,7 +1112,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Icon name="check" class="w-4 h-4 mr-2" />
-                            Close Marea
+                            {{ t('Close Marea') }}
                         </button>
                         <button
                             v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && canEdit('mareas')"
@@ -1118,7 +1120,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Icon name="x" class="w-4 h-4 mr-2" />
-                            Cancel
+                            {{ t('Cancel') }}
                         </button>
                         <button
                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1126,7 +1128,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                         >
                             <Icon name="edit" class="w-4 h-4 mr-2" />
-                            Edit
+                            {{ t('Edit') }}
                         </button>
                         <button
                             v-if="canDelete('mareas')"
@@ -1134,7 +1136,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Icon name="trash-2" class="w-4 h-4 mr-2" />
-                            Delete
+                            {{ t('Delete') }}
                         </button>
                     </div>
                 </div>
@@ -1142,12 +1144,12 @@ const cancelDeleteMarea = () => {
 
             <!-- Financial Summary Card - Moved to top for quick overview -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Financial Summary</h2>
+                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Financial Summary') }}</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="text-center p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
                         <div class="flex items-center justify-center mb-2">
                             <TrendingUp class="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-                            <span class="text-sm font-medium text-green-800 dark:text-green-300">Total Income</span>
+                            <span class="text-sm font-medium text-green-800 dark:text-green-300">{{ t('Total Income') }}</span>
                         </div>
                         <MoneyDisplay
                             :value="marea.total_income"
@@ -1160,7 +1162,7 @@ const cancelDeleteMarea = () => {
                     <div class="text-center p-4 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
                         <div class="flex items-center justify-center mb-2">
                             <TrendingDown class="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-                            <span class="text-sm font-medium text-red-800 dark:text-red-300">Total Expenses</span>
+                            <span class="text-sm font-medium text-red-800 dark:text-red-300">{{ t('Total Expenses') }}</span>
                         </div>
                         <MoneyDisplay
                             :value="marea.total_expenses"
@@ -1174,7 +1176,7 @@ const cancelDeleteMarea = () => {
                         <div class="flex items-center justify-center mb-2">
                             <DollarSign class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
                             <span class="text-sm font-medium text-blue-800 dark:text-blue-300">
-                                {{ marea.use_calculation && marea.distribution?.final_result !== undefined ? 'Distribution Result' : 'Net Result' }}
+                                {{ marea.use_calculation && marea.distribution?.final_result !== undefined ? t('Distribution Result') : t('Net Result') }}
                             </span>
                         </div>
                         <MoneyDisplay
@@ -1185,7 +1187,7 @@ const cancelDeleteMarea = () => {
                             class="font-bold"
                         />
                         <p v-if="marea.use_calculation && marea.distribution?.final_result !== undefined" class="text-xs text-muted-foreground mt-1">
-                            Based on distribution calculation
+                            {{ t('Based on distribution calculation') }}
                         </p>
                     </div>
                 </div>
@@ -1195,14 +1197,14 @@ const cancelDeleteMarea = () => {
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4 flex items-center">
                     <Calendar class="w-5 h-5 mr-2" />
-                    Timeline
+                    {{ t('Timeline') }}
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div class="flex items-start gap-3">
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Departure
+                                {{ t('Estimated Departure') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
                                 {{ formatDate(marea.estimated_departure_date) }}
@@ -1213,7 +1215,7 @@ const cancelDeleteMarea = () => {
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-cyan-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Actual Departure
+                                {{ t('Actual Departure') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
                                 {{ formatDate(marea.actual_departure_date) }}
@@ -1224,7 +1226,7 @@ const cancelDeleteMarea = () => {
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Return
+                                {{ t('Estimated Return') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
                                 {{ formatDate(marea.estimated_return_date) }}
@@ -1235,7 +1237,7 @@ const cancelDeleteMarea = () => {
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Actual Return
+                                {{ t('Actual Return') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
                                 {{ formatDate(marea.actual_return_date) }}
@@ -1246,7 +1248,7 @@ const cancelDeleteMarea = () => {
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Closed At
+                                {{ t('Closed At') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
                                 {{ formatDateTime(marea.closed_at) }}
@@ -1263,16 +1265,16 @@ const cancelDeleteMarea = () => {
                         <div class="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
                             <div class="flex items-center gap-2">
                                 <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                    Distribution Calculation
+                                    {{ t('Distribution Calculation') }}
                                 </h2>
                                 <span v-if="marea.distribution_profile" class="text-sm text-muted-foreground dark:text-muted-foreground">
                                     ({{ marea.distribution_profile.name }})
                                 </span>
                                 <span v-if="marea.distribution?.uses_overrides" class="text-xs text-primary dark:text-primary px-2 py-1 rounded bg-primary/10 dark:bg-primary/20">
-                                    Custom Override
+                                    {{ t('Custom Override') }}
                                 </span>
                                 <span v-if="!marea.use_calculation" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
-                                    Inactive
+                                    {{ t('Inactive') }}
                                 </span>
                             </div>
                             <ChevronDown
@@ -1291,7 +1293,7 @@ const cancelDeleteMarea = () => {
                                     <!-- Instant Profile Selector -->
                                     <div v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'" class="flex items-center gap-3 mb-4">
                                         <Label for="distribution-profile" class="text-sm font-medium text-card-foreground dark:text-card-foreground whitespace-nowrap">
-                                            Distribution Profile:
+                                            {{ t('Distribution Profile:') }}
                                         </Label>
                                         <div class="flex items-center gap-2 flex-1 max-w-md">
                                             <Select
@@ -1299,7 +1301,7 @@ const cancelDeleteMarea = () => {
                                                 :model-value="selectedProfileId"
                                                 @update:model-value="updateProfile"
                                                 :options="distributionProfileOptions"
-                                                placeholder="No Profile (Optional)"
+                                                :placeholder="t('No Profile (Optional)')"
                                                 :disabled="updatingProfile || isProcessing"
                                                 searchable
                                             />
@@ -1321,7 +1323,7 @@ const cancelDeleteMarea = () => {
                                             class="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
                                             :disabled="isProcessing || marea.status === 'closed' || marea.status === 'cancelled'"
                                         />
-                                        <span class="text-sm text-card-foreground dark:text-card-foreground">Use Calculation</span>
+                                        <span class="text-sm text-card-foreground dark:text-card-foreground">{{ t('Use Calculation') }}</span>
                                     </label>
                                     <button
                                         v-if="marea.use_calculation && marea.distribution_profile_id && canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1329,7 +1331,7 @@ const cancelDeleteMarea = () => {
                                         class="inline-flex items-center px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
                                     >
                                         <Icon name="edit" class="w-4 h-4 mr-1" />
-                                        Edit Calculation
+                                        {{ t('Edit Calculation') }}
                                     </button>
                                 </div>
                             </div>
@@ -1337,27 +1339,27 @@ const cancelDeleteMarea = () => {
                 <!-- Warning message for closed/cancelled mareas -->
                 <div v-if="(marea.status === 'closed' || marea.status === 'cancelled') && marea.distribution?.items && Object.keys(marea.distribution.items).length > 0" class="mb-4 py-3 px-4 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
                     <p class="text-xs text-yellow-700 dark:text-yellow-400">
-                        <strong>{{ marea.status === 'closed' ? 'Closed marea:' : 'Cancelled marea:' }}</strong>
-                        Distribution calculations are displayed for reference only and cannot be modified.
+                        <strong>{{ marea.status === 'closed' ? t('Closed marea:') : t('Cancelled marea:') }}</strong>
+                        {{ t('Distribution calculations are displayed for reference only and cannot be modified.') }}
                     </p>
                 </div>
 
                 <div v-if="!marea.use_calculation" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm mb-2">
-                        Calculation is disabled for this marea.
+                        {{ t('Calculation is disabled for this marea.') }}
                     </p>
                     <p v-else class="text-sm">
-                        Calculation is disabled for this marea. Enable it to see distribution results.
+                        {{ t('Calculation is disabled for this marea. Enable it to see distribution results.') }}
                     </p>
                 </div>
 
                 <div v-else-if="!marea.distribution_profile_id" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
                     <Icon name="layers" class="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p class="text-base font-medium mb-2">No Distribution Profile Selected</p>
+                    <p class="text-base font-medium mb-2">{{ t('No Distribution Profile Selected') }}</p>
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
-                        No distribution profile was selected for this marea.
+                        {{ t('No distribution profile was selected for this marea.') }}
                     </p>
-                    <p v-else class="text-sm mb-4">Select a distribution profile above to enable calculation.</p>
+                    <p v-else class="text-sm mb-4">{{ t('Select a distribution profile above to enable calculation.') }}</p>
                 </div>
 
                 <div v-else-if="marea.distribution?.items && Object.keys(marea.distribution.items).length > 0" class="space-y-4">
@@ -1400,7 +1402,7 @@ const cancelDeleteMarea = () => {
                                 <div class="flex items-start justify-between mb-2">
                                     <div class="flex-1">
                                         <h4 class="font-semibold text-card-foreground dark:text-card-foreground mb-1">
-                                            {{ item.item?.name || 'Unnamed Step' }}
+                                            {{ item.item?.name || t('Unnamed Step') }}
                                         </h4>
                                         <p v-if="item.item?.description" class="text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mb-2">
                                             {{ item.item.description }}
@@ -1436,10 +1438,10 @@ const cancelDeleteMarea = () => {
                             </div>
                             <div>
                                 <div class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                    Final Result
+                                    {{ t('Final Result') }}
                                 </div>
                                 <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                    Calculated distribution result
+                                    {{ t('Calculated distribution result') }}
                                 </div>
                             </div>
                         </div>
@@ -1458,10 +1460,10 @@ const cancelDeleteMarea = () => {
                 </div>
                 <div v-else class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
                     <p class="text-sm">
-                        No distribution items configured. {{ marea.distribution_profile ? 'The profile has no items.' : 'Please select a distribution profile.' }}
+                        {{ t('No distribution items configured.') }} {{ marea.distribution_profile ? t('The profile has no items.') : t('Please select a distribution profile.') }}
                     </p>
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-xs mt-2 text-muted-foreground dark:text-muted-foreground">
-                        Distribution cannot be modified for {{ marea.status === 'closed' ? 'closed' : 'cancelled' }} mareas.
+                        {{ t('Distribution cannot be modified for') }} {{ marea.status === 'closed' ? t('closed') : t('cancelled') }} {{ t('mareas.') }}
                     </p>
                 </div>
                         </div>
@@ -1474,7 +1476,7 @@ const cancelDeleteMarea = () => {
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground flex items-center">
                         <Wallet class="w-5 h-5 mr-2" />
-                        Salary Payments
+                        {{ t('Salary Payments') }}
                     </h2>
                     <button
                         v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1482,18 +1484,18 @@ const cancelDeleteMarea = () => {
                         class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                     >
                         <Plus class="w-4 h-4 mr-1" />
-                        Pay Salary
+                        {{ t('Pay Salary') }}
                     </button>
                 </div>
                 <div v-if="salaryTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
-                        No salary payments recorded for this marea
+                        {{ t('No salary payments recorded for this marea') }}
                     </p>
                     <p v-else-if="marea.crew_members.length === 0" class="text-sm">
-                        Add crew members to enable salary payments
+                        {{ t('Add crew members to enable salary payments') }}
                     </p>
                     <p v-else class="text-sm">
-                        No salary payments recorded for this marea
+                        {{ t('No salary payments recorded for this marea') }}
                     </p>
                 </div>
                 <div v-else class="space-y-3">
@@ -1516,7 +1518,7 @@ const cancelDeleteMarea = () => {
                                 {{ transaction.crew_member.name }}
                             </span>
                             <span class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ transaction.description || 'Salary payment' }}
+                                {{ transaction.description || t('Salary payment') }}
                             </span>
                             <!-- Quantity and Price Per Unit (inline, prominent) -->
                             <span
@@ -1542,7 +1544,7 @@ const cancelDeleteMarea = () => {
                                     <!-- Show VAT only if it exists -->
                                     <template v-if="transaction.vat_amount > 0">
                                         <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
-                                            VAT:
+                                            {{ t('VAT') }}:
                                             <MoneyDisplay
                                                 :value="transaction.vat_amount"
                                                 :currency="transaction.currency"
@@ -1579,7 +1581,7 @@ const cancelDeleteMarea = () => {
                                     </div>
                                     <!-- VAT indicator (only if VAT exists) -->
                                     <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
-                                        incl. VAT
+                                        {{ t('incl. VAT') }}
                                     </div>
                                 </template>
                             </div>
@@ -1599,7 +1601,7 @@ const cancelDeleteMarea = () => {
             <!-- Transactions Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">Transactions</h2>
+                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">{{ t('Transactions') }}</h2>
                     <div class="flex gap-2">
                         <button
                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1607,7 +1609,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
                             <Plus class="w-4 h-4 mr-1" />
-                            Add Income
+                            {{ t('Add Income') }}
                         </button>
                         <button
                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1615,7 +1617,7 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                         >
                             <Plus class="w-4 h-4 mr-1" />
-                            Add Expense
+                            {{ t('Add Expense') }}
                         </button>
                         <button
                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
@@ -1623,28 +1625,28 @@ const cancelDeleteMarea = () => {
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
                         >
                             <Plus class="w-4 h-4 mr-1" />
-                            Link Transaction
+                            {{ t('Link Transaction') }}
                         </button>
                         <button
                             @click="router.visit(`/panel/${getCurrentVesselId()}/transactions?marea_id=${marea.id}`)"
                             class="text-sm text-primary hover:text-primary/80 font-medium"
                         >
-                            View All →
+                            {{ t('View All →') }}
                         </button>
                     </div>
                 </div>
                 <div v-if="incomeTransactions.length === 0 && nonSalaryExpenseTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
-                        No transactions linked to this marea
+                        {{ t('No transactions linked to this marea') }}
                     </p>
                     <p v-else class="text-sm">
-                        No transactions linked to this marea. Add income or expense transactions to get started.
+                        {{ t('No transactions linked to this marea. Add income or expense transactions to get started.') }}
                     </p>
                 </div>
                 <div v-else class="space-y-4">
                     <!-- Income Transactions -->
                     <div v-if="incomeTransactions.length > 0">
-                        <h3 class="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">Income</h3>
+                        <h3 class="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">{{ t('Income') }}</h3>
                         <div class="space-y-3">
                             <div
                                 v-for="transaction in incomeTransactions"
@@ -1669,7 +1671,7 @@ const cancelDeleteMarea = () => {
                                         {{ transaction.category.name }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        {{ transaction.description || 'No description' }}
+                                        {{ transaction.description || t('No description') }}
                                     </span>
                                     <!-- Quantity and Price Per Unit (inline, prominent) -->
                                     <span
@@ -1695,7 +1697,7 @@ const cancelDeleteMarea = () => {
                                             <!-- Show VAT only if it exists -->
                                             <template v-if="transaction.vat_amount > 0">
                                                 <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
-                                                    VAT:
+                                                    {{ t('VAT') }}:
                                                     <MoneyDisplay
                                                         :value="transaction.vat_amount"
                                                         :currency="transaction.currency"
@@ -1732,7 +1734,7 @@ const cancelDeleteMarea = () => {
                                             </div>
                                             <!-- VAT indicator (only if VAT exists) -->
                                             <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
-                                                incl. VAT
+                                                {{ t('incl. VAT') }}
                                             </div>
                                         </template>
                                     </div>
@@ -1745,7 +1747,7 @@ const cancelDeleteMarea = () => {
                                         <button
                                             @click.stop="openTransactionModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                            title="View transaction details"
+                                            :title="t('View transaction details')"
                                         >
                                             <Icon name="eye" class="w-4 h-4" />
                                         </button>
@@ -1755,7 +1757,7 @@ const cancelDeleteMarea = () => {
                                             v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openUpdateModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                            title="Edit transaction"
+                                            :title="t('Edit transaction')"
                                         >
                                             <Icon name="edit" class="w-4 h-4" />
                                         </button>
@@ -1765,7 +1767,7 @@ const cancelDeleteMarea = () => {
                                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openDeleteTransactionDialog(transaction.id)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
-                                            title="Remove transaction from marea"
+                                            :title="t('Remove transaction from marea')"
                                             :disabled="isProcessing"
                                         >
                                             <Icon name="x" class="w-4 h-4" />
@@ -1779,13 +1781,13 @@ const cancelDeleteMarea = () => {
                     <!-- Divider between income and expenses -->
                     <div v-if="incomeTransactions.length > 0 && nonSalaryExpenseTransactions.length > 0" class="flex items-center my-4">
                         <div class="flex-1 border-t border-border dark:border-border"></div>
-                        <span class="px-4 text-xs font-medium text-muted-foreground dark:text-muted-foreground">Expenses</span>
+                        <span class="px-4 text-xs font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</span>
                         <div class="flex-1 border-t border-border dark:border-border"></div>
                     </div>
 
                     <!-- Expense Transactions (non-salary) -->
                     <div v-if="nonSalaryExpenseTransactions.length > 0">
-                        <h3 v-if="incomeTransactions.length === 0" class="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">Expenses</h3>
+                        <h3 v-if="incomeTransactions.length === 0" class="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">{{ t('Expenses') }}</h3>
                         <div class="space-y-3">
                             <div
                                 v-for="transaction in nonSalaryExpenseTransactions"
@@ -1810,7 +1812,7 @@ const cancelDeleteMarea = () => {
                                         {{ transaction.category.name }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        {{ transaction.description || 'No description' }}
+                                        {{ transaction.description || t('No description') }}
                                     </span>
                                     <!-- Quantity and Price Per Unit (inline, prominent) -->
                                     <span
@@ -1836,7 +1838,7 @@ const cancelDeleteMarea = () => {
                                             <!-- Show VAT only if it exists -->
                                             <template v-if="transaction.vat_amount > 0">
                                                 <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-0.5">
-                                                    VAT:
+                                                    {{ t('VAT') }}:
                                                     <MoneyDisplay
                                                         :value="transaction.vat_amount"
                                                         :currency="transaction.currency"
@@ -1873,7 +1875,7 @@ const cancelDeleteMarea = () => {
                                             </div>
                                             <!-- VAT indicator (only if VAT exists) -->
                                             <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
-                                                incl. VAT
+                                                {{ t('incl. VAT') }}
                                             </div>
                                         </template>
                                     </div>
@@ -1886,7 +1888,7 @@ const cancelDeleteMarea = () => {
                                         <button
                                             @click.stop="openTransactionModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                            title="View transaction details"
+                                            :title="t('View transaction details')"
                                         >
                                             <Icon name="eye" class="w-4 h-4" />
                                         </button>
@@ -1896,7 +1898,7 @@ const cancelDeleteMarea = () => {
                                             v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openUpdateModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                            title="Edit transaction"
+                                            :title="t('Edit transaction')"
                                         >
                                             <Icon name="edit" class="w-4 h-4" />
                                         </button>
@@ -1906,7 +1908,7 @@ const cancelDeleteMarea = () => {
                                             v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openDeleteTransactionDialog(transaction.id)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
-                                            title="Remove transaction from marea"
+                                            :title="t('Remove transaction from marea')"
                                             :disabled="isProcessing"
                                         >
                                             <Icon name="x" class="w-4 h-4" />
@@ -1927,13 +1929,13 @@ const cancelDeleteMarea = () => {
                             <div class="flex items-center gap-2">
                                 <Users class="w-5 h-5 text-card-foreground dark:text-card-foreground" />
                                 <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                    Crew Members
+                                    {{ t('Crew Members') }}
                                 </h2>
                                 <span v-if="marea.crew_members.length > 0" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
                                     {{ marea.crew_members.length }}
                                 </span>
                                 <span v-else class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
-                                    Empty
+                                    {{ t('Empty') }}
                                 </span>
                             </div>
                             <ChevronDown
@@ -1955,12 +1957,12 @@ const cancelDeleteMarea = () => {
                                     class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                                 >
                                     <Plus class="w-4 h-4 mr-1" />
-                                    Add Crew Member
+                                    {{ t('Add Crew Member') }}
                                 </button>
                             </div>
 
                             <div v-if="marea.crew_members.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
-                                No crew members assigned to this marea
+                                {{ t('No crew members assigned to this marea') }}
                             </div>
 
                             <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2001,13 +2003,13 @@ const cancelDeleteMarea = () => {
                             <div class="flex items-center gap-2">
                                 <Package class="w-5 h-5 text-card-foreground dark:text-card-foreground" />
                                 <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                    Fishing Quantity
+                                    {{ t('Fishing Quantity') }}
                                 </h2>
                                 <span v-if="marea.quantity_returns.length > 0" class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
                                     {{ marea.quantity_returns.length }}
                                 </span>
                                 <span v-else class="text-xs text-muted-foreground dark:text-muted-foreground px-2 py-1 rounded bg-muted/50">
-                                    Empty
+                                    {{ t('Empty') }}
                                 </span>
                             </div>
                             <ChevronDown
@@ -2030,23 +2032,23 @@ const cancelDeleteMarea = () => {
                                         class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                                     >
                                         <Plus class="w-4 h-4 mr-1" />
-                                        Add Product
+                                        {{ t('Add Product') }}
                                     </button>
                                     <div v-else-if="marea.status === 'closed'" class="text-xs text-muted-foreground dark:text-muted-foreground italic">
-                                        Products cannot be added to closed mareas
+                                        {{ t('Products cannot be added to closed mareas') }}
                                     </div>
                                 </div>
                             </div>
 
                             <div v-if="marea.quantity_returns.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg">
                                 <p v-if="marea.status === 'closed'" class="text-sm mb-2">
-                                    No products returned for this marea
+                                    {{ t('No products returned for this marea') }}
                                 </p>
                                 <p v-else-if="marea.status === 'returned'" class="text-sm">
-                                    No products returned for this marea
+                                    {{ t('No products returned for this marea') }}
                                 </p>
                                 <p v-else class="text-sm">
-                                    Products can be added when the marea is returned
+                                    {{ t('Products can be added when the marea is returned') }}
                                 </p>
                             </div>
 
@@ -2054,9 +2056,9 @@ const cancelDeleteMarea = () => {
                                 <table class="w-full">
                                     <thead>
                                         <tr class="border-b border-border dark:border-border">
-                                            <th class="text-left py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Name</th>
-                                            <th class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Quantity</th>
-                                            <th v-if="canEdit('mareas') && marea.status !== 'closed'" class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">Actions</th>
+                                            <th class="text-left py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">{{ t('Name') }}</th>
+                                            <th class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">{{ t('Quantity') }}</th>
+                                            <th v-if="canEdit('mareas') && marea.status !== 'closed'" class="text-right py-2 px-4 text-sm font-medium text-card-foreground dark:text-card-foreground">{{ t('Actions') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2096,11 +2098,11 @@ const cancelDeleteMarea = () => {
         <!-- Confirmation Dialogs -->
         <ConfirmationDialog
             v-model:open="showMarkAtSeaDialog"
-            title="Mark Marea as At Sea"
-            description="This will mark the marea as currently at sea."
-            message="Are you sure you want to mark this marea as at sea?"
-            confirm-text="Mark At Sea"
-            cancel-text="Cancel"
+            :title="t('Mark Marea as At Sea')"
+            :description="t('This will mark the marea as currently at sea.')"
+            :message="t('Are you sure you want to mark this marea as at sea?')"
+            :confirm-text="t('Mark At Sea')"
+            :cancel-text="t('Cancel')"
             variant="default"
             type="info"
             :loading="isProcessing"
@@ -2110,7 +2112,7 @@ const cancelDeleteMarea = () => {
             <template #default>
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                        Departure Date
+                        {{ t('Departure Date') }}
                     </label>
                     <DateInput
                         v-model="markAtSeaForm.date"
@@ -2121,11 +2123,11 @@ const cancelDeleteMarea = () => {
 
         <ConfirmationDialog
             v-model:open="showMarkReturnedDialog"
-            title="Mark Marea as Returned"
-            description="This will mark the marea as returned."
-            message="Are you sure you want to mark this marea as returned?"
-            confirm-text="Mark Returned"
-            cancel-text="Cancel"
+            :title="t('Mark Marea as Returned')"
+            :description="t('This will mark the marea as returned.')"
+            :message="t('Are you sure you want to mark this marea as returned?')"
+            :confirm-text="t('Mark Returned')"
+            :cancel-text="t('Cancel')"
             variant="default"
             type="info"
             :loading="isProcessing"
@@ -2135,7 +2137,7 @@ const cancelDeleteMarea = () => {
             <template #default>
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                        Return Date
+                        {{ t('Return Date') }}
                     </label>
                     <DateInput
                         v-model="markReturnedForm.date"
@@ -2146,11 +2148,11 @@ const cancelDeleteMarea = () => {
 
         <ConfirmationDialog
             v-model:open="showCloseDialog"
-            title="Close Marea"
-            description="This action will close the marea permanently."
-            message="Are you sure you want to close this marea? This action cannot be undone."
-            confirm-text="Close Marea"
-            cancel-text="Cancel"
+            :title="t('Close Marea')"
+            :description="t('This action will close the marea permanently.')"
+            :message="t('Are you sure you want to close this marea? This action cannot be undone.')"
+            :confirm-text="t('Close Marea')"
+            :cancel-text="t('Cancel')"
             variant="default"
             type="warning"
             :loading="isProcessing"
@@ -2160,11 +2162,11 @@ const cancelDeleteMarea = () => {
 
         <ConfirmationDialog
             v-model:open="showCancelDialog"
-            title="Cancel Marea"
-            description="This action will cancel the marea."
-            message="Are you sure you want to cancel this marea? This action cannot be undone."
-            confirm-text="Cancel Marea"
-            cancel-text="No, Keep It"
+            :title="t('Cancel Marea')"
+            :description="t('This action will cancel the marea.')"
+            :message="t('Are you sure you want to cancel this marea? This action cannot be undone.')"
+            :confirm-text="t('Cancel Marea')"
+            :cancel-text="t('No, Keep It')"
             variant="destructive"
             type="danger"
             :loading="isProcessing"
@@ -2174,11 +2176,11 @@ const cancelDeleteMarea = () => {
 
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            title="Delete Marea"
-            description="This action cannot be undone."
-            :message="`Are you sure you want to delete marea '${marea.marea_number}'? This will permanently remove the marea and all ${props.transactionCount || 0} transaction(s) associated with it.`"
-            confirm-text="Delete Marea"
-            cancel-text="Cancel"
+            :title="t('Delete Marea')"
+            :description="t('This action cannot be undone.')"
+            :message="t('Are you sure you want to delete marea') + ` '${marea.marea_number}'? ` + t('This will permanently remove the marea and all') + ` ${props.transactionCount || 0} ` + t('transaction(s) associated with it.')"
+            :confirm-text="t('Delete Marea')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"
@@ -2190,15 +2192,15 @@ const cancelDeleteMarea = () => {
         <Dialog :open="showAddTransactionDialog" @update:open="showAddTransactionDialog = $event">
             <DialogContent class="max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Add Transaction to Marea</DialogTitle>
-                    <DialogDescription>Select a transaction to link to this marea.</DialogDescription>
+                    <DialogTitle>{{ t('Add Transaction to Marea') }}</DialogTitle>
+                    <DialogDescription>{{ t('Select a transaction to link to this marea.') }}</DialogDescription>
                 </DialogHeader>
                 <div class="py-4">
                     <div v-if="loadingTransactions" class="flex items-center justify-center py-8">
                         <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                     </div>
                     <div v-else-if="availableTransactions.length === 0" class="text-center py-8 text-muted-foreground">
-                        No available transactions to add.
+                        {{ t('No available transactions to add.') }}
                     </div>
                     <div v-else class="space-y-2 max-h-96 overflow-y-auto">
                         <div
@@ -2218,7 +2220,7 @@ const cancelDeleteMarea = () => {
                                         {{ transaction.transaction_number }}
                                     </div>
                                     <div class="text-sm text-muted-foreground">
-                                        {{ transaction.description || 'No description' }}
+                                        {{ transaction.description || t('No description') }}
                                     </div>
                                     <div class="text-xs text-muted-foreground mt-1">
                                         {{ transaction.transaction_date }}
@@ -2237,10 +2239,10 @@ const cancelDeleteMarea = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" @click="showAddTransactionDialog = false" :disabled="isProcessing">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button @click="handleAddTransaction" :disabled="isProcessing || !selectedTransactionId">
-                        Add Transaction
+                        {{ t('Add Transaction') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -2250,8 +2252,8 @@ const cancelDeleteMarea = () => {
         <Dialog :open="showAddCrewDialog" @update:open="showAddCrewDialog = $event">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Crew Member to Marea</DialogTitle>
-                    <DialogDescription>Select a crew member to assign to this marea.</DialogDescription>
+                    <DialogTitle>{{ t('Add Crew Member to Marea') }}</DialogTitle>
+                    <DialogDescription>{{ t('Select a crew member to add to this marea.') }}</DialogDescription>
                 </DialogHeader>
                 <div class="py-4 space-y-4">
                     <div v-if="loadingCrew" class="flex items-center justify-center py-8">
@@ -2259,27 +2261,27 @@ const cancelDeleteMarea = () => {
                     </div>
                     <div v-else>
                         <div>
-                            <Label for="crew_member">Crew Member</Label>
+                            <Label for="crew_member">{{ t('Crew Member') }}</Label>
                             <Select
                                 id="crew_member"
                                 v-model="addCrewForm.user_id"
                                 :options="availableCrewMemberOptions"
-                                placeholder="Select a crew member"
+                                :placeholder="t('Select a crew member')"
                                 :disabled="addCrewForm.processing || availableCrewMembers.length === 0"
                                 searchable
                                 :error="!!addCrewForm.errors.user_id"
                             />
                             <InputError :message="addCrewForm.errors.user_id" class="mt-1" />
                             <p v-if="availableCrewMembers.length === 0" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                                No available crew members to assign
+                                {{ t('No available crew members to assign') }}
                             </p>
                         </div>
                         <div>
-                            <Label for="crew_notes">Notes (Optional)</Label>
+                            <Label for="crew_notes">{{ t('Notes') }} ({{ t('Optional') }})</Label>
                             <textarea
                                 id="crew_notes"
                                 v-model="addCrewForm.notes"
-                                placeholder="Additional notes about this crew member"
+                                :placeholder="t('Additional notes about this crew member')"
                                 rows="3"
                                 class="flex min-h-[80px] w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             />
@@ -2288,10 +2290,10 @@ const cancelDeleteMarea = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" @click="showAddCrewDialog = false" :disabled="isProcessing">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button @click="handleAddCrew" :disabled="isProcessing || !addCrewForm.user_id">
-                        Add Crew Member
+                        {{ t('Add Crew') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -2301,35 +2303,35 @@ const cancelDeleteMarea = () => {
         <Dialog :open="showAddQuantityReturnDialog" @update:open="showAddQuantityReturnDialog = $event">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Add Fishing Quantity</DialogTitle>
-                    <DialogDescription>Add fishing quantity for this marea.</DialogDescription>
+                    <DialogTitle>{{ t('Add Product Return') }}</DialogTitle>
+                    <DialogDescription>{{ t('Add fishing quantity for this marea.') }}</DialogDescription>
                 </DialogHeader>
                 <div class="py-4 space-y-4">
                     <div>
-                        <Label for="product_name">Product Name *</Label>
+                        <Label for="product_name">{{ t('Product Name') }} *</Label>
                         <Input
                             v-model="addQuantityReturnForm.name"
-                            placeholder="e.g., Tuna, Sardines"
+                            :placeholder="t('Enter product name')"
                             :error="addQuantityReturnForm.errors.name"
                         />
                     </div>
                     <div>
-                        <Label for="quantity">Quantity *</Label>
+                        <Label for="quantity">{{ t('Quantity') }} *</Label>
                         <Input
                             v-model.number="addQuantityReturnForm.quantity"
                             type="number"
                             step="0.01"
                             min="0"
-                            placeholder="0.00"
+                            :placeholder="t('Enter quantity')"
                             :error="addQuantityReturnForm.errors.quantity"
                         />
                     </div>
                     <div>
-                        <Label for="product_notes">Notes (Optional)</Label>
+                        <Label for="product_notes">{{ t('Notes') }} ({{ t('Optional') }})</Label>
                         <textarea
                             id="product_notes"
                             v-model="addQuantityReturnForm.notes"
-                            placeholder="Additional notes about this product"
+                            :placeholder="t('Additional notes about this product')"
                             rows="3"
                             class="flex min-h-[80px] w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         />
@@ -2337,10 +2339,10 @@ const cancelDeleteMarea = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" @click="showAddQuantityReturnDialog = false" :disabled="isProcessing">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button @click="handleAddQuantityReturn" :disabled="isProcessing">
-                        Add Product
+                        {{ t('Add Product') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -2405,17 +2407,17 @@ const cancelDeleteMarea = () => {
         <Dialog :open="showSalaryPaymentDialog" @update:open="showSalaryPaymentDialog = $event">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Pay Salary</DialogTitle>
-                    <DialogDescription>Create a salary payment transaction for a crew member.</DialogDescription>
+                    <DialogTitle>{{ t('Pay Salary to Crew Member') }}</DialogTitle>
+                    <DialogDescription>{{ t('Select a crew member to pay salary to.') }}</DialogDescription>
                 </DialogHeader>
                 <div class="py-4 space-y-4">
                     <div>
-                        <Label for="crew_member_salary">Crew Member *</Label>
+                        <Label for="crew_member_salary">{{ t('Crew Member') }} *</Label>
                         <Select
                             id="crew_member_salary"
                             v-model="salaryPaymentForm.crew_member_id"
                             :options="mareaCrewMemberOptions"
-                            placeholder="Select a crew member"
+                            :placeholder="t('Select a crew member')"
                             :disabled="isProcessing || loadingSalaryData"
                             searchable
                             :error="!!salaryPaymentForm.errors.crew_member_id"
@@ -2430,14 +2432,14 @@ const cancelDeleteMarea = () => {
                         <div class="flex items-start gap-3">
                             <div class="flex-1">
                                 <h4 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-2">
-                                    Salary Configuration
+                                    {{ t('Salary Configuration') }}
                                 </h4>
                                 <div v-if="selectedCrewSalaryInfo.compensation_type === 'fixed'" class="space-y-1">
                                     <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        <span class="font-medium">Type:</span> Fixed Amount
+                                        <span class="font-medium">{{ t('Type') }}:</span> {{ t('Fixed Amount') }}
                                     </p>
                                     <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        <span class="font-medium">Fixed Salary:</span>
+                                        <span class="font-medium">{{ t('Fixed Salary') }}:</span>
                                         <MoneyDisplay
                                             v-if="selectedCrewSalaryInfo.fixed_amount"
                                             :value="selectedCrewSalaryInfo.fixed_amount"
@@ -2446,18 +2448,18 @@ const cancelDeleteMarea = () => {
                                             size="sm"
                                             class="inline-block ml-1"
                                         />
-                                        <span v-else class="ml-1">Not specified</span>
+                                        <span v-else class="ml-1">{{ t('Not specified') }}</span>
                                     </p>
                                 </div>
                                 <div v-else-if="selectedCrewSalaryInfo.compensation_type === 'percentage'" class="space-y-1">
                                     <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        <span class="font-medium">Type:</span> Percentage of Revenue
+                                        <span class="font-medium">{{ t('Type') }}:</span> {{ t('Percentage of Revenue') }}
                                     </p>
                                     <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        <span class="font-medium">Percentage:</span> {{ selectedCrewSalaryInfo.percentage }}% of total income
+                                        <span class="font-medium">{{ t('Percentage') }}:</span> {{ selectedCrewSalaryInfo.percentage }}% {{ t('of total income') }}
                                     </p>
                                     <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                        <span class="font-medium">Total Income:</span>
+                                        <span class="font-medium">{{ t('Total Income') }}:</span>
                                         <MoneyDisplay
                                             :value="marea.total_income"
                                             :currency="defaultCurrency"
@@ -2467,7 +2469,7 @@ const cancelDeleteMarea = () => {
                                         />
                                     </p>
                                     <p class="text-sm font-semibold text-card-foreground dark:text-card-foreground mt-2">
-                                        <span class="font-medium">Calculated Amount:</span>
+                                        <span class="font-medium">{{ t('Calculated Amount') }}:</span>
                                         <MoneyDisplay
                                             v-if="selectedCrewSalaryInfo.calculated_amount"
                                             :value="selectedCrewSalaryInfo.calculated_amount"
@@ -2476,7 +2478,7 @@ const cancelDeleteMarea = () => {
                                             size="sm"
                                             class="inline-block ml-1"
                                         />
-                                        <span v-else class="ml-1 text-muted-foreground">Not calculated</span>
+                                        <span v-else class="ml-1 text-muted-foreground">{{ t('Not calculated') }}</span>
                                     </p>
                                 </div>
                             </div>
@@ -2484,12 +2486,12 @@ const cancelDeleteMarea = () => {
                     </div>
                     <div v-else-if="salaryPaymentForm.crew_member_id && !loadingSalaryData" class="p-4 rounded-lg border border-border/50 dark:border-border/50 bg-muted/20 dark:bg-muted/10">
                         <p class="text-sm text-muted-foreground dark:text-muted-foreground">
-                            This crew member doesn't have a salary configuration. You can enter the amount manually.
+                            {{ t('This crew member doesn\'t have a salary configuration. You can enter the amount manually.') }}
                         </p>
                     </div>
 
                     <div>
-                        <Label for="salary_amount">Amount *</Label>
+                        <Label for="salary_amount">{{ t('Amount') }} *</Label>
                         <MoneyInput
                             id="salary_amount"
                             v-model="salaryPaymentForm.amount"
@@ -2498,17 +2500,17 @@ const cancelDeleteMarea = () => {
                             return-type="int"
                             :disabled="isProcessing || loadingSalaryData"
                             :error="!!salaryPaymentForm.errors.amount"
-                            placeholder="0,00"
+                            :placeholder="t('Enter amount')"
                         />
                         <p v-if="salaryPaymentForm.errors.amount" class="text-sm text-red-600 dark:text-red-400 mt-1">
                             {{ salaryPaymentForm.errors.amount }}
                         </p>
                         <p v-if="loadingSalaryData" class="text-xs text-muted-foreground mt-1">
-                            Loading salary configuration...
+                            {{ t('Loading salary configuration...') }}
                         </p>
                     </div>
                     <div>
-                        <Label for="salary_date">Payment Date *</Label>
+                        <Label for="salary_date">{{ t('Transaction Date') }} *</Label>
                         <DateInput
                             id="salary_date"
                             v-model="salaryPaymentForm.transaction_date"
@@ -2517,21 +2519,21 @@ const cancelDeleteMarea = () => {
                         />
                     </div>
                     <div>
-                        <Label for="salary_description">Description</Label>
+                        <Label for="salary_description">{{ t('Description') }}</Label>
                         <Input
                             id="salary_description"
                             v-model="salaryPaymentForm.description"
-                            placeholder="Salary payment description"
+                            :placeholder="t('Enter description')"
                             :error="salaryPaymentForm.errors.description"
                             :disabled="isProcessing"
                         />
                     </div>
                     <div>
-                        <Label for="salary_notes">Notes (Optional)</Label>
+                        <Label for="salary_notes">{{ t('Notes') }} ({{ t('Optional') }})</Label>
                         <textarea
                             id="salary_notes"
                             v-model="salaryPaymentForm.notes"
-                            placeholder="Additional notes"
+                            :placeholder="t('Additional notes')"
                             rows="3"
                             class="flex min-h-[80px] w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             :disabled="isProcessing"
@@ -2540,10 +2542,10 @@ const cancelDeleteMarea = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" @click="showSalaryPaymentDialog = false" :disabled="isProcessing">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button @click="handleSalaryPayment" :disabled="isProcessing || !salaryPaymentForm.crew_member_id || !salaryPaymentForm.amount">
-                        Create Payment
+                        {{ t('Pay Salary') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -2585,11 +2587,11 @@ const cancelDeleteMarea = () => {
         <!-- Delete Transaction Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteTransactionDialog"
-            title="Remove Transaction from Marea"
-            description="This will remove the transaction from this marea. The transaction itself will not be deleted."
-            message="Are you sure you want to remove this transaction from the marea?"
-            confirm-text="Remove Transaction"
-            cancel-text="Cancel"
+            :title="t('Remove Transaction from Marea')"
+            :description="t('This will remove the transaction from this marea. The transaction itself will not be deleted.')"
+            :message="t('Are you sure you want to remove this transaction from the marea?')"
+            :confirm-text="t('Remove Transaction')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="warning"
             :loading="isProcessing"
