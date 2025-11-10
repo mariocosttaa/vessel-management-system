@@ -44,8 +44,8 @@ class FinancialReportController extends Controller
         $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
             ->where('status', 'completed')
             ->selectRaw('
-                DISTINCT transaction_month as month, 
-                transaction_year as year, 
+                DISTINCT transaction_month as month,
+                transaction_year as year,
                 COUNT(*) as count,
                 SUM(CASE WHEN type = "income" THEN total_amount ELSE 0 END) as total_income,
                 SUM(CASE WHEN type = "expense" THEN total_amount ELSE 0 END) as total_expenses
@@ -60,7 +60,7 @@ class FinancialReportController extends Controller
                 $totalIncome = (int) $item->total_income;
                 $totalExpenses = (int) $item->total_expenses;
                 $netBalance = $totalIncome - $totalExpenses;
-                
+
                 return [
                     'month' => (int) $item->month,
                     'year' => (int) $item->year,
