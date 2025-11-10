@@ -5,6 +5,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
 import UpdateAddModal from '@/components/modals/Transaction/update-add.vue';
@@ -459,6 +460,31 @@ const search = ref(props.filters.search || '');
 const typeFilter = ref(props.filters.type || '');
 const statusFilter = ref(props.filters.status || '');
 const categoryFilter = ref(props.filters.category_id || '');
+
+// Convert filters to Select component options format
+const typeOptions = computed(() => {
+    const options = [{ value: '', label: 'All Types' }];
+    Object.entries(props.transactionTypes).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options = [{ value: '', label: 'All Statuses' }];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const categoryOptions = computed(() => {
+    const options = [{ value: '', label: 'All Categories' }];
+    props.categories.forEach(category => {
+        options.push({ value: category.id, label: category.name });
+    });
+    return options;
+});
 const dateFromFilter = ref(props.filters.date_from || '');
 const dateToFilter = ref(props.filters.date_to || '');
 
@@ -567,48 +593,33 @@ const clearFilters = () => {
                     </div>
 
                     <!-- Type Filter -->
-                    <div class="relative min-w-[130px]">
-                        <Icon name="sliders" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[130px]">
+                        <Select
                             v-model="typeFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Types</option>
-                            <option v-for="(label, value) in transactionTypes" :key="value" :value="value">
-                                {{ label }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="typeOptions"
+                            placeholder="All Types"
+                            searchable
+                        />
                     </div>
 
                     <!-- Status Filter -->
-                    <div class="relative min-w-[130px]">
-                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[130px]">
+                        <Select
                             v-model="statusFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Statuses</option>
-                            <option v-for="(label, value) in statuses" :key="value" :value="value">
-                                {{ label }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="statusOptions"
+                            placeholder="All Statuses"
+                            searchable
+                        />
                     </div>
 
                     <!-- Category Filter -->
-                    <div class="relative min-w-[140px]">
-                        <Icon name="tag" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                        <select
+                    <div class="min-w-[140px]">
+                        <Select
                             v-model="categoryFilter"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
-                        >
-                            <option value="">All Categories</option>
-                            <option v-for="category in categories" :key="category.id" :value="category.id">
-                                {{ category.name }}
-                            </option>
-                        </select>
-                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            :options="categoryOptions"
+                            placeholder="All Categories"
+                            searchable
+                        />
                     </div>
 
                     <!-- Date From -->
@@ -821,9 +832,11 @@ const clearFilters = () => {
             </div>
 
             <!-- Pagination -->
-            <div v-if="transactions.meta && transactions.meta.last_page > 1" class="flex justify-center">
-                <Pagination :links="transactions.links" />
-            </div>
+            <Pagination
+                v-if="transactions?.links && transactions.links.length > 3"
+                :links="transactions.links"
+                :meta="transactions"
+            />
         </div>
 
         <!-- Modals -->

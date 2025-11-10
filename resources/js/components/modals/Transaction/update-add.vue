@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
@@ -142,6 +143,23 @@ const currentCurrencyDecimals = computed(() => {
 // Filter categories for income only
 const incomeCategories = computed(() => {
     return (props.categories || []).filter(cat => cat.type === 'income');
+});
+
+// Convert to Select component options format
+const categoryOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a category' }];
+    incomeCategories.value.forEach(category => {
+        options.push({ value: category.id, label: category.name });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    return [
+        { value: 'pending', label: 'Pending' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'cancelled', label: 'Cancelled' }
+    ];
 });
 
 // VAT handling - will be set when transaction loads
@@ -813,18 +831,14 @@ const submit = async () => {
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="category_id"
                         v-model="form.category_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.category_id }"
-                        required
-                    >
-                        <option :value="null">Select a category</option>
-                        <option v-for="category in incomeCategories" :key="category.id" :value="Number(category.id)">
-                            {{ category.name }}
-                        </option>
-                    </select>
+                        :options="categoryOptions"
+                        placeholder="Select a category"
+                        searchable
+                        :error="!!form.errors.category_id"
+                    />
                     <InputError :message="form.errors.category_id" />
                 </div>
 
@@ -1013,16 +1027,13 @@ const submit = async () => {
                 <!-- Status -->
                 <div class="space-y-2">
                     <Label for="status">Status</Label>
-                    <select
+                    <Select
                         id="status"
                         v-model="form.status"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                    >
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
+                        :options="statusOptions"
+                        placeholder="Select status"
+                        :error="!!form.errors.status"
+                    />
                     <InputError :message="form.errors.status" />
                 </div>
 

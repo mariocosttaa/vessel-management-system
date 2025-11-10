@@ -11,7 +11,7 @@
     <div class="relative">
       <input
         ref="inputRef"
-        :value="searchQuery || displayValue || ''"
+        :value="displayValue || ''"
         type="text"
         :placeholder="placeholder"
         :class="inputClasses"
@@ -27,7 +27,7 @@
       >
         <ChevronDownIcon
           :class="[
-            'h-4 w-4 text-gray-400 transition-transform duration-200',
+            'h-4 w-4 text-muted-foreground transition-transform duration-200',
             isOpen ? 'rotate-180' : ''
           ]"
         />
@@ -46,18 +46,18 @@
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="absolute z-50 mt-1 w-full rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+        class="absolute z-50 mt-1 w-full rounded-lg border border-border dark:border-border bg-card dark:bg-card shadow-lg"
         @click.stop
         @mousedown="handleDropdownMouseDown"
       >
         <!-- Search Input -->
-        <div v-if="searchable" class="p-2 border-b border-gray-200 dark:border-gray-600">
+        <div v-if="searchable" class="p-2 border-b border-border dark:border-border">
           <input
             ref="searchInputRef"
             v-model="searchQuery"
             type="text"
             placeholder="Search..."
-            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            class="w-full px-3 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             @keydown="handleSearchKeydown"
             @mousedown.stop
             @focus.stop
@@ -68,7 +68,7 @@
         <div class="max-h-60 overflow-auto">
           <div
             v-if="filteredOptions.length === 0"
-            class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
+            class="px-3 py-2 text-sm text-muted-foreground dark:text-muted-foreground"
           >
             No options found
           </div>
@@ -77,10 +77,13 @@
             :key="getOptionValue(option)"
             type="button"
             :class="[
-              'w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
-              'focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700',
-              isSelected(option) ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100',
-              index === highlightedIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
+              'w-full px-3 py-2 text-left text-sm transition-colors',
+              'hover:bg-muted/50 dark:hover:bg-muted/50',
+              'focus:outline-none focus:bg-muted/50 dark:focus:bg-muted/50',
+              isSelected(option)
+                ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary font-medium'
+                : 'text-card-foreground dark:text-card-foreground',
+              index === highlightedIndex ? 'bg-muted/50 dark:bg-muted/50' : ''
             ]"
             @click="selectOption(option)"
             @mouseenter="highlightedIndex = index"
@@ -190,6 +193,8 @@ const toggleOpen = () => {
 
   isOpen.value = !isOpen.value
   if (isOpen.value && props.searchable) {
+    // Clear search query when opening dropdown to allow fresh search
+    searchQuery.value = ''
     nextTick(() => {
       // Small delay to ensure dropdown is rendered
       setTimeout(() => {
@@ -202,7 +207,8 @@ const toggleOpen = () => {
 const selectOption = (option: any) => {
   const value = getOptionValue(option)
   emit('update:modelValue', value)
-  searchQuery.value = getOptionLabel(option)
+  // Clear search query when option is selected
+  searchQuery.value = ''
   isOpen.value = false
   highlightedIndex.value = -1
 }
@@ -291,43 +297,11 @@ const handleSearchKeydown = (event: KeyboardEvent) => {
   }
 }
 
-// Function to update searchQuery from modelValue
-const updateDisplayFromModelValue = () => {
-  if (props.modelValue !== null && props.modelValue !== undefined && props.options.length > 0) {
-    const option = props.options.find((opt: any) => {
-      const optValue = getOptionValue(opt)
-      const modelValue = props.modelValue
-      // Handle both string and number comparisons
-      return optValue === modelValue || String(optValue) === String(modelValue)
-    })
-    if (option) {
-      searchQuery.value = getOptionLabel(option)
-      return true
-    }
-  }
-  // Only clear if we don't have a valid modelValue
-  if (!props.modelValue) {
+// Clear search query when dropdown closes
+watch(() => isOpen.value, (isOpenNow) => {
+  if (!isOpenNow) {
+    // Clear search query when closing dropdown
     searchQuery.value = ''
   }
-  return false
-}
-
-// Watch for modelValue changes to update display
-watch(() => props.modelValue, (newValue: string | number | null) => {
-  updateDisplayFromModelValue()
-}, { immediate: true })
-
-// Watch for options changes to update display when options load (important for initialization)
-watch(() => props.options, (newOptions) => {
-  if (newOptions && newOptions.length > 0 && props.modelValue !== null && props.modelValue !== undefined) {
-    updateDisplayFromModelValue()
-  }
-}, { immediate: true, deep: true })
-
-// Also initialize on mount
-onMounted(() => {
-  nextTick(() => {
-    updateDisplayFromModelValue()
-  })
 })
 </script>
