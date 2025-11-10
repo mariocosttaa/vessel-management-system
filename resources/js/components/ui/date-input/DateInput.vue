@@ -202,24 +202,37 @@ const closePopup = () => {
   }
 }
 
-// Handle click outside
+// Handle click outside - use setTimeout to allow focus events to fire first
 const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as Node
-  
-  // Check if click is on this date input's container or popup
-  if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
-    // Click is inside this date input, don't close
-    if (isClickingInsidePopup.value) {
-      isClickingInsidePopup.value = false
+  // Use setTimeout to ensure this runs after focus/click handlers
+  setTimeout(() => {
+    const target = event.target as Node
+    
+    // Check if click is on this date input's container or popup
+    if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
+      // Click is inside this date input, don't close
+      if (isClickingInsidePopup.value) {
+        isClickingInsidePopup.value = false
+      }
+      return
     }
-    return
-  }
 
-  // If clicking outside this date input, close it
-  // (If clicking on another date input, the manager will handle opening that one and closing this one)
-  if (isOpen.value) {
-    closePopup()
-  }
+    // Check if the target is an input element (might be another date input)
+    const targetElement = target as HTMLElement
+    if (targetElement && (targetElement.tagName === 'INPUT' || targetElement.closest('[data-date-input-container]'))) {
+      // Clicking on an input - let the focus handler of that input manage opening
+      // Just close this one if it's open
+      if (isOpen.value) {
+        closePopup()
+      }
+      return
+    }
+
+    // If clicking outside all date inputs, close this one
+    if (isOpen.value) {
+      closePopup()
+    }
+  }, 0)
 }
 
 const handlePopupMouseDown = (event: MouseEvent) => {
@@ -228,30 +241,14 @@ const handlePopupMouseDown = (event: MouseEvent) => {
   isClickingInsidePopup.value = true
 }
 
-const handleInputClick = (event: MouseEvent) => {
-  if (props.disabled) return
-  // Don't prevent default - let focus handle opening
-  // This handler is mainly to ensure the popup opens when clicking
-  if (!isOpen.value) {
-    dateInputManager.open(instanceId)
-    if (selectedDate.value) {
-      currentView.value = new Date(selectedDate.value)
-    } else {
-      currentView.value = new Date()
-    }
-  }
-}
-
 const handleInputFocus = () => {
   if (props.disabled) return
-  // Open on focus
-  if (!isOpen.value) {
-    dateInputManager.open(instanceId)
-    if (selectedDate.value) {
-      currentView.value = new Date(selectedDate.value)
-    } else {
-      currentView.value = new Date()
-    }
+  // Open on focus - the manager will close any other open inputs
+  dateInputManager.open(instanceId)
+  if (selectedDate.value) {
+    currentView.value = new Date(selectedDate.value)
+  } else {
+    currentView.value = new Date()
   }
 }
 
@@ -262,6 +259,7 @@ const handleInputFocus = () => {
 const unregister = dateInputManager.register(instanceId, closePopup)
 
 onMounted(() => {
+  // Use capture phase but with setTimeout to ensure proper order
   document.addEventListener('click', handleClickOutside, true)
   
   if (selectedDate.value) {
@@ -290,7 +288,6 @@ onUnmounted(() => {
         :disabled="disabled"
         readonly
         @focus="handleInputFocus"
-        @click="handleInputClick"
         :class="cn(
           'placeholder:text-muted-foreground selection:bg-primary/20 selection:text-primary-foreground dark:bg-input/30 border-input/80 flex h-9 w-full min-w-0 rounded-lg border-2 bg-transparent pl-10 pr-3 py-1 text-base text-foreground transition-all duration-200 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer',
           'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-offset-1',
@@ -400,3 +397,4 @@ onUnmounted(() => {
     </Transition>
   </div>
 </template>
+
