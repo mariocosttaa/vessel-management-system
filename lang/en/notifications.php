@@ -105,5 +105,16 @@ return [
     'You do not have permission to view VAT reports.' => 'You do not have permission to view VAT reports.',
     'You do not have permission to view audit logs.' => 'You do not have permission to view audit logs.',
     'You do not have permission to view financial reports.' => 'You do not have permission to view financial reports.',
+
+    // Audit Logs
+    ':user created :model:identifier' => ':user created :model:identifier',
+    ':user deleted :model:identifier' => ':user deleted :model:identifier',
+    ':user updated :model:identifier' => ':user updated :model:identifier',
+    ':user changed :changes in :model:identifier' => ':user changed :changes in :model:identifier',
+    'changed :field from \':old\' to \':new\'' => 'changed :field from \':old\' to \':new\'',
+    'updated' => 'updated',
+    '(empty)' => '(empty)',
+    'Yes' => 'Yes',
+    'No' => 'No',
 ];
 

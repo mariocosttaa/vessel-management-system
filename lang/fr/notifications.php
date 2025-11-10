@@ -105,5 +105,16 @@ return [
     'You do not have permission to view VAT reports.' => 'Vous n\'avez pas la permission de voir les rapports de TVA.',
     'You do not have permission to view audit logs.' => 'Vous n\'avez pas la permission de voir les journaux d\'audit.',
     'You do not have permission to view financial reports.' => 'Vous n\'avez pas la permission de voir les rapports financiers.',
+
+    // Audit Logs
+    ':user created :model:identifier' => ':user a créé :model:identifier',
+    ':user deleted :model:identifier' => ':user a supprimé :model:identifier',
+    ':user updated :model:identifier' => ':user a mis à jour :model:identifier',
+    ':user changed :changes in :model:identifier' => ':user a modifié :changes dans :model:identifier',
+    'changed :field from \':old\' to \':new\'' => 'a modifié :field de \':old\' à \':new\'',
+    'updated' => 'mis à jour',
+    '(empty)' => '(vide)',
+    'Yes' => 'Oui',
+    'No' => 'Non',
 ];
 
