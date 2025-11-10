@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
@@ -136,6 +137,64 @@ const showCrewMemberField = computed(() => {
 
 // Get VAT profiles list
 const vatProfiles = computed(() => props.vatProfiles || []);
+
+// Convert to Select component options format
+const transactionTypeOptions = computed(() => {
+    const options = [{ value: '', label: 'Select transaction type' }];
+    Object.entries(props.transactionTypes).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
+const bankAccountOptions = computed(() => {
+    const options = [{ value: '', label: 'Select a bank account' }];
+    props.bankAccounts.forEach(account => {
+        options.push({ value: account.id, label: `${account.name} (${account.bank_name})` });
+    });
+    return options;
+});
+
+const categoryOptions = computed(() => {
+    const options = [{ value: '', label: 'Select a category' }];
+    filteredCategories.value.forEach(category => {
+        options.push({ value: category.id, label: category.name });
+    });
+    return options;
+});
+
+const supplierOptions = computed(() => {
+    const options = [{ value: '', label: 'None' }];
+    (props.suppliers || []).forEach(supplier => {
+        options.push({ value: supplier.id, label: supplier.company_name });
+    });
+    return options;
+});
+
+const crewMemberOptions = computed(() => {
+    const options = [{ value: '', label: 'Select a crew member' }];
+    (props.crewMembers || []).forEach(member => {
+        options.push({ value: member.id, label: `${member.name} (${member.email})` });
+    });
+    return options;
+});
+
+const vatProfileOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a VAT profile' }];
+    vatProfiles.value.forEach(profile => {
+        options.push({ value: profile.id, label: `${profile.name} - ${profile.percentage}%` });
+    });
+    return options;
+});
+
+const statusOptions = computed(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    Object.entries(props.statuses).forEach(([value, label]) => {
+        options.push({ value, label: label as string });
+    });
+    return options;
+});
+
 const defaultVatProfile = computed(() => props.defaultVatProfile);
 
 const form = useForm({
@@ -239,36 +298,27 @@ const submit = () => {
                     <!-- Transaction Type -->
                     <div class="space-y-2">
                         <Label for="type">Transaction Type <span class="text-destructive">*</span></Label>
-                        <select
+                        <Select
                             id="type"
                             v-model="form.type"
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            :class="{ 'border-destructive dark:border-destructive': form.errors.type }"
-                            required
-                        >
-                            <option value="">Select transaction type</option>
-                            <option v-for="(label, value) in transactionTypes" :key="value" :value="value">
-                                {{ label }}
-                            </option>
-                        </select>
+                            :options="transactionTypeOptions"
+                            placeholder="Select transaction type"
+                            :error="!!form.errors.type"
+                        />
                         <InputError :message="form.errors.type" />
                     </div>
 
                     <!-- Bank Account -->
                     <div class="space-y-2">
                         <Label for="bank_account_id">Bank Account <span class="text-destructive">*</span></Label>
-                        <select
+                        <Select
                             id="bank_account_id"
                             v-model="form.bank_account_id"
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            :class="{ 'border-destructive dark:border-destructive': form.errors.bank_account_id }"
-                            required
-                        >
-                            <option value="">Select a bank account</option>
-                            <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
-                                {{ account.name }} ({{ account.bank_name }})
-                            </option>
-                        </select>
+                            :options="bankAccountOptions"
+                            placeholder="Select a bank account"
+                            searchable
+                            :error="!!form.errors.bank_account_id"
+                        />
                         <InputError :message="form.errors.bank_account_id" />
                     </div>
                 </div>
@@ -276,19 +326,15 @@ const submit = () => {
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="category_id"
                         v-model="form.category_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.category_id }"
+                        :options="categoryOptions"
+                        placeholder="Select a category"
                         :disabled="!form.type"
-                        required
-                    >
-                        <option value="">Select a category</option>
-                        <option v-for="category in filteredCategories" :key="category.id" :value="category.id">
-                            {{ category.name }}
-                        </option>
-                    </select>
+                        searchable
+                        :error="!!form.errors.category_id"
+                    />
                     <InputError :message="form.errors.category_id" />
                     <p v-if="!form.type" class="text-xs text-muted-foreground">Please select a transaction type first</p>
                 </div>
@@ -326,52 +372,42 @@ const submit = () => {
                 <!-- Supplier (for expenses) -->
                 <div v-if="showSupplierField" class="space-y-2">
                     <Label for="supplier_id">Supplier</Label>
-                    <select
+                    <Select
                         id="supplier_id"
                         v-model="form.supplier_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.supplier_id }"
-                    >
-                        <option value="">None</option>
-                        <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-                            {{ supplier.company_name }}
-                        </option>
-                    </select>
+                        :options="supplierOptions"
+                        placeholder="None"
+                        searchable
+                        :error="!!form.errors.supplier_id"
+                    />
                     <InputError :message="form.errors.supplier_id" />
                 </div>
 
                 <!-- Crew Member (for salary expenses) -->
                 <div v-if="showCrewMemberField" class="space-y-2">
                     <Label for="crew_member_id">Crew Member <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="crew_member_id"
                         v-model="form.crew_member_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.crew_member_id }"
-                        :required="showCrewMemberField"
-                    >
-                        <option value="">Select a crew member</option>
-                        <option v-for="member in crewMembers" :key="member.id" :value="member.id">
-                            {{ member.name }} ({{ member.email }})
-                        </option>
-                    </select>
+                        :options="crewMemberOptions"
+                        placeholder="Select a crew member"
+                        searchable
+                        :error="!!form.errors.crew_member_id"
+                    />
                     <InputError :message="form.errors.crew_member_id" />
                 </div>
 
                 <!-- VAT Profile (only for income transactions) -->
                 <div v-if="form.type === 'income'" class="space-y-2">
                     <Label for="vat_profile_id">VAT Profile</Label>
-                    <select
+                    <Select
                         id="vat_profile_id"
                         v-model="form.vat_profile_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.vat_profile_id }"
-                    >
-                        <option :value="null">Select a VAT profile</option>
-                        <option v-for="profile in vatProfiles" :key="profile.id" :value="profile.id">
-                            {{ profile.name }} - {{ profile.percentage }}%
-                        </option>
-                    </select>
+                        :options="vatProfileOptions"
+                        placeholder="Select a VAT profile"
+                        searchable
+                        :error="!!form.errors.vat_profile_id"
+                    />
                     <InputError :message="form.errors.vat_profile_id" />
                     <p v-if="defaultVatProfile" class="text-xs text-muted-foreground">
                         Default: {{ defaultVatProfile.name }} - {{ defaultVatProfile.percentage }}%
@@ -407,16 +443,12 @@ const submit = () => {
                 <!-- Status -->
                 <div class="space-y-2">
                     <Label for="status">Status</Label>
-                    <select
+                    <Select
                         id="status"
                         v-model="form.status"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.status }"
-                    >
-                        <option v-for="(label, value) in statuses" :key="value" :value="value">
-                            {{ label }}
-                        </option>
-                    </select>
+                        :options="statusOptions"
+                        :error="!!form.errors.status"
+                    />
                     <InputError :message="form.errors.status" />
                 </div>
 
