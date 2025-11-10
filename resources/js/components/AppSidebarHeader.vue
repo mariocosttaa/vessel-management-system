@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import ThemeToggle from '@/components/ThemeToggle.vue';
+import ThemeDropdown from '@/components/ThemeDropdown.vue';
 import UserMenuContent from '@/components/UserMenuContent.vue';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import NotificationDropdown from '@/components/NotificationDropdown.vue';
-import { Globe } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import type { BreadcrumbItemType } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,13 +28,6 @@ withDefaults(
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const { getInitials } = useInitials();
-
-const showLanguageMenu = ref(false);
-
-const handleLanguageClick = () => {
-    showLanguageMenu.value = !showLanguageMenu.value;
-    // TODO: Implement language dropdown/modal
-};
 </script>
 
 <template>
@@ -56,17 +49,11 @@ const handleLanguageClick = () => {
             <!-- Notification Dropdown -->
             <NotificationDropdown />
 
-            <!-- Language Change Icon -->
-            <button
-                @click="handleLanguageClick"
-                class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-muted/40 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/40 transition-all duration-200 group"
-                title="Change Language"
-            >
-                <Globe class="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </button>
+            <!-- Language Switcher -->
+            <LanguageSwitcher />
 
-            <!-- Dark Mode Toggle -->
-            <ThemeToggle />
+            <!-- Theme Dropdown -->
+            <ThemeDropdown />
 
             <!-- User Menu -->
             <DropdownMenu v-if="user">
