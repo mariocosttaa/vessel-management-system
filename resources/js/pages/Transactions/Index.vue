@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { Head, router, usePage, Link } from '@inertiajs/vue3';
+import { ref, computed, watch, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
-import DataTable from '@/components/ui/DataTable.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
@@ -14,7 +13,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
-import { Plus, Minus, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-vue-next';
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-vue-next';
 import transactions from '@/routes/panel/transactions';
 
 // Get current vessel ID from URL
@@ -148,26 +147,6 @@ const showDeleteDialog = ref(false);
 const transactionToDelete = ref<Transaction | null>(null);
 const isDeleting = ref(false);
 
-// Dropdown state
-const openDropdownId = ref<number | null>(null);
-
-// Dropdown methods
-const toggleActionsDropdown = (transactionId: number) => {
-    openDropdownId.value = openDropdownId.value === transactionId ? null : transactionId;
-};
-
-const handleActionClick = (action: any, transaction: Transaction) => {
-    action.onClick(transaction);
-    openDropdownId.value = null;
-};
-
-// Click outside handler
-const handleClickOutside = (event: Event) => {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.dropdown-container')) {
-        openDropdownId.value = null;
-    }
-};
 
 // Sorting - default to created_at descending (newest first)
 const sortField = ref(props.filters.sort || 'created_at');
@@ -311,33 +290,6 @@ const getStatusColor = (status: string) => {
     }
 };
 
-const actions = computed(() => {
-    const actionItems = [];
-
-    if (canEdit('transactions')) {
-        actionItems.push({
-            label: 'View Details',
-            icon: 'eye',
-            onClick: (item: Transaction) => openShowModal(item),
-        });
-        actionItems.push({
-            label: 'Edit Transaction',
-            icon: 'edit',
-            onClick: (item: Transaction) => openUpdateModal(item),
-        });
-    }
-
-    if (canDelete('transactions')) {
-        actionItems.push({
-            label: 'Delete Transaction',
-            icon: 'trash-2',
-            onClick: (item: Transaction) => deleteTransaction(item),
-            variant: 'destructive' as const,
-        });
-    }
-
-    return actionItems;
-});
 
 // Modal handlers
 const openCreateAddModal = () => {
@@ -349,17 +301,26 @@ const openCreateRemoveModal = () => {
 };
 
 const openUpdateModal = (transaction: Transaction) => {
-    selectedTransaction.value = transaction;
-    // Determine which update modal to show based on transaction type
-    if (transaction.type === 'income') {
-        showUpdateAddModal.value = true;
-    } else if (transaction.type === 'expense') {
-        showUpdateRemoveModal.value = true;
-    } else {
-        // For transfer transactions, we can use update-add as default
-        // Or create a separate update-transfer modal if needed
-        showUpdateAddModal.value = true;
+    if (!transaction) {
+        console.error('No transaction provided to openUpdateModal');
+        return;
     }
+
+    // Set the transaction first
+    selectedTransaction.value = transaction;
+
+    // Use nextTick to ensure Vue has updated the DOM and component is created
+    nextTick(() => {
+        // Determine which update modal to show based on transaction type
+        if (transaction.type === 'income') {
+            showUpdateAddModal.value = true;
+        } else if (transaction.type === 'expense') {
+            showUpdateRemoveModal.value = true;
+        } else {
+            // For transfer transactions, we can use update-add as default
+            showUpdateAddModal.value = true;
+        }
+    });
 };
 
 const openShowModal = (transaction: Transaction) => {
@@ -394,6 +355,29 @@ const handleCreateSuccess = () => {
                 // Ensure modals remain closed after reload
                 showCreateAddModal.value = false;
                 showCreateRemoveModal.value = false;
+                selectedTransaction.value = null;
+            }
+        });
+    }, 100);
+};
+
+const handleUpdateSuccess = () => {
+    // Close modals immediately and ensure they stay closed
+    showUpdateAddModal.value = false;
+    showUpdateRemoveModal.value = false;
+    selectedTransaction.value = null;
+
+    // Reload transactions data after modal has closed
+    // Use a small delay to ensure modal close animation completes
+    setTimeout(() => {
+        router.reload({
+            only: ['transactions'],
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => {
+                // Ensure modals remain closed after reload
+                showUpdateAddModal.value = false;
+                showUpdateRemoveModal.value = false;
                 selectedTransaction.value = null;
             }
         });
@@ -522,14 +506,6 @@ const clearFilters = () => {
     });
 };
 
-// Handle click outside for dropdown
-onMounted(() => {
-    document.addEventListener('click', handleClickOutside);
-});
-
-onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside);
-});
 </script>
 
 <template>
@@ -544,127 +520,132 @@ onUnmounted(() => {
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Transactions</h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage financial transactions for your vessel</p>
                     </div>
-                    <div v-if="canCreate('transactions')" class="flex gap-3">
-                        <button
-                            @click="openCreateAddModal"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                    <div class="flex gap-3">
+                        <Link
+                            :href="`/panel/${getCurrentVesselId()}/transactions/history`"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                         >
-                            <Icon name="plus" class="w-4 h-4 mr-2" />
-                            Add
-                        </button>
-                        <button
-                            @click="openCreateRemoveModal"
-                            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <Icon name="minus" class="w-4 h-4 mr-2" />
-                            Remove
-                        </button>
+                            <Icon name="calendar" class="w-4 h-4 mr-2" />
+                            History
+                        </Link>
+                        <div v-if="canCreate('transactions')" class="flex gap-3">
+                            <button
+                                @click="openCreateAddModal"
+                                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <Icon name="plus" class="w-4 h-4 mr-2" />
+                                Add
+                            </button>
+                            <button
+                                @click="openCreateRemoveModal"
+                                class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <Icon name="minus" class="w-4 h-4 mr-2" />
+                                Remove
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Filters Card -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="flex flex-wrap items-center gap-3">
                     <!-- Search -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Search
-                        </label>
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search transactions..."
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        />
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="relative">
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Search transactions..."
+                                @keyup.enter="applyFilters"
+                                class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                            />
+                        </div>
                     </div>
 
                     <!-- Type Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Type
-                        </label>
+                    <div class="relative min-w-[130px]">
+                        <Icon name="sliders" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="typeFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Types</option>
                             <option v-for="(label, value) in transactionTypes" :key="value" :value="value">
                                 {{ label }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
                     <!-- Status Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Status
-                        </label>
+                    <div class="relative min-w-[130px]">
+                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="statusFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Statuses</option>
                             <option v-for="(label, value) in statuses" :key="value" :value="value">
                                 {{ label }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
                     <!-- Category Filter -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Category
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="tag" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="categoryFilter"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Categories</option>
                             <option v-for="category in categories" :key="category.id" :value="category.id">
                                 {{ category.name }}
                             </option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
 
                     <!-- Date From -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Date From
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
                             v-model="dateFromFilter"
                             type="date"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
                         />
                     </div>
 
                     <!-- Date To -->
-                    <div>
-                        <label class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                            Date To
-                        </label>
+                    <div class="relative min-w-[140px]">
+                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
                             v-model="dateToFilter"
                             type="date"
-                            class="w-full px-3 py-2 border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
                         />
                     </div>
-                </div>
 
-                <!-- Filter Actions -->
-                <div class="flex gap-3 mt-4">
+                    <!-- Apply Filters Button -->
                     <button
                         @click="applyFilters"
-                        class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                     >
-                        Apply Filters
+                        <Icon name="check" class="h-4 w-4" />
+                        Apply
                     </button>
+
+                    <!-- Clear Filters Button -->
                     <button
                         @click="clearFilters"
-                        class="px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        Clear Filters
+                        <Icon name="x" class="h-4 w-4" />
+                        Clear
                     </button>
                 </div>
             </div>
@@ -755,8 +736,8 @@ onUnmounted(() => {
                                         </div>
                                     </div>
 
-                                    <!-- Amount (with right padding for dropdown) -->
-                                    <div class="flex items-center ml-4 mr-10">
+                                    <!-- Amount and Action Buttons -->
+                                    <div class="flex items-center gap-2 ml-4">
                                         <div class="text-right">
                                             <!-- When amount_per_unit and quantity exist -->
                                             <template v-if="(transaction.amount_per_unit ?? transaction.price_per_unit) != null && transaction.quantity != null && (transaction.amount_per_unit ?? transaction.price_per_unit)! > 0 && transaction.quantity > 0">
@@ -805,54 +786,39 @@ onUnmounted(() => {
                                                 </div>
                                             </template>
                                         </div>
-                                    </div>
-                                </div>
 
-                                <!-- Actions Dropdown (outside clickable area, positioned to the right) -->
-                                <div
-                                    v-if="actions.length > 0"
-                                    @click.stop
-                                    @mouseenter.stop
-                                    @mouseleave.stop
-                                    @mousedown.stop
-                                    @mouseup.stop
-                                    class="relative dropdown-container flex-shrink-0"
-                                >
-                                    <button
-                                        @click.stop="toggleActionsDropdown(transaction.id)"
-                                        @mouseenter.stop
-                                        @mouseleave.stop
-                                        class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-background dark:hover:bg-background transition-colors"
-                                    >
-                                        <Icon name="menu" class="w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
-                                    </button>
-
-                                    <!-- Actions Dropdown Menu -->
-                                    <div
-                                        v-if="openDropdownId === transaction.id"
-                                        @click.stop
-                                        @mouseenter.stop
-                                        @mouseleave.stop
-                                        @mousedown.stop
-                                        @mouseup.stop
-                                        class="absolute right-0 mt-2 w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg z-50"
-                                    >
-                                        <div class="py-1">
+                                        <!-- Action Buttons (View, Edit, and Delete) -->
+                                        <div
+                                            @click.stop
+                                            class="flex items-center gap-1 flex-shrink-0"
+                                        >
+                                            <!-- View Button -->
                                             <button
-                                                v-for="action in actions"
-                                                :key="action.label"
-                                                @click.stop="handleActionClick(action, transaction)"
-                                                @mouseenter.stop
-                                                @mouseleave.stop
-                                                :class="[
-                                                    'flex items-center w-full px-4 py-2 text-sm transition-colors',
-                                                    action.variant === 'destructive'
-                                                        ? 'text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted'
-                                                        : 'text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted'
-                                                ]"
+                                                @click.stop="openShowModal(transaction)"
+                                                class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                                title="View transaction details"
                                             >
-                                                <Icon :name="action.icon" class="w-4 h-4 mr-3" />
-                                                {{ action.label }}
+                                                <Icon name="eye" class="w-4 h-4" />
+                                            </button>
+
+                                            <!-- Edit Button -->
+                                            <button
+                                                v-if="canEdit('transactions')"
+                                                @click.stop="openUpdateModal(transaction)"
+                                                class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                                title="Edit transaction"
+                                            >
+                                                <Icon name="edit" class="w-4 h-4" />
+                                            </button>
+
+                                            <!-- Delete Button -->
+                                            <button
+                                                v-if="canDelete('transactions')"
+                                                @click.stop="deleteTransaction(transaction)"
+                                                class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
+                                                title="Delete transaction"
+                                            >
+                                                <Icon name="x" class="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
@@ -901,7 +867,7 @@ onUnmounted(() => {
             :default-vat-profile="defaultVatProfile"
             :default-currency="props.defaultCurrency"
             @close="closeModals"
-            @success="() => { closeModals(); router.reload(); }"
+            @success="handleUpdateSuccess"
         />
 
         <UpdateRemoveModal
@@ -913,7 +879,7 @@ onUnmounted(() => {
             :crew-members="crewMembers"
             :default-currency="props.defaultCurrency"
             @close="closeModals"
-            @success="() => { closeModals(); router.reload(); }"
+            @success="handleUpdateSuccess"
         />
 
         <TransactionShowModal

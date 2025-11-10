@@ -8,9 +8,11 @@ import Pagination from '@/components/ui/Pagination.vue';
 import CrewRoleCreateModal from '@/components/modals/CrewRole/create.vue';
 import CrewRoleUpdateModal from '@/components/modals/CrewRole/update.vue';
 import CrewRoleShowModal from '@/components/modals/CrewRole/show.vue';
+import PermissionsInfoModal from '@/components/modals/CrewRole/PermissionsInfoModal.vue';
 import PermissionGate from '@/components/PermissionGate.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { usePage } from '@inertiajs/vue3';
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -28,6 +30,20 @@ interface CrewPosition {
     scope_label: string;
     crew_members_count?: number;
     created_at: string;
+    vessel_role_access_id?: number | null;
+    vessel_role_access?: {
+        id: number;
+        name: string;
+        display_name: string;
+        description: string;
+    } | null;
+}
+
+interface VesselRoleAccess {
+    id: number;
+    name: string;
+    display_name: string;
+    description: string;
 }
 
 interface Props {
@@ -42,6 +58,8 @@ interface Props {
         sort?: string;
         direction?: string;
     };
+    vesselRoleAccesses?: VesselRoleAccess[];
+    permissionsConfig?: Record<string, any>;
 }
 
 const props = defineProps<Props>();
@@ -62,6 +80,7 @@ const sortDirection = ref(props.filters.direction || 'asc');
 const isCreateModalOpen = ref(false);
 const isUpdateModalOpen = ref(false);
 const isShowModalOpen = ref(false);
+const isPermissionsInfoModalOpen = ref(false);
 const editingCrewPosition = ref<CrewPosition | null>(null);
 const viewingCrewPosition = ref<CrewPosition | null>(null);
 
@@ -74,6 +93,7 @@ const isDeleting = ref(false);
 const columns = [
     { key: 'name', label: 'Role Name', sortable: true },
     { key: 'scope_label', label: 'Scope', sortable: false },
+    { key: 'vessel_role_access', label: 'Permission Level', sortable: false },
     { key: 'crew_members_count', label: 'Crew Members', sortable: false },
     { key: 'description', label: 'Description', sortable: false },
     { key: 'created_at', label: 'Created', sortable: true },
@@ -191,6 +211,16 @@ const cancelDelete = () => {
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
 };
+
+const getPermissionLevelBadgeClass = (roleName: string): string => {
+    const classes: Record<string, string> = {
+        'administrator': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200',
+        'supervisor': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200',
+        'moderator': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
+        'normal': 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200',
+    };
+    return classes[roleName] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200';
+};
 </script>
 
 <template>
@@ -205,44 +235,55 @@ const formatDate = (dateString: string) => {
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Crew Roles</h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage crew positions and roles</p>
                     </div>
-                    <PermissionGate permission="crew-roles.create">
+                    <div class="flex items-center gap-3">
                         <button
-                            @click="openCreateModal"
-                            class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                            @click="isPermissionsInfoModalOpen = true"
+                            class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card px-4 py-2 text-sm font-medium text-card-foreground dark:text-card-foreground transition-colors hover:bg-sidebar-accent dark:hover:bg-sidebar-accent"
                         >
-                            <Icon name="plus" class="h-4 w-4" />
-                            Add Role
+                            <Icon name="info" class="h-4 w-4" />
+                            Permission Types
                         </button>
-                    </PermissionGate>
+                        <PermissionGate permission="crew-roles.create">
+                            <button
+                                @click="openCreateModal"
+                                class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                            >
+                                <Icon name="plus" class="h-4 w-4" />
+                                Add Role
+                            </button>
+                        </PermissionGate>
+                    </div>
                 </div>
             </div>
 
             <!-- Filters Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
-                <div class="flex flex-wrap items-center gap-4">
+                <div class="flex flex-wrap items-center gap-3">
                     <!-- Search -->
                     <div class="flex-1 min-w-[200px]">
                         <div class="relative">
-                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             <input
                                 v-model="search"
                                 type="text"
                                 placeholder="Search roles..."
-                                class="w-full rounded-lg border border-sidebar-border/70 bg-background pl-10 pr-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
                     </div>
 
                     <!-- Scope Filter -->
-                    <div class="min-w-[150px]">
+                    <div class="relative min-w-[150px]">
+                        <Icon name="filter" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                         <select
                             v-model="scopeFilter"
-                            class="w-full rounded-lg border border-sidebar-border/70 bg-background px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent appearance-none cursor-pointer transition-colors"
                         >
                             <option value="">All Scopes</option>
                             <option value="global">Default</option>
                             <option value="vessel">Created</option>
                         </select>
+                        <Icon name="chevron-down" class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     </div>
                 </div>
             </div>
@@ -271,6 +312,18 @@ const formatDate = (dateString: string) => {
                             {{ item.is_global ? 'Default' : 'Created' }}
                         </span>
                     </template>
+                    <template #cell-vessel_role_access="{ item }">
+                        <span
+                            v-if="item.vessel_role_access"
+                            :class="[
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                getPermissionLevelBadgeClass(item.vessel_role_access.name),
+                            ]"
+                        >
+                            {{ item.vessel_role_access.display_name }}
+                        </span>
+                        <span v-else class="text-muted-foreground text-sm">-</span>
+                    </template>
                     <template #cell-crew_members_count="{ item }">
                         <span class="text-muted-foreground">{{ item.crew_members_count || 0 }}</span>
                     </template>
@@ -294,16 +347,28 @@ const formatDate = (dateString: string) => {
         <!-- Create Modal -->
         <CrewRoleCreateModal
             :open="isCreateModalOpen"
+            :vessel-role-accesses="props.vesselRoleAccesses || []"
             @update:open="isCreateModalOpen = $event"
             @saved="handleModalSaved"
+            @open-permissions-info="isPermissionsInfoModalOpen = true"
         />
 
         <!-- Update Modal -->
         <CrewRoleUpdateModal
             :open="isUpdateModalOpen"
             :crew-position="editingCrewPosition"
+            :vessel-role-accesses="props.vesselRoleAccesses || []"
             @update:open="isUpdateModalOpen = $event"
             @saved="handleModalSaved"
+            @open-permissions-info="isPermissionsInfoModalOpen = true"
+        />
+
+        <!-- Permissions Info Modal -->
+        <PermissionsInfoModal
+            v-if="props.permissionsConfig"
+            :open="isPermissionsInfoModalOpen"
+            :permissions-config="props.permissionsConfig"
+            @update:open="isPermissionsInfoModalOpen = $event"
         />
 
         <!-- Show Modal -->
