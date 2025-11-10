@@ -19,6 +19,7 @@ class Transaction extends Model
         'transaction_number',
         'vessel_id',
         'marea_id',
+        'maintenance_id',
         'category_id',
         'supplier_id',
         'crew_member_id',
@@ -70,6 +71,14 @@ class Transaction extends Model
     public function marea(): BelongsTo
     {
         return $this->belongsTo(Marea::class);
+    }
+
+    /**
+     * Get the maintenance that owns the transaction.
+     */
+    public function maintenance(): BelongsTo
+    {
+        return $this->belongsTo(Maintenance::class);
     }
 
     /**
