@@ -8,16 +8,14 @@
           <div class="flex items-center">
             <Link
               :href="isLandingPage ? '/' : '/panel'"
-              class="flex items-center space-x-2"
+              class="flex items-center"
             >
-              <div class="bg-primary/80 rounded-full p-1.5">
-                <Icon name="ship" class="h-4 w-4 text-primary-foreground" />
-              </div>
-              <div class="text-left">
-                <h1 class="text-sm font-semibold text-card-foreground dark:text-card-foreground leading-tight">
-                  Bindamy Mareas
-                </h1>
-              </div>
+              <Logo
+                variant="auto"
+                type="svg"
+                height="32px"
+                className="h-8 max-w-[140px]"
+              />
             </Link>
           </div>
 
@@ -88,11 +86,9 @@
               <LanguageSwitcher />
             </div>
 
-            <!-- Desktop Theme Toggle -->
+            <!-- Desktop Theme Dropdown -->
             <div class="hidden md:flex items-center">
-              <div class="flex items-center space-x-1 px-2 py-1.5 rounded-md hover:bg-muted/40 transition-colors duration-200">
-                <ThemeToggle />
-              </div>
+              <ThemeDropdown />
             </div>
 
             <!-- Panel Page: User Avatar Dropdown (only shown when user is logged in on panel) -->
@@ -258,10 +254,10 @@
               </template>
             </nav>
 
-            <!-- Mobile Language Switcher & Theme Toggle -->
+            <!-- Mobile Language Switcher & Theme Dropdown -->
             <div class="flex items-center justify-center px-4 py-3 border-t border-border/50 gap-3">
               <LanguageSwitcher />
-              <ThemeToggle />
+              <ThemeDropdown />
             </div>
           </div>
         </Transition>
@@ -274,8 +270,9 @@
 import { computed, ref, onMounted, onUnmounted, Transition } from 'vue'
 import { router, usePage, Link } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
-import ThemeToggle from '@/components/ThemeToggle.vue'
+import ThemeDropdown from '@/components/ThemeDropdown.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import Logo from '@/components/Logo.vue'
 import { useI18n } from '@/composables/useI18n'
 import { login } from '@/routes'
 
