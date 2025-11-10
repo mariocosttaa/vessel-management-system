@@ -5,10 +5,6 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
@@ -210,17 +206,15 @@ const footerNavItems = computed((): NavItem[] => [
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="`/panel/${getCurrentVesselId()}/dashboard`">
-                            <AppLogo />
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarHeader>
+        <!-- Logo only - no card, no background, just the logo -->
+        <div class="flex justify-center items-center w-full py-4">
+            <Link 
+                :href="`/panel/${getCurrentVesselId()}/dashboard`" 
+                class="focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+            >
+                <AppLogo />
+            </Link>
+        </div>
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
