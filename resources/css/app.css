@@ -4,7 +4,7 @@
 @source '../../storage/framework/views/*.php';
 @custom-variant dark (&:is(.dark *));
 @theme inline {
-    --font-sans: Instrument Sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
@@ -60,12 +60,51 @@
      ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
     }
+    /* Enhanced Typography - Inter font (Cursor style) */
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+        letter-spacing: -0.011em;
+        font-variant-numeric: tabular-nums;
+    }
+    /* Improved heading typography */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.25;
+    }
+    /* Better text rendering for small text */
+    .text-xs,
+    .text-sm {
+        letter-spacing: -0.005em;
+        font-weight: 400;
+    }
+    /* Enhanced button text */
+    button,
+    [role="button"] {
+        letter-spacing: -0.01em;
+        font-weight: 500;
+    }
+    /* Input and form elements */
+    input,
+    textarea,
+    select {
+        letter-spacing: -0.01em;
+        font-weight: 400;
+    }
 }
 
 @layer utilities {
     body,
     html {
-        --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     }
 }
 
@@ -94,7 +133,7 @@
     --chart-3: hsl(197 37% 24%);
     --chart-4: hsl(43 74% 66%);
     --chart-5: hsl(27 87% 67%);
-    --radius: 0.5rem;
+    --radius: 0.625rem;
     --sidebar-background: hsl(0 0% 98%);
     --sidebar-foreground: hsl(240 5.3% 26.1%);
     --sidebar-primary: hsl(217 91% 60%);
@@ -148,5 +187,16 @@
     }
     body {
         @apply bg-background text-foreground;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+        font-variant-numeric: tabular-nums;
+    }
+    /* Enhanced focus states */
+    *:focus-visible {
+        outline-offset: 2px;
+    }
+    /* Better selection */
+     ::selection {
+        background-color: hsl(var(--primary) / 0.2);
+        color: hsl(var(--primary-foreground));
     }
 }
