@@ -36,6 +36,11 @@ const layout = computed(() => {
         return IndexDefaultLayout
     }
 
+    // Legal pages use IndexDefaultLayout (landing page style, no sidebar)
+    if (url === '/privacy-policy' || url === '/terms-of-service') {
+        return IndexDefaultLayout
+    }
+
     // All panel routes with vessel ID use VesselLayout (app sidebar)
     if (url.startsWith('/panel/')) {
         return VesselLayout

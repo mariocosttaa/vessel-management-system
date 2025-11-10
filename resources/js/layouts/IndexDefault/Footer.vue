@@ -10,12 +10,12 @@
 
         <!-- Right: Privacy & Terms -->
         <div class="flex items-center space-x-6 text-sm text-muted-foreground">
-          <button class="hover:text-foreground transition-colors">
+          <Link href="/privacy-policy" class="hover:text-foreground transition-colors">
             Privacy Policy
-          </button>
-          <button class="hover:text-foreground transition-colors">
-            User Terms
-          </button>
+          </Link>
+          <Link href="/terms-of-service" class="hover:text-foreground transition-colors">
+            Terms of Service
+          </Link>
         </div>
       </div>
     </div>
@@ -24,6 +24,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Link } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
 
 const currentYear = computed(() => new Date().getFullYear())
