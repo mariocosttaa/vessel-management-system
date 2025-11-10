@@ -12,13 +12,16 @@ use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\VesselSetting;
 use App\Services\AuditLogService;
+use App\Services\EmailNotificationService;
 use App\Services\MoneyService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class TransactionController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of transactions for the current vessel.
      */
@@ -33,14 +36,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to view transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Main data query - filter by vessel
@@ -209,14 +212,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to create transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.create permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.create'] ?? false)) {
-            abort(403, 'You do not have permission to create transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Related data for form
@@ -365,6 +368,7 @@ class TransactionController extends Controller
             $transaction = Transaction::create([
                 'vessel_id' => $vesselId,
                 'marea_id' => $request->marea_id ?? null,
+                'maintenance_id' => $request->maintenance_id ?? null,
                 'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
@@ -443,8 +447,40 @@ class TransactionController extends Controller
                 $vesselId
             );
 
+            // Create email notification for other users (not the user who created it)
+            try {
+                $currencyModel = \App\Models\Currency::where('code', $currency)->first();
+                $currencySymbol = $currencyModel->symbol ?? '€';
+
+                EmailNotificationService::createNotification(
+                    type: 'transaction_created',
+                    subjectType: Transaction::class,
+                    subjectId: $transaction->id,
+                    vesselId: $vesselId,
+                    actionByUserId: $user->id,
+                    subjectData: [
+                        'transaction_number' => $transaction->transaction_number,
+                        'type' => $transaction->type,
+                        'amount' => $transaction->total_amount,
+                        'currency_symbol' => $currencySymbol,
+                        'description' => $transaction->description,
+                        'category_name' => $transaction->category->name ?? null,
+                        'created_at' => $transaction->created_at->toIso8601String(),
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail the transaction creation
+                Log::warning('Failed to create email notification for transaction', [
+                    'transaction_id' => $transaction->id,
+                    'vessel_id' => $vesselId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             return back()
-                ->with('success', "Transaction '{$transaction->transaction_number}' has been created successfully.")
+                ->with('success', $this->transFrom('notifications', "Transaction ':number' has been created successfully.", [
+                    'number' => $transaction->transaction_number
+                ]))
                 ->with('notification_delay', 0);
         } catch (\Exception $e) {
             Log::error('Transaction creation failed', [
@@ -455,7 +491,9 @@ class TransactionController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create transaction: ' . $e->getMessage())
+                ->with('error', $this->transFrom('notifications', 'Failed to create transaction: :message', [
+                    'message' => $e->getMessage()
+                ]))
                 ->with('notification_delay', 0);
         }
     }
@@ -487,14 +525,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to view transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Load all relationships
@@ -540,14 +578,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to view transaction details.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Load all relationships
@@ -592,14 +630,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to edit transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.edit permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.edit'] ?? false)) {
-            abort(403, 'You do not have permission to edit transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Load transaction with relationships
@@ -849,12 +887,16 @@ class TransactionController extends Controller
             );
 
             return back()
-                ->with('success', "Transaction '{$transaction->transaction_number}' has been updated successfully.")
+                ->with('success', $this->transFrom('notifications', "Transaction ':number' has been updated successfully.", [
+                    'number' => $transaction->transaction_number
+                ]))
                 ->with('notification_delay', 4);
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update transaction. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update transaction: :message', [
+                    'message' => $e->getMessage()
+                ]))
                 ->with('notification_delay', 0);
         }
     }
@@ -888,7 +930,7 @@ class TransactionController extends Controller
             $userRole = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (!($permissions['transactions.delete'] ?? false)) {
-                abort(403, 'You do not have permission to delete transactions for this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
             }
 
             // Delete associated files and their physical files
@@ -913,6 +955,36 @@ class TransactionController extends Controller
 
             $transactionNumber = $transaction->transaction_number;
 
+            // Create email notification for other users BEFORE deletion (so we can capture the data)
+            try {
+                $currencyModel = \App\Models\Currency::where('code', $transaction->currency)->first();
+                $currencySymbol = $currencyModel->symbol ?? '€';
+
+                EmailNotificationService::createNotification(
+                    type: 'transaction_deleted',
+                    subjectType: Transaction::class,
+                    subjectId: $transaction->id,
+                    vesselId: $vesselId,
+                    actionByUserId: $user->id,
+                    subjectData: [
+                        'transaction_number' => $transaction->transaction_number,
+                        'type' => $transaction->type,
+                        'amount' => $transaction->total_amount,
+                        'currency_symbol' => $currencySymbol,
+                        'description' => $transaction->description,
+                        'category_name' => $transaction->category->name ?? null,
+                        'deleted_at' => now()->toIso8601String(),
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail the transaction deletion
+                Log::warning('Failed to create email notification for deleted transaction', [
+                    'transaction_id' => $transaction->id,
+                    'vessel_id' => $vesselId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Log the delete action BEFORE deletion
             AuditLogService::logDelete(
                 $transaction,
@@ -925,11 +997,15 @@ class TransactionController extends Controller
 
             return redirect()
                 ->route('panel.transactions.index', ['vessel' => $vesselId])
-                ->with('success', "Transaction '{$transactionNumber}' has been deleted successfully.")
+                ->with('success', $this->transFrom('notifications', "Transaction ':number' has been deleted successfully.", [
+                    'number' => $transactionNumber
+                ]))
                 ->with('notification_delay', 5);
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to delete transaction. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to delete transaction: :message', [
+                    'message' => $e->getMessage()
+                ]))
                 ->with('notification_delay', 0);
         }
     }
@@ -973,7 +1049,7 @@ class TransactionController extends Controller
             $userRole = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (!($permissions['transactions.edit'] ?? false)) {
-                abort(403, 'You do not have permission to delete files for this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
             }
 
             // Delete physical file from storage
@@ -1022,14 +1098,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to view transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Get all month/year combinations from transactions (only those with transactions)
@@ -1073,23 +1149,23 @@ class TransactionController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to view transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Validate month and year
         if ($month < 1 || $month > 12) {
-            abort(404, 'Invalid month.');
+            abort(404, $this->transFrom('notifications', 'Invalid month.'));
         }
 
         if ($year < 2000 || $year > 2100) {
-            abort(404, 'Invalid year.');
+            abort(404, $this->transFrom('notifications', 'Invalid year.'));
         }
 
         // Main data query - filter by vessel, month and year
@@ -1249,14 +1325,14 @@ class TransactionController extends Controller
 
         // Check if user has permission to search transactions using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check transactions.view permission from config (search requires view permission)
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['transactions.view'] ?? false)) {
-            abort(403, 'You do not have permission to search transactions.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         $query = $request->get('q');
