@@ -19,18 +19,23 @@ const features = computed(() => [
     },
     {
         icon: 'users',
-        title: t('Crew Management'),
-        description: t('Manage crew members, positions, and automated salary payments. Streamline your human resources operations.')
+        title: t('Crew Management & Salary Control'),
+        description: t('Manage crew members, positions, and automated salary payments. Track crew movements and calculate salaries based on fishing trips and distribution profiles.')
     },
     {
         icon: 'dollar-sign',
-        title: t('Financial Control'),
-        description: t('Income, expenses, transfers with automatic VAT calculations. Full financial transparency and control.')
+        title: t('Financial Transactions'),
+        description: t('Register all income, expenses, and transfers with automatic VAT calculations. Complete financial transparency with real-time balance tracking across multiple bank accounts.')
+    },
+    {
+        icon: 'fish',
+        title: t('Mareas Management'),
+        description: t('Control fishing trips from departure to return. Register catch details, crew participation, and calculate distribution profiles automatically. Track everything from sea to port.')
     },
     {
         icon: 'file-text',
-        title: t('Reporting'),
-        description: t('Financial reports, cash flow statements, and VAT reports. Make data-driven decisions with comprehensive analytics.')
+        title: t('Financial Reporting & PDF Export'),
+        description: t('Generate comprehensive financial reports, cash flow statements, and VAT reports. Export everything to PDF for documentation and compliance.')
     },
     {
         icon: 'wrench',
@@ -38,9 +43,34 @@ const features = computed(() => [
         description: t('Schedule and track vessel maintenance to ensure optimal performance and compliance with regulations.')
     },
     {
+        icon: 'mail',
+        title: t('Email Notifications'),
+        description: t('Automatic email notifications for all important events. Get notified about transactions, mareas completion, maintenance schedules, and more.')
+    },
+    {
+        icon: 'shield',
+        title: t('Access Control & Permissions'),
+        description: t('Granular permission system with vessel-specific roles. Control who can view, edit, or manage different aspects of your operations.')
+    },
+    {
+        icon: 'activity',
+        title: t('Complete Audit Trail'),
+        description: t('Monitor everything with comprehensive audit logging. Track all changes, user actions, and system events for complete transparency and compliance.')
+    },
+    {
+        icon: 'calculator',
+        title: t('Distribution Profiles'),
+        description: t('Create custom distribution profiles for mareas. Automatically calculate crew payments based on catch, positions, and predefined rules.')
+    },
+    {
         icon: 'trending-up',
         title: t('Analytics Dashboard'),
         description: t('Real-time insights into your operations with customizable dashboards and visual analytics.')
+    },
+    {
+        icon: 'repeat',
+        title: t('Recurring Transactions'),
+        description: t('Automate recurring payments like salaries, insurance, and maintenance. Set it once and let the system handle the rest.')
     }
 ])
 
@@ -166,84 +196,107 @@ const testimonials = computed(() => [
             </div>
         </section>
 
-        <!-- Workflow that just works Section -->
+        <!-- Complete Operations Management Section -->
         <section class="py-12 lg:py-16 bg-background dark:bg-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-10">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Workflow that just works') }}
+                        {{ t('Complete Operations Management') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
-                        {{ t('Streamlined processes designed to save you time and reduce errors. Experience the power of automation.') }}
+                        {{ t('From vessel departure to return, track everything. Register fishing trips, calculate distributions, manage finances, and monitor all operations in real-time.') }}
                     </p>
                 </div>
 
-                <!-- Workflow Block 1 -->
+                <!-- Workflow Block 1: Mareas Management -->
                 <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                     <div>
                         <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Lightning Fast Workflow') }}
+                            {{ t('Fishing Trip Control') }}
                         </div>
                         <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                            {{ t('Data-driven insights') }}
+                            {{ t('Complete Mareas Management') }}
                         </h3>
                         <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
-                            {{ t('Get real-time analytics and insights into your vessel operations. Make informed decisions based on comprehensive data visualization and reporting tools.') }}
+                            {{ t('Track vessels from departure to return. Register catch details, crew participation, and automatically calculate distribution profiles. Everything is recorded and monitored.') }}
                         </p>
                     </div>
                     <div class="rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
                         <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
                             <div class="text-center">
-                                <Icon name="bar-chart-3" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Analytics Dashboard') }}</p>
+                                <Icon name="fish" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Mareas Tracking') }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Workflow Block 2 -->
+                <!-- Workflow Block 2: Financial Control -->
                 <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                     <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
                         <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
                             <div class="text-center">
-                                <Icon name="git-branch" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Workflow Management') }}</p>
+                                <Icon name="dollar-sign" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Financial Control') }}</p>
                             </div>
                         </div>
                     </div>
                     <div class="order-1 lg:order-2">
                         <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Automated Processes') }}
+                            {{ t('Complete Financial System') }}
                         </div>
                         <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                            {{ t('Streamlined operations') }}
+                            {{ t('Income, Expenses & Transfers') }}
                         </h3>
                         <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
-                            {{ t('Automate repetitive tasks and focus on what matters most. Our workflow engine handles complex processes seamlessly, reducing manual work and errors.') }}
+                            {{ t('Register all financial movements with automatic VAT calculations. Track balances across multiple bank accounts. Export reports to PDF for documentation and compliance.') }}
                         </p>
                     </div>
                 </div>
 
-                <!-- Workflow Block 3 -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <!-- Workflow Block 3: Salary & Distribution -->
+                <div class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                     <div>
                         <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Real-time Collaboration') }}
+                            {{ t('Automated Calculations') }}
                         </div>
                         <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                            {{ t('Team coordination') }}
+                            {{ t('Crew Salary & Distribution Profiles') }}
                         </h3>
                         <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
-                            {{ t('Keep your entire team in sync with real-time updates and collaborative tools. Share information instantly and work together efficiently.') }}
+                            {{ t('Automatically calculate crew salaries based on fishing trips and distribution profiles. Track crew movements and positions. Everything is calculated and documented automatically.') }}
                         </p>
                     </div>
                     <div class="rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
                         <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
                             <div class="text-center">
-                                <Icon name="users" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Team Dashboard') }}</p>
+                                <Icon name="calculator" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Salary Calculation') }}</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Workflow Block 4: Monitoring & Security -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
+                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <Icon name="activity" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
+                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Audit & Monitoring') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="order-1 lg:order-2">
+                        <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                            {{ t('Security & Transparency') }}
+                        </div>
+                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                            {{ t('Complete Audit Trail & Permissions') }}
+                        </h3>
+                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                            {{ t('Monitor everything with comprehensive audit logging. Control access with vessel-specific permissions and roles. Get email notifications for all important events. Export everything to PDF.') }}
+                        </p>
                     </div>
                 </div>
             </div>
