@@ -13,7 +13,8 @@ use App\Http\Controllers\{
     VesselFileController,
     AuditLogController,
     FinancialReportController,
-    VatReportController
+    VatReportController,
+    DashboardController
 };
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
@@ -90,9 +91,7 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
 Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}')->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('panel.dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('panel.dashboard');
 
     // Vessels (scoped to current vessel) - only show current vessel info
     Route::get('/vessels', [VesselController::class, 'index'])->name('panel.vessels.index');
@@ -197,6 +196,14 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     // Marea Distribution Items (for custom overrides)
     Route::post('/mareas/{mareaId}/distribution-items', [App\Http\Controllers\MareaController::class, 'storeDistributionItems'])->name('panel.mareas.distribution-items.store');
 
+    // Maintenances (scoped to current vessel)
+    Route::get('/maintenances', [App\Http\Controllers\MaintenanceController::class, 'index'])->name('panel.maintenances.index');
+    Route::get('/maintenances/create', [App\Http\Controllers\MaintenanceController::class, 'create'])->name('panel.maintenances.create');
+    Route::post('/maintenances', [App\Http\Controllers\MaintenanceController::class, 'store'])->name('panel.maintenances.store');
+    Route::get('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'show'])->name('panel.maintenances.show');
+    Route::delete('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'destroy'])->name('panel.maintenances.destroy');
+    Route::delete('/maintenances/{maintenanceId}/remove-transaction/{transaction}', [App\Http\Controllers\MaintenanceController::class, 'removeTransaction'])->name('panel.maintenances.remove-transaction');
+
     // Marea Distribution Profiles (global, but vessel-scoped for consistency)
     Route::get('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'index'])->name('panel.marea-distribution-profiles.index');
     Route::get('/marea-distribution-profiles/create', [App\Http\Controllers\MareaDistributionProfileController::class, 'create'])->name('panel.marea-distribution-profiles.create');
@@ -227,6 +234,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     // Auditory (monitoring) - Only for administrators
     Route::middleware('role:admin,administrator')->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('panel.audit-logs.index');
+        Route::get('/audit-logs/recent', [AuditLogController::class, 'recent'])->name('panel.audit-logs.recent');
     });
 });
 

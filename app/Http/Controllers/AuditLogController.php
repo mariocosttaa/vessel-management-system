@@ -137,4 +137,45 @@ class AuditLogController extends Controller
             'currentVesselId' => $vesselId,
         ]);
     }
+
+    /**
+     * Get recent audit logs for notification dropdown.
+     * Returns the last 6 audit logs for the current vessel (if vessel-scoped) or all vessels.
+     */
+    public function recent(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes if available (set by EnsureVesselAccess middleware)
+        /** @var int|null $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view audit logs
+        // Only administrators should have access to audit logs
+        $hasAdminRole = $user && (
+            $user->hasAnyRole(['administrator', 'admin']) ||
+            ($vesselId && $user->getRoleForVessel($vesselId) === 'administrator')
+        );
+
+        if (!$hasAdminRole) {
+            return response()->json(['data' => []]);
+        }
+
+        // Start building query
+        $query = AuditLog::with(['user', 'vessel'])
+            ->orderBy('created_at', 'desc');
+
+        // Filter by vessel if vessel_id is provided
+        if ($vesselId) {
+            $query->where('vessel_id', $vesselId);
+        }
+
+        // Get last 6 audit logs
+        $auditLogs = $query->limit(6)->get();
+
+        return response()->json([
+            'data' => AuditLogResource::collection($auditLogs),
+        ]);
+    }
 }
