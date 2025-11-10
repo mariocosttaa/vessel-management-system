@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Maintenance;
 use App\Models\Transaction;
 use App\Services\AuditLogService;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,7 @@ use Inertia\Inertia;
 
 class MaintenanceController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of maintenances for the current vessel.
      */
@@ -26,14 +28,14 @@ class MaintenanceController extends Controller
 
         // Check if user has permission to view maintenances using config permissions
         if (!$user || !$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check maintenances.view permission from config
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (!($permissions['maintenances.view'] ?? false)) {
-            abort(403, 'You do not have permission to view maintenances.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
         // Main data query - filter by vessel
@@ -218,7 +220,9 @@ class MaintenanceController extends Controller
 
             return redirect()
                 ->route('panel.maintenances.show', ['vessel' => $vesselId, 'maintenanceId' => $maintenance->id])
-                ->with('success', "Maintenance '{$maintenance->maintenance_number}' has been created successfully.");
+                ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been created successfully.", [
+                    'number' => $maintenance->maintenance_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Maintenance creation failed', [
                 'error' => $e->getMessage(),
@@ -228,7 +232,9 @@ class MaintenanceController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create maintenance: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to create maintenance: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -453,7 +459,9 @@ class MaintenanceController extends Controller
 
             return redirect()
                 ->route('panel.maintenances.index', ['vessel' => $vesselId])
-                ->with('success', $message);
+                ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been deleted successfully.", [
+                    'number' => $maintenance->maintenance_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Maintenance deletion failed', [
                 'error' => $e->getMessage(),
@@ -461,7 +469,9 @@ class MaintenanceController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to delete maintenance: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to delete maintenance: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -529,7 +539,9 @@ class MaintenanceController extends Controller
             );
 
             return back()
-                ->with('success', 'Maintenance has been updated successfully.');
+                ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been updated successfully.", [
+                    'number' => $maintenance->maintenance_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Maintenance update failed', [
                 'error' => $e->getMessage(),
@@ -537,7 +549,9 @@ class MaintenanceController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to update maintenance: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to update maintenance: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -609,7 +623,9 @@ class MaintenanceController extends Controller
 
             return redirect()
                 ->route('panel.maintenances.show', ['vessel' => $vesselId, 'maintenanceId' => $maintenance->id])
-                ->with('success', "Maintenance '{$maintenance->maintenance_number}' has been finalized.");
+                ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been finalized.", [
+                    'number' => $maintenance->maintenance_number
+                ]));
         } catch (\Exception $e) {
             Log::error('Maintenance finalization failed', [
                 'error' => $e->getMessage(),
@@ -617,7 +633,9 @@ class MaintenanceController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to finalize maintenance: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to finalize maintenance: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 
@@ -668,10 +686,12 @@ class MaintenanceController extends Controller
             $transaction->update(['maintenance_id' => null]);
 
             return back()
-                ->with('success', 'Transaction has been removed from the maintenance.');
+                ->with('success', $this->transFrom('notifications', 'Transaction has been removed from the maintenance.'));
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to remove transaction: ' . $e->getMessage());
+                ->with('error', $this->transFrom('notifications', 'Failed to remove transaction from maintenance: :message', [
+                    'message' => $e->getMessage()
+                ]));
         }
     }
 }
