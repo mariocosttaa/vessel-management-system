@@ -13,19 +13,18 @@ return new class extends Migration
     {
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('company_name')->nullable();
-            $table->string('tax_number', 50)->nullable(); // NIF
+            $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
+            $table->string('company_name'); // Required field (name was removed)
             $table->string('email')->nullable();
             $table->string('phone', 50)->nullable();
             $table->text('address')->nullable();
+            $table->text('description')->nullable(); // Added description field
             $table->text('notes')->nullable();
-            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('tax_number');
-            $table->index('status');
+            // Indexes
+            $table->index('vessel_id');
         });
     }
 

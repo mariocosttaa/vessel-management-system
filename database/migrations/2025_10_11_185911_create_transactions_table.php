@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('transaction_number', 50)->unique(); // gerado automaticamente
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('bank_account_id')->constrained()->onDelete('restrict');
+            $table->foreignId('marea_id')->nullable()->constrained('mareas')->onDelete('set null');
             $table->foreignId('category_id')->constrained('transaction_categories')->onDelete('restrict');
             $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('crew_member_id')->nullable()->constrained('users')->onDelete('set null'); // se for pagamento de salário
@@ -24,11 +24,13 @@ return new class extends Migration
 
             // Valores monetários
             $table->bigInteger('amount'); // valor em inteiro (centavos)
+            $table->bigInteger('amount_per_unit')->nullable()->comment('Price per unit in cents');
+            $table->integer('quantity')->nullable()->comment('Quantity of items');
             $table->string('currency', 3)->default('EUR');
             $table->tinyInteger('house_of_zeros')->default(2);
 
-            // IVA
-            $table->foreignId('vat_rate_id')->nullable()->constrained()->onDelete('set null');
+            // VAT (vat_rate_id was removed, using vat_profile_id instead)
+            $table->foreignId('vat_profile_id')->nullable()->constrained('vat_profiles')->onDelete('set null');
             $table->bigInteger('vat_amount')->default(0); // IVA em centavos
             $table->bigInteger('total_amount'); // amount + vat_amount
 
@@ -51,8 +53,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
+            // Indexes (bank_account_id was removed)
             $table->index('vessel_id');
-            $table->index('bank_account_id');
+            $table->index('marea_id');
             $table->index('category_id');
             $table->index('type');
             $table->index('transaction_date');
