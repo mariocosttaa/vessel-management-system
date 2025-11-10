@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
@@ -104,6 +105,15 @@ const currentCurrencyDecimals = computed(() => {
 // Filter categories for income only
 const incomeCategories = computed(() => {
     return props.categories.filter(cat => cat.type === 'income');
+});
+
+// Convert categories to Select component options format
+const categoryOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a category' }];
+    incomeCategories.value.forEach(category => {
+        options.push({ value: category.id, label: category.name });
+    });
+    return options;
 });
 
 // VAT handling
@@ -424,18 +434,14 @@ const submit = () => {
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="category_id"
                         v-model="form.category_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.category_id }"
-                        required
-                    >
-                        <option :value="null">Select a category</option>
-                        <option v-for="category in incomeCategories" :key="category.id" :value="category.id">
-                            {{ category.name }}
-                        </option>
-                    </select>
+                        :options="categoryOptions"
+                        placeholder="Select a category"
+                        searchable
+                        :error="!!form.errors.category_id"
+                    />
                     <InputError :message="form.errors.category_id" />
                 </div>
 

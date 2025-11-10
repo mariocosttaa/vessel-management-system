@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
+import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
@@ -104,6 +105,31 @@ const currentCurrencyDecimals = computed(() => {
 // Filter categories for expense only
 const expenseCategories = computed(() => {
     return props.categories.filter(cat => cat.type === 'expense');
+});
+
+// Convert to Select component options format
+const categoryOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a category' }];
+    expenseCategories.value.forEach(category => {
+        options.push({ value: category.id, label: category.name });
+    });
+    return options;
+});
+
+const supplierOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a supplier' }];
+    props.suppliers.forEach(supplier => {
+        options.push({ value: supplier.id, label: supplier.company_name });
+    });
+    return options;
+});
+
+const crewMemberOptions = computed(() => {
+    const options = [{ value: null, label: 'Select a crew member' }];
+    props.crewMembers.forEach(member => {
+        options.push({ value: member.id, label: `${member.name} (${member.email})` });
+    });
+    return options;
 });
 
 // Show supplier field for expenses
@@ -379,18 +405,14 @@ const submit = () => {
                 <!-- Category -->
                 <div class="space-y-2">
                     <Label for="category_id">Category <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="category_id"
                         v-model="form.category_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.category_id }"
-                        required
-                    >
-                        <option :value="null">Select a category</option>
-                        <option v-for="category in expenseCategories" :key="category.id" :value="category.id">
-                            {{ category.name }}
-                        </option>
-                    </select>
+                        :options="categoryOptions"
+                        placeholder="Select a category"
+                        searchable
+                        :error="!!form.errors.category_id"
+                    />
                     <InputError :message="form.errors.category_id" />
                 </div>
 
@@ -489,35 +511,28 @@ const submit = () => {
                 <!-- Supplier (for expenses) -->
                 <div v-if="showSupplierField" class="space-y-2">
                     <Label for="supplier_id">Supplier</Label>
-                    <select
+                    <Select
                         id="supplier_id"
                         v-model="form.supplier_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.supplier_id }"
-                    >
-                        <option :value="null">Select a supplier</option>
-                        <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-                            {{ supplier.company_name }}
-                        </option>
-                    </select>
+                        :options="supplierOptions"
+                        placeholder="Select a supplier"
+                        searchable
+                        :error="!!form.errors.supplier_id"
+                    />
                     <InputError :message="form.errors.supplier_id" />
                 </div>
 
                 <!-- Crew Member (for salary expenses) -->
                 <div v-if="showCrewMemberField" class="space-y-2">
                     <Label for="crew_member_id">Crew Member <span class="text-destructive">*</span></Label>
-                    <select
+                    <Select
                         id="crew_member_id"
                         v-model="form.crew_member_id"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="{ 'border-destructive dark:border-destructive': form.errors.crew_member_id }"
-                        required
-                    >
-                        <option :value="null">Select a crew member</option>
-                        <option v-for="member in crewMembers" :key="member.id" :value="member.id">
-                            {{ member.name }} ({{ member.email }})
-                        </option>
-                    </select>
+                        :options="crewMemberOptions"
+                        placeholder="Select a crew member"
+                        searchable
+                        :error="!!form.errors.crew_member_id"
+                    />
                     <InputError :message="form.errors.crew_member_id" />
                 </div>
 
