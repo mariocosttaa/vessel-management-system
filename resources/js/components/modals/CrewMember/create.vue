@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
@@ -519,10 +520,9 @@ const handleClose = () => {
                             <Label for="date_of_birth" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Date of Birth
                             </Label>
-                            <Input
+                            <DateInput
                                 id="date_of_birth"
                                 v-model="form.date_of_birth"
-                                type="date"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.date_of_birth }"
                             />
                             <InputError :message="form.errors.date_of_birth" class="mt-1" />
@@ -533,10 +533,9 @@ const handleClose = () => {
                             <Label for="hire_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                 Hire Date <span class="text-destructive">*</span>
                             </Label>
-                            <Input
+                            <DateInput
                                 id="hire_date"
                                 v-model="form.hire_date"
-                                type="date"
                                 required
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.hire_date }"
                             />

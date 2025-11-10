@@ -4,6 +4,7 @@ import { Head, router, usePage, Link } from '@inertiajs/vue3';
 import { ref, computed, watch, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import { DateInput } from '@/components/ui/date-input';
 import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
 import UpdateAddModal from '@/components/modals/Transaction/update-add.vue';
@@ -611,23 +612,13 @@ const clearFilters = () => {
                     </div>
 
                     <!-- Date From -->
-                    <div class="relative min-w-[140px]">
-                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                            v-model="dateFromFilter"
-                            type="date"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
-                        />
+                    <div class="min-w-[140px]">
+                        <DateInput v-model="dateFromFilter" />
                     </div>
 
                     <!-- Date To -->
-                    <div class="relative min-w-[140px]">
-                        <Icon name="calendar" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                            v-model="dateToFilter"
-                            type="date"
-                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full cursor-pointer"
-                        />
+                    <div class="min-w-[140px]">
+                        <DateInput v-model="dateToFilter" />
                     </div>
 
                     <!-- Apply Filters Button -->
