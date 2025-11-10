@@ -15,7 +15,7 @@
         type="text"
         :placeholder="placeholder"
         :class="inputClasses"
-        @focus="isOpen = true"
+        @click="handleInputClick"
         @blur="handleBlur"
         @keydown="handleKeydown"
         readonly
@@ -186,6 +186,14 @@ const getOptionLabel = (option: any): string => {
 
 const isSelected = (option: any): boolean => {
   return getOptionValue(option) === props.modelValue
+}
+
+const handleInputClick = () => {
+  if (props.disabled) return
+  // Only open on click, not on focus
+  if (!isOpen.value) {
+    toggleOpen()
+  }
 }
 
 const toggleOpen = () => {
