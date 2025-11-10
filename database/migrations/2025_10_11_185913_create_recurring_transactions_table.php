@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('recurring_transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('bank_account_id')->constrained()->onDelete('restrict');
+            // Note: bank_account_id was removed as bank_accounts table was dropped
             $table->foreignId('category_id')->constrained('transaction_categories')->onDelete('restrict');
             $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('set null');
 
@@ -26,8 +26,8 @@ return new class extends Migration
             $table->string('currency', 3)->default('EUR');
             $table->tinyInteger('house_of_zeros')->default(2);
 
-            // IVA
-            $table->foreignId('vat_rate_id')->nullable()->constrained()->onDelete('set null');
+            // VAT (vat_rate_id was removed, using vat_profile_id instead)
+            $table->foreignId('vat_profile_id')->nullable()->constrained('vat_profiles')->onDelete('set null');
 
             // Recorrência
             $table->enum('frequency', ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semi_annual', 'annual']);

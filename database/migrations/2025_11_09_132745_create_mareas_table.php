@@ -32,8 +32,13 @@ return new class extends Migration
             $table->date('actual_return_date')->nullable();
             $table->timestamp('closed_at')->nullable();
 
-            // Perfil de Distribuição Financeira (foreign key será adicionada em migration separada)
-            $table->unsignedBigInteger('distribution_profile_id')->nullable();
+            // Perfil de Distribuição Financeira
+            $table->foreignId('distribution_profile_id')->nullable()->constrained('marea_distribution_profiles')->onDelete('set null');
+
+            // Calculation fields
+            $table->boolean('use_calculation')->default(true);
+            $table->string('currency', 3)->nullable();
+            $table->tinyInteger('house_of_zeros')->default(2);
 
             // Metadados
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
@@ -45,6 +50,7 @@ return new class extends Migration
             $table->index('marea_number');
             $table->index(['estimated_departure_date', 'actual_departure_date'], 'idx_dates');
             $table->index('distribution_profile_id');
+            $table->index('use_calculation');
             $table->index('created_at');
         });
     }
