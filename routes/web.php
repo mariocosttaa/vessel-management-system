@@ -11,7 +11,9 @@ use App\Http\Controllers\{
     TestDataController,
     VesselSettingController,
     VesselFileController,
-    AuditLogController
+    AuditLogController,
+    FinancialReportController,
+    VatReportController
 };
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +73,16 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     if (app()->environment(['local', 'testing'])) {
         Route::get('/test-data', [TestDataController::class, 'index'])->name('panel.test-data');
         Route::get('/test-permissions', [TestDataController::class, 'permissions'])->name('panel.test-permissions');
+        Route::get('/email-test', function () {
+            return view('emails.test', [
+                'title' => 'Email Template Test - ' . config('app.name')
+            ]);
+        })->name('panel.email-test');
+        Route::get('/email-notification-test', function () {
+            return view('emails.notification-example', [
+                'title' => 'Transaction Created - ' . config('app.name')
+            ]);
+        })->name('panel.email-notification-test');
     }
 });
 
@@ -199,6 +211,18 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::post('/recycle-bin/{type}/{id}/restore', [App\Http\Controllers\RecycleBinController::class, 'restore'])->name('panel.recycle-bin.restore');
     Route::delete('/recycle-bin/{type}/{id}', [App\Http\Controllers\RecycleBinController::class, 'destroy'])->name('panel.recycle-bin.destroy');
     Route::post('/recycle-bin/empty', [App\Http\Controllers\RecycleBinController::class, 'empty'])->name('panel.recycle-bin.empty');
+
+    // Financial Reports (scoped to current vessel)
+    Route::get('/financial-reports', [FinancialReportController::class, 'index'])->name('panel.financial-reports.index');
+    Route::get('/financial-reports/{year}/{month}', [FinancialReportController::class, 'show'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->name('panel.financial-reports.show');
+
+    // VAT Reports (scoped to current vessel)
+    Route::get('/vat-reports', [VatReportController::class, 'index'])->name('panel.vat-reports.index');
+    Route::get('/vat-reports/{year}/{month}', [VatReportController::class, 'show'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->name('panel.vat-reports.show');
 
     // Auditory (monitoring) - Only for administrators
     Route::middleware('role:admin,administrator')->group(function () {
