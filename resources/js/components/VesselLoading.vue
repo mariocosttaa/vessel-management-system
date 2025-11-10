@@ -18,9 +18,16 @@
         </div>
       </div>
 
-      <!-- Vessel Icon with pulse animation -->
+      <!-- Vessel Logo or Icon with pulse animation -->
       <div class="mb-4 animate-pulse">
-        <div class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+        <div v-if="vessel.logo_url" class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg">
+          <img
+            :src="vessel.logo_url"
+            :alt="vessel.name"
+            class="w-full h-full object-cover"
+          />
+        </div>
+        <div v-else class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
           <Icon name="ship" class="h-12 w-12 text-primary" />
         </div>
       </div>
@@ -78,6 +85,7 @@ interface Vessel {
   id: number
   name: string
   registration_number?: string
+  logo_url?: string | null
 }
 
 interface Props {
