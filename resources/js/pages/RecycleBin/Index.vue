@@ -41,6 +41,7 @@ interface Props {
         suppliers: number;
         recurring_transactions: number;
         mareas: number;
+        maintenances: number;
     };
 }
 
@@ -72,7 +73,8 @@ const typeOptions = computed(() => {
         { value: 'transaction', label: 'Transactions' },
         { value: 'supplier', label: 'Suppliers' },
         { value: 'recurring_transaction', label: 'Recurring Transactions' },
-        { value: 'marea', label: 'Mareas' }
+        { value: 'marea', label: 'Mareas' },
+        { value: 'maintenance', label: 'Maintenances' }
     ];
 });
 
@@ -246,6 +248,8 @@ const getTypeColor = (type: string) => {
             return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300';
         case 'marea':
             return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300';
+        case 'maintenance':
+            return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
         default:
             return 'bg-muted text-muted-foreground';
     }
@@ -253,7 +257,7 @@ const getTypeColor = (type: string) => {
 
 // Total count
 const totalCount = computed(() => {
-    return props.counts.transactions + props.counts.suppliers + props.counts.recurring_transactions + props.counts.mareas;
+    return props.counts.transactions + props.counts.suppliers + props.counts.recurring_transactions + props.counts.mareas + props.counts.maintenances;
 });
 </script>
 
@@ -283,7 +287,7 @@ const totalCount = computed(() => {
                 </div>
 
                 <!-- Summary -->
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
                         <div class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Transactions</div>
                         <div class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ counts.transactions }}</div>
@@ -299,6 +303,10 @@ const totalCount = computed(() => {
                     <div class="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800">
                         <div class="text-sm font-medium text-orange-800 dark:text-orange-300 mb-1">Mareas</div>
                         <div class="text-2xl font-bold text-orange-900 dark:text-orange-200">{{ counts.mareas }}</div>
+                    </div>
+                    <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800">
+                        <div class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Maintenances</div>
+                        <div class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">{{ counts.maintenances }}</div>
                     </div>
                     <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/10 border border-gray-200 dark:border-gray-800">
                         <div class="text-sm font-medium text-gray-800 dark:text-gray-300 mb-1">Total</div>

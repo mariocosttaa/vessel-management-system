@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\Supplier;
 use App\Models\RecurringTransaction;
 use App\Models\Marea;
+use App\Models\Maintenance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -36,7 +37,7 @@ class RecycleBinController extends Controller
             abort(403, 'You do not have permission to view the recycle bin.');
         }
 
-        $type = $request->get('type', 'all'); // all, transactions, suppliers, recurring_transactions, mareas
+        $type = $request->get('type', 'all'); // all, transactions, suppliers, recurring_transactions, mareas, maintenances
         $search = $request->get('search', '');
 
         // Get soft-deleted transactions
@@ -158,8 +159,43 @@ class RecycleBinController extends Controller
             });
         }
 
+        // Get soft-deleted maintenances
+        $maintenances = collect();
+        if ($type === 'all' || $type === 'maintenances') {
+            $maintenanceQuery = Maintenance::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->with(['vessel'])
+                ->orderBy('deleted_at', 'desc');
+
+            if ($search) {
+                $maintenanceQuery->where(function ($q) use ($search) {
+                    $q->where('maintenance_number', 'like', "%{$search}%")
+                      ->orWhere('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+
+            $maintenances = $maintenanceQuery->get()->map(function ($maintenance) {
+                // Count transactions associated with this maintenance
+                $transactionCount = Transaction::onlyTrashed()
+                    ->where('maintenance_id', $maintenance->id)
+                    ->count();
+
+                return [
+                    'id' => $maintenance->id,
+                    'type' => 'maintenance',
+                    'type_label' => 'Maintenance',
+                    'name' => $maintenance->maintenance_number,
+                    'description' => $maintenance->name ?: $maintenance->description,
+                    'deleted_at' => $maintenance->deleted_at ? $maintenance->deleted_at->format('Y-m-d H:i:s') : null,
+                    'transaction_count' => $transactionCount,
+                    'status' => $maintenance->status,
+                ];
+            });
+        }
+
         // Combine all items and sort by deleted_at
-        $allItems = $transactions->concat($suppliers)->concat($recurringTransactions)->concat($mareas)
+        $allItems = $transactions->concat($suppliers)->concat($recurringTransactions)->concat($mareas)->concat($maintenances)
             ->sortByDesc('deleted_at')
             ->values();
 
@@ -174,6 +210,7 @@ class RecycleBinController extends Controller
                 'suppliers' => Supplier::onlyTrashed()->where('vessel_id', $vesselId)->count(),
                 'recurring_transactions' => RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->count(),
                 'mareas' => Marea::onlyTrashed()->where('vessel_id', $vesselId)->count(),
+                'maintenances' => Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->count(),
             ],
         ]);
     }
@@ -223,6 +260,14 @@ class RecycleBinController extends Controller
                     // Also restore transactions associated with this marea
                     Transaction::onlyTrashed()
                         ->where('marea_id', $item->id)
+                        ->restore();
+                    break;
+                case 'maintenance':
+                    $item = Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->maintenance_number;
+                    // Also restore transactions associated with this maintenance
+                    Transaction::onlyTrashed()
+                        ->where('maintenance_id', $item->id)
                         ->restore();
                     break;
                 default:
@@ -296,6 +341,14 @@ class RecycleBinController extends Controller
                     \App\Models\MareaCrew::where('marea_id', $item->id)->delete();
                     \App\Models\MareaDistributionItem::where('marea_id', $item->id)->delete();
                     break;
+                case 'maintenance':
+                    $item = Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->findOrFail($id);
+                    $itemName = $item->maintenance_number;
+                    // Permanently delete transactions associated with this maintenance
+                    Transaction::onlyTrashed()
+                        ->where('maintenance_id', $item->id)
+                        ->forceDelete();
+                    break;
                 default:
                     abort(404, 'Invalid item type.');
             }
@@ -343,6 +396,7 @@ class RecycleBinController extends Controller
             $supplierCount = Supplier::onlyTrashed()->where('vessel_id', $vesselId)->count();
             $recurringCount = RecurringTransaction::onlyTrashed()->where('vessel_id', $vesselId)->count();
             $mareaCount = Marea::onlyTrashed()->where('vessel_id', $vesselId)->count();
+            $maintenanceCount = Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->count();
 
             // Permanently delete all soft-deleted items
             Transaction::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
@@ -361,7 +415,15 @@ class RecycleBinController extends Controller
             }
             Marea::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
 
-            $totalCount = $transactionCount + $supplierCount + $recurringCount + $mareaCount;
+            // For maintenances, also delete related transactions
+            $softDeletedMaintenances = Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->get();
+            foreach ($softDeletedMaintenances as $maintenance) {
+                // Permanently delete transactions
+                Transaction::onlyTrashed()->where('maintenance_id', $maintenance->id)->forceDelete();
+            }
+            Maintenance::onlyTrashed()->where('vessel_id', $vesselId)->forceDelete();
+
+            $totalCount = $transactionCount + $supplierCount + $recurringCount + $mareaCount + $maintenanceCount;
 
             return redirect()
                 ->route('panel.recycle-bin.index', ['vessel' => $vesselId])
