@@ -205,7 +205,7 @@ const closePopup = () => {
 // Handle mousedown outside - use mousedown instead of click for better control
 const handleMouseDownOutside = (event: MouseEvent) => {
   const target = event.target as Node
-  
+
   // Check if mousedown is on this date input's container or popup
   if (containerRef.value?.contains(target) || popupRef.value?.contains(target)) {
     // Mousedown is inside this date input, don't close
@@ -241,14 +241,43 @@ const handlePopupMouseDown = (event: MouseEvent) => {
   isClickingInsidePopup.value = true
 }
 
-const handleInputFocus = () => {
+const handleInputClick = () => {
   if (props.disabled) return
-  // Open on focus - the manager will close any other open inputs
-  dateInputManager.open(instanceId)
-  if (selectedDate.value) {
-    currentView.value = new Date(selectedDate.value)
-  } else {
-    currentView.value = new Date()
+  // Only open on click, not on focus (prevents auto-opening when modal opens)
+  if (!isOpen.value) {
+    dateInputManager.open(instanceId)
+    if (selectedDate.value) {
+      currentView.value = new Date(selectedDate.value)
+    } else {
+      currentView.value = new Date()
+    }
+  }
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (props.disabled) return
+
+  // Allow keyboard navigation to open the popup
+  switch (event.key) {
+    case 'Enter':
+    case ' ':
+    case 'ArrowDown':
+      event.preventDefault()
+      if (!isOpen.value) {
+        dateInputManager.open(instanceId)
+        if (selectedDate.value) {
+          currentView.value = new Date(selectedDate.value)
+        } else {
+          currentView.value = new Date()
+        }
+      }
+      break
+    case 'Escape':
+      if (isOpen.value) {
+        event.preventDefault()
+        closePopup()
+      }
+      break
   }
 }
 
@@ -261,7 +290,7 @@ const unregister = dateInputManager.register(instanceId, closePopup)
 onMounted(() => {
   // Use mousedown in bubble phase for better control
   document.addEventListener('mousedown', handleMouseDownOutside)
-  
+
   if (selectedDate.value) {
     currentView.value = new Date(selectedDate.value)
   }
@@ -287,7 +316,8 @@ onUnmounted(() => {
         :placeholder="placeholder || 'mm/dd/yyyy'"
         :disabled="disabled"
         readonly
-        @focus="handleInputFocus"
+        @click="handleInputClick"
+        @keydown="handleKeydown"
         :class="cn(
           'placeholder:text-muted-foreground selection:bg-primary/20 selection:text-primary-foreground dark:bg-input/30 border-input/80 flex h-9 w-full min-w-0 rounded-lg border-2 bg-transparent pl-10 pr-3 py-1 text-base text-foreground transition-all duration-200 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm cursor-pointer',
           'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-offset-1',
