@@ -25,27 +25,27 @@
           <div class="hidden md:flex items-center justify-center space-x-1">
             <!-- Landing Page Navigation -->
             <template v-if="isLandingPage">
-              <a
-                href="/"
-                :class="[
-                  'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                  'text-card-foreground dark:text-card-foreground bg-muted/50'
-                ]"
-              >
-                Home
-              </a>
-              <a
-                href="#contact"
-                class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
-              >
-                Pricing
-              </a>
-              <a
-                href="mailto:info@bindamy.com"
-                class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
-              >
-                Contact
-              </a>
+                     <a
+                       href="/"
+                       :class="[
+                         'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                         'text-card-foreground dark:text-card-foreground bg-muted/50'
+                       ]"
+                     >
+                       Home
+                     </a>
+                     <a
+                       href="#pricing"
+                       class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
+                     >
+                       Pricing
+                     </a>
+                     <a
+                       href="#contact"
+                       class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
+                     >
+                       Contact
+                     </a>
             </template>
 
             <!-- Panel Navigation (logged in users) -->
@@ -59,7 +59,7 @@
                     : 'text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30'
                 ]"
               >
-                Home
+                Panel
               </Link>
               <Link
                 href="/panel/profile"
@@ -211,18 +211,18 @@
                 >
                   Home
                 </a>
-                <a
-                  href="#contact"
-                  class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
-                >
-                  Pricing
-                </a>
-                <a
-                  href="mailto:info@bindamy.com"
-                  class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
-                >
-                  Contact
-                </a>
+                       <a
+                         href="#pricing"
+                         class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
+                       >
+                         Pricing
+                       </a>
+                       <a
+                         href="#contact"
+                         class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
+                       >
+                         Contact
+                       </a>
               </template>
 
               <!-- Panel Mobile Menu -->
@@ -236,7 +236,7 @@
                       : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
                   ]"
                 >
-                  Home
+                  Panel
                 </Link>
                 <Link
                   href="/panel/profile"
