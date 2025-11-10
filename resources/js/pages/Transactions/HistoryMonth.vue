@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, usePage, Link } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import TransactionShowModal from '@/components/modals/Transaction/show.vue';
@@ -81,7 +81,16 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { canView } = usePermissions();
+const { canView, hasPermission } = usePermissions();
+
+// Check if user has permission to access transaction history
+onMounted(() => {
+    if (!hasPermission('reports.access')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Computed property for transactions pagination (same pattern as Suppliers/CrewMembers)
 const paginatedTransactions = computed(() => props.transactions);
@@ -237,7 +246,7 @@ const closeModals = () => {
 <template>
     <Head :title="`Transactions - ${monthLabel} ${year}`" />
 
-    <VesselLayout :breadcrumbs="[
+    <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
         { title: 'Transactions', href: transactions.index.url({ vessel: getCurrentVesselId() }) },
         { title: 'History', href: `/panel/${getCurrentVesselId()}/transactions/history` },
         { title: `${monthLabel} ${year}`, href: `/panel/${getCurrentVesselId()}/transactions/history/${year}/${month}` }
@@ -409,6 +418,13 @@ const closeModals = () => {
             :transaction="selectedTransaction"
             @close="closeModals"
         />
+    </VesselLayout>
+    <VesselLayout v-else :breadcrumbs="[]">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
+                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view transaction history.</p>
+            </div>
+        </div>
     </VesselLayout>
 </template>
 

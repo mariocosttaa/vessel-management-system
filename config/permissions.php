@@ -25,6 +25,7 @@ return [
 
     /**
      * Default permissions for users without vessel access or unknown roles.
+     * All permissions are set to false for security.
      */
     'default' => [
         'vessels.create' => false,
@@ -60,7 +61,7 @@ return [
         'distribution-profiles.edit' => false,
         'distribution-profiles.delete' => false,
         'distribution-profiles.view' => false,
-        'reports.access' => false,
+        'reports.access' => false, // No access to financial reports or VAT reports
         'settings.access' => false,
         'users.manage' => false,
         'recycle_bin.view' => false,
@@ -207,7 +208,7 @@ return [
 
     /**
      * Normal User permissions - View-only access to vessel data.
-     * Note: Normal users cannot view crew-roles, suppliers, or bank-accounts.
+     * Note: Normal users cannot view crew-roles, suppliers, bank-accounts, financial reports, VAT reports, distribution profiles, recycle bin, or audit logs.
      * Only moderators and administrators have access to these resources.
      */
     'Normal User' => [
@@ -234,7 +235,7 @@ return [
         'transactions.create' => false,
         'transactions.edit' => false,
         'transactions.delete' => false,
-        'transactions.view' => true,
+        'transactions.view' => true, // Can view transactions but not financial reports
         'mareas.create' => false,
         'mareas.edit' => false,
         'mareas.delete' => false,
@@ -243,8 +244,8 @@ return [
         'distribution-profiles.create' => false,
         'distribution-profiles.edit' => false,
         'distribution-profiles.delete' => false,
-        'distribution-profiles.view' => false,
-        'reports.access' => true,
+        'distribution-profiles.view' => false, // Normal users cannot view distribution profiles
+        'reports.access' => false, // Normal users cannot access financial reports or VAT reports
         'settings.access' => false,
         'users.manage' => false,
         'recycle_bin.view' => false,

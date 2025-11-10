@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import { Select } from '@/components/ui/select';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -47,6 +47,15 @@ interface Props {
 const props = defineProps<Props>();
 const { hasPermission, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+
+// Check if user has permission to view recycle bin
+onMounted(() => {
+    if (!hasPermission('recycle_bin.view')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Permission checks
 const canRestore = (resource: string) => hasPermission(`${resource}.restore`);

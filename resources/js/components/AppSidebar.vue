@@ -76,12 +76,15 @@ const mainNavItems = computed((): NavItem[] => {
             icon: Receipt,
             group: 'Core',
         });
-        items.push({
-            title: 'Transaction History',
-            href: `/panel/${vesselId}/transactions/history`,
-            icon: Calculator,
-            group: 'Core',
-        });
+        // Transaction History - requires reports.access permission
+        if (hasPermission('reports.access')) {
+            items.push({
+                title: 'Transaction History',
+                href: `/panel/${vesselId}/transactions/history`,
+                icon: Calculator,
+                group: 'Core',
+            });
+        }
     }
 
     // Crew Management Section
@@ -115,18 +118,21 @@ const mainNavItems = computed((): NavItem[] => {
     }
 
     if (canView('transactions')) {
-        items.push({
-            title: 'Financial Reports',
-            href: financialReports.index.url({ vessel: vesselId }),
-            icon: BarChart3,
-            group: 'Financial',
-        });
-        items.push({
-            title: 'VAT Reports',
-            href: vatReports.index.url({ vessel: vesselId }),
-            icon: FileSpreadsheet,
-            group: 'Financial',
-        });
+        // Financial Reports - requires reports.access permission
+        if (hasPermission('reports.access')) {
+            items.push({
+                title: 'Financial Reports',
+                href: financialReports.index.url({ vessel: vesselId }),
+                icon: BarChart3,
+                group: 'Financial',
+            });
+            items.push({
+                title: 'VAT Reports',
+                href: vatReports.index.url({ vessel: vesselId }),
+                icon: FileSpreadsheet,
+                group: 'Financial',
+            });
+        }
     }
 
     // Vessel Section - Distribution Profiles

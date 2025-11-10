@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import vatReports from '@/routes/panel/vat-reports';
 
 // Get current vessel ID from URL
@@ -25,6 +26,18 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permission check
+const { hasPermission } = usePermissions();
+
+// Check if user has permission to access reports
+onMounted(() => {
+    if (!hasPermission('reports.access')) {
+        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
+            replace: true,
+        });
+    }
+});
 
 // Get currency data from shared props
 const page = usePage();
@@ -89,7 +102,7 @@ const groupedByYear = computed(() => {
 <template>
     <Head title="VAT Reports" />
 
-    <VesselLayout :breadcrumbs="[
+    <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
         { title: 'VAT Reports', href: vatReports.index.url({ vessel: getCurrentVesselId() }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -143,6 +156,13 @@ const groupedByYear = computed(() => {
             <div v-else class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
                 <p class="text-muted-foreground dark:text-muted-foreground">No VAT reports available</p>
                 <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-2">VAT is only calculated for income transactions</p>
+            </div>
+        </div>
+    </VesselLayout>
+    <VesselLayout v-else :breadcrumbs="[]">
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
+                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view VAT reports.</p>
             </div>
         </div>
     </VesselLayout>
