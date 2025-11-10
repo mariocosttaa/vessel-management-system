@@ -15,7 +15,9 @@ use App\Http\Controllers\{
     FinancialReportController,
     VatReportController,
     DashboardController,
-    LandingController
+    LandingController,
+    PrivacyPolicyController,
+    TermsOfServiceController
 };
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +26,10 @@ use Inertia\Inertia;
 
 // Landing page route
 Route::get('/', [LandingController::class, 'index'])->name('landing');
+
+// Legal pages
+Route::get('/privacy-policy', [PrivacyPolicyController::class, 'index'])->name('privacy-policy');
+Route::get('/terms-of-service', [TermsOfServiceController::class, 'index'])->name('terms-of-service');
 
 // Files Routes
 Route::prefix('file/{vesselIdHashed}')->group(function () {
