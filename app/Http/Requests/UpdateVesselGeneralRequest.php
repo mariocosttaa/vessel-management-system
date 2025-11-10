@@ -17,6 +17,7 @@ use Illuminate\Validation\Rule;
  * @property int|null $year_built
  * @property string $status
  * @property string|null $notes
+ * @property \Illuminate\Http\UploadedFile|null $logo
  *
  * Route parameters:
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -74,6 +75,8 @@ class UpdateVesselGeneralRequest extends FormRequest
             'year_built' => ['nullable', 'integer', 'min:1800', 'max:' . (date('Y') + 1)],
             'status' => ['required', 'string', Rule::in(['active', 'suspended', 'maintenance'])],
             'notes' => ['nullable', 'string'],
+            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
+            'remove_logo' => ['nullable', 'boolean'],
         ];
     }
 
