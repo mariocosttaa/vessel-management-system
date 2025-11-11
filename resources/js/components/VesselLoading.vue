@@ -11,23 +11,20 @@
         />
       </div>
 
-      <!-- Vessel Logo or Icon with pulse animation -->
-      <div class="mb-4 animate-pulse">
-        <div v-if="vessel.logo_url" class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg">
+      <!-- Vessel Logo (only show if vessel has a logo) -->
+      <div v-if="props.vessel.logo_url" class="mb-4 animate-pulse">
+        <div class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg">
           <img
-            :src="vessel.logo_url"
-            :alt="vessel.name"
+            :src="props.vessel.logo_url"
+            :alt="props.vessel.name"
             class="w-full h-full object-cover"
           />
-        </div>
-        <div v-else class="w-20 h-20 mx-auto rounded-xl overflow-hidden border-2 border-primary/30 dark:border-primary/40 shadow-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-          <Icon name="ship" class="h-12 w-12 text-primary" />
         </div>
       </div>
 
       <!-- Vessel Name -->
-      <h2 class="text-2xl font-semibold text-white mb-2">
-        {{ vessel.name }}
+      <h2 class="text-2xl font-semibold text-white mb-2" :class="{ 'mt-4': !props.vessel.logo_url }">
+        {{ props.vessel.name }}
       </h2>
 
       <!-- Loading text -->
@@ -40,18 +37,18 @@
         <div class="w-full h-2 bg-gray-200/20 dark:bg-gray-700/30 rounded-full overflow-hidden">
           <div
             class="h-full bg-primary transition-all duration-100 ease-out rounded-full"
-            :style="{ width: `${loadingProgress}%` }"
+            :style="{ width: `${props.loadingProgress}%` }"
           />
         </div>
         <p class="text-sm text-center text-gray-400">
-          {{ Math.round(loadingProgress) }}%
+          {{ Math.round(props.loadingProgress) }}%
         </p>
       </div>
 
       <!-- Buttons -->
       <div class="flex justify-center items-center gap-4">
         <button
-          @click="onBack"
+          @click="props.onBack"
           class="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
         >
           <Icon name="arrow-left" class="w-4 h-4" />
@@ -59,7 +56,7 @@
         </button>
 
         <button
-          @click="onSkip"
+          @click="props.onSkip"
           class="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-lg font-medium"
         >
           <Icon name="chevron-right" class="w-4 h-4" />

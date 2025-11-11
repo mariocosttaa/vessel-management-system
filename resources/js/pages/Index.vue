@@ -14,9 +14,14 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-background dark:bg-[#121212]"
       >
         <div class="text-center">
-          <!-- Animated Vessel SVG -->
+          <!-- Animated Company Logo -->
           <div class="mb-8 animate-bounce">
-            <VesselSvgAnimation />
+            <Logo
+              variant="auto"
+              type="svg"
+              height="80px"
+              className="h-20 max-w-[300px] mx-auto"
+            />
           </div>
 
           <!-- Animated text -->
@@ -309,7 +314,7 @@ import Icon from '@/components/Icon.vue'
 import Badge from '@/components/ui/badge/Badge.vue'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import VesselLoading from '@/components/VesselLoading.vue'
-import VesselSvgAnimation from '@/components/VesselSvgAnimation.vue'
+import Logo from '@/components/Logo.vue'
 import type { BreadcrumbItemType } from '@/types'
 import { useI18n } from '@/composables/useI18n'
 
