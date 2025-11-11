@@ -229,10 +229,10 @@ const testimonials = computed(() => [
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="features-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('features-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Build up the whole picture') }}
+                        {{ t('Everything You Need in One Platform') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
-                        {{ t('Everything you need to manage your vessel operations efficiently. From financial control to crew management, we\'ve got you covered.') }}
+                        {{ t('Comprehensive vessel management solution covering all aspects of your operations. From financial control to crew management, we\'ve got you covered.') }}
                     </p>
                 </div>
 
@@ -266,10 +266,10 @@ const testimonials = computed(() => [
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="operations-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('operations-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Complete Operations Management') }}
+                        {{ t('Streamline Your Entire Workflow') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
-                        {{ t('From vessel departure to return, track everything. Register fishing trips, calculate distributions, manage finances, and monitor all operations in real-time.') }}
+                        {{ t('From vessel departure to return, track everything seamlessly. Register fishing trips, calculate distributions, manage finances, and monitor all operations in real-time.') }}
                     </p>
                 </div>
 
@@ -372,10 +372,10 @@ const testimonials = computed(() => [
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="testimonials-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('testimonials-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Customer testimonials') }}
+                        {{ t('Trusted by Industry Leaders') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
-                        {{ t('See what our customers have to say about their experience with Bindamy Mareas.') }}
+                        {{ t('Discover how vessel management companies worldwide are transforming their operations with Bindamy Mareas.') }}
                     </p>
                 </div>
 
@@ -414,7 +414,7 @@ const testimonials = computed(() => [
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="contact-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('contact-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Get in Touch') }}
+                        {{ t('Let\'s Talk About Your Needs') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Have questions or need more information? Our team is here to help you get started with Bindamy Mareas. Whether you need a demo, have technical questions, or want to discuss your specific requirements, we\'re ready to assist you.') }}
@@ -473,10 +473,10 @@ const testimonials = computed(() => [
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="pricing-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('pricing-header') }">
                     <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
-                        {{ t('Pricing') }}
+                        {{ t('Simple, Transparent Pricing') }}
                     </h2>
                     <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
-                        {{ t('Flexible pricing plans designed to meet your vessel management needs. Our pricing adapts to your fleet size, user count, and specific requirements. Contact us for personalized pricing that fits your business.') }}
+                        {{ t('Flexible pricing plans designed to scale with your business. Our pricing adapts to your fleet size, user count, and specific requirements. Contact us for personalized pricing that fits your needs.') }}
                     </p>
                 </div>
 
