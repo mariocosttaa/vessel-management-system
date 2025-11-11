@@ -19,15 +19,25 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { ChevronRight } from 'lucide-vue-next';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps<{
     items: NavItem[];
 }>();
 
 const page = usePage();
+const { t } = useI18n();
 
 // Define the order of groups for consistent display - Core items first
-const groupOrder = ['Core', 'Crew Management', 'Financial', 'Reports', 'Settings'];
+// Note: We use translated values since items have translated group names
+const groupOrder = computed(() => [
+    t('Core'),
+    t('Crew Management'),
+    t('Financial'),
+    t('Reports'),
+    t('Settings'),
+    t('Others'),
+]);
 
 // Check if any child item is active
 const hasActiveChild = (item: NavItem): boolean => {
@@ -53,7 +63,7 @@ const groupedItems = computed(() => {
     const groups: Record<string, NavItem[]> = {};
 
     props.items.forEach((item) => {
-        const group = item.group || 'Core';
+        const group = item.group || t('Core');
         if (!groups[group]) {
             groups[group] = [];
         }
@@ -61,19 +71,27 @@ const groupedItems = computed(() => {
     });
 
     // Convert to array of { label, items } for easier iteration
-    const orderedGroups: Array<{ label: string; items: NavItem[] }> = [];
+    const orderedGroups: Array<{ label: string; items: NavItem[]; isCore: boolean }> = [];
 
     // Add groups in the defined order
-    groupOrder.forEach((groupName) => {
+    groupOrder.value.forEach((groupName) => {
         if (groups[groupName] && groups[groupName].length > 0) {
-            orderedGroups.push({ label: groupName, items: groups[groupName] });
+            orderedGroups.push({
+                label: groupName,
+                items: groups[groupName],
+                isCore: groupName === t('Core'),
+            });
         }
     });
 
     // Add any remaining groups that weren't in the order list
     Object.keys(groups).forEach((groupName) => {
-        if (!groupOrder.includes(groupName) && groups[groupName].length > 0) {
-            orderedGroups.push({ label: groupName, items: groups[groupName] });
+        if (!groupOrder.value.includes(groupName) && groups[groupName].length > 0) {
+            orderedGroups.push({
+                label: groupName,
+                items: groups[groupName],
+                isCore: false,
+            });
         }
     });
 
@@ -84,8 +102,11 @@ const groupedItems = computed(() => {
 <template>
     <template v-for="group in groupedItems" :key="group.label">
         <SidebarGroup class="px-2 py-1 first:pt-1">
-            <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
-            <SidebarMenu class="mt-1 space-y-0.5">
+            <!-- Hide label for "Core" group since vessel name is shown in header -->
+            <SidebarGroupLabel v-if="!group.isCore">{{
+                group.label
+            }}</SidebarGroupLabel>
+            <SidebarMenu :class="group.isCore ? 'space-y-0.5' : 'mt-1 space-y-0.5'">
                 <SidebarMenuItem v-for="item in group.items" :key="item.title">
                     <!-- Collapsible menu item with children -->
                     <Collapsible
