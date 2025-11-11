@@ -77,7 +77,6 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     if (app()->environment(['local', 'testing'])) {
         Route::get('/test-data', [TestDataController::class, 'index'])->name('panel.test-data');
         Route::get('/test-permissions', [TestDataController::class, 'permissions'])->name('panel.test-permissions');
-        Route::get('/test-pdf', [TestDataController::class, 'testPdf'])->name('panel.test-pdf');
         Route::get('/email-test', function () {
             return view('emails.test', [
                 'title' => 'Email Template Test - ' . config('app.name')
