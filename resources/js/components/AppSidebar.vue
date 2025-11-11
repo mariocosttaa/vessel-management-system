@@ -35,9 +35,19 @@ import AppLogo from './AppLogo.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const { canView, hasPermission, hasAnyRole, isAdmin } = usePermissions();
 const { t } = useI18n();
+const page = usePage();
+
+// Get current vessel from page props
+// According to middleware, it's in auth.user.current_vessel, but components use auth.current_vessel
+// Try both locations for compatibility
+const currentVessel = computed(() => {
+    const auth = page.props.auth as any;
+    return auth?.user?.current_vessel || auth?.current_vessel;
+});
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -206,14 +216,23 @@ const footerNavItems = computed((): NavItem[] => [
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <!-- Logo only - no card, no background, just the logo -->
-        <div class="flex justify-center items-center w-full py-4">
-            <Link 
-                :href="`/panel/${getCurrentVesselId()}/dashboard`" 
+        <!-- Logo and Vessel Name -->
+        <div class="flex flex-col justify-center items-center w-full py-4">
+            <Link
+                :href="`/panel/${getCurrentVesselId()}/dashboard`"
                 class="focus:outline-none focus-visible:outline-none focus-visible:ring-0"
             >
                 <AppLogo />
             </Link>
+            <!-- Vessel Name -->
+            <div
+                v-if="currentVessel?.name"
+                class="mt-3 px-4 text-center"
+            >
+                <p class="text-sm font-semibold text-sidebar-foreground truncate w-full max-w-[200px]">
+                    {{ currentVessel.name }}
+                </p>
+            </div>
         </div>
 
         <SidebarContent>
