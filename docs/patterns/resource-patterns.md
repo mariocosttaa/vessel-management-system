@@ -599,6 +599,156 @@ public function toArray(Request $request): array
 }
 ```
 
+## ID Hashing with BaseResource
+
+### Overview
+All resources that extend `BaseResource` automatically have access to ID hashing methods. All IDs sent to the frontend must be hashed.
+
+### Using BaseResource Hashing Methods
+
+**Important**: The `hashIdForModel()` method automatically appends `-id` to the model name. When calling `hashIdForModel()`, pass only the model name (e.g., `'vessel'`), not the full hash type (e.g., `'vessel-id'`).
+
+```php
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+
+class TransactionResource extends BaseResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            // Hash the main model ID
+            'id' => $this->hashId($this->id), // Automatically uses 'transaction-id'
+            
+            // Hash foreign key IDs
+            'category_id' => $this->hashIdForModel($this->category_id, 'transactioncategory'),
+            'supplier_id' => $this->hashIdForModel($this->supplier_id, 'supplier'),
+            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
+            
+            // Hash IDs in relationships
+            'category' => $this->whenLoaded('category', function () {
+                return [
+                    'id' => $this->hashIdForModel($this->category->id, 'transactioncategory'),
+                    'name' => $this->category->name,
+                ];
+            }),
+            
+            'supplier' => $this->whenLoaded('supplier', function () {
+                return [
+                    'id' => $this->hashIdForModel($this->supplier->id, 'supplier'),
+                    'name' => $this->supplier->name,
+                ];
+            }),
+        ];
+    }
+}
+```
+
+### Common Patterns
+
+#### Hashing Main Model ID
+```php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->hashId($this->id), // Automatically uses model name from class
+        'name' => $this->name,
+    ];
+}
+```
+
+#### Hashing Foreign Key IDs
+```php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->hashId($this->id),
+        'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
+        'category_id' => $this->hashIdForModel($this->category_id, 'transactioncategory'),
+        'supplier_id' => $this->hashIdForModel($this->supplier_id, 'supplier'),
+    ];
+}
+```
+
+#### Hashing IDs in Relationships
+```php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->hashId($this->id),
+        
+        'vessel' => $this->whenLoaded('vessel', function () {
+            return [
+                'id' => $this->hashIdForModel($this->vessel->id, 'vessel'),
+                'name' => $this->vessel->name,
+            ];
+        }),
+        
+        'category' => $this->whenLoaded('category', function () {
+            return [
+                'id' => $this->hashIdForModel($this->category->id, 'transactioncategory'),
+                'name' => $this->category->name,
+            ];
+        }),
+    ];
+}
+```
+
+#### Using Nested Resources (Recommended)
+```php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->hashId($this->id),
+        
+        // Use nested resources which handle hashing automatically
+        'vessel' => new VesselResource($this->whenLoaded('vessel')),
+        'category' => new TransactionCategoryResource($this->whenLoaded('category')),
+        'supplier' => new SupplierResource($this->whenLoaded('supplier')),
+    ];
+}
+```
+
+### Model Name Patterns
+
+When using `hashIdForModel()`, use the model name in lowercase:
+
+- `'vessel'` → becomes `'vessel-id'`
+- `'transaction'` → becomes `'transaction-id'`
+- `'user'` → becomes `'user-id'`
+- `'supplier'` → becomes `'supplier-id'`
+- `'transactioncategory'` → becomes `'transactioncategory-id'`
+- `'crewposition'` → becomes `'crewposition-id'`
+
+### Common Mistakes to Avoid
+
+❌ **DON'T:**
+```php
+// ❌ WRONG - Don't pass 'vessel-id', the method appends '-id' automatically
+'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel-id'), // This becomes 'vessel-id-id' (WRONG!)
+
+// ❌ WRONG - Don't use numeric IDs in responses
+'id' => $this->id,
+
+// ❌ WRONG - Don't forget to hash foreign key IDs
+'category_id' => $this->category_id,
+```
+
+✅ **DO:**
+```php
+// ✅ CORRECT - Pass only the model name
+'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'), // This becomes 'vessel-id' (CORRECT!)
+
+// ✅ CORRECT - Always hash IDs in responses
+'id' => $this->hashId($this->id),
+
+// ✅ CORRECT - Always hash foreign key IDs
+'category_id' => $this->hashIdForModel($this->category_id, 'transactioncategory'),
+```
+
 ## Complete Resource Examples
 
 ### TransactionResource
