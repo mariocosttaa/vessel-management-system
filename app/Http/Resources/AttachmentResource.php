@@ -3,9 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class AttachmentResource extends JsonResource
+class AttachmentResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -13,7 +12,7 @@ class AttachmentResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->hashId($this->id),
             'file_name' => $this->file_name,
             'file_path' => $this->file_path,
             'file_type' => $this->file_type,
@@ -22,9 +21,9 @@ class AttachmentResource extends JsonResource
             'description' => $this->description,
             'url' => $this->url,
             'attachable_type' => $this->attachable_type,
-            'attachable_id' => $this->attachable_id,
+            'attachable_id' => $this->hashIdForModel($this->attachable_id, strtolower(class_basename($this->attachable_type))),
             'uploaded_by' => $this->whenLoaded('uploadedBy', fn() => [
-                'id' => $this->uploadedBy->id,
+                'id' => $this->hashIdForModel($this->uploadedBy->id, 'user'),
                 'name' => $this->uploadedBy->name,
                 'email' => $this->uploadedBy->email,
             ]),

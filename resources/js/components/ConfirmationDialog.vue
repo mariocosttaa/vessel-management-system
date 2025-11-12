@@ -20,7 +20,7 @@
                     @click="$emit('cancel')"
                     :disabled="loading"
                 >
-                    {{ cancelText }}
+                    {{ cancelText || t('Cancel') }}
                 </Button>
                 <Button
                     :variant="variant"
@@ -28,7 +28,7 @@
                     :disabled="loading"
                 >
                     <Icon v-if="loading" name="loader-2" class="w-4 h-4 mr-2 animate-spin" />
-                    {{ confirmText }}
+                    {{ confirmText || t('Confirm') }}
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 type DialogType = 'info' | 'warning' | 'danger';
 
@@ -62,6 +63,8 @@ interface Props {
     loading?: boolean;
     size?: 'sm' | 'md' | 'lg';
 }
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<Props>(), {
     confirmText: 'Confirm',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface AuditLog {
     id: number;
@@ -26,6 +27,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     (e: 'close'): void;
@@ -77,8 +79,8 @@ const getActionBadgeClass = (action: string) => {
             <!-- Header -->
             <div class="flex items-center justify-between p-6 border-b border-sidebar-border/70 dark:border-sidebar-border">
                 <div>
-                    <h2 class="text-xl font-semibold text-card-foreground dark:text-card-foreground">Auditoryog Details</h2>
-                    <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-1">Detailed information about this action</p>
+                    <h2 class="text-xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Audit Log Details') }}</h2>
+                    <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Detailed information about this action') }}</p>
                 </div>
                 <button
                     @click="close"
@@ -92,13 +94,13 @@ const getActionBadgeClass = (action: string) => {
             <div v-if="props.auditLog" class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                 <!-- Message -->
                 <div>
-                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Message</label>
+                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Message') }}</label>
                     <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground">{{ props.auditLog.message }}</p>
                 </div>
 
                 <!-- Action -->
                 <div>
-                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Action</label>
+                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Action') }}</label>
                     <div class="mt-1">
                         <span
                             :class="[
@@ -114,42 +116,42 @@ const getActionBadgeClass = (action: string) => {
                 <!-- User Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">User</label>
+                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('User') }}</label>
                         <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground">{{ props.auditLog.user_name }}</p>
                         <p v-if="props.auditLog.user_email" class="text-xs text-muted-foreground dark:text-muted-foreground">{{ props.auditLog.user_email }}</p>
                     </div>
 
                     <div>
-                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Page</label>
+                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Page') }}</label>
                         <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground">{{ props.auditLog.page_name || props.auditLog.model_name }}</p>
-                        <p v-if="props.auditLog.model_id" class="text-xs text-muted-foreground dark:text-muted-foreground">ID: {{ props.auditLog.model_id }}</p>
+                        <p v-if="props.auditLog.model_id" class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('ID') }}: {{ props.auditLog.model_id }}</p>
                     </div>
                 </div>
 
                 <!-- Vessel -->
                 <div v-if="props.auditLog.vessel_name">
-                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Vessel</label>
+                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Vessel') }}</label>
                     <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground">{{ props.auditLog.vessel_name }}</p>
                 </div>
 
                 <!-- Timestamp -->
                 <div>
-                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Date & Time</label>
+                    <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Date & Time') }}</label>
                     <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground">{{ formatDate(props.auditLog.created_at) }}</p>
                     <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ props.auditLog.created_at_human }}</p>
                 </div>
 
                 <!-- Technical Details -->
                 <div class="pt-4 border-t border-sidebar-border/70 dark:border-sidebar-border">
-                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">Technical Details</h3>
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">{{ t('Technical Details') }}</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div v-if="props.auditLog.ip_address">
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">IP Address</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('IP Address') }}</label>
                             <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground font-mono">{{ props.auditLog.ip_address }}</p>
                         </div>
 
                         <div v-if="props.auditLog.user_agent">
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">User Agent</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('User Agent') }}</label>
                             <p class="mt-1 text-sm text-card-foreground dark:text-card-foreground break-all">{{ props.auditLog.user_agent }}</p>
                         </div>
                     </div>
@@ -162,7 +164,7 @@ const getActionBadgeClass = (action: string) => {
                     @click="close"
                     class="px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-foreground dark:text-foreground transition-colors"
                 >
-                    Close
+                    {{ t('Close') }}
                 </button>
             </div>
         </div>

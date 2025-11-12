@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
 import { useMoney } from '@/composables/useMoney';
+import { useI18n } from '@/composables/useI18n';
 import crewMembers from '@/routes/panel/crew-members';
 
 interface CrewMember {
@@ -54,6 +55,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -128,7 +130,7 @@ const currencyOptions = computed(() => {
 
 // Convert to Select component options format
 const positionOptions = computed(() => {
-    const options = [{ value: '', label: 'Choose an option!' }];
+    const options = [{ value: '', label: t('Choose an option!') }];
     props.positions.forEach(position => {
         options.push({ value: position.id, label: position.name });
     });
@@ -136,7 +138,7 @@ const positionOptions = computed(() => {
 });
 
 const statusOptions = computed(() => {
-    const options = [{ value: '', label: 'Choose an option!' }];
+    const options = [{ value: '', label: t('Choose an option!') }];
     Object.entries(props.statuses).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -145,8 +147,8 @@ const statusOptions = computed(() => {
 
 const compensationTypeOptions = computed(() => {
     return [
-        { value: 'fixed', label: 'Fixed Salary' },
-        { value: 'percentage', label: 'Percentage of Revenue' }
+        { value: 'fixed', label: t('Fixed Salary') },
+        { value: 'percentage', label: t('Percentage of Revenue') }
     ];
 });
 
@@ -403,9 +405,9 @@ const handleClose = () => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>Edit Crew Member</DialogTitle>
+                <DialogTitle>{{ t('Edit Crew Member') }}</DialogTitle>
                 <DialogDescription>
-                    Update crew member information using the step-by-step wizard
+                    {{ t('Update crew member information using the step-by-step wizard') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -431,8 +433,8 @@ const handleClose = () => {
                                 <span v-else class="text-sm font-medium">1</span>
                             </button>
                             <div class="ml-3">
-                                <p class="text-sm font-medium text-card-foreground">Crew Information</p>
-                                <p class="text-xs text-muted-foreground">Basic details</p>
+                                <p class="text-sm font-medium text-card-foreground">{{ t('Crew Information') }}</p>
+                                <p class="text-xs text-muted-foreground">{{ t('Basic details') }}</p>
                             </div>
                         </div>
 
@@ -462,8 +464,8 @@ const handleClose = () => {
                                 <span v-else class="text-sm font-medium">2</span>
                             </button>
                             <div class="ml-3">
-                                <p class="text-sm font-medium text-card-foreground">Salary & Compensation</p>
-                                <p class="text-xs text-muted-foreground">Payment details</p>
+                                <p class="text-sm font-medium text-card-foreground">{{ t('Salary & Compensation') }}</p>
+                                <p class="text-xs text-muted-foreground">{{ t('Payment details') }}</p>
                             </div>
                         </div>
 
@@ -490,8 +492,8 @@ const handleClose = () => {
                                 <span class="text-sm font-medium">3</span>
                             </button>
                             <div class="ml-3">
-                                <p class="text-sm font-medium text-card-foreground">System Access</p>
-                                <p class="text-xs text-muted-foreground">Login permissions</p>
+                                <p class="text-sm font-medium text-card-foreground">{{ t('System Access') }}</p>
+                                <p class="text-xs text-muted-foreground">{{ t('Login credentials') }}</p>
                             </div>
                         </div>
                     </div>
@@ -505,13 +507,13 @@ const handleClose = () => {
                             <!-- Name -->
                             <div class="md:col-span-2">
                                 <Label for="name" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Full Name <span class="text-destructive">*</span>
+                                    {{ t('Full Name') }} <span class="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="name"
                                     v-model="form.name"
                                     type="text"
-                                    placeholder="Enter full name"
+                                    :placeholder="t('Enter full name')"
                                     required
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.name || getStepErrors('crew-info').some(e => e.includes('Name')) }"
                                 />
@@ -524,13 +526,13 @@ const handleClose = () => {
                             <!-- Email -->
                             <div>
                                 <Label for="email" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Email
+                                    {{ t('Email') }}
                                 </Label>
                                 <Input
                                     id="email"
                                     v-model="form.email"
                                     type="email"
-                                    placeholder="Enter email address"
+                                    :placeholder="t('Enter email address')"
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.email || getStepErrors('crew-info').some(e => e.includes('Email')) }"
                                 />
                                 <InputError :message="form.errors.email" class="mt-1" />
@@ -542,13 +544,13 @@ const handleClose = () => {
                             <!-- Phone -->
                             <div>
                                 <Label for="phone" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Phone
+                                    {{ t('Phone') }}
                                 </Label>
                                 <Input
                                     id="phone"
                                     v-model="form.phone"
                                     type="tel"
-                                    placeholder="Enter phone number"
+                                    :placeholder="t('Enter phone number')"
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.phone }"
                                 />
                                 <InputError :message="form.errors.phone" class="mt-1" />
@@ -557,7 +559,7 @@ const handleClose = () => {
                             <!-- Date of Birth -->
                             <div>
                                 <Label for="date_of_birth" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Date of Birth
+                                    {{ t('Date of Birth') }}
                                 </Label>
                                     <DateInput
                                         id="date_of_birth"
@@ -570,7 +572,7 @@ const handleClose = () => {
                             <!-- Hire Date -->
                             <div>
                                 <Label for="hire_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Hire Date <span class="text-destructive">*</span>
+                                    {{ t('Hire Date') }} <span class="text-destructive">*</span>
                                 </Label>
                                     <DateInput
                                         id="hire_date"
@@ -587,13 +589,13 @@ const handleClose = () => {
                             <!-- Position -->
                             <div>
                                 <Label for="position_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Position <span class="text-destructive">*</span>
+                                    {{ t('Position') }} <span class="text-destructive">*</span>
                                 </Label>
                                 <Select
                                     id="position_id"
                                     v-model="form.position_id"
                                     :options="positionOptions"
-                                    placeholder="Choose an option!"
+                                    :placeholder="t('Choose an option!')"
                                     searchable
                                     :error="!!(form.errors.position_id || getStepErrors('crew-info').some(e => e.includes('Position')))"
                                 />
@@ -606,13 +608,13 @@ const handleClose = () => {
                             <!-- Status -->
                             <div>
                                 <Label for="status" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Status <span class="text-destructive">*</span>
+                                    {{ t('Status') }} <span class="text-destructive">*</span>
                                 </Label>
                                 <Select
                                     id="status"
                                     v-model="form.status"
                                     :options="statusOptions"
-                                    placeholder="Choose an option!"
+                                    :placeholder="t('Choose an option!')"
                                     :error="!!(form.errors.status || getStepErrors('crew-info').some(e => e.includes('Status')))"
                                 />
                                 <InputError :message="form.errors.status" class="mt-1" />
@@ -624,13 +626,13 @@ const handleClose = () => {
                             <!-- Notes -->
                             <div class="md:col-span-2">
                                 <Label for="notes" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                    Notes
+                                    {{ t('Notes') }}
                                 </Label>
                                 <textarea
                                     id="notes"
                                     v-model="form.notes"
                                     rows="3"
-                                    placeholder="Enter additional notes"
+                                    :placeholder="t('Enter additional notes')"
                                     class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                                 ></textarea>
@@ -873,7 +875,7 @@ const handleClose = () => {
                         :disabled="form.processing || isPreviousDisabled"
                     >
                         <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        Previous
+                        {{ t('Previous') }}
                     </Button>
                 </div>
 
@@ -883,7 +885,7 @@ const handleClose = () => {
                         @click="handleClose"
                         :disabled="form.processing"
                     >
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button
                         v-if="currentStep < steps.length - 1"
@@ -891,7 +893,7 @@ const handleClose = () => {
                         @click="nextStep"
                         :disabled="form.processing || isNextDisabled"
                     >
-                        Next
+                        {{ t('Next') }}
                         <Icon name="arrow-right" class="w-4 h-4 ml-2" />
                     </Button>
                     <Button
@@ -901,7 +903,7 @@ const handleClose = () => {
                         :disabled="form.processing || isUpdateDisabled"
                     >
                         <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                        Update Crew Member
+                        {{ t('Update Crew Member') }}
                     </Button>
                 </div>
             </div>

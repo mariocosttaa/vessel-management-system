@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\CrewMember;
 use App\Models\CrewPosition;
@@ -128,7 +129,14 @@ class StoreCrewMemberRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $data = [];
+
+        // Unhash IDs from frontend
+        if ($this->filled('position_id')) {
+            $data['position_id'] = EasyHashAction::decode($this->position_id, 'crewposition-id');
+        }
+
+        $this->merge(array_merge($data, [
             'salary_amount' => $this->normalizeMoney($this->salary_amount),
             'salary_currency' => strtoupper($this->salary_currency ?? 'EUR'),
             'house_of_zeros' => $this->house_of_zeros ?? 2,
@@ -138,7 +146,7 @@ class StoreCrewMemberRequest extends FormRequest
             'phone' => $this->phone ? preg_replace('/[^\d+]/', '', $this->phone) : null,
             'hire_date' => $this->normalizeDate($this->hire_date),
             'date_of_birth' => $this->normalizeDate($this->date_of_birth),
-        ]);
+        ]));
     }
 
     private function normalizeMoney($value): int

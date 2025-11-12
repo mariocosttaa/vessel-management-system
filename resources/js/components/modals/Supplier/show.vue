@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 
 interface Supplier {
     id: number;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -39,9 +41,9 @@ const formatDate = (dateString: string) => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Supplier Details</DialogTitle>
+                <DialogTitle>{{ t('Supplier Details') }}</DialogTitle>
                 <DialogDescription>
-                    View detailed information about this supplier
+                    {{ t('View detailed information about this supplier') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -50,27 +52,27 @@ const formatDate = (dateString: string) => {
                     <!-- Basic Information -->
                     <div>
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            Company Information
+                            {{ t('Company Information') }}
                         </h3>
                         <dl class="space-y-3">
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Company Name</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Company Name') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ supplier.company_name }}</dd>
                             </div>
                             <div v-if="supplier.description">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Description</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Description') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground whitespace-pre-line">{{ supplier.description }}</dd>
                             </div>
                             <div v-if="supplier.email">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Email</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Email') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ supplier.email }}</dd>
                             </div>
                             <div v-if="supplier.phone">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Phone</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Phone') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ supplier.phone }}</dd>
                             </div>
                             <div v-if="supplier.address">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Address</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Address') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground whitespace-pre-line">{{ supplier.address }}</dd>
                             </div>
                         </dl>
@@ -79,7 +81,7 @@ const formatDate = (dateString: string) => {
                     <!-- Notes -->
                     <div v-if="supplier.notes">
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            Notes
+                            {{ t('Notes') }}
                         </h3>
                         <p class="text-sm text-card-foreground dark:text-card-foreground bg-muted/50 dark:bg-muted/50 p-4 rounded-lg">
                             {{ supplier.notes }}
@@ -114,7 +116,7 @@ const formatDate = (dateString: string) => {
                     variant="outline"
                     @click="handleClose"
                 >
-                    Close
+                    {{ t('Close') }}
                 </Button>
             </div>
         </DialogContent>

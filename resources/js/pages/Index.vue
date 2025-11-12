@@ -319,7 +319,7 @@ import type { BreadcrumbItemType } from '@/types'
 import { useI18n } from '@/composables/useI18n'
 
 interface Vessel {
-  id: number
+  id: string // Changed from number to string (hashed ID)
   name: string
   registration_number: string
   vessel_type: string
@@ -342,7 +342,7 @@ interface Vessel {
 }
 
 interface User {
-  id: number
+  id: string // Changed from number to string (hashed ID)
   name: string
   email: string
 }
@@ -490,7 +490,7 @@ const handleBackFromLoading = () => {
   loadingProgress.value = 0
 }
 
-const selectVessel = (vesselId: number) => {
+const selectVessel = (vesselId: string) => {
   if (isSelecting.value || isEntering.value) return
 
   const vessel = props.vessels.find(v => v.id === vesselId)
@@ -504,12 +504,12 @@ const createVessel = () => {
   router.visit('/panel/vessel/create')
 }
 
-const editVessel = (vesselId: number) => {
+const editVessel = (vesselId: string) => {
   if (isEntering.value) return
   router.visit(`/panel/vessel/${vesselId}/edit`)
 }
 
-const deleteVessel = (vesselId: number, vesselName: string) => {
+const deleteVessel = (vesselId: string, vesselName: string) => {
   if (isEntering.value) return
   if (confirm(t('Are you sure you want to delete') + ` "${vesselName}"? ` + t('This action cannot be undone.'))) {
     router.delete(`/panel/vessel/${vesselId}`, {

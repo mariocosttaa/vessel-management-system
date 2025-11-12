@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ref, watch } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 import bankAccountsApi from '@/routes/panel/api/bank-accounts';
 
 interface Country {
@@ -33,6 +34,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 const emit = defineEmits<{
     close: [];
 }>();
@@ -75,7 +77,7 @@ const fetchBankAccountDetails = async () => {
         const data = await response.json();
         detailedBankAccount.value = data.bankAccount;
     } catch (err) {
-        error.value = 'Failed to load bank account details';
+        error.value = t('Failed to load bank account details');
     } finally {
         loading.value = false;
     }
@@ -108,9 +110,9 @@ const getStatusVariant = (status: string) => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="max-w-2xl">
             <DialogHeader>
-                <DialogTitle>Bank Account Details</DialogTitle>
+                <DialogTitle>{{ t('Bank Account Details') }}</DialogTitle>
                 <DialogDescription class="sr-only">
-                    View detailed information about the bank account
+                    {{ t('View detailed information about the bank account') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -118,7 +120,7 @@ const getStatusVariant = (status: string) => {
             <div v-if="loading" class="flex items-center justify-center py-8">
                 <div class="flex items-center space-x-2">
                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    <span class="text-muted-foreground">Loading bank account details...</span>
+                    <span class="text-muted-foreground">{{ t('Loading bank account details...') }}</span>
                 </div>
             </div>
 
@@ -127,7 +129,7 @@ const getStatusVariant = (status: string) => {
                 <div class="text-center">
                     <p class="text-red-600 mb-4">{{ error }}</p>
                     <Button @click="fetchBankAccountDetails" variant="outline">
-                        Try Again
+                        {{ t('Try Again') }}
                     </Button>
                 </div>
             </div>
@@ -138,39 +140,39 @@ const getStatusVariant = (status: string) => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Account Name</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Account Name') }}</label>
                             <p class="text-lg font-semibold text-foreground">{{ detailedBankAccount.name }}</p>
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Bank Name</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Bank Name') }}</label>
                             <p class="text-lg text-foreground">{{ detailedBankAccount.bank_name }}</p>
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Account Number</label>
-                            <p class="text-lg text-foreground">{{ detailedBankAccount.account_number || 'Not provided' }}</p>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Account Number') }}</label>
+                            <p class="text-lg text-foreground">{{ detailedBankAccount.account_number || t('Not provided') }}</p>
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">IBAN</label>
-                            <p class="text-lg font-mono text-foreground">{{ detailedBankAccount.iban || 'Not provided' }}</p>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('IBAN') }}</label>
+                            <p class="text-lg font-mono text-foreground">{{ detailedBankAccount.iban || t('Not provided') }}</p>
                         </div>
                     </div>
 
                     <div class="space-y-4">
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Country</label>
-                            <p class="text-lg font-semibold text-foreground">{{ detailedBankAccount.country ? `${detailedBankAccount.country.name} (${detailedBankAccount.country.code})` : 'Not provided' }}</p>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Country') }}</label>
+                            <p class="text-lg font-semibold text-foreground">{{ detailedBankAccount.country ? `${detailedBankAccount.country.name} (${detailedBankAccount.country.code})` : t('Not provided') }}</p>
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Initial Balance</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Initial Balance') }}</label>
                             <p class="text-lg font-semibold text-green-600">{{ detailedBankAccount.formatted_initial_balance }}</p>
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground">Current Balance</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Current Balance') }}</label>
                             <p class="text-lg font-semibold text-blue-600">{{ detailedBankAccount.formatted_current_balance }}</p>
                         </div>
                     </div>
@@ -178,7 +180,7 @@ const getStatusVariant = (status: string) => {
 
                 <!-- Status -->
                 <div>
-                    <label class="text-sm font-medium text-muted-foreground">Status</label>
+                    <label class="text-sm font-medium text-muted-foreground">{{ t('Status') }}</label>
                     <div class="mt-1">
                         <Badge :variant="getStatusVariant(detailedBankAccount.status)">
                             {{ detailedBankAccount.status_label }}
@@ -188,18 +190,18 @@ const getStatusVariant = (status: string) => {
 
                 <!-- Notes -->
                 <div v-if="detailedBankAccount.notes">
-                    <label class="text-sm font-medium text-muted-foreground">Notes</label>
+                    <label class="text-sm font-medium text-muted-foreground">{{ t('Notes') }}</label>
                     <p class="mt-1 text-foreground whitespace-pre-wrap">{{ detailedBankAccount.notes }}</p>
                 </div>
 
                 <!-- Timestamps -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                     <div>
-                        <label class="text-sm font-medium text-muted-foreground">Created</label>
+                        <label class="text-sm font-medium text-muted-foreground">{{ t('Created') }}</label>
                         <p class="text-sm text-foreground">{{ detailedBankAccount.created_at }}</p>
                     </div>
                     <div>
-                        <label class="text-sm font-medium text-muted-foreground">Last Updated</label>
+                        <label class="text-sm font-medium text-muted-foreground">{{ t('Last Updated') }}</label>
                         <p class="text-sm text-foreground">{{ detailedBankAccount.updated_at }}</p>
                     </div>
                 </div>
@@ -207,7 +209,7 @@ const getStatusVariant = (status: string) => {
                 <!-- Actions -->
                 <div class="flex justify-end pt-4">
                     <Button variant="outline" @click="emit('close')">
-                        Close
+                        {{ t('Close') }}
                     </Button>
                 </div>
             </div>

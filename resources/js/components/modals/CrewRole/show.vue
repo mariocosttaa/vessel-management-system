@@ -3,6 +3,7 @@ import { ref, watch, onMounted } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface CrewPosition {
     id: number;
@@ -22,6 +23,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -89,9 +91,9 @@ const formatDate = (dateString: string) => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Crew Role Details</DialogTitle>
+                <DialogTitle>{{ t('Crew Role Details') }}</DialogTitle>
                 <DialogDescription>
-                    View detailed information about this crew role
+                    {{ t('View detailed information about this crew role') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -104,15 +106,15 @@ const formatDate = (dateString: string) => {
                     <!-- Basic Information -->
                     <div>
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            Role Information
+                            {{ t('Role Information') }}
                         </h3>
                         <dl class="space-y-3">
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Role Name</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Role Name') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground font-medium">{{ crewPositionData.name }}</dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Scope</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Scope') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     <span
                                         :class="[
@@ -127,13 +129,13 @@ const formatDate = (dateString: string) => {
                                 </dd>
                             </div>
                             <div v-if="crewPositionData.description">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Description</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Description') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground whitespace-pre-line">{{ crewPositionData.description }}</dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Crew Members</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Crew Members') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
-                                    {{ crewPositionData.crew_members_count || 0 }} member(s) assigned
+                                    {{ crewPositionData.crew_members_count || 0 }} {{ t('member(s) assigned') }}
                                 </dd>
                             </div>
                         </dl>
@@ -167,7 +169,7 @@ const formatDate = (dateString: string) => {
                     variant="outline"
                     @click="handleClose"
                 >
-                    Close
+                    {{ t('Close') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

@@ -6,6 +6,7 @@ import Icon from '@/components/Icon.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -35,6 +36,7 @@ interface Props {
 const props = defineProps<Props>();
 const { canCreate, canEdit, canDelete, canView } = usePermissions();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 // Check if user has permission to view distribution profiles
 onMounted(() => {
@@ -75,8 +77,8 @@ const confirmDelete = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: `Distribution profile '${profileName}' has been deleted successfully.`,
+                title: t('Success'),
+                message: `${t('Distribution profile')} '${profileName}' ${t('has been deleted successfully')}.`,
             });
             showDeleteDialog.value = false;
             profileToDelete.value = null;
@@ -85,8 +87,8 @@ const confirmDelete = () => {
         onError: () => {
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to delete distribution profile. Please try again.',
+                title: t('Error'),
+                message: t('Failed to delete distribution profile. Please try again.'),
             });
             isDeleting.value = false;
         },
@@ -113,10 +115,10 @@ const viewProfile = (profileId: number) => {
 </script>
 
 <template>
-    <Head title="Distribution Profiles" />
+    <Head :title="t('Distribution Profiles')" />
 
     <VesselLayout :breadcrumbs="[
-        { title: 'Distribution Profiles', href: `/panel/${getCurrentVesselId()}/marea-distribution-profiles` }
+        { title: t('Distribution Profiles'), href: `/panel/${getCurrentVesselId()}/marea-distribution-profiles` }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
@@ -124,10 +126,10 @@ const viewProfile = (profileId: number) => {
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">
-                            Distribution Profiles
+                            {{ t('Distribution Profiles') }}
                         </h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">
-                            Manage financial distribution profiles for mareas
+                            {{ t('Manage financial distribution profiles for mareas') }}
                         </p>
                     </div>
                     <button
@@ -136,7 +138,7 @@ const viewProfile = (profileId: number) => {
                         class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                     >
                         <Icon name="plus" class="w-4 h-4 mr-2" />
-                        Create Profile
+                        {{ t('Create Profile') }}
                     </button>
                 </div>
             </div>
@@ -145,10 +147,10 @@ const viewProfile = (profileId: number) => {
             <div v-if="props.profiles.length === 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
                 <Icon name="file-text" class="w-12 h-12 mx-auto text-muted-foreground dark:text-muted-foreground mb-4" />
                 <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-2">
-                    No Distribution Profiles
+                    {{ t('No Distribution Profiles') }}
                 </h3>
                 <p class="text-muted-foreground dark:text-muted-foreground mb-6">
-                    Get started by creating your first distribution profile
+                    {{ t('Get started by creating your first distribution profile') }}
                 </p>
                 <button
                     v-if="canCreate('distribution-profiles')"
@@ -156,7 +158,7 @@ const viewProfile = (profileId: number) => {
                     class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                 >
                     <Icon name="plus" class="w-4 h-4 mr-2" />
-                    Create Profile
+                    {{ t('Create Profile') }}
                 </button>
             </div>
 
@@ -177,13 +179,13 @@ const viewProfile = (profileId: number) => {
                                     v-if="profile.is_default"
                                     class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
                                 >
-                                    Default
+                                    {{ t('Default') }}
                                 </span>
                                 <span
                                     v-if="profile.is_system"
                                     class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
                                 >
-                                    System
+                                    {{ t('System') }}
                                 </span>
                             </div>
                         </div>
@@ -205,7 +207,7 @@ const viewProfile = (profileId: number) => {
                                     class="w-full text-left px-4 py-2 text-sm text-card-foreground hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                 >
                                     <Icon name="edit" class="w-4 h-4 mr-2" />
-                                    Edit
+                                    {{ t('Edit') }}
                                 </button>
                                 <button
                                     @click="deleteProfile(profile)"
@@ -213,7 +215,7 @@ const viewProfile = (profileId: number) => {
                                     class="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                 >
                                     <Icon name="trash" class="w-4 h-4 mr-2" />
-                                    Delete
+                                    {{ t('Delete') }}
                                 </button>
                             </div>
                         </div>
@@ -224,9 +226,9 @@ const viewProfile = (profileId: number) => {
                     </p>
 
                     <div class="flex items-center justify-between text-sm text-muted-foreground dark:text-muted-foreground">
-                        <span>{{ profile.items_count }} item{{ profile.items_count !== 1 ? 's' : '' }}</span>
+                        <span>{{ profile.items_count }} {{ profile.items_count !== 1 ? t('items') : t('item') }}</span>
                         <span v-if="profile.created_by">
-                            by {{ profile.created_by.name }}
+                            {{ t('by') }} {{ profile.created_by.name }}
                         </span>
                     </div>
                 </div>
@@ -235,11 +237,11 @@ const viewProfile = (profileId: number) => {
             <!-- Delete Confirmation Dialog -->
             <ConfirmationDialog
                 :open="showDeleteDialog"
-                title="Delete Distribution Profile"
-                description="This action cannot be undone."
-                :message="`Are you sure you want to delete the distribution profile '${profileToDelete?.name}'?`"
-                confirm-text="Delete"
-                cancel-text="Cancel"
+                :title="t('Delete Distribution Profile')"
+                :description="t('This action cannot be undone.')"
+                :message="`${t('Are you sure you want to delete the distribution profile')} '${profileToDelete?.name}'?`"
+                :confirm-text="t('Delete')"
+                :cancel-text="t('Cancel')"
                 variant="destructive"
                 type="danger"
                 :loading="isDeleting"

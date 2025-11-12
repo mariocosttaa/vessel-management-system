@@ -92,7 +92,7 @@ import { Ship, ChevronDown, ChevronUp, Check, Plus } from 'lucide-vue-next'
 import Icon from '@/Components/Icon.vue'
 
 interface Vessel {
-  id: number
+  id: string // Changed from number to string (hashed ID)
   name: string
   registration_number: string
   user_role: string
@@ -116,7 +116,7 @@ const closeDropdown = () => {
   isOpen.value = false
 }
 
-const switchVessel = (vesselId: number) => {
+const switchVessel = (vesselId: string) => {
   if (isSwitching.value || vesselId === props.currentVessel?.id) return
 
   isSwitching.value = true

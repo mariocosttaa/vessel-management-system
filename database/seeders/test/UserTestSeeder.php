@@ -3,7 +3,6 @@
 namespace Database\Seeders\Test;
 
 use App\Models\User;
-use App\Models\Role;
 use App\Models\Vessel;
 use App\Models\VesselUserRole;
 use App\Models\VesselRoleAccess;
@@ -19,20 +18,6 @@ class UserTestSeeder extends Seeder
     {
         $this->command->info('Creating test users with all permission combinations...');
 
-        // Get roles
-        $adminRole = Role::firstOrCreate(
-            ['name' => 'admin'],
-            ['description' => 'Administrator with full access']
-        );
-        $managerRole = Role::firstOrCreate(
-            ['name' => 'manager'],
-            ['description' => 'Manager with elevated permissions']
-        );
-        $viewerRole = Role::firstOrCreate(
-            ['name' => 'viewer'],
-            ['description' => 'Viewer with read-only permissions']
-        );
-
         // Ensure vessel role access definitions exist
         $this->ensureVesselRoleAccesses();
 
@@ -46,13 +31,13 @@ class UserTestSeeder extends Seeder
         $vessels = $this->createTestVessels();
 
         // 1. PAID SYSTEM USERS (can create vessels)
-        $this->createPaidSystemUsers($adminRole, $managerRole, $viewerRole, $vessels);
+        $this->createPaidSystemUsers($vessels);
 
         // 2. EMPLOYEE OF VESSEL USERS (cannot create vessels)
         $this->createEmployeeUsers($normalAccess, $moderatorAccess, $supervisorAccess, $administratorAccess, $vessels);
 
         // 3. MIXED PERMISSION USERS (different roles for different vessels)
-        $this->createMixedPermissionUsers($adminRole, $managerRole, $viewerRole, $normalAccess, $moderatorAccess, $supervisorAccess, $administratorAccess, $vessels);
+        $this->createMixedPermissionUsers($normalAccess, $moderatorAccess, $supervisorAccess, $administratorAccess, $vessels);
 
         $this->command->info('Test users created successfully!');
         $this->command->info('Total users created: ' . User::count());
@@ -143,7 +128,7 @@ class UserTestSeeder extends Seeder
         return $vessels;
     }
 
-    private function createPaidSystemUsers($adminRole, $managerRole, $viewerRole, $vessels): void
+    private function createPaidSystemUsers($vessels): void
     {
         $paidUsers = [
             [
@@ -151,7 +136,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'paid-admin@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'paid_system',
-                'role' => $adminRole,
                 'vessel_role' => 'administrator',
                 'vessel_index' => 0, // Ocean Explorer
             ],
@@ -160,7 +144,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'paid-manager@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'paid_system',
-                'role' => $managerRole,
                 'vessel_role' => 'administrator',
                 'vessel_index' => 1, // Sea Breeze
             ],
@@ -169,7 +152,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'paid-viewer@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'paid_system',
-                'role' => $viewerRole,
                 'vessel_role' => 'administrator',
                 'vessel_index' => 2, // Deep Blue
             ],
@@ -186,14 +168,11 @@ class UserTestSeeder extends Seeder
                 ]
             );
 
-            // Assign system role
-            $user->roles()->syncWithoutDetaching([$userData['role']->id]);
-
             // Assign vessel with administrator role
             $vessel = $vessels[$userData['vessel_index']];
             $this->assignVesselRole($user, $vessel, $userData['vessel_role']);
 
-            $this->command->info("Created paid {$userData['role']->name} user: {$user->email}");
+            $this->command->info("Created paid system user: {$user->email}");
         }
     }
 
@@ -253,7 +232,7 @@ class UserTestSeeder extends Seeder
         }
     }
 
-    private function createMixedPermissionUsers($adminRole, $managerRole, $viewerRole, $normalAccess, $moderatorAccess, $supervisorAccess, $administratorAccess, $vessels): void
+    private function createMixedPermissionUsers($normalAccess, $moderatorAccess, $supervisorAccess, $administratorAccess, $vessels): void
     {
         $mixedUsers = [
             [
@@ -261,7 +240,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'mixed-admin@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'paid_system',
-                'system_role' => $adminRole,
                 'vessel_roles' => [
                     ['vessel_index' => 0, 'role' => 'administrator'], // Ocean Explorer
                     ['vessel_index' => 1, 'role' => 'supervisor'],    // Sea Breeze
@@ -273,7 +251,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'mixed-manager@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'paid_system',
-                'system_role' => $managerRole,
                 'vessel_roles' => [
                     ['vessel_index' => 0, 'role' => 'normal'],         // Ocean Explorer
                     ['vessel_index' => 1, 'role' => 'administrator'],  // Sea Breeze
@@ -285,7 +262,6 @@ class UserTestSeeder extends Seeder
                 'email' => 'multi-vessel@test.com',
                 'password' => Hash::make('password'),
                 'user_type' => 'employee_of_vessel',
-                'system_role' => null,
                 'vessel_roles' => [
                     ['vessel_index' => 0, 'role' => 'moderator'],      // Ocean Explorer
                     ['vessel_index' => 2, 'role' => 'supervisor'],      // Deep Blue
@@ -304,11 +280,6 @@ class UserTestSeeder extends Seeder
                     'email_verified_at' => now(),
                 ]
             );
-
-            // Assign system role if exists
-            if ($userData['system_role']) {
-                $user->roles()->syncWithoutDetaching([$userData['system_role']->id]);
-            }
 
             // Assign multiple vessel roles
             foreach ($userData['vessel_roles'] as $vesselRole) {

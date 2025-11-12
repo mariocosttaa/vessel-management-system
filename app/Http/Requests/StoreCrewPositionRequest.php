@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -105,11 +106,18 @@ class StoreCrewPositionRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $data = [];
+
+        // Unhash IDs from frontend
+        if ($this->filled('vessel_role_access_id')) {
+            $data['vessel_role_access_id'] = EasyHashAction::decode($this->vessel_role_access_id, 'vesselroleaccess-id');
+        }
+
+        $this->merge(array_merge($data, [
             'name' => trim($this->name),
             'description' => $this->description ? trim($this->description) : null,
             'is_global' => $this->boolean('is_global') ?? false,
-        ]);
+        ]));
     }
 }
 

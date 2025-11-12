@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import Icon from '@/components/Icon.vue';
 import InputError from '@/components/InputError.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface DistributionItem {
     order_index: number;
@@ -34,6 +35,8 @@ const emit = defineEmits<{
     'close': [];
     'save': [item: DistributionItem];
 }>();
+
+const { t } = useI18n();
 
 const form = ref<DistributionItem>({
     order_index: props.orderIndex,
@@ -78,20 +81,20 @@ watch(() => [props.open, props.item], ([isOpen, item]) => {
 }, { immediate: true });
 
 const valueTypes = [
-    { value: 'base_total_income', label: 'Total Income', dynamic: true, description: 'Use the total income amount' },
-    { value: 'base_total_expense', label: 'Total Expenses', dynamic: true, description: 'Use the total expenses amount' },
-    { value: 'fixed_amount', label: 'Fixed Amount', dynamic: false, description: 'Enter a fixed monetary value' },
-    { value: 'percentage_of_income', label: 'Percentage of Income', dynamic: false, description: 'Calculate a percentage of total income' },
-    { value: 'percentage_of_expense', label: 'Percentage of Expense', dynamic: false, description: 'Calculate a percentage of total expenses' },
-    { value: 'reference_item', label: 'Reference Step', dynamic: false, description: 'Use the result from another step' },
+    { value: 'base_total_income', label: t('Total Income'), dynamic: true, description: t('Use the total income amount') },
+    { value: 'base_total_expense', label: t('Total Expenses'), dynamic: true, description: t('Use the total expenses amount') },
+    { value: 'fixed_amount', label: t('Fixed Amount'), dynamic: false, description: t('Enter a fixed monetary value') },
+    { value: 'percentage_of_income', label: t('Percentage of Income'), dynamic: false, description: t('Calculate a percentage of total income') },
+    { value: 'percentage_of_expense', label: t('Percentage of Expense'), dynamic: false, description: t('Calculate a percentage of total expenses') },
+    { value: 'reference_item', label: t('Reference Step'), dynamic: false, description: t('Use the result from another step') },
 ];
 
 const operations = [
-    { value: 'set', label: 'Set (=)', symbol: '=', color: 'bg-blue-500 text-white' },
-    { value: 'add', label: 'Add (+)', symbol: '+', color: 'bg-green-500 text-white' },
-    { value: 'subtract', label: 'Subtract (-)', symbol: '-', color: 'bg-red-500 text-white' },
-    { value: 'multiply', label: 'Multiply (×)', symbol: '×', color: 'bg-purple-500 text-white' },
-    { value: 'divide', label: 'Divide (÷)', symbol: '÷', color: 'bg-orange-500 text-white' },
+    { value: 'set', label: t('Set (=)'), symbol: '=', color: 'bg-blue-500 text-white' },
+    { value: 'add', label: t('Add (+)'), symbol: '+', color: 'bg-green-500 text-white' },
+    { value: 'subtract', label: t('Subtract (-)'), symbol: '-', color: 'bg-red-500 text-white' },
+    { value: 'multiply', label: t('Multiply (×)'), symbol: '×', color: 'bg-purple-500 text-white' },
+    { value: 'divide', label: t('Divide (÷)'), symbol: '÷', color: 'bg-orange-500 text-white' },
 ];
 
 const selectedValueType = computed(() => {
@@ -115,9 +118,9 @@ const valueTypeOptions = computed(() => {
 });
 
 const referenceItemOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a step' }];
+    const options = [{ value: null, label: t('Select a step') }];
     availableReferenceItems.value.forEach(item => {
-        options.push({ value: item.order_index, label: `Step ${item.order_index}: ${item.name}` });
+        options.push({ value: item.order_index, label: `${t('Step')} ${item.order_index}: ${item.name}` });
     });
     return options;
 });
@@ -135,27 +138,27 @@ const validate = () => {
     errors.value = {};
 
     if (!form.value.name || form.value.name.trim() === '') {
-        errors.value.name = 'Name is required';
+        errors.value.name = t('Name is required');
     } else if (form.value.name.length > 100) {
-        errors.value.name = 'Name must be less than 100 characters';
+        errors.value.name = t('Name must be less than 100 characters');
     }
 
     if (form.value.description && form.value.description.length > 255) {
-        errors.value.description = 'Description must be less than 255 characters';
+        errors.value.description = t('Description must be less than 255 characters');
     }
 
     if (!isDynamicType.value) {
         if (form.value.value_type === 'fixed_amount' || form.value.value_type.includes('percentage')) {
             if (form.value.value_amount === null || form.value.value_amount === undefined) {
-                errors.value.value_amount = 'Value is required';
+                errors.value.value_amount = t('Value is required');
             } else if (form.value.value_amount < 0) {
-                errors.value.value_amount = 'Value must be positive';
+                errors.value.value_amount = t('Value must be positive');
             }
         }
 
         if (form.value.value_type === 'reference_item') {
             if (form.value.reference_item_order_index === null || form.value.reference_item_order_index === undefined) {
-                errors.value.reference_item_order_index = 'Please select a reference step';
+                errors.value.reference_item_order_index = t('Please select a reference step');
             }
         }
     }
@@ -178,44 +181,44 @@ const handleSave = () => {
         <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle>
-                    {{ item ? 'Edit Step' : 'Add Step' }} #{{ orderIndex }}
+                    {{ item ? t('Edit Step') : t('Add Step') }} #{{ orderIndex }}
                 </DialogTitle>
             </DialogHeader>
 
             <div class="space-y-4">
                 <!-- Name -->
                 <div>
-                    <Label for="item_name">Name *</Label>
+                    <Label for="item_name">{{ t('Name') }} *</Label>
                     <Input
                         id="item_name"
                         v-model="form.name"
-                        placeholder="e.g., Calculate Commission"
+                        :placeholder="t('e.g., Calculate Commission')"
                         maxlength="100"
                         :class="{ 'border-destructive': errors.name }"
                     />
                     <InputError v-if="errors.name" :message="errors.name" class="mt-1" />
-                    <p class="text-xs text-muted-foreground mt-1">Brief name for this step (max 100 characters)</p>
+                    <p class="text-xs text-muted-foreground mt-1">{{ t('Brief name for this step (max 100 characters)') }}</p>
                 </div>
 
                 <!-- Description -->
                 <div>
-                    <Label for="item_description">Description</Label>
+                    <Label for="item_description">{{ t('Description') }}</Label>
                     <textarea
                         id="item_description"
                         v-model="form.description"
-                        placeholder="Optional description of what this step does"
+                        :placeholder="t('Optional description of what this step does')"
                         rows="2"
                         maxlength="255"
                         class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         :class="{ 'border-destructive': errors.description }"
                     />
                     <InputError v-if="errors.description" :message="errors.description" class="mt-1" />
-                    <p class="text-xs text-muted-foreground mt-1">Optional description (max 255 characters)</p>
+                    <p class="text-xs text-muted-foreground mt-1">{{ t('Optional description (max 255 characters)') }}</p>
                 </div>
 
                 <!-- Value Type -->
                 <div>
-                    <Label for="value_type">Value Type *</Label>
+                    <Label for="value_type">{{ t('Value Type') }} *</Label>
                     <Select
                         id="value_type"
                         v-model="form.value_type"
@@ -227,42 +230,42 @@ const handleSave = () => {
 
                 <!-- Value Amount (only for non-dynamic types) -->
                 <div v-if="!isDynamicType">
-                    <Label v-if="form.value_type === 'fixed_amount'" for="value_amount">Amount *</Label>
-                    <Label v-else-if="form.value_type.includes('percentage')" for="value_amount">Percentage *</Label>
+                    <Label v-if="form.value_type === 'fixed_amount'" for="value_amount">{{ t('Amount') }} *</Label>
+                    <Label v-else-if="form.value_type.includes('percentage')" for="value_amount">{{ t('Percentage') }} *</Label>
                     <Input
                         id="value_amount"
                         v-model.number="form.value_amount"
                         type="number"
                         :step="form.value_type.includes('percentage') ? 0.01 : 1"
                         :min="0"
-                        :placeholder="form.value_type.includes('percentage') ? 'e.g., 10 for 10%' : 'Enter amount'"
+                        :placeholder="form.value_type.includes('percentage') ? t('e.g., 10 for 10%') : t('Enter amount')"
                         :class="{ 'border-destructive': errors.value_amount }"
                     />
                     <InputError v-if="errors.value_amount" :message="errors.value_amount" class="mt-1" />
                     <p v-if="form.value_type.includes('percentage')" class="text-xs text-muted-foreground mt-1">
-                        Enter percentage as a number (e.g., 10 for 10%, 5.5 for 5.5%)
+                        {{ t('Enter percentage as a number (e.g., 10 for 10%, 5.5 for 5.5%)') }}
                     </p>
                 </div>
 
                 <!-- Reference Item (for reference_item type) -->
                 <div v-if="form.value_type === 'reference_item'">
-                    <Label for="reference_item_order_index">Reference Step *</Label>
+                    <Label for="reference_item_order_index">{{ t('Reference Step') }} *</Label>
                     <Select
                         id="reference_item_order_index"
                         v-model="form.reference_item_order_index"
                         :options="referenceItemOptions"
-                        placeholder="Select a step"
+                        :placeholder="t('Select a step')"
                         :error="!!errors.reference_item_order_index"
                     />
                     <InputError v-if="errors.reference_item_order_index" :message="errors.reference_item_order_index" class="mt-1" />
                     <p class="text-xs text-muted-foreground mt-1">
-                        Select a previous step to use its result as the value
+                        {{ t('Select a previous step to use its result as the value') }}
                     </p>
                 </div>
 
                 <!-- Operation -->
                 <div>
-                    <Label for="operation">Operation *</Label>
+                    <Label for="operation">{{ t('Operation') }} *</Label>
                     <div class="grid grid-cols-5 gap-2">
                         <button
                             v-for="op in operations"
@@ -280,7 +283,7 @@ const handleSave = () => {
                         </button>
                     </div>
                     <p class="text-xs text-muted-foreground mt-1">
-                        Selected: <span :class="getOperationInfo(form.operation).color" class="px-2 py-1 rounded text-xs font-medium">
+                        {{ t('Selected') }}: <span :class="getOperationInfo(form.operation).color" class="px-2 py-1 rounded text-xs font-medium">
                             {{ getOperationInfo(form.operation).label }}
                         </span>
                     </p>
@@ -289,11 +292,11 @@ const handleSave = () => {
 
             <DialogFooter>
                 <Button variant="outline" @click="handleClose">
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button @click="handleSave" :class="getOperationInfo(form.operation).color">
                     <Icon name="save" class="w-4 h-4 mr-2" />
-                    Save Step
+                    {{ t('Save Step') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

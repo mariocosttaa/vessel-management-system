@@ -8,6 +8,7 @@ import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 import axios from 'axios';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -106,9 +108,9 @@ const handleClose = () => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Create New Marea</DialogTitle>
+                <DialogTitle>{{ t('Create New Marea') }}</DialogTitle>
                 <DialogDescription>
-                    Create a new expedition/trip for your vessel
+                    {{ t('Create a new expedition/trip for your vessel') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -117,7 +119,7 @@ const handleClose = () => {
                     <!-- Marea Number -->
                     <div>
                         <Label for="marea_number" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Marea Number <span class="text-destructive">*</span>
+                            {{ t('Marea Number') }} <span class="text-destructive">*</span>
                         </Label>
                         <Input
                             id="marea_number"
@@ -130,17 +132,17 @@ const handleClose = () => {
                         />
                         <InputError :message="form.errors.marea_number" class="mt-1" />
                         <p v-if="loadingNextNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                            Loading next marea number...
+                            {{ t('Loading next marea number...') }}
                         </p>
                         <p v-else-if="nextMareaNumber && form.marea_number === nextMareaNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                            This number was auto-generated. You can change it if needed.
+                            {{ t('This number was auto-generated. You can change it if needed.') }}
                         </p>
                     </div>
 
                     <!-- Estimated Departure Date -->
                     <div>
                         <Label for="estimated_departure_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Estimated Departure Date
+                            {{ t('Estimated Departure Date') }}
                         </Label>
                         <DateInput
                             id="estimated_departure_date"
@@ -154,7 +156,7 @@ const handleClose = () => {
                     <!-- Estimated Return Date -->
                     <div>
                         <Label for="estimated_return_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Estimated Return Date
+                            {{ t('Estimated Return Date') }}
                         </Label>
                         <DateInput
                             id="estimated_return_date"
@@ -164,7 +166,7 @@ const handleClose = () => {
                         />
                         <InputError :message="form.errors.estimated_return_date" class="mt-1" />
                         <p class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                            Must be after or equal to departure date
+                            {{ t('Must be after or equal to departure date') }}
                         </p>
                     </div>
                 </form>
@@ -176,7 +178,7 @@ const handleClose = () => {
                     @click="handleClose"
                     :disabled="form.processing || loadingNextNumber"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button
                     @click="handleSave"
@@ -184,7 +186,7 @@ const handleClose = () => {
                 >
                     <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
                     <Icon v-else name="plus" class="w-4 h-4 mr-2" />
-                    {{ form.processing ? 'Creating...' : 'Create Marea' }}
+                    {{ form.processing ? t('Creating...') : t('Create Marea') }}
                 </Button>
             </div>
         </DialogContent>

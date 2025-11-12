@@ -11,6 +11,7 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { edit } from '@/routes/vat-configuration';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 
 interface VatProfile {
     id: number;
@@ -34,6 +35,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 const form = useForm({
     default_vat_profile_id: props.defaultVatProfileId as number | null,
@@ -41,10 +43,10 @@ const form = useForm({
 
 // Convert to Select component options format
 const vatProfileOptions = computed(() => {
-    const options = [{ value: null, label: 'No default VAT profile' }];
+    const options = [{ value: null, label: t('No default VAT profile') }];
     props.vatProfiles.forEach(profile => {
         const countryPart = profile.country ? ` (${profile.country.name})` : '';
-        const defaultPart = profile.is_default ? ' (Default)' : '';
+        const defaultPart = profile.is_default ? ` (${t('Default')})` : '';
         const label = `${profile.name}${countryPart} - ${profile.percentage}%${defaultPart}`;
         options.push({ value: profile.id, label });
     });
@@ -56,16 +58,16 @@ const submit = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'VAT configuration updated successfully.',
+                title: t('Success'),
+                message: t('VAT configuration updated successfully.'),
             });
         },
         onError: (errors) => {
             console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to update VAT configuration. Please try again.',
+                title: t('Error'),
+                message: t('Failed to update VAT configuration. Please try again.'),
             });
         },
     });
@@ -73,7 +75,7 @@ const submit = () => {
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
-        title: 'VAT Configuration',
+        title: t('VAT Configuration'),
         href: edit().url,
     },
 ];
@@ -81,34 +83,34 @@ const breadcrumbItems: BreadcrumbItem[] = [
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="VAT Configuration" />
+        <Head :title="t('VAT Configuration')" />
 
         <SettingsLayout>
             <div class="flex flex-col space-y-6">
                 <HeadingSmall
-                    title="VAT Configuration"
-                    description="Configure the default VAT profile for transactions"
+                    :title="t('VAT Configuration')"
+                    :description="t('Configure the default VAT profile for transactions')"
                 />
 
                 <form @submit.prevent="submit" class="space-y-6">
                     <div class="space-y-2">
-                        <Label for="default_vat_profile_id">Default VAT Profile</Label>
+                        <Label for="default_vat_profile_id">{{ t('Default VAT Profile') }}</Label>
                         <Select
                             id="default_vat_profile_id"
                             v-model="form.default_vat_profile_id"
                             :options="vatProfileOptions"
-                            placeholder="No default VAT profile"
+                            :placeholder="t('No default VAT profile')"
                             searchable
                             :error="!!form.errors.default_vat_profile_id"
                         />
                         <InputError :message="form.errors.default_vat_profile_id" />
                         <p class="text-sm text-muted-foreground">
-                            This VAT profile will be used as the default for new transactions when no specific profile is selected.
+                            {{ t('This VAT profile will be used as the default for new transactions when no specific profile is selected.') }}
                         </p>
                     </div>
 
                     <div v-if="defaultVatProfile" class="rounded-lg border p-4 bg-muted/50">
-                        <h3 class="font-semibold mb-2">Current Default VAT Profile</h3>
+                        <h3 class="font-semibold mb-2">{{ t('Current Default VAT Profile') }}</h3>
                         <p class="text-sm">
                             <strong>{{ defaultVatProfile.name }}</strong>
                             <span v-if="defaultVatProfile.country"> ({{ defaultVatProfile.country.name }})</span>
@@ -124,7 +126,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             type="submit"
                             :disabled="form.processing"
                         >
-                            {{ form.processing ? 'Saving...' : 'Save Changes' }}
+                            {{ form.processing ? t('Saving...') : t('Save Changes') }}
                         </Button>
                     </div>
                 </form>

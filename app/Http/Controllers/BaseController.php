@@ -20,11 +20,15 @@ abstract class BaseController extends Controller
 
         if (!$vessel) {
             // Fallback to route parameter if attributes not set (shouldn't happen with proper middleware)
-            $vesselId = $request->route('vessel');
-            if (!$vesselId) {
+            $vesselParam = $request->route('vessel');
+            if (!$vesselParam) {
                 abort(403, 'No vessel specified.');
             }
-            $vessel = Vessel::findOrFail($vesselId);
+            // Use resolveRouteBinding to handle both hashed and numeric IDs
+            $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
+            if (!$vessel) {
+                abort(404, 'Vessel not found.');
+            }
         }
 
         return $vessel;

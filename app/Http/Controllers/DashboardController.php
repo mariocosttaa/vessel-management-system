@@ -54,6 +54,35 @@ class DashboardController extends BaseController
         $netBalance = $totalIncome - $totalExpenses;
         $transactionCount = (int) ($currentMonthStats->transaction_count ?? 0);
 
+        // Get current month expenses by category for donut chart
+        $currentMonthExpensesByCategory = Transaction::where('transactions.vessel_id', $vesselId)
+            ->where('transactions.transaction_year', $currentYear)
+            ->where('transactions.transaction_month', $currentMonth)
+            ->where('transactions.status', 'completed')
+            ->where('transactions.type', 'expense')
+            ->leftJoin('transaction_categories', 'transactions.category_id', '=', 'transaction_categories.id')
+            ->select(
+                'transactions.category_id',
+                DB::raw('COALESCE(transaction_categories.name, "Uncategorized") as category_name'),
+                DB::raw('transaction_categories.color as category_color'),
+                DB::raw('SUM(transactions.total_amount) as total_expenses')
+            )
+            ->groupBy('transactions.category_id')
+            ->groupBy(DB::raw('COALESCE(transaction_categories.name, "Uncategorized")'))
+            ->groupBy('transaction_categories.color')
+            ->havingRaw('SUM(transactions.total_amount) > 0')
+            ->orderByDesc('total_expenses')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'category_id' => $item->category_id,
+                    'category_name' => $item->category_name,
+                    'category_color' => $item->category_color,
+                    'total_expenses' => (int) $item->total_expenses,
+                ];
+            })
+            ->values();
+
         // Get last 6 months data for chart
         $last6Months = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -206,6 +235,7 @@ class DashboardController extends BaseController
             'last6CrewMembers' => $last6CrewMembers,
             'defaultCurrency' => $defaultCurrency,
             'permissions' => $permissions,
+            'currentMonthExpensesByCategory' => $currentMonthExpensesByCategory,
         ]);
     }
 }

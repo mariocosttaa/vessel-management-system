@@ -11,6 +11,7 @@ import SupplierShowModal from '@/components/modals/Supplier/show.vue';
 import PermissionGate from '@/components/PermissionGate.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import suppliers from '@/routes/panel/suppliers';
 
 // Get current vessel ID from URL
@@ -47,6 +48,7 @@ const props = defineProps<Props>();
 
 // Permissions
 const { can } = usePermissions();
+const { t } = useI18n();
 
 // Computed property for suppliers data
 const suppliersData = computed(() => props.suppliers?.data || []);
@@ -69,13 +71,13 @@ const supplierToDelete = ref<Supplier | null>(null);
 const isDeleting = ref(false);
 
 // Table configuration
-const columns = [
-    { key: 'company_name', label: 'Company', sortable: true },
-    { key: 'email', label: 'Email', sortable: false },
-    { key: 'phone', label: 'Phone', sortable: false },
-    { key: 'address', label: 'Address', sortable: false },
-    { key: 'created_at', label: 'Created', sortable: true },
-];
+const columns = computed(() => [
+    { key: 'company_name', label: t('Company'), sortable: true },
+    { key: 'email', label: t('Email'), sortable: false },
+    { key: 'phone', label: t('Phone'), sortable: false },
+    { key: 'address', label: t('Address'), sortable: false },
+    { key: 'created_at', label: t('Created'), sortable: true },
+]);
 
 // Actions configuration based on permissions
 const actions = computed(() => {
@@ -83,7 +85,7 @@ const actions = computed(() => {
 
     if (can('view', 'suppliers')) {
         availableActions.push({
-            label: 'View Details',
+            label: t('View Details'),
             icon: 'eye',
             onClick: (supplier: Supplier) => openShowModal(supplier),
         });
@@ -91,7 +93,7 @@ const actions = computed(() => {
 
     if (can('edit', 'suppliers')) {
         availableActions.push({
-            label: 'Edit Supplier',
+            label: t('Edit Supplier'),
             icon: 'edit',
             onClick: (supplier: Supplier) => openEditModal(supplier),
         });
@@ -99,7 +101,7 @@ const actions = computed(() => {
 
     if (can('delete', 'suppliers')) {
         availableActions.push({
-            label: 'Delete Supplier',
+            label: t('Delete Supplier'),
             icon: 'trash-2',
             variant: 'destructive' as const,
             onClick: (supplier: Supplier) => deleteSupplier(supplier),
@@ -188,16 +190,16 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-    <Head title="Suppliers" />
+    <Head :title="t('Suppliers')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Suppliers', href: suppliers.index.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Suppliers'), href: suppliers.index.url({ vessel: getCurrentVesselId() }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Suppliers</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage your suppliers and vendors</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Suppliers') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage your suppliers and vendors') }}</p>
                     </div>
                     <PermissionGate permission="suppliers.create">
                         <button
@@ -205,7 +207,7 @@ const formatDate = (dateString: string) => {
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                         >
                             <Icon name="plus" class="w-4 h-4 mr-2" />
-                            Add Supplier
+                            {{ t('Add Supplier') }}
                         </button>
                     </PermissionGate>
                 </div>
@@ -221,7 +223,7 @@ const formatDate = (dateString: string) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search suppliers..."
+                                :placeholder="t('Search suppliers...')"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
@@ -240,7 +242,7 @@ const formatDate = (dateString: string) => {
                 :sort-direction="sortDirection"
                 :on-sort="handleSort"
                 :loading="false"
-                empty-message="No suppliers found"
+                :empty-message="t('No suppliers found')"
             >
                 <!-- Custom cell for supplier company -->
                 <template #cell-company_name="{ item }">
@@ -304,11 +306,11 @@ const formatDate = (dateString: string) => {
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            title="Delete Supplier"
-            description="This action cannot be undone."
-            :message="`Are you sure you want to delete the supplier '${supplierToDelete?.company_name}'? This will permanently remove the supplier and all their data.`"
-            confirm-text="Delete Supplier"
-            cancel-text="Cancel"
+            :title="t('Delete Supplier')"
+            :description="t('This action cannot be undone.')"
+            :message="`${t('Are you sure you want to delete the supplier')} '${supplierToDelete?.company_name}'? ${t('This will permanently remove the supplier and all their data')}.`"
+            :confirm-text="t('Delete Supplier')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"

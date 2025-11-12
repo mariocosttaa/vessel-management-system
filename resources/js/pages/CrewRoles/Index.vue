@@ -13,6 +13,7 @@ import PermissionsInfoModal from '@/components/modals/CrewRole/PermissionsInfoMo
 import PermissionGate from '@/components/PermissionGate.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import { usePage } from '@inertiajs/vue3';
 
 // Get current vessel ID from URL
@@ -67,6 +68,7 @@ const props = defineProps<Props>();
 
 // Permissions
 const { can, canView } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to view crew roles
 onMounted(() => {
@@ -89,9 +91,9 @@ const sortDirection = ref(props.filters.direction || 'asc');
 // Convert to Select component options format
 const scopeOptions = computed(() => {
     return [
-        { value: '', label: 'All Scopes' },
-        { value: 'global', label: 'Default' },
-        { value: 'vessel', label: 'Created' }
+        { value: '', label: t('All Scopes') },
+        { value: 'global', label: t('Default') },
+        { value: 'vessel', label: t('Created') }
     ];
 });
 
@@ -109,14 +111,14 @@ const crewPositionToDelete = ref<CrewPosition | null>(null);
 const isDeleting = ref(false);
 
 // Table configuration
-const columns = [
-    { key: 'name', label: 'Role Name', sortable: true },
-    { key: 'scope_label', label: 'Scope', sortable: false },
-    { key: 'vessel_role_access', label: 'Permission Level', sortable: false },
-    { key: 'crew_members_count', label: 'Crew Members', sortable: false },
-    { key: 'description', label: 'Description', sortable: false },
-    { key: 'created_at', label: 'Created', sortable: true },
-];
+const columns = computed(() => [
+    { key: 'name', label: t('Role Name'), sortable: true },
+    { key: 'scope_label', label: t('Scope'), sortable: false },
+    { key: 'vessel_role_access', label: t('Permission Level'), sortable: false },
+    { key: 'crew_members_count', label: t('Crew Members'), sortable: false },
+    { key: 'description', label: t('Description'), sortable: false },
+    { key: 'created_at', label: t('Created'), sortable: true },
+]);
 
 // Actions configuration based on permissions
 const actions = computed(() => {
@@ -125,7 +127,7 @@ const actions = computed(() => {
 
         if (can('view', 'crew-roles')) {
             availableActions.push({
-                label: 'View Details',
+                label: t('View Details'),
                 icon: 'eye',
                 onClick: (position: CrewPosition) => openShowModal(position),
             });
@@ -134,7 +136,7 @@ const actions = computed(() => {
         // Only allow editing of vessel-specific roles (not global/default roles)
         if (can('edit', 'crew-roles') && !item.is_global) {
             availableActions.push({
-                label: 'Edit Role',
+                label: t('Edit Role'),
                 icon: 'edit',
                 onClick: (position: CrewPosition) => openEditModal(position),
             });
@@ -143,7 +145,7 @@ const actions = computed(() => {
         // Only allow deletion of vessel-specific roles (not global/default roles)
         if (can('delete', 'crew-roles') && !item.is_global) {
             availableActions.push({
-                label: 'Delete Role',
+                label: t('Delete Role'),
                 icon: 'trash-2',
                 variant: 'destructive' as const,
                 onClick: (position: CrewPosition) => deleteCrewPosition(position),
@@ -243,16 +245,16 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
 </script>
 
 <template>
-    <Head title="Crew Roles" />
+    <Head :title="t('Crew Roles')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Crew Roles', href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Crew Roles'), href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Crew Roles</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage crew positions and roles</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Crew Roles') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage crew positions and roles') }}</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <button
@@ -260,7 +262,7 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                             class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card px-4 py-2 text-sm font-medium text-card-foreground dark:text-card-foreground transition-colors hover:bg-sidebar-accent dark:hover:bg-sidebar-accent"
                         >
                             <Icon name="info" class="h-4 w-4" />
-                            Permission Types
+                            {{ t('Permission Types') }}
                         </button>
                         <PermissionGate permission="crew-roles.create">
                             <button
@@ -268,7 +270,7 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                                 class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                             >
                                 <Icon name="plus" class="h-4 w-4" />
-                                Add Role
+                                {{ t('Add Role') }}
                             </button>
                         </PermissionGate>
                     </div>
@@ -285,7 +287,7 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search roles..."
+                                :placeholder="t('Search roles...')"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
@@ -296,7 +298,7 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                         <Select
                             v-model="scopeFilter"
                             :options="scopeOptions"
-                            placeholder="All Scopes"
+                            :placeholder="t('All Scopes')"
                         />
                     </div>
                 </div>
@@ -323,7 +325,7 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                                     : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
                             ]"
                         >
-                            {{ item.is_global ? 'Default' : 'Created' }}
+                            {{ item.is_global ? t('Default') : t('Created') }}
                         </span>
                     </template>
                     <template #cell-vessel_role_access="{ item }">
@@ -395,11 +397,11 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             :open="showDeleteDialog"
-            title="Delete Crew Role"
-            description="This action cannot be undone."
-            :message="crewPositionToDelete ? `Are you sure you want to delete the crew role '${crewPositionToDelete.name}'? This will permanently remove the role.` : ''"
-            confirm-text="Delete Role"
-            cancel-text="Cancel"
+            :title="t('Delete Crew Role')"
+            :description="t('This action cannot be undone.')"
+            :message="crewPositionToDelete ? `${t('Are you sure you want to delete the crew role')} '${crewPositionToDelete.name}'? ${t('This will permanently remove the role')}.` : ''"
+            :confirm-text="t('Delete Role')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"

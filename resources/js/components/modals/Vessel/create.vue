@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 import vessels from '@/routes/vessels';
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -57,7 +59,7 @@ const handleClose = () => {
 
 // Convert to Select component options format
 const vesselTypeOptions = computed(() => {
-    const options = [{ value: '', label: 'Select vessel type' }];
+    const options = [{ value: '', label: t('Select vessel type') }];
     Object.entries(props.vesselTypes).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -73,7 +75,7 @@ const statusOptions = computed(() => {
 });
 
 const countryOptions = computed(() => {
-    const options = [{ value: '', label: 'Select country' }];
+    const options = [{ value: '', label: t('Select country') }];
     props.countries.forEach(country => {
         options.push({ value: country.code, label: country.name });
     });
@@ -81,7 +83,7 @@ const countryOptions = computed(() => {
 });
 
 const currencyOptions = computed(() => {
-    const options = [{ value: '', label: 'Select currency' }];
+    const options = [{ value: '', label: t('Select currency') }];
     props.currencies.forEach(currency => {
         options.push({ value: currency.code, label: `${currency.name} (${currency.symbol})` });
     });
@@ -93,9 +95,9 @@ const currencyOptions = computed(() => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Create New Vessel</DialogTitle>
+                <DialogTitle>{{ t('Create New Vessel') }}</DialogTitle>
                 <DialogDescription>
-                    Add a new vessel to your fleet management system
+                    {{ t('Add a new vessel to your fleet management system') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -105,13 +107,13 @@ const currencyOptions = computed(() => {
                         <!-- Name -->
                         <div class="md:col-span-2">
                             <Label for="name" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Vessel Name <span class="text-destructive">*</span>
+                                {{ t('Vessel Name') }} <span class="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="name"
                                 v-model="form.name"
                                 type="text"
-                                placeholder="Enter vessel name"
+                                :placeholder="t('Enter vessel name')"
                                 required
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.name }"
                             />
@@ -121,13 +123,13 @@ const currencyOptions = computed(() => {
                         <!-- Registration Number -->
                         <div class="md:col-span-2">
                             <Label for="registration_number" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Registration Number <span class="text-destructive">*</span>
+                                {{ t('Registration Number') }} <span class="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="registration_number"
                                 v-model="form.registration_number"
                                 type="text"
-                                placeholder="Enter registration number"
+                                :placeholder="t('Enter registration number')"
                                 required
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.registration_number }"
                             />
@@ -137,13 +139,13 @@ const currencyOptions = computed(() => {
                         <!-- Vessel Type -->
                         <div>
                             <Label for="vessel_type" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Vessel Type <span class="text-destructive">*</span>
+                                {{ t('Vessel Type') }} <span class="text-destructive">*</span>
                             </Label>
                             <Select
                                 id="vessel_type"
                                 v-model="form.vessel_type"
                                 :options="vesselTypeOptions"
-                                placeholder="Select vessel type"
+                                :placeholder="t('Select vessel type')"
                                 :error="!!form.errors.vessel_type"
                             />
                             <InputError :message="form.errors.vessel_type" class="mt-1" />
@@ -152,7 +154,7 @@ const currencyOptions = computed(() => {
                         <!-- Status -->
                         <div>
                             <Label for="status" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Status <span class="text-destructive">*</span>
+                                {{ t('Status') }} <span class="text-destructive">*</span>
                             </Label>
                             <Select
                                 id="status"
@@ -166,14 +168,14 @@ const currencyOptions = computed(() => {
                         <!-- Capacity -->
                         <div>
                             <Label for="capacity" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Capacity
+                                {{ t('Capacity') }}
                             </Label>
                             <Input
                                 id="capacity"
                                 v-model.number="form.capacity"
                                 type="number"
                                 min="1"
-                                placeholder="Enter capacity"
+                                :placeholder="t('Enter capacity')"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.capacity }"
                             />
                             <InputError :message="form.errors.capacity" class="mt-1" />
@@ -182,7 +184,7 @@ const currencyOptions = computed(() => {
                         <!-- Year Built -->
                         <div>
                             <Label for="year_built" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Year Built
+                                {{ t('Year Built') }}
                             </Label>
                             <Input
                                 id="year_built"
@@ -190,7 +192,7 @@ const currencyOptions = computed(() => {
                                 type="number"
                                 :min="1900"
                                 :max="new Date().getFullYear()"
-                                placeholder="Enter year built"
+                                :placeholder="t('Enter year built')"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.year_built }"
                             />
                             <InputError :message="form.errors.year_built" class="mt-1" />
@@ -199,13 +201,13 @@ const currencyOptions = computed(() => {
                         <!-- Country -->
                         <div>
                             <Label for="country_code" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Country
+                                {{ t('Country') }}
                             </Label>
                             <Select
                                 id="country_code"
                                 v-model="form.country_code"
                                 :options="countryOptions"
-                                placeholder="Select country"
+                                :placeholder="t('Select country')"
                                 searchable
                                 :error="!!form.errors.country_code"
                             />
@@ -215,13 +217,13 @@ const currencyOptions = computed(() => {
                         <!-- Currency -->
                         <div>
                             <Label for="currency_code" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Currency
+                                {{ t('Currency') }}
                             </Label>
                             <Select
                                 id="currency_code"
                                 v-model="form.currency_code"
                                 :options="currencyOptions"
-                                placeholder="Select currency"
+                                :placeholder="t('Select currency')"
                                 searchable
                                 :error="!!form.errors.currency_code"
                             />
@@ -231,13 +233,13 @@ const currencyOptions = computed(() => {
                         <!-- Notes -->
                         <div class="md:col-span-2">
                             <Label for="notes" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Notes
+                                {{ t('Notes') }}
                             </Label>
                             <textarea
                                 id="notes"
                                 v-model="form.notes"
                                 rows="3"
-                                placeholder="Enter additional notes"
+                                :placeholder="t('Enter additional notes')"
                                 class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                             ></textarea>
@@ -253,14 +255,14 @@ const currencyOptions = computed(() => {
                     @click="handleClose"
                     :disabled="form.processing"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button
                     @click="handleSave"
                     :disabled="form.processing"
                 >
                     <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                    Save Vessel
+                    {{ t('Save Vessel') }}
                 </Button>
             </div>
         </DialogContent>

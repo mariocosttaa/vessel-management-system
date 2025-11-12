@@ -8,6 +8,7 @@ import Icon from '@/components/Icon.vue';
 import InputError from '@/components/InputError.vue';
 import ItemModal from '@/components/modals/MareaDistributionProfile/ItemModal.vue';
 import { useForm } from '@inertiajs/vue3';
+import { useI18n } from '@/composables/useI18n';
 
 interface DistributionItem {
     id?: number;
@@ -38,6 +39,8 @@ const emit = defineEmits<{
     'close': [];
     'success': [];
 }>();
+
+const { t } = useI18n();
 
 const form = useForm<{ items: DistributionItem[] }>({
     items: [] as DistributionItem[],
@@ -74,33 +77,33 @@ watch(() => props.open, (isOpen) => {
 });
 
 const valueTypes = [
-    { value: 'base_total_income', label: 'Total Income', dynamic: true, description: 'Use the total income amount' },
-    { value: 'base_total_expense', label: 'Total Expenses', dynamic: true, description: 'Use the total expenses amount' },
-    { value: 'fixed_amount', label: 'Fixed Amount', dynamic: false, description: 'Enter a fixed monetary value' },
-    { value: 'percentage_of_income', label: 'Percentage of Income', dynamic: false, description: 'Calculate a percentage of total income' },
-    { value: 'percentage_of_expense', label: 'Percentage of Expense', dynamic: false, description: 'Calculate a percentage of total expenses' },
-    { value: 'reference_item', label: 'Reference Step', dynamic: false, description: 'Use the result from another step' },
+    { value: 'base_total_income', label: t('Total Income'), dynamic: true, description: t('Use the total income amount') },
+    { value: 'base_total_expense', label: t('Total Expenses'), dynamic: true, description: t('Use the total expenses amount') },
+    { value: 'fixed_amount', label: t('Fixed Amount'), dynamic: false, description: t('Enter a fixed monetary value') },
+    { value: 'percentage_of_income', label: t('Percentage of Income'), dynamic: false, description: t('Calculate a percentage of total income') },
+    { value: 'percentage_of_expense', label: t('Percentage of Expense'), dynamic: false, description: t('Calculate a percentage of total expenses') },
+    { value: 'reference_item', label: t('Reference Step'), dynamic: false, description: t('Use the result from another step') },
 ];
 
 const getValueTypeLabel = (valueType: string) => {
     const types: Record<string, string> = {
-        base_total_income: 'Total Income',
-        base_total_expense: 'Total Expenses',
-        fixed_amount: 'Fixed Amount',
-        percentage_of_income: '% of Income',
-        percentage_of_expense: '% of Expense',
-        reference_item: 'Ref Step',
+        base_total_income: t('Total Income'),
+        base_total_expense: t('Total Expenses'),
+        fixed_amount: t('Fixed Amount'),
+        percentage_of_income: t('% of Income'),
+        percentage_of_expense: t('% of Expense'),
+        reference_item: t('Ref Step'),
     };
     return types[valueType] || valueType;
 };
 
 const formatValue = (item: DistributionItem) => {
     if (item.value_type === 'base_total_income' || item.value_type === 'base_total_expense') {
-        return 'Auto';
+        return t('Auto');
     }
     if (item.value_type === 'reference_item') {
         const refIndex = item.reference_item_order_index ?? item.reference_item_id;
-        return refIndex ? `Step ${refIndex}` : '—';
+        return refIndex ? `${t('Step')} ${refIndex}` : '—';
     }
     if (item.value_type.includes('percentage')) {
         return `${item.value_amount}%`;
@@ -109,11 +112,11 @@ const formatValue = (item: DistributionItem) => {
 };
 
 const operations = [
-    { value: 'set', label: 'Set (=)', symbol: '=', color: 'bg-blue-500' },
-    { value: 'add', label: 'Add (+)', symbol: '+', color: 'bg-green-500' },
-    { value: 'subtract', label: 'Subtract (-)', symbol: '-', color: 'bg-red-500' },
-    { value: 'multiply', label: 'Multiply (×)', symbol: '×', color: 'bg-purple-500' },
-    { value: 'divide', label: 'Divide (÷)', symbol: '÷', color: 'bg-orange-500' },
+    { value: 'set', label: t('Set (=)'), symbol: '=', color: 'bg-blue-500' },
+    { value: 'add', label: t('Add (+)'), symbol: '+', color: 'bg-green-500' },
+    { value: 'subtract', label: t('Subtract (-)'), symbol: '-', color: 'bg-red-500' },
+    { value: 'multiply', label: t('Multiply (×)'), symbol: '×', color: 'bg-purple-500' },
+    { value: 'divide', label: t('Divide (÷)'), symbol: '÷', color: 'bg-orange-500' },
 ];
 
 const getOperationInfo = (operation: string) => {
@@ -240,12 +243,12 @@ const moveItemDown = (index: number) => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>Edit Calculation Override</DialogTitle>
+                <DialogTitle>{{ t('Edit Calculation Override') }}</DialogTitle>
             </DialogHeader>
 
             <div class="space-y-4">
                 <p class="text-sm text-muted-foreground">
-                    Customize the calculation steps for this marea. These overrides will be used instead of the distribution profile.
+                    {{ t('Customize the calculation steps for this marea. These overrides will be used instead of the distribution profile.') }}
                 </p>
 
                 <!-- Visual Flow Display -->
@@ -283,14 +286,14 @@ const moveItemDown = (index: number) => {
                                 <div class="flex items-start justify-between mb-2">
                                     <div class="flex-1">
                                         <h4 class="font-semibold text-card-foreground dark:text-card-foreground mb-1">
-                                            {{ item.name || 'Unnamed Step' }}
+                                            {{ item.name || t('Unnamed Step') }}
                                         </h4>
                                         <p v-if="item.description" class="text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mb-2">
                                             {{ item.description }}
                                         </p>
                                         <div class="flex items-center gap-3 text-xs text-muted-foreground dark:text-muted-foreground">
                                             <span>{{ getValueTypeLabel(item.value_type) }}</span>
-                                            <span v-if="formatValue(item) !== 'Auto'">• {{ formatValue(item) }}</span>
+                                            <span v-if="item.value_type !== 'base_total_income' && item.value_type !== 'base_total_expense'">• {{ formatValue(item) }}</span>
                                         </div>
                                     </div>
                                     <div class="flex gap-1 ml-4">
@@ -299,7 +302,7 @@ const moveItemDown = (index: number) => {
                                             @click.stop="moveItemUp(index)"
                                             :disabled="index === 0"
                                             class="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                            title="Move up"
+                                            :title="t('Move up')"
                                         >
                                             <Icon name="arrow-up" class="w-4 h-4" />
                                         </button>
@@ -308,7 +311,7 @@ const moveItemDown = (index: number) => {
                                             @click.stop="moveItemDown(index)"
                                             :disabled="index === form.items.length - 1"
                                             class="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                            title="Move down"
+                                            :title="t('Move down')"
                                         >
                                             <Icon name="arrow-down" class="w-4 h-4" />
                                         </button>
@@ -316,7 +319,7 @@ const moveItemDown = (index: number) => {
                                             type="button"
                                             @click.stop="removeItem(index)"
                                             class="p-1.5 rounded hover:bg-destructive/10 text-destructive transition-colors"
-                                            title="Remove step"
+                                            :title="t('Remove step')"
                                         >
                                             <Icon name="trash" class="w-4 h-4" />
                                         </button>
@@ -329,23 +332,23 @@ const moveItemDown = (index: number) => {
 
                 <div v-else class="text-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
                     <Icon name="layers" class="w-12 h-12 mx-auto mb-4 opacity-30" />
-                    <p class="text-sm font-medium mb-2">No calculation steps</p>
-                    <p class="text-xs mb-4">Click "Add Step" to start creating custom calculation steps.</p>
+                    <p class="text-sm font-medium mb-2">{{ t('No calculation steps') }}</p>
+                    <p class="text-xs mb-4">{{ t('Click "Add Step" to start creating custom calculation steps.') }}</p>
                 </div>
 
                 <Button type="button" variant="outline" @click="addItem" class="w-full">
                     <Icon name="plus" class="w-4 h-4 mr-2" />
-                    Add Step
+                    {{ t('Add Step') }}
                 </Button>
             </div>
 
             <DialogFooter>
                 <Button variant="outline" @click="handleClose" :disabled="form.processing">
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button @click="handleSave" :disabled="form.processing">
                     <Icon v-if="form.processing" name="loader-2" class="w-4 h-4 mr-2 animate-spin" />
-                    Save Override
+                    {{ t('Save Override') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

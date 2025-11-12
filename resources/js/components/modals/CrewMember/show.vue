@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface CrewMember {
     id: number;
@@ -36,6 +37,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -65,27 +67,21 @@ const getStatusBadgeClass = (status: string) => {
 };
 
 const formatSalaryAmount = (compensation: any) => {
-    if (!compensation) return 'Not specified';
+    if (!compensation) return t('Not specified');
 
     if (compensation.compensation_type === 'fixed' && compensation.fixed_amount) {
         const amount = (compensation.fixed_amount / 100).toFixed(2);
         return `${amount} ${compensation.currency}`;
     } else if (compensation.compensation_type === 'percentage' && compensation.percentage) {
-        return `${compensation.percentage}% of revenue`;
+        return `${compensation.percentage}% ${t('of revenue')}`;
     }
 
-    return 'Not specified';
+    return t('Not specified');
 };
 
 const formatPaymentFrequency = (frequency: string) => {
-    const frequencies: Record<string, string> = {
-        'weekly': 'Weekly',
-        'bi_weekly': 'Bi-weekly',
-        'monthly': 'Monthly',
-        'quarterly': 'Quarterly',
-        'annually': 'Annually'
-    };
-    return frequencies[frequency] || frequency;
+    // Payment frequencies are already translated from backend, so just return as is
+    return frequency;
 };
 </script>
 
@@ -93,9 +89,9 @@ const formatPaymentFrequency = (frequency: string) => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-2xl">
             <DialogHeader>
-                <DialogTitle>Crew Member Details</DialogTitle>
+                <DialogTitle>{{ t('Crew Member Details') }}</DialogTitle>
                 <DialogDescription>
-                    View detailed information about this crew member
+                    {{ t('View detailed information about this crew member') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -105,23 +101,23 @@ const formatPaymentFrequency = (frequency: string) => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                                Basic Information
+                                {{ t('Basic Information') }}
                             </h3>
                             <dl class="space-y-3">
                                 <div>
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Full Name</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Full Name') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ crewMember.name }}</dd>
                                 </div>
                                 <div v-if="crewMember.email">
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Email</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Email') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ crewMember.email }}</dd>
                                 </div>
                                 <div v-if="crewMember.phone">
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Phone</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Phone') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ crewMember.phone }}</dd>
                                 </div>
                                 <div v-if="crewMember.date_of_birth">
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Date of Birth</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Date of Birth') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                         {{ crewMember.formatted_date_of_birth || formatDate(crewMember.date_of_birth) }}
                                     </dd>
@@ -131,21 +127,21 @@ const formatPaymentFrequency = (frequency: string) => {
 
                         <div>
                             <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                                Employment Information
+                                {{ t('Employment Information') }}
                             </h3>
                             <dl class="space-y-3">
                                 <div>
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Position</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Position') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">{{ crewMember.position_name }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Hire Date</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Hire Date') }}</dt>
                                     <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                         {{ crewMember.formatted_hire_date || formatDate(crewMember.hire_date) }}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Status</dt>
+                                    <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Status') }}</dt>
                                     <dd class="text-sm">
                                         <span :class="getStatusBadgeClass(crewMember.status)">
                                             {{ crewMember.status_label }}
@@ -159,23 +155,23 @@ const formatPaymentFrequency = (frequency: string) => {
                     <!-- Salary Information -->
                     <div v-if="crewMember.salary_compensation">
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            Salary Information
+                            {{ t('Salary Information') }}
                         </h3>
                         <dl class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Compensation Type</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Compensation Type') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
-                                    {{ crewMember.salary_compensation.compensation_type === 'fixed' ? 'Fixed Salary' : 'Percentage of Revenue' }}
+                                    {{ crewMember.salary_compensation.compensation_type === 'fixed' ? t('Fixed Salary') : t('Percentage of Revenue') }}
                                 </dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Amount</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Amount') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatSalaryAmount(crewMember.salary_compensation) }}
                                 </dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Payment Frequency</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Payment Frequency') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatPaymentFrequency(crewMember.salary_compensation.payment_frequency) }}
                                 </dd>
@@ -186,7 +182,7 @@ const formatPaymentFrequency = (frequency: string) => {
                     <!-- Notes -->
                     <div v-if="crewMember.notes">
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            Notes
+                            {{ t('Notes') }}
                         </h3>
                         <p class="text-sm text-card-foreground dark:text-card-foreground bg-muted/50 dark:bg-muted/50 p-4 rounded-lg">
                             {{ crewMember.notes }}
@@ -196,17 +192,17 @@ const formatPaymentFrequency = (frequency: string) => {
                     <!-- System Information -->
                     <div>
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            System Information
+                            {{ t('System Information') }}
                         </h3>
                         <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Created</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Created') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatDate(crewMember.created_at) }}
                                 </dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Last Updated</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Last Updated') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatDate(crewMember.updated_at) }}
                                 </dd>
@@ -221,7 +217,7 @@ const formatPaymentFrequency = (frequency: string) => {
                     variant="outline"
                     @click="handleClose"
                 >
-                    Close
+                    {{ t('Close') }}
                 </Button>
             </div>
         </DialogContent>

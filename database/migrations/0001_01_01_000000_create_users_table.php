@@ -39,6 +39,9 @@ return new class extends Migration
             $table->boolean('login_permitted')->default(true);
             $table->string('temporary_password')->nullable();
 
+            // Notification preferences
+            $table->boolean('vessel_admin_notification')->default(false)->comment('Enable email notifications for vessel admin activities');
+
             $table->timestamps();
 
             // Indexes
