@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Requests;
 
 use App\Actions\General\EasyHashAction;
@@ -7,7 +6,6 @@ use App\Actions\MoneyAction;
 use App\Models\CrewMember;
 use App\Models\CrewPosition;
 use App\Models\User;
-use App\Models\Vessel;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,11 +49,18 @@ class StoreCrewMemberRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter
-        $vesselId = $this->route('vessel');
-        $user = $this->user();
+        // Get vessel ID from route parameter (hashed)
+        $vesselHash = $this->route('vessel');
+        $user       = $this->user();
 
-        if (!$user) {
+        if (! $user) {
+            return false;
+        }
+
+        // Decode hashed vessel ID to numeric ID
+        $vesselId = EasyHashAction::decode($vesselHash, 'vessel-id');
+
+        if (! $vesselId) {
             return false;
         }
 
@@ -70,33 +75,33 @@ class StoreCrewMemberRequest extends FormRequest
      */
     public function rules(): array
     {
-        $vesselId = $this->route('vessel');
+        $vesselId   = $this->route('vessel');
         $skipSalary = $this->boolean('skip_salary') ?? false;
 
+        $createWithoutEmail = $this->boolean('create_without_email') ?? false;
+
         $rules = [
-            'position_id' => ['required', 'integer', Rule::exists(CrewPosition::class, 'id')],
-            'login_permitted' => ['boolean'],
-            'password' => ['nullable', 'string', 'min:8'],
-            'password_confirmation' => ['nullable', 'same:password'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'hire_date' => ['required', 'date'],
-            'status' => ['required', 'in:active,inactive,on_leave'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'skip_salary' => ['boolean'],
+            'position_id'          => ['required', 'integer', Rule::exists(CrewPosition::class, 'id')],
+            'name'                 => ['required', 'string', 'max:255'],
+            'email'                => $createWithoutEmail ? ['nullable', 'email', 'max:255'] : ['required', 'email', 'max:255'],
+            'phone'                => ['nullable', 'string', 'max:50'],
+            'date_of_birth'        => ['nullable', 'date', 'before:today'],
+            'hire_date'            => ['required', 'date'],
+            'status'               => ['nullable', 'in:active,inactive,on_leave'],
+            'notes'                => ['nullable', 'string', 'max:1000'],
+            'skip_salary'          => ['boolean'],
+            'create_without_email' => ['boolean'],
         ];
 
         // Note: Password validation for existing users is handled in the controller
         // If email belongs to existing user, password is not required
 
         // Only require salary fields if salary is not skipped
-        if (!$skipSalary) {
+        if (! $skipSalary) {
             $rules['compensation_type'] = ['required', 'string', 'in:fixed,percentage'];
-            $rules['fixed_amount'] = ['required_if:compensation_type,fixed', 'nullable', 'numeric', 'min:0'];
-            $rules['percentage'] = ['required_if:compensation_type,percentage', 'nullable', 'numeric', 'min:0', 'max:100'];
-            $rules['currency'] = ['required', 'string', 'size:3'];
+            $rules['fixed_amount']      = ['required_if:compensation_type,fixed', 'nullable', 'numeric', 'min:0'];
+            $rules['percentage']        = ['required_if:compensation_type,percentage', 'nullable', 'numeric', 'min:0', 'max:100'];
+            $rules['currency']          = ['required', 'string', 'size:3'];
             $rules['payment_frequency'] = ['required', 'string', 'in:weekly,bi_weekly,monthly,quarterly,annually'];
         }
 
@@ -111,16 +116,16 @@ class StoreCrewMemberRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'position_id.required' => 'Please select a crew position.',
-            'position_id.exists' => 'The selected crew position is invalid.',
-            'name.required' => 'The crew member name is required.',
-            'email.email' => 'Please enter a valid email address.',
-            'date_of_birth.before' => 'The date of birth must be before today.',
-            'hire_date.required' => 'The hire date is required.',
-            'salary_amount.required' => 'The salary amount is required.',
-            'salary_amount.min' => 'The salary amount must be at least 0.',
+            'position_id.required'       => 'Please select a crew position.',
+            'position_id.exists'         => 'The selected crew position is invalid.',
+            'name.required'              => 'The crew member name is required.',
+            'email.email'                => 'Please enter a valid email address.',
+            'date_of_birth.before'       => 'The date of birth must be before today.',
+            'hire_date.required'         => 'The hire date is required.',
+            'salary_amount.required'     => 'The salary amount is required.',
+            'salary_amount.min'          => 'The salary amount must be at least 0.',
             'payment_frequency.required' => 'Please select a payment frequency.',
-            'status.required' => 'Please select a status.',
+            'status.required'            => 'Please select a status.',
         ];
     }
 
@@ -131,21 +136,33 @@ class StoreCrewMemberRequest extends FormRequest
     {
         $data = [];
 
-        // Unhash IDs from frontend
+        // Unhash IDs from frontend (only if it's a string, otherwise it's already numeric)
         if ($this->filled('position_id')) {
-            $data['position_id'] = EasyHashAction::decode($this->position_id, 'crewposition-id');
+            if (is_string($this->position_id)) {
+                // Try to decode if it's a hashed ID
+                $decoded = EasyHashAction::decode($this->position_id, 'crewposition-id');
+                if ($decoded) {
+                    $data['position_id'] = $decoded;
+                } else {
+                    // If decode fails, keep the original value (might be invalid, validation will catch it)
+                    $data['position_id'] = $this->position_id;
+                }
+            } else {
+                // Already numeric, use as is
+                $data['position_id'] = (int) $this->position_id;
+            }
         }
 
         $this->merge(array_merge($data, [
-            'salary_amount' => $this->normalizeMoney($this->salary_amount),
+            'salary_amount'   => $this->normalizeMoney($this->salary_amount),
             'salary_currency' => strtoupper($this->salary_currency ?? 'EUR'),
-            'house_of_zeros' => $this->house_of_zeros ?? 2,
-            'status' => $this->status ?? 'active',
-            'name' => trim($this->name),
-            'email' => $this->email ? strtolower(trim($this->email)) : null,
-            'phone' => $this->phone ? preg_replace('/[^\d+]/', '', $this->phone) : null,
-            'hire_date' => $this->normalizeDate($this->hire_date),
-            'date_of_birth' => $this->normalizeDate($this->date_of_birth),
+            'house_of_zeros'  => $this->house_of_zeros ?? 2,
+            'status'          => $this->status ?? 'active',
+            'name'            => trim($this->name),
+            'email'           => $this->email ? strtolower(trim($this->email)) : null,
+            'phone'           => $this->phone ? preg_replace('/[^\d+]/', '', $this->phone) : null,
+            'hire_date'       => $this->normalizeDate($this->hire_date),
+            'date_of_birth'   => $this->normalizeDate($this->date_of_birth),
         ]));
     }
 

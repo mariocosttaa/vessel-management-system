@@ -20,10 +20,19 @@ class EasyHashAction
 
     public static function decode(string $valueEncoded, string $type = '', int $minReturnEncode = 21): int|string|null
     {
-        $hashids = new Hashids($type, $minReturnEncode);
+        try {
+            $hashids = new Hashids($type, $minReturnEncode);
+            $decodedArray = $hashids->decode($valueEncoded);
 
-        $decoded = $hashids->decode($valueEncoded)[0] ?? null;
-        return is_numeric($decoded) ? (int) $decoded : $decoded;
+            if (empty($decodedArray)) {
+                return null;
+            }
+
+            $decoded = $decodedArray[0] ?? null;
+            return is_numeric($decoded) ? (int) $decoded : $decoded;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
