@@ -134,15 +134,15 @@
     --chart-4: hsl(43 74% 66%);
     --chart-5: hsl(27 87% 67%);
     --radius: 0.625rem;
-    --sidebar-background: hsl(217 50% 97%);
-    --sidebar-foreground: hsl(217 28% 22%);
+    --sidebar-background: hsl(217 45% 96%);
+    --sidebar-foreground: hsl(217 30% 22%);
     --sidebar-primary: hsl(217 91% 60%);
     --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(217 48% 93%);
-    --sidebar-accent-foreground: hsl(217 35% 28%);
-    --sidebar-border: hsl(217 42% 86%);
+    --sidebar-accent: hsl(217 50% 92%);
+    --sidebar-accent-foreground: hsl(217 40% 30%);
+    --sidebar-border: hsl(217 45% 85%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(217 50% 97%);
+    --sidebar: hsl(217 45% 96%);
 }
 
 .dark {
@@ -170,15 +170,15 @@
     --chart-3: hsl(30 80% 55%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(217 25% 11%);
-    --sidebar-foreground: hsl(217 12% 90%);
+    --sidebar-background: hsl(217 30% 12%);
+    --sidebar-foreground: hsl(217 15% 88%);
     --sidebar-primary: hsl(217 91% 70%);
     --sidebar-primary-foreground: hsl(0 0% 9%);
-    --sidebar-accent: hsl(217 30% 17%);
-    --sidebar-accent-foreground: hsl(217 18% 85%);
-    --sidebar-border: hsl(217 32% 20%);
+    --sidebar-accent: hsl(217 35% 18%);
+    --sidebar-accent-foreground: hsl(217 20% 82%);
+    --sidebar-border: hsl(217 38% 22%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(217 25% 11%);
+    --sidebar: hsl(217 30% 12%);
 }
 
 @layer base {
@@ -203,18 +203,45 @@
     [data-sidebar="sidebar"],
     .bg-sidebar[data-sidebar="sidebar"] {
         background: linear-gradient(135deg, 
-            hsl(217 52% 97.8%), 
-            hsl(217 48% 96.5%),
-            hsl(217 50% 97.2%)
+            hsl(217 55% 97.5%), 
+            hsl(217 42% 95%),
+            hsl(217 48% 96.2%)
         ) !important;
+        position: relative;
+    }
+    /* Add subtle blue glow effect for depth */
+    [data-sidebar="sidebar"]::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse at top left, 
+            hsl(217 60% 98% / 0.4), 
+            transparent 70%
+        );
+        pointer-events: none;
+        z-index: 0;
     }
     .dark [data-sidebar="sidebar"],
     .dark .bg-sidebar[data-sidebar="sidebar"] {
         background: linear-gradient(135deg, 
-            hsl(217 26% 11.8%), 
-            hsl(217 24% 10.5%),
-            hsl(217 25% 11.2%)
+            hsl(217 32% 12.5%), 
+            hsl(217 28% 11%),
+            hsl(217 30% 12.2%)
         ) !important;
+    }
+    .dark [data-sidebar="sidebar"]::after {
+        background: radial-gradient(ellipse at top left, 
+            hsl(217 40% 14% / 0.5), 
+            transparent 70%
+        );
+    }
+    /* Ensure sidebar content is above overlay */
+    [data-sidebar="sidebar"] > * {
+        position: relative;
+        z-index: 1;
     }
 }
 
