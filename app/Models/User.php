@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Actions\General\EasyHashAction;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -41,6 +42,9 @@ class User extends Authenticatable
         'temporary_password',
         'vessel_admin_notification',
         'language',
+        'invitation_token',
+        'invitation_sent_at',
+        'invitation_accepted_at',
     ];
 
     /**
@@ -70,6 +74,8 @@ class User extends Authenticatable
             'house_of_zeros' => 'integer',
             'login_permitted' => 'boolean',
             'vessel_admin_notification' => 'boolean',
+            'invitation_sent_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
         ];
     }
 
@@ -468,5 +474,41 @@ class User extends Authenticatable
     public function shouldReceiveVesselNotifications(int $vesselId): bool
     {
         return $this->vessel_admin_notification && $this->hasHighVesselAccess($vesselId);
+    }
+
+    /**
+     * Resolves hashed user IDs from URLs.
+     * This is used when the route parameter is 'crewMember' or when User is used in route model binding.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Try to decode as hashed ID - try both 'crewmember-id' and 'user-id'
+        $hashTypes = ['crewmember-id', 'user-id'];
+        foreach ($hashTypes as $hashType) {
+            try {
+                $decoded = EasyHashAction::decode($value, $hashType);
+                if ($decoded && is_numeric($decoded)) {
+                    $user = $this->where($field ?: $this->getRouteKeyName(), (int) $decoded)->first();
+                    if ($user) {
+                        return $user;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to next hash type
+                continue;
+            }
+        }
+
+        // Fallback to numeric ID for backward compatibility
+        if (is_numeric($value)) {
+            return $this->where($field ?: $this->getRouteKeyName(), (int) $value)->first();
+        }
+
+        // Return null if not found - Laravel will handle 404
+        return null;
     }
 }
