@@ -5,8 +5,11 @@ import { ref, computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import TransactionShowModal from '@/components/modals/Transaction/show.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import ColorSelectionModal from '@/components/modals/Transaction/ColorSelectionModal.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-vue-next';
 import transactions from '@/routes/panel/transactions';
 
@@ -83,6 +86,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { canView, hasPermission } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to access transaction history
 onMounted(() => {
@@ -99,6 +103,15 @@ const paginatedTransactions = computed(() => props.transactions);
 // Modal state
 const showShowModal = ref(false);
 const selectedTransaction = ref<Transaction | null>(null);
+
+// PDF download state
+const showPdfModal = ref(false);
+const showColorModal = ref(false);
+const isDownloading = ref(false);
+let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Color preference (set by color selection modal)
+let colorPreference = false;
 
 // Get currency data from shared props
 const page = usePage();
@@ -162,9 +175,9 @@ const formatDate = (dateString: string) => {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-        return 'Today';
+        return t('Today');
     } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
+        return t('Yesterday');
     } else {
         return date.toLocaleDateString('en-US', {
             weekday: 'long',
@@ -242,14 +255,80 @@ const closeModals = () => {
     selectedTransaction.value = null;
 };
 
+// Open color selection modal before download
+const openColorModal = () => {
+    showColorModal.value = true;
+};
+
+// Handle color selection confirmation
+const handleColorConfirm = (enableColors: boolean) => {
+    colorPreference = enableColors;
+    showColorModal.value = false;
+    startDownload();
+};
+
+// Start download after color selection
+const startDownload = () => {
+    showPdfModal.value = true;
+    isDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    downloadTimeout = setTimeout(() => {
+        if (!isDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        const params = new URLSearchParams();
+        if (colorPreference) {
+            params.append('enable_colors', '1');
+        }
+        const queryString = params.toString();
+        const url = `/panel/${vesselId}/transactions/history/${props.year}/${props.month}/download-pdf${queryString ? '?' + queryString : ''}`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showPdfModal.value = false;
+            isDownloading.value = false;
+            downloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+// Download PDF
+const downloadPdf = () => {
+    openColorModal();
+};
+
+const closePdfModal = () => {
+    if (!isDownloading.value) {
+        showPdfModal.value = false;
+    }
+};
+
+const handlePdfDownloadCancel = () => {
+    if (downloadTimeout) {
+        clearTimeout(downloadTimeout);
+        downloadTimeout = null;
+    }
+    showPdfModal.value = false;
+    isDownloading.value = false;
+};
+
 </script>
 
 <template>
-    <Head :title="`Transactions - ${monthLabel} ${year}`" />
+    <Head :title="`${t('Transactions')} - ${monthLabel} ${year}`" />
 
     <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
-        { title: 'Transactions', href: transactions.index.url({ vessel: getCurrentVesselId() }) },
-        { title: 'History', href: `/panel/${getCurrentVesselId()}/transactions/history` },
+        { title: t('Transactions'), href: transactions.index.url({ vessel: getCurrentVesselId() }) },
+        { title: t('History'), href: `/panel/${getCurrentVesselId()}/transactions/history` },
         { title: `${monthLabel} ${year}`, href: `/panel/${getCurrentVesselId()}/transactions/history/${year}/${month}` }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -258,26 +337,50 @@ const closeModals = () => {
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">
-                            Transactions - {{ monthLabel }} {{ year }}
+                            {{ t('Transactions') }} - {{ monthLabel }} {{ year }}
                         </h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">
-                            View all transactions for {{ monthLabel }} {{ year }}
+                            {{ t('View all transactions for') }} {{ monthLabel }} {{ year }}
                         </p>
                     </div>
-                    <Link
-                        :href="`/panel/${getCurrentVesselId()}/transactions/history`"
-                        class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
-                    >
-                        <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        Back to History
-                    </Link>
+                    <div class="flex items-center gap-3">
+                        <!-- Download Button -->
+                        <button
+                            @click="downloadPdf"
+                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                        >
+                            <Icon name="download" class="w-4 h-4 mr-2" />
+                            {{ t('Download PDF') }}
+                        </button>
+                        <Link
+                            :href="`/panel/${getCurrentVesselId()}/transactions/history`"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        >
+                            <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+                            {{ t('Back to History') }}
+                        </Link>
+                    </div>
                 </div>
             </div>
 
             <!-- Transactions Table -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
+                <!-- Table Header with Download Button -->
+                <div v-if="props.transactions && props.transactions.data && Array.isArray(props.transactions.data) && props.transactions.data.length > 0" class="px-6 py-4 border-b border-border dark:border-border flex items-center justify-between bg-muted/30 dark:bg-muted/20">
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
+                        {{ t('Transactions') }}
+                    </h3>
+                    <button
+                        @click="downloadPdf"
+                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                    >
+                        <Icon name="download" class="w-3.5 h-3.5 mr-1.5" />
+                        {{ t('Download PDF') }}
+                    </button>
+                </div>
+
                 <div v-if="!props.transactions || !props.transactions.data || !Array.isArray(props.transactions.data) || props.transactions.data.length === 0" class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
-                    No transactions found for {{ monthLabel }} {{ year }}
+                    {{ t('No transactions found for') }} {{ monthLabel }} {{ year }}
                 </div>
 
                 <div v-else-if="groupedTransactions && groupedTransactions.length > 0" class="divide-y divide-border dark:divide-border">
@@ -349,7 +452,7 @@ const closeModals = () => {
                                         </div>
                                         <div class="mt-1">
                                             <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
-                                                {{ transaction.description || 'No description' }}
+                                                {{ transaction.description || t('No description') }}
                                             </p>
                                             <p v-if="transaction.created_at_datetime" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
                                                 {{ transaction.created_at_datetime }}
@@ -397,7 +500,7 @@ const closeModals = () => {
                                             />
                                         </div>
                                         <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
-                                            incl. VAT
+                                            {{ t('incl. VAT') }}
                                         </div>
                                     </template>
                                 </div>
@@ -422,11 +525,26 @@ const closeModals = () => {
             :transaction="selectedTransaction"
             @close="closeModals"
         />
+
+        <!-- Color Selection Modal -->
+        <ColorSelectionModal
+            :open="showColorModal"
+            @close="() => { showColorModal = false; }"
+            @confirm="handleColorConfirm"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfModal"
+            :countdown="5"
+            @close="closePdfModal"
+            @cancel="handlePdfDownloadCancel"
+        />
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view transaction history.</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('You do not have permission to view transaction history.') }}</p>
             </div>
         </div>
     </VesselLayout>
