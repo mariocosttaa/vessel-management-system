@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\StoreCrewPositionRequest;
 use App\Http\Requests\UpdateCrewPositionRequest;
 use App\Http\Resources\CrewPositionResource;
@@ -14,6 +15,7 @@ use Inertia\Inertia;
 
 class CrewPositionController extends Controller
 {
+    use HashesIds;
     /**
      * Display a listing of crew positions for the current vessel.
      */
@@ -75,7 +77,7 @@ class CrewPositionController extends Controller
             ->get()
             ->map(function ($roleAccess) {
                 return [
-                    'id' => $roleAccess->id,
+                    'id' => $this->hashId($roleAccess->id, 'vesselroleaccess'),
                     'name' => $roleAccess->name,
                     'display_name' => $roleAccess->display_name,
                     'description' => $roleAccess->description,
@@ -121,7 +123,7 @@ class CrewPositionController extends Controller
                 'name' => $request->name,
                 'description' => $request->description,
                 'vessel_id' => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
-                'vessel_role_access_id' => $request->vessel_role_access_id ?? null,
+                'vessel_role_access_id' => $request->vessel_role_access_id ? $this->unhashId($request->vessel_role_access_id, 'vesselroleaccess') : null,
             ]);
 
             $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
@@ -164,8 +166,12 @@ class CrewPositionController extends Controller
     public function update(UpdateCrewPositionRequest $request, $crewPosition)
     {
         try {
-            // Get the ID from the route parameter directly - bypass route model binding
-            $id = (int) $request->route('crewPosition');
+            // Get the ID from the route parameter and unhash it
+            $hashedId = $request->route('crewPosition');
+            $id = $this->unhashId($hashedId, 'crewposition');
+            if (!$id) {
+                abort(404, 'Crew position not found.');
+            }
 
             // Resolve crew position manually to avoid route model binding issues
             $crewPosition = CrewPosition::findOrFail($id);
@@ -192,7 +198,7 @@ class CrewPositionController extends Controller
             $crewPosition->update([
                 'name' => $request->name,
                 'description' => $request->description,
-                'vessel_role_access_id' => $request->vessel_role_access_id ?? null,
+                'vessel_role_access_id' => $request->vessel_role_access_id ? $this->unhashId($request->vessel_role_access_id, 'vesselroleaccess') : null,
                 // Note: vessel_id cannot be changed after creation (global vs vessel-specific)
             ]);
 
@@ -229,8 +235,12 @@ class CrewPositionController extends Controller
     public function destroy(Request $request, $crewPosition)
     {
         try {
-            // Get the ID from the route parameter directly - bypass route model binding
-            $id = (int) $request->route('crewPosition');
+            // Get the ID from the route parameter and unhash it
+            $hashedId = $request->route('crewPosition');
+            $id = $this->unhashId($hashedId, 'crewposition');
+            if (!$id) {
+                abort(404, 'Crew position not found.');
+            }
 
             // Resolve crew position manually to avoid route model binding issues
             $crewPosition = CrewPosition::findOrFail($id);
@@ -296,8 +306,17 @@ class CrewPositionController extends Controller
             /** @var \App\Models\User|null $user */
             $user = $request->user();
 
-            // Get the ID from the route parameter directly to avoid any route model binding
-            $id = (int) $request->route('crewPositionId');
+            // Get the ID from the route parameter and unhash it
+            $crewPositionIdFromRoute = $request->route('crewPositionId');
+            // Unhash crew position ID if it's a hashed string
+            if ($crewPositionIdFromRoute && !is_numeric($crewPositionIdFromRoute)) {
+                $id = $this->unhashId($crewPositionIdFromRoute, 'crewposition-id');
+            } else {
+                $id = (int) $crewPositionIdFromRoute;
+            }
+            if (!$id) {
+                abort(404, 'Crew position not found.');
+            }
 
             // Resolve crew position manually to avoid route model binding issues
             $crewPosition = CrewPosition::findOrFail($id);

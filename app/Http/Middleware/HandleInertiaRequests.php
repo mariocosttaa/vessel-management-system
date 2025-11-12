@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Actions\General\EasyHashAction;
 use App\Models\Currency;
 use App\Models\VesselSetting;
 use Illuminate\Foundation\Inspiring;
@@ -26,7 +27,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        // Use a version that changes when IDs are hashed to force cache refresh
+        return md5(config('app.key') . 'hashed-ids-v1');
     }
 
     /**
@@ -44,11 +46,13 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'locale' => $this->getLocale($request),
             'auth' => [
                 'user' => $request->user() ? [
-                    'id' => $request->user()->id,
+                    'id' => EasyHashAction::encode($request->user()->id, 'user-id'),
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'language' => $request->user()->language ?? 'en',
                     'vessel_role' => $this->getCurrentVesselRole($request), // Current vessel role
                     'permissions' => $this->getUserPermissions($request->user(), $request),
                     'vessels' => $this->getUserVessels($request->user()),
@@ -103,7 +107,7 @@ class HandleInertiaRequests extends Middleware
     {
         return $user->vessels()->get()->map(function ($vessel) use ($user) {
             return [
-                'id' => $vessel->id,
+                'id' => EasyHashAction::encode($vessel->id, 'vessel-id'),
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,
@@ -124,12 +128,25 @@ class HandleInertiaRequests extends Middleware
         // First, try to get vessel from request attributes (set by EnsureVesselAccess middleware)
         $vessel = $request->attributes->get('vessel');
 
-        // If not in attributes, try to get from route parameter
+        // If not in attributes, try to get vessel_id from attributes (set by EnsureVesselAccess middleware)
         if (!$vessel) {
-            $vessel = $request->route('vessel');
-            if (!$vessel) {
-                return null;
+            $vesselId = $request->attributes->get('vessel_id');
+            if ($vesselId) {
+                $vessel = \App\Models\Vessel::find($vesselId);
             }
+        }
+
+        // If still no vessel, try route parameter (shouldn't happen with proper middleware)
+        if (!$vessel) {
+            $vesselParam = $request->route('vessel');
+            if ($vesselParam) {
+                // Use resolveRouteBinding to handle both hashed and numeric IDs
+                $vessel = (new \App\Models\Vessel())->resolveRouteBinding($vesselParam);
+            }
+        }
+
+        if (!$vessel) {
+            return null;
         }
 
         // If vessel is a model instance, use it directly
@@ -144,36 +161,17 @@ class HandleInertiaRequests extends Middleware
             $currencyCode = $vesselSetting->currency_code ?? $vessel->currency_code;
 
             return [
-                'id' => $vessel->id,
+                'id' => EasyHashAction::encode($vessel->id, 'vessel-id'),
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,
                 'currency_code' => $currencyCode,
+                'logo_url' => $vessel->logo_url,
             ];
         }
 
-        // If vessel is an ID, fetch the vessel model
-        $vesselId = (int) $vessel;
-        if (!$request->user()->hasAccessToVessel($vesselId)) {
-            return null;
-        }
-
-        $vesselModel = \App\Models\Vessel::find($vesselId);
-        if (!$vesselModel) {
-            return null;
-        }
-
-        // Get currency from vessel_settings first, then fallback to vessel currency_code
-        $vesselSetting = VesselSetting::getForVessel($vesselId);
-        $currencyCode = $vesselSetting->currency_code ?? $vesselModel->currency_code;
-
-        return [
-            'id' => $vesselModel->id,
-            'name' => $vesselModel->name,
-            'registration_number' => $vesselModel->registration_number,
-            'status' => $vesselModel->status,
-            'currency_code' => $currencyCode,
-        ];
+        // This shouldn't happen, but handle it just in case
+        return null;
     }
 
     /**
@@ -188,14 +186,22 @@ class HandleInertiaRequests extends Middleware
         // First, try to get vessel_id from request attributes (set by EnsureVesselAccess middleware)
         $vesselId = $request->attributes->get('vessel_id');
 
-        // If not in attributes, try to get from route parameter
+        // If not in attributes, try to get vessel from attributes and extract ID
         if (!$vesselId) {
-            $vessel = $request->route('vessel');
-            if (!$vessel) {
-                return null;
+            $vessel = $request->attributes->get('vessel');
+            if ($vessel && is_object($vessel)) {
+                $vesselId = $vessel->id;
+            } else {
+                // Fallback to route parameter (shouldn't happen with proper middleware)
+                $vesselParam = $request->route('vessel');
+                if ($vesselParam) {
+                    // Use resolveRouteBinding to handle both hashed and numeric IDs
+                    $vessel = (new \App\Models\Vessel())->resolveRouteBinding($vesselParam);
+                    if ($vessel) {
+                        $vesselId = $vessel->id;
+                    }
+                }
             }
-            // If vessel is a model instance, get the ID
-            $vesselId = is_object($vessel) ? $vessel->id : $vessel;
         }
 
         if (!$vesselId) {
@@ -203,5 +209,26 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $request->user()->getRoleForVessel((int) $vesselId);
+    }
+
+    /**
+     * Get the current locale from user preference, cookie, or default to 'en'.
+     */
+    private function getLocale(Request $request): string
+    {
+        $supportedLocales = ['en', 'pt', 'es', 'fr'];
+
+        // First, try to get from user's saved preference
+        if ($request->user() && $request->user()->language) {
+            $userLocale = $request->user()->language;
+            if (in_array($userLocale, $supportedLocales)) {
+                return $userLocale;
+            }
+        }
+
+        // Fallback to cookie
+        $locale = $request->cookie('locale', 'en');
+
+        return in_array($locale, $supportedLocales) ? $locale : 'en';
     }
 }
