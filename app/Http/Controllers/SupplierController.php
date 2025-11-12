@@ -8,12 +8,13 @@ use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
 use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
+use App\Http\Controllers\Concerns\HashesIds;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SupplierController extends Controller
 {
-    use HasTranslations;
+    use HasTranslations, HashesIds;
     public function index(Request $request)
     {
         /** @var \App\Models\User|null $user */
@@ -107,7 +108,7 @@ class SupplierController extends Controller
             );
 
             return redirect()
-                ->route('panel.suppliers.index', ['vessel' => $vesselId])
+                ->route('panel.suppliers.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', $this->transFrom('notifications', "Supplier ':name' has been created successfully.", [
                     'name' => $supplier->company_name
                 ]))
@@ -193,7 +194,7 @@ class SupplierController extends Controller
             );
 
             return redirect()
-                ->route('panel.suppliers.index', ['vessel' => $vesselId])
+                ->route('panel.suppliers.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', $this->transFrom('notifications', "Supplier ':name' has been updated successfully.", [
                     'name' => $supplier->company_name
                 ]))
@@ -244,7 +245,7 @@ class SupplierController extends Controller
             $supplier->delete();
 
             return redirect()
-                ->route('panel.suppliers.index', ['vessel' => $vesselId])
+                ->route('panel.suppliers.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', $this->transFrom('notifications', "Supplier ':name' has been deleted successfully.", [
                     'name' => $supplierName
                 ]))
@@ -279,7 +280,15 @@ class SupplierController extends Controller
                                   ->orWhere('phone', 'like', "%{$query}%");
                             })
                             ->limit(10)
-                            ->get(['id', 'company_name', 'email', 'phone']);
+                            ->get(['id', 'company_name', 'email', 'phone'])
+                            ->map(function ($supplier) {
+                                return [
+                                    'id' => $this->hashId($supplier->id, 'supplier-id'),
+                                    'company_name' => $supplier->company_name,
+                                    'email' => $supplier->email,
+                                    'phone' => $supplier->phone,
+                                ];
+                            });
 
         return response()->json($suppliers);
     }

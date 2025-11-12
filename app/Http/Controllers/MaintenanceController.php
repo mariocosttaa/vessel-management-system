@@ -6,6 +6,7 @@ use App\Models\Maintenance;
 use App\Models\Transaction;
 use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
+use App\Http\Controllers\Concerns\HashesIds;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,7 @@ use Inertia\Inertia;
 
 class MaintenanceController extends Controller
 {
-    use HasTranslations;
+    use HasTranslations, HashesIds;
     /**
      * Display a listing of maintenances for the current vessel.
      */
@@ -111,7 +112,7 @@ class MaintenanceController extends Controller
                 $transactionCount = \App\Models\Transaction::where('maintenance_id', $maintenance->id)->count();
 
                 return [
-                    'id' => $maintenance->id,
+                    'id' => $this->hashId($maintenance->id, 'maintenance-id'),
                     'maintenance_number' => $maintenance->maintenance_number,
                     'name' => $maintenance->name,
                     'description' => $maintenance->description,
@@ -219,7 +220,7 @@ class MaintenanceController extends Controller
             );
 
             return redirect()
-                ->route('panel.maintenances.show', ['vessel' => $vesselId, 'maintenanceId' => $maintenance->id])
+                ->route('panel.maintenances.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'maintenanceId' => $maintenance->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been created successfully.", [
                     'number' => $maintenance->maintenance_number
                 ]));
@@ -257,7 +258,12 @@ class MaintenanceController extends Controller
 
         // CRITICAL: Get maintenance ID directly from route parameter
         $maintenanceIdFromRoute = $request->route('maintenanceId');
-        $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+        // Unhash maintenance ID if it's a hashed string
+        if ($maintenanceIdFromRoute && !is_numeric($maintenanceIdFromRoute)) {
+            $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance-id');
+        } else {
+            $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+        }
 
         // Force fresh query with both vessel_id and id to ensure correct maintenance
         $maintenance = Maintenance::where('vessel_id', $vesselId)
@@ -319,7 +325,7 @@ class MaintenanceController extends Controller
             }),
             'suppliers' => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id' => $this->hashId($supplier->id, 'supplier-id'),
                     'company_name' => $supplier->company_name,
                     'description' => $supplier->description ?? null,
                 ];
@@ -346,7 +352,7 @@ class MaintenanceController extends Controller
                 'country_id' => $defaultVatProfile->country_id,
             ] : null,
             'maintenance' => [
-                'id' => $maintenance->id,
+                'id' => $this->hashId($maintenance->id, 'maintenance-id'),
                 'maintenance_number' => $maintenance->maintenance_number,
                 'name' => $maintenance->name,
                 'description' => $maintenance->description,
@@ -360,7 +366,7 @@ class MaintenanceController extends Controller
                 'formatted_total_expenses' => $maintenance->formatted_total_expenses,
                 'transactions' => $maintenance->transactions->map(function ($transaction) {
                     return [
-                        'id' => $transaction->id,
+                        'id' => $this->hashId($transaction->id, 'transaction-id'),
                         'transaction_number' => $transaction->transaction_number,
                         'type' => $transaction->type,
                         'amount' => $transaction->amount,
@@ -622,7 +628,7 @@ class MaintenanceController extends Controller
             );
 
             return redirect()
-                ->route('panel.maintenances.show', ['vessel' => $vesselId, 'maintenanceId' => $maintenance->id])
+                ->route('panel.maintenances.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'maintenanceId' => $maintenance->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been finalized.", [
                     'number' => $maintenance->maintenance_number
                 ]));
@@ -679,7 +685,16 @@ class MaintenanceController extends Controller
                 abort(403, 'Cannot remove transactions from a closed or cancelled maintenance.');
             }
 
-            $transactionId = is_object($transaction) ? $transaction->id : (int) $transaction;
+            // Get transaction ID from route parameter and unhash it
+            $transactionParam = is_object($transaction) ? $transaction->id : $transaction;
+            if (!is_numeric($transactionParam)) {
+                $transactionId = $this->unhashId($transactionParam, 'transaction-id');
+            } else {
+                $transactionId = (int) $transactionParam;
+            }
+            if (!$transactionId) {
+                abort(404, 'Transaction not found.');
+            }
             $transaction = Transaction::where('maintenance_id', $maintenance->id)->findOrFail($transactionId);
 
             // Remove maintenance_id from transaction

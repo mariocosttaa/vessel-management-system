@@ -16,13 +16,14 @@ use App\Actions\EmailNotificationAction;
 use App\Actions\MoneyAction;
 use App\Pdf\TransactionPdf;
 use App\Traits\HasTranslations;
+use App\Http\Controllers\Concerns\HashesIds;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class TransactionController extends Controller
 {
-    use HasTranslations;
+    use HasTranslations, HashesIds;
     /**
      * Display a listing of transactions for the current vessel.
      */
@@ -72,7 +73,10 @@ class TransactionController extends Controller
 
         // Filter by category
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
+            $categoryId = $this->unhashId($request->category_id, 'transactioncategory');
+            if ($categoryId) {
+                $query->where('category_id', $categoryId);
+            }
         }
 
         // Filter by date range
@@ -159,7 +163,7 @@ class TransactionController extends Controller
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories' => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
+                    'id' => $this->hashId($category->id, 'transactioncategory'),
                     'name' => $category->name,
                     'type' => $category->type,
                     'color' => $category->color,
@@ -167,31 +171,31 @@ class TransactionController extends Controller
             }),
             'suppliers' => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id' => $this->hashId($supplier->id, 'supplier'),
                     'company_name' => $supplier->company_name,
                     'description' => $supplier->description,
                 ];
             }),
             'crewMembers' => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
+                    'id' => $this->hashId($member->id, 'user'),
                     'name' => $member->name,
                     'email' => $member->email,
                 ];
             }),
             'vatProfiles' => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
+                    'id' => $this->hashId($profile->id, 'vatprofile'),
                     'name' => $profile->name,
                     'percentage' => (float) $profile->percentage,
-                    'country_id' => $profile->country_id,
+                    'country_id' => $this->hashId($profile->country_id, 'country'),
                 ];
             }),
             'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
+                'id' => $this->hashId($defaultVatProfile->id, 'vatprofile'),
                 'name' => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
-                'country_id' => $defaultVatProfile->country_id,
+                'country_id' => $this->hashId($defaultVatProfile->country_id, 'country'),
             ] : null,
             'transactionTypes' => $types,
             'statuses' => $statuses,
@@ -259,7 +263,7 @@ class TransactionController extends Controller
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories' => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
+                    'id' => $this->hashId($category->id, 'transactioncategory'),
                     'name' => $category->name,
                     'type' => $category->type,
                     'color' => $category->color,
@@ -267,31 +271,31 @@ class TransactionController extends Controller
             }),
             'suppliers' => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id' => $this->hashId($supplier->id, 'supplier'),
                     'company_name' => $supplier->company_name,
                     'description' => $supplier->description,
                 ];
             }),
             'crewMembers' => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
+                    'id' => $this->hashId($member->id, 'user'),
                     'name' => $member->name,
                     'email' => $member->email,
                 ];
             }),
             'vatProfiles' => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
+                    'id' => $this->hashId($profile->id, 'vatprofile'),
                     'name' => $profile->name,
                     'percentage' => (float) $profile->percentage,
-                    'country_id' => $profile->country_id,
+                    'country_id' => $this->hashId($profile->country_id, 'country'),
                 ];
             }),
             'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
+                'id' => $this->hashId($defaultVatProfile->id, 'vatprofile'),
                 'name' => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
-                'country_id' => $defaultVatProfile->country_id,
+                'country_id' => $this->hashId($defaultVatProfile->country_id, 'country'),
             ] : null,
             'transactionTypes' => $types,
             'statuses' => $statuses,
@@ -326,7 +330,7 @@ class TransactionController extends Controller
             // Handle VAT calculation
             $amount = $request->amount;
             $vatAmount = 0;
-            $vatProfileId = $request->vat_profile_id;
+            $vatProfileId = $request->vat_profile_id ? $this->unhashId($request->vat_profile_id, 'vatprofile') : null;
             $amountIncludesVat = $request->amount_includes_vat ?? false;
 
             // For income transactions, always get VAT profile from vessel settings or default
@@ -368,9 +372,9 @@ class TransactionController extends Controller
 
             $transaction = Transaction::create([
                 'vessel_id' => $vesselId,
-                'marea_id' => $request->marea_id ?? null,
-                'maintenance_id' => $request->maintenance_id ?? null,
-                'category_id' => $request->category_id,
+                'marea_id' => $request->marea_id ? $this->unhashId($request->marea_id, 'marea') : null,
+                'maintenance_id' => $request->maintenance_id ? $this->unhashId($request->maintenance_id, 'maintenance') : null,
+                'category_id' => $request->category_id ? $this->unhashId($request->category_id, 'transactioncategory') : null,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit' => $request->amount_per_unit ?? null,
@@ -384,8 +388,8 @@ class TransactionController extends Controller
                 'description' => $request->description,
                 'notes' => $request->notes,
                 // Reference is auto-generated in model boot method
-                'supplier_id' => $request->supplier_id,
-                'crew_member_id' => $request->crew_member_id,
+                'supplier_id' => $request->supplier_id ? $this->unhashId($request->supplier_id, 'supplier') : null,
+                'crew_member_id' => $request->crew_member_id ? $this->unhashId($request->crew_member_id, 'user') : null,
                 'status' => $request->status,
                 'created_by' => $user->id,
             ]);
@@ -515,9 +519,17 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter
+        // CRITICAL: Get transaction ID directly from route parameter and unhash it
         $transactionIdFromRoute = $request->route('transactionId');
-        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        // Unhash transaction ID if it's a hashed string
+        if ($transactionIdFromRoute && !is_numeric($transactionIdFromRoute)) {
+            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        } else {
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        }
+        if (!$transactionId) {
+            abort(404, 'Transaction not found.');
+        }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
         $transaction = Transaction::where('vessel_id', $vesselId)
@@ -568,9 +580,17 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter
+        // CRITICAL: Get transaction ID directly from route parameter and unhash it
         $transactionIdFromRoute = $request->route('transactionId');
-        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        // Unhash transaction ID if it's a hashed string
+        if ($transactionIdFromRoute && !is_numeric($transactionIdFromRoute)) {
+            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        } else {
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        }
+        if (!$transactionId) {
+            abort(404, 'Transaction not found.');
+        }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
         $transaction = Transaction::where('vessel_id', $vesselId)
@@ -620,9 +640,17 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter
+        // CRITICAL: Get transaction ID directly from route parameter and unhash it
         $transactionIdFromRoute = $request->route('transactionId');
-        $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        // Unhash transaction ID if it's a hashed string
+        if ($transactionIdFromRoute && !is_numeric($transactionIdFromRoute)) {
+            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        } else {
+            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+        }
+        if (!$transactionId) {
+            abort(404, 'Transaction not found.');
+        }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
         $transaction = Transaction::where('vessel_id', $vesselId)
@@ -687,7 +715,7 @@ class TransactionController extends Controller
             'defaultCurrency' => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories' => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
+                    'id' => $this->hashId($category->id, 'transactioncategory'),
                     'name' => $category->name,
                     'type' => $category->type,
                     'color' => $category->color,
@@ -695,31 +723,31 @@ class TransactionController extends Controller
             }),
             'suppliers' => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id' => $this->hashId($supplier->id, 'supplier'),
                     'company_name' => $supplier->company_name,
                     'description' => $supplier->description,
                 ];
             }),
             'crewMembers' => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
+                    'id' => $this->hashId($member->id, 'user'),
                     'name' => $member->name,
                     'email' => $member->email,
                 ];
             }),
             'vatProfiles' => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
+                    'id' => $this->hashId($profile->id, 'vatprofile'),
                     'name' => $profile->name,
                     'percentage' => (float) $profile->percentage,
-                    'country_id' => $profile->country_id,
+                    'country_id' => $this->hashId($profile->country_id, 'country'),
                 ];
             }),
             'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
+                'id' => $this->hashId($defaultVatProfile->id, 'vatprofile'),
                 'name' => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
-                'country_id' => $defaultVatProfile->country_id,
+                'country_id' => $this->hashId($defaultVatProfile->country_id, 'country'),
             ] : null,
             'transactionTypes' => $types,
             'statuses' => $statuses,
@@ -740,9 +768,13 @@ class TransactionController extends Controller
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
-            // CRITICAL: Get transaction ID directly from route parameter
+            // CRITICAL: Get transaction ID directly from route parameter and unhash it
             $transactionIdFromRoute = $request->route('transactionId');
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            $hashedId = $transactionIdFromRoute ?? $transactionId;
+            $transactionId = $this->unhashId($hashedId, 'transaction');
+            if (!$transactionId) {
+                abort(404, 'Transaction not found.');
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
             $transaction = Transaction::where('vessel_id', $vesselId)
@@ -763,7 +795,7 @@ class TransactionController extends Controller
             // Handle VAT calculation (same as store method)
             $amount = $request->amount;
             $vatAmount = 0;
-            $vatProfileId = $request->vat_profile_id;
+            $vatProfileId = $request->vat_profile_id ? $this->unhashId($request->vat_profile_id, 'vatprofile') : null;
             $amountIncludesVat = $request->amount_includes_vat ?? false;
 
             // For income transactions, always get VAT profile from vessel settings or default
@@ -807,7 +839,7 @@ class TransactionController extends Controller
             $user = $request->user();
 
             $transaction->update([
-                'category_id' => $request->category_id,
+                'category_id' => $request->category_id ? $this->unhashId($request->category_id, 'transactioncategory') : null,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit' => $request->amount_per_unit ?? null,
@@ -822,8 +854,8 @@ class TransactionController extends Controller
                 'description' => $request->description,
                 'notes' => $request->notes,
                 'reference' => $request->reference,
-                'supplier_id' => $request->supplier_id,
-                'crew_member_id' => $request->crew_member_id,
+                'supplier_id' => $request->supplier_id ? $this->unhashId($request->supplier_id, 'supplier') : null,
+                'crew_member_id' => $request->crew_member_id ? $this->unhashId($request->crew_member_id, 'user') : null,
                 'status' => $request->status,
             ]);
 
@@ -920,7 +952,12 @@ class TransactionController extends Controller
 
             // CRITICAL: Get transaction ID directly from route parameter
             $transactionIdFromRoute = $request->route('transactionId');
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            // Unhash transaction ID if it's a hashed string
+            if ($transactionIdFromRoute && !is_numeric($transactionIdFromRoute)) {
+                $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+            } else {
+                $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
             $transaction = Transaction::where('vessel_id', $vesselId)
@@ -997,7 +1034,7 @@ class TransactionController extends Controller
             $transaction->delete(); // Cascade delete will remove TransactionFile records
 
             return redirect()
-                ->route('panel.transactions.index', ['vessel' => $vesselId])
+                ->route('panel.transactions.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', $this->transFrom('notifications', "Transaction ':number' has been deleted successfully.", [
                     'number' => $transactionNumber
                 ]))
@@ -1027,18 +1064,26 @@ class TransactionController extends Controller
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
-            // CRITICAL: Get transaction ID directly from route parameter
+            // CRITICAL: Get transaction ID directly from route parameter and unhash it
             $transactionIdFromRoute = $request->route('transactionId');
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            $hashedId = $transactionIdFromRoute ?? $transactionId;
+            $transactionId = $this->unhashId($hashedId, 'transaction');
+            if (!$transactionId) {
+                abort(404, 'Transaction not found.');
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
             $transaction = Transaction::where('vessel_id', $vesselId)
                 ->where('id', $transactionId)
                 ->firstOrFail();
 
-            // Get file ID from route parameter
+            // Get file ID from route parameter and unhash it
             $fileIdFromRoute = $request->route('fileId');
-            $fileId = (int) ($fileIdFromRoute ?? $fileId);
+            $hashedFileId = $fileIdFromRoute ?? $fileId;
+            $fileId = $this->unhashId($hashedFileId, 'transactionfile');
+            if (!$fileId) {
+                abort(404, 'File not found.');
+            }
 
             // Verify file belongs to transaction
             $transactionFile = \App\Models\TransactionFile::where('transaction_id', $transaction->id)
@@ -1269,7 +1314,7 @@ class TransactionController extends Controller
             'defaultCurrency' => $defaultCurrency,
             'categories' => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
+                    'id' => $this->hashId($category->id, 'transactioncategory'),
                     'name' => $category->name,
                     'type' => $category->type,
                     'color' => $category->color,
@@ -1277,31 +1322,31 @@ class TransactionController extends Controller
             }),
             'suppliers' => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id' => $this->hashId($supplier->id, 'supplier'),
                     'company_name' => $supplier->company_name,
                     'description' => $supplier->description,
                 ];
             }),
             'crewMembers' => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
+                    'id' => $this->hashId($member->id, 'user'),
                     'name' => $member->name,
                     'email' => $member->email,
                 ];
             }),
             'vatProfiles' => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
+                    'id' => $this->hashId($profile->id, 'vatprofile'),
                     'name' => $profile->name,
                     'percentage' => (float) $profile->percentage,
-                    'country_id' => $profile->country_id,
+                    'country_id' => $this->hashId($profile->country_id, 'country'),
                 ];
             }),
             'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
+                'id' => $this->hashId($defaultVatProfile->id, 'vatprofile'),
                 'name' => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
-                'country_id' => $defaultVatProfile->country_id,
+                'country_id' => $this->hashId($defaultVatProfile->country_id, 'country'),
             ] : null,
             'transactionTypes' => $types,
             'statuses' => $statuses,
@@ -1345,7 +1390,17 @@ class TransactionController extends Controller
                   ->orWhere('reference', 'like', "%{$query}%");
             })
             ->limit(10)
-            ->get(['id', 'transaction_number', 'description', 'type', 'amount', 'currency']);
+            ->get(['id', 'transaction_number', 'description', 'type', 'amount', 'currency'])
+            ->map(function ($transaction) {
+                return [
+                    'id' => $this->hashId($transaction->id, 'transaction-id'),
+                    'transaction_number' => $transaction->transaction_number,
+                    'description' => $transaction->description,
+                    'type' => $transaction->type,
+                    'amount' => $transaction->amount,
+                    'currency' => $transaction->currency,
+                ];
+            });
 
         return response()->json($transactions);
     }
