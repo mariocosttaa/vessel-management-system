@@ -1156,6 +1156,186 @@ class VesselController extends Controller
 - Log unauthorized access attempts
 - Handle edge cases gracefully
 
+## ID Hashing with HashesIds Trait
+
+### Overview
+All IDs sent to the frontend must be hashed using the `HashesIds` trait. This trait provides methods to hash IDs when sending to the frontend and unhash IDs when receiving from the frontend.
+
+### Using the HashesIds Trait
+
+**Important**: The trait automatically appends `-id` to the model name. When calling `hashId()` or `unhashId()`, pass only the model name (e.g., `'vessel'`), not the full hash type (e.g., `'vessel-id'`).
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Concerns\HashesIds;
+
+class VesselController extends Controller
+{
+    use HashesIds;
+
+    public function index(Request $request)
+    {
+        $vessels = Vessel::all();
+        
+        // Hash vessel IDs for frontend
+        $vessels = $vessels->map(function ($vessel) {
+            return [
+                'id' => $this->hashId($vessel->id, 'vessel'), // ✅ Correct: 'vessel' becomes 'vessel-id'
+                'name' => $vessel->name,
+            ];
+        });
+
+        return Inertia::render('Vessels/Index', [
+            'vessels' => $vessels,
+        ]);
+    }
+
+    public function store(StoreVesselRequest $request)
+    {
+        // Unhash vessel_id from frontend
+        $vesselId = $this->unhashId($request->vessel_id, 'vessel'); // ✅ Correct: 'vessel' becomes 'vessel-id'
+        
+        if (!$vesselId) {
+            abort(404, 'Vessel not found.');
+        }
+
+        // ... create vessel logic
+    }
+
+    public function update(UpdateVesselRequest $request, Vessel $vessel)
+    {
+        // Unhash IDs from request
+        $categoryId = $this->unhashId($request->category_id, 'transactioncategory');
+        $supplierId = $this->unhashId($request->supplier_id, 'supplier');
+        
+        // ... update logic
+    }
+
+    public function destroy(Request $request, Vessel $vessel)
+    {
+        $vesselId = $this->getCurrentVesselId($request);
+        
+        // Hash vessel ID for redirect URL
+        return redirect()
+            ->route('panel.vessels.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
+            ->with('success', 'Vessel deleted successfully.');
+    }
+}
+```
+
+### Common Patterns
+
+#### Hashing IDs in Responses
+```php
+public function index(Request $request)
+{
+    $vessels = Vessel::all()->map(function ($vessel) {
+        return [
+            'id' => $this->hashId($vessel->id, 'vessel'),
+            'name' => $vessel->name,
+        ];
+    });
+
+    return Inertia::render('Vessels/Index', [
+        'vessels' => $vessels,
+    ]);
+}
+```
+
+#### Unhashing IDs from Requests
+```php
+public function store(StoreTransactionRequest $request)
+{
+    // Unhash IDs from frontend
+    $categoryId = $this->unhashId($request->category_id, 'transactioncategory');
+    $supplierId = $this->unhashId($request->supplier_id, 'supplier');
+    $crewMemberId = $this->unhashId($request->crew_member_id, 'user');
+    
+    $transaction = Transaction::create([
+        'category_id' => $categoryId,
+        'supplier_id' => $supplierId,
+        'crew_member_id' => $crewMemberId,
+        // ... other fields
+    ]);
+}
+```
+
+#### Hashing IDs in Redirects
+```php
+public function store(StoreTransactionRequest $request)
+{
+    $transaction = Transaction::create([...]);
+    $vesselId = $this->getCurrentVesselId($request);
+    
+    return redirect()
+        ->route('panel.transactions.show', [
+            'vessel' => $this->hashId($vesselId, 'vessel'),
+            'transaction' => $transaction->getRouteKey(), // Model's getRouteKey() already hashes
+        ])
+        ->with('success', 'Transaction created successfully.');
+}
+```
+
+#### Unhashing Route Parameters
+```php
+public function show(Request $request, $transactionId)
+{
+    // Unhash transaction ID from route
+    $transactionId = $this->unhashId($transactionId, 'transaction');
+    
+    if (!$transactionId) {
+        abort(404, 'Transaction not found.');
+    }
+    
+    $transaction = Transaction::findOrFail($transactionId);
+    
+    return Inertia::render('Transactions/Show', [
+        'transaction' => new TransactionResource($transaction),
+    ]);
+}
+```
+
+### Model Name Patterns
+
+When using `hashId()` or `unhashId()`, use the model name in lowercase:
+
+- `'vessel'` → becomes `'vessel-id'`
+- `'transaction'` → becomes `'transaction-id'`
+- `'user'` → becomes `'user-id'`
+- `'supplier'` → becomes `'supplier-id'`
+- `'transactioncategory'` → becomes `'transactioncategory-id'`
+- `'crewposition'` → becomes `'crewposition-id'`
+
+### Common Mistakes to Avoid
+
+❌ **DON'T:**
+```php
+// ❌ WRONG - Don't pass 'vessel-id', the trait appends '-id' automatically
+$this->hashId($vessel->id, 'vessel-id'); // This becomes 'vessel-id-id' (WRONG!)
+
+// ❌ WRONG - Don't use numeric IDs in responses
+'id' => $vessel->id,
+
+// ❌ WRONG - Don't use hashed IDs directly in database queries
+Transaction::where('category_id', $request->category_id)->get();
+```
+
+✅ **DO:**
+```php
+// ✅ CORRECT - Pass only the model name
+$this->hashId($vessel->id, 'vessel'); // This becomes 'vessel-id' (CORRECT!)
+
+// ✅ CORRECT - Always hash IDs in responses
+'id' => $this->hashId($vessel->id, 'vessel'),
+
+// ✅ CORRECT - Always unhash IDs before database queries
+$categoryId = $this->unhashId($request->category_id, 'transactioncategory');
+Transaction::where('category_id', $categoryId)->get();
+```
+
 ## Examples
 
 ### Complete TransactionController Example
