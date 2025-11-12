@@ -576,6 +576,39 @@ class CrewMemberController extends Controller
 
             // Send invitation email if system access was just enabled
             if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
+                // Create VesselUserRole based on position's vessel_role_access_id
+                $vesselRoleAccessId = null;
+
+                // Get role from position if crew member has a position assigned
+                if ($crewMember->position_id) {
+                    $position = CrewPosition::find($crewMember->position_id);
+                    if ($position && $position->vessel_role_access_id) {
+                        $vesselRoleAccessId = $position->vessel_role_access_id;
+                    }
+                }
+
+                // If no role from position, use default "normal" role
+                if (! $vesselRoleAccessId) {
+                    $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
+                    if ($normalRole) {
+                        $vesselRoleAccessId = $normalRole->id;
+                    }
+                }
+
+                // Create VesselUserRole if we have a role access ID
+                if ($vesselRoleAccessId) {
+                    VesselUserRole::updateOrCreate(
+                        [
+                            'vessel_id' => $vesselId,
+                            'user_id'   => $crewMember->id,
+                        ],
+                        [
+                            'vessel_role_access_id' => $vesselRoleAccessId,
+                            'is_active'             => true,
+                        ]
+                    );
+                }
+
                 try {
                     $invitationToken = $crewMember->invitation_token;
 
