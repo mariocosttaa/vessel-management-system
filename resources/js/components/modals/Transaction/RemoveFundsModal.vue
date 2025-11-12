@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import transactions from '@/routes/panel/transactions';
 
 interface TransactionCategory {
@@ -57,6 +58,7 @@ const emit = defineEmits<{
 }>();
 
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 const page = usePage();
 
 // Get vessel currency from shared props - use currency from currency table
@@ -137,7 +139,7 @@ const expenseCategories = computed(() => {
 
 // Convert to Select component options format
 const bankAccountOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a bank account' }];
+    const options = [{ value: null, label: t('Select a bank account') }];
     props.bankAccounts.forEach(account => {
         options.push({ value: account.id, label: `${account.name} (${account.bank_name})` });
     });
@@ -145,15 +147,15 @@ const bankAccountOptions = computed(() => {
 });
 
 const categoryOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a category' }];
+    const options = [{ value: null, label: t('Select a category') }];
     expenseCategories.value.forEach(category => {
-        options.push({ value: category.id, label: category.name });
+        options.push({ value: category.id, label: t(category.name) });
     });
     return options;
 });
 
 const supplierOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a supplier' }];
+    const options = [{ value: null, label: t('Select a supplier') }];
     (props.suppliers || []).forEach(supplier => {
         options.push({ value: supplier.id, label: supplier.company_name });
     });
@@ -161,7 +163,7 @@ const supplierOptions = computed(() => {
 });
 
 const crewMemberOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a crew member' }];
+    const options = [{ value: null, label: t('Select a crew member') }];
     (props.crewMembers || []).forEach(member => {
         options.push({ value: member.id, label: `${member.name} (${member.email})` });
     });
@@ -177,7 +179,8 @@ const showSupplierField = computed(() => {
 const showCrewMemberField = computed(() => {
     if (!form.category_id) return false;
     const category = props.categories.find(cat => cat.id === form.category_id);
-    return category && category.name.toLowerCase().includes('salário');
+    // Check for salary categories in English (Salaries, Crew Salaries, Wages)
+    return category && (category.name === 'Salaries' || category.name === 'Crew Salaries' || category.name === 'Wages');
 });
 
 // VAT is not used for expenses/removals
@@ -278,8 +281,8 @@ const submit = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Funds have been removed successfully.',
+                title: t('Success'),
+                message: t('Funds have been removed successfully.'),
             });
             emit('success');
             emit('close');
@@ -288,8 +291,8 @@ const submit = () => {
             console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to remove funds. Please check the form for errors.',
+                title: t('Error'),
+                message: t('Failed to remove funds. Please check the form for errors.'),
             });
         },
     });
@@ -300,35 +303,35 @@ const submit = () => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle class="text-red-600 dark:text-red-400">Remove Transaction</DialogTitle>
+                <DialogTitle class="text-red-600 dark:text-red-400">{{ t('Remove Transaction') }}</DialogTitle>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
                 <!-- Bank Account -->
                 <div class="space-y-2">
-                    <Label for="bank_account_id">Bank Account <span v-if="bankAccounts.length > 0" class="text-destructive">*</span></Label>
+                    <Label for="bank_account_id">{{ t('Bank Account') }} <span v-if="bankAccounts.length > 0" class="text-destructive">*</span></Label>
                     <Select
                         id="bank_account_id"
                         v-model="form.bank_account_id"
                         :options="bankAccountOptions"
-                        placeholder="Select a bank account"
+                        :placeholder="t('Select a bank account')"
                         searchable
                         :error="!!form.errors.bank_account_id"
                     />
                     <InputError :message="form.errors.bank_account_id" />
                     <p v-if="bankAccounts.length === 0" class="text-xs text-muted-foreground">
-                        Please create a bank account first before removing funds.
+                        {{ t('Please create a bank account first before removing funds.') }}
                     </p>
                 </div>
 
                 <!-- Category -->
                 <div class="space-y-2">
-                    <Label for="category_id">Category <span class="text-destructive">*</span></Label>
+                    <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
                     <Select
                         id="category_id"
                         v-model="form.category_id"
                         :options="categoryOptions"
-                        placeholder="Select a category"
+                        :placeholder="t('Select a category')"
                         searchable
                         :error="!!form.errors.category_id"
                     />
@@ -341,7 +344,7 @@ const submit = () => {
                     <div class="space-y-2">
                         <MoneyInputWithLabel
                             v-model="form.amount"
-                            label="Amount"
+                            :label="t('Amount')"
                             :currency="currentCurrency"
                             placeholder="0,00"
                             :error="form.errors.amount"
@@ -354,7 +357,7 @@ const submit = () => {
 
                     <!-- Transaction Date -->
                     <div class="space-y-2">
-                        <Label for="transaction_date">Transaction Date <span class="text-destructive">*</span></Label>
+                        <Label for="transaction_date">{{ t('Transaction Date') }} <span class="text-destructive">*</span></Label>
                         <DateInput
                             id="transaction_date"
                             v-model="form.transaction_date"
@@ -367,12 +370,12 @@ const submit = () => {
 
                 <!-- Supplier (for expenses) -->
                 <div v-if="showSupplierField" class="space-y-2">
-                    <Label for="supplier_id">Supplier</Label>
+                    <Label for="supplier_id">{{ t('Supplier') }}</Label>
                     <Select
                         id="supplier_id"
                         v-model="form.supplier_id"
                         :options="supplierOptions"
-                        placeholder="Select a supplier"
+                        :placeholder="t('Select a supplier')"
                         searchable
                         :error="!!form.errors.supplier_id"
                     />
@@ -381,12 +384,12 @@ const submit = () => {
 
                 <!-- Crew Member (for salary expenses) -->
                 <div v-if="showCrewMemberField" class="space-y-2">
-                    <Label for="crew_member_id">Crew Member <span class="text-destructive">*</span></Label>
+                    <Label for="crew_member_id">{{ t('Crew Member') }} <span class="text-destructive">*</span></Label>
                     <Select
                         id="crew_member_id"
                         v-model="form.crew_member_id"
                         :options="crewMemberOptions"
-                        placeholder="Select a crew member"
+                        :placeholder="t('Select a crew member')"
                         searchable
                         :error="!!form.errors.crew_member_id"
                     />
@@ -395,12 +398,12 @@ const submit = () => {
 
                 <!-- Description -->
                 <div class="space-y-2">
-                    <Label for="description">Description</Label>
+                    <Label for="description">{{ t('Description') }}</Label>
                     <Input
                         id="description"
                         v-model="form.description"
                         type="text"
-                        placeholder="Enter transaction description"
+                        :placeholder="t('Enter transaction description')"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
                     />
                     <InputError :message="form.errors.description" />
@@ -408,12 +411,12 @@ const submit = () => {
 
                 <!-- Notes -->
                 <div class="space-y-2">
-                    <Label for="notes">Notes</Label>
+                    <Label for="notes">{{ t('Notes') }}</Label>
                     <textarea
                         id="notes"
                         v-model="form.notes"
                         rows="3"
-                        placeholder="Additional notes about this transaction"
+                        :placeholder="t('Additional notes about this transaction')"
                         class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                     />
@@ -429,10 +432,10 @@ const submit = () => {
                 <!-- Actions -->
                 <div class="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" @click="emit('close')">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button type="submit" :disabled="form.processing || bankAccounts.length === 0">
-                        {{ form.processing ? 'Removing...' : 'Remove Transaction' }}
+                        {{ form.processing ? t('Removing...') : t('Remove Transaction') }}
                     </Button>
                 </div>
             </form>
