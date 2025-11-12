@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
 import { computed } from 'vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface Transaction {
     id: number;
@@ -68,6 +69,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 const emit = defineEmits<{
     close: [];
 }>();
@@ -134,10 +136,10 @@ const openFile = (src: string) => {
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
                 <DialogTitle>
-                    Transaction #{{ detailedTransaction?.transaction_number || props.transaction?.transaction_number || '' }}
+                    {{ t('Transaction') }} #{{ detailedTransaction?.transaction_number || props.transaction?.transaction_number || '' }}
                 </DialogTitle>
                 <DialogDescription class="sr-only">
-                    View detailed information about the transaction
+                    {{ t('View detailed information about the transaction') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -170,35 +172,35 @@ const openFile = (src: string) => {
                                 <!-- Price Per Unit and Quantity (if available) -->
                                 <div v-if="(detailedTransaction.amount_per_unit ?? detailedTransaction.price_per_unit) != null && detailedTransaction.quantity != null && (detailedTransaction.amount_per_unit ?? detailedTransaction.price_per_unit)! > 0 && detailedTransaction.quantity > 0" class="space-y-3 p-4 border rounded-lg bg-muted/30">
                                     <div class="space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Quantity</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Quantity') }}</label>
                                         <p class="text-lg font-semibold text-card-foreground">
                                             {{ Math.round(detailedTransaction.quantity ?? 0) }}
                                         </p>
                                     </div>
 
                                     <div class="space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Price Per Unit</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Price Per Unit') }}</label>
                                         <p class="text-lg font-semibold text-card-foreground">
                                             {{ detailedTransaction.formatted_amount_per_unit || detailedTransaction.formatted_price_per_unit || detailedTransaction.formatted_amount }}
                                         </p>
                                     </div>
 
                                     <div v-if="detailedTransaction.vat_profile" class="pt-2 border-t space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Profile') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
                                         </p>
                                     </div>
 
                                     <div v-if="detailedTransaction.vat_amount > 0" class="pt-2 border-t space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Amount') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ detailedTransaction.formatted_vat_amount }}
                                         </p>
                                     </div>
 
                                     <div class="pt-2 border-t-2 border-primary/50 space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Total Amount') }}</label>
                                         <p class="text-2xl font-bold text-card-foreground text-primary">
                                             {{ detailedTransaction.formatted_total_amount }}
                                         </p>
@@ -208,21 +210,21 @@ const openFile = (src: string) => {
                                 <!-- Direct Amount (if no price per unit/quantity) -->
                                 <div v-else class="space-y-4">
                                     <div>
-                                        <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Amount') }}</label>
                                         <p class="text-xl font-semibold text-card-foreground">
                                             {{ detailedTransaction.formatted_amount }}
                                         </p>
                                     </div>
 
                                     <div v-if="detailedTransaction.vat_profile">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Profile') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ detailedTransaction.vat_profile.name }} ({{ detailedTransaction.vat_profile.percentage }}%)
                                         </p>
                                     </div>
 
                                     <div v-if="detailedTransaction.vat_amount > 0">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Amount') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ detailedTransaction.formatted_vat_amount }}
                                         </p>
@@ -230,7 +232,7 @@ const openFile = (src: string) => {
 
                                     <!-- Only show Total Amount if it's different from Amount (i.e., VAT exists) -->
                                     <div v-if="detailedTransaction.vat_amount > 0" class="pt-2 border-t">
-                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Total Amount') }}</label>
                                         <p class="text-xl font-semibold text-card-foreground text-primary">
                                             {{ detailedTransaction.formatted_total_amount }}
                                         </p>
@@ -240,14 +242,14 @@ const openFile = (src: string) => {
 
                             <div class="space-y-4">
                                 <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Currency</label>
+                                    <label class="text-sm font-medium text-muted-foreground">{{ t('Currency') }}</label>
                                     <p class="text-lg text-card-foreground">{{ detailedTransaction.currency }}</p>
                                 </div>
 
                                 <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Category</label>
+                                    <label class="text-sm font-medium text-muted-foreground">{{ t('Category') }}</label>
                                     <p class="text-lg text-card-foreground">
-                                        {{ detailedTransaction.category?.name || 'N/A' }}
+                                        {{ detailedTransaction.category ? t(detailedTransaction.category.name) : t('N/A') }}
                                     </p>
                                 </div>
                             </div>
@@ -256,14 +258,14 @@ const openFile = (src: string) => {
                         <!-- Related Information -->
                         <div v-if="detailedTransaction.supplier || detailedTransaction.crew_member" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
                             <div v-if="detailedTransaction.supplier">
-                                <label class="text-sm font-medium text-muted-foreground">Supplier</label>
+                                <label class="text-sm font-medium text-muted-foreground">{{ t('Supplier') }}</label>
                                 <p class="text-lg text-card-foreground">
                                     {{ detailedTransaction.supplier.company_name }}
                                 </p>
                             </div>
 
                             <div v-if="detailedTransaction.crew_member">
-                                <label class="text-sm font-medium text-muted-foreground">Crew Member</label>
+                                <label class="text-sm font-medium text-muted-foreground">{{ t('Crew Member') }}</label>
                                 <p class="text-lg text-card-foreground">
                                     {{ detailedTransaction.crew_member.name }}
                                     <span class="text-sm text-muted-foreground">
@@ -275,30 +277,30 @@ const openFile = (src: string) => {
 
                         <!-- Description -->
                         <div v-if="detailedTransaction.description" class="pt-4 border-t border-border">
-                            <label class="text-sm font-medium text-muted-foreground">Description</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Description') }}</label>
                             <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.description }}</p>
                         </div>
 
                         <!-- Reference -->
                         <div v-if="detailedTransaction.reference" class="pt-4 border-t border-border">
-                            <label class="text-sm font-medium text-muted-foreground">Reference</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Reference') }}</label>
                             <p class="text-base text-card-foreground mt-1">{{ detailedTransaction.reference }}</p>
                         </div>
 
                         <!-- Notes -->
                         <div v-if="detailedTransaction.notes" class="pt-4 border-t border-border">
-                            <label class="text-sm font-medium text-muted-foreground">Notes</label>
+                            <label class="text-sm font-medium text-muted-foreground">{{ t('Notes') }}</label>
                             <p class="text-base text-card-foreground mt-1 whitespace-pre-wrap">{{ detailedTransaction.notes }}</p>
                         </div>
 
                         <!-- Timestamps -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
                             <div>
-                                <label class="text-sm font-medium text-muted-foreground">Created At</label>
+                                <label class="text-sm font-medium text-muted-foreground">{{ t('Created At') }}</label>
                                 <p class="text-sm text-card-foreground">{{ detailedTransaction.created_at }}</p>
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-muted-foreground">Updated At</label>
+                                <label class="text-sm font-medium text-muted-foreground">{{ t('Updated At') }}</label>
                                 <p class="text-sm text-card-foreground">{{ detailedTransaction.updated_at }}</p>
                             </div>
                         </div>
@@ -307,7 +309,7 @@ const openFile = (src: string) => {
                     <!-- Right Column: Files Section -->
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <div class="space-y-3">
-                            <label class="text-base font-semibold text-foreground">Attached Files</label>
+                            <label class="text-base font-semibold text-foreground">{{ t('Attached Files') }}</label>
 
                             <!-- Files List -->
                             <div v-if="detailedTransaction.files && detailedTransaction.files.length > 0" class="space-y-2 max-h-[500px] overflow-y-auto">
@@ -338,7 +340,7 @@ const openFile = (src: string) => {
                                         class="w-full text-xs"
                                     >
                                         <Icon name="external-link" class="w-3 h-3 mr-1" />
-                                        View
+                                        {{ t('View') }}
                                     </Button>
                                 </div>
                             </div>
@@ -347,10 +349,10 @@ const openFile = (src: string) => {
                             <div v-else class="flex flex-col items-center justify-center p-8 rounded-lg border border-dashed border-border bg-muted/30">
                                 <Icon name="file" class="w-12 h-12 text-muted-foreground mb-3" />
                                 <p class="text-sm font-medium text-muted-foreground text-center">
-                                    No files attached
+                                    {{ t('No files attached') }}
                                 </p>
                                 <p class="text-xs text-muted-foreground text-center mt-1">
-                                    This transaction has no attached documents
+                                    {{ t('This transaction has no attached documents') }}
                                 </p>
                             </div>
                         </div>
@@ -385,35 +387,35 @@ const openFile = (src: string) => {
                                 <!-- Price Per Unit and Quantity (if available) -->
                                 <div v-if="(props.transaction.amount_per_unit ?? props.transaction.price_per_unit) != null && props.transaction.quantity != null && (props.transaction.amount_per_unit ?? props.transaction.price_per_unit)! > 0 && props.transaction.quantity > 0" class="space-y-3 p-4 border rounded-lg bg-muted/30">
                                     <div class="space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Quantity</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Quantity') }}</label>
                                         <p class="text-lg font-semibold text-card-foreground">
                                             {{ Math.round(props.transaction.quantity ?? 0) }}
                                         </p>
                                     </div>
 
                                     <div class="space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Price Per Unit</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Price Per Unit') }}</label>
                                         <p class="text-lg font-semibold text-card-foreground">
                                             {{ (props.transaction as any).formatted_amount_per_unit || props.transaction.formatted_price_per_unit || props.transaction.formatted_amount }}
                                         </p>
                                     </div>
 
                                     <div v-if="props.transaction.vat_profile" class="pt-2 border-t space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Profile') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ props.transaction.vat_profile.name }} ({{ props.transaction.vat_profile.percentage }}%)
                                         </p>
                                     </div>
 
                                     <div v-if="props.transaction.vat_amount > 0" class="pt-2 border-t space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Amount') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ props.transaction.formatted_vat_amount }}
                                         </p>
                                     </div>
 
                                     <div class="pt-2 border-t-2 border-primary/50 space-y-2">
-                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Total Amount') }}</label>
                                         <p class="text-2xl font-bold text-card-foreground text-primary">
                                             {{ props.transaction.formatted_total_amount }}
                                         </p>
@@ -423,21 +425,21 @@ const openFile = (src: string) => {
                                 <!-- Direct Amount (if no price per unit/quantity) -->
                                 <div v-else class="space-y-4">
                                     <div>
-                                        <label class="text-sm font-medium text-muted-foreground">Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Amount') }}</label>
                                         <p class="text-xl font-semibold text-card-foreground">
                                             {{ props.transaction.formatted_amount }}
                                         </p>
                                     </div>
 
                                     <div v-if="props.transaction.vat_profile">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Profile</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Profile') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ props.transaction.vat_profile.name }} ({{ props.transaction.vat_profile.percentage }}%)
                                         </p>
                                     </div>
 
                                     <div v-if="props.transaction.vat_amount > 0">
-                                        <label class="text-sm font-medium text-muted-foreground">VAT Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('VAT Amount') }}</label>
                                         <p class="text-lg text-card-foreground">
                                             {{ props.transaction.formatted_vat_amount }}
                                         </p>
@@ -445,7 +447,7 @@ const openFile = (src: string) => {
 
                                     <!-- Only show Total Amount if it's different from Amount (i.e., VAT exists) -->
                                     <div v-if="props.transaction.vat_amount > 0" class="pt-2 border-t">
-                                        <label class="text-sm font-medium text-muted-foreground">Total Amount</label>
+                                        <label class="text-sm font-medium text-muted-foreground">{{ t('Total Amount') }}</label>
                                         <p class="text-xl font-semibold text-card-foreground text-primary">
                                             {{ props.transaction.formatted_total_amount }}
                                         </p>
@@ -454,13 +456,13 @@ const openFile = (src: string) => {
                             </div>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Currency</label>
+                                    <label class="text-sm font-medium text-muted-foreground">{{ t('Currency') }}</label>
                                     <p class="text-lg text-card-foreground">{{ props.transaction.currency }}</p>
                                 </div>
                                 <div>
-                                    <label class="text-sm font-medium text-muted-foreground">Category</label>
+                                    <label class="text-sm font-medium text-muted-foreground">{{ t('Category') }}</label>
                                     <p class="text-lg text-card-foreground">
-                                        {{ props.transaction.category?.name || 'N/A' }}
+                                        {{ props.transaction.category ? t(props.transaction.category.name) : t('N/A') }}
                                     </p>
                                 </div>
                             </div>
@@ -470,7 +472,7 @@ const openFile = (src: string) => {
                     <!-- Right Column: Files Section -->
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <div class="space-y-3">
-                            <label class="text-base font-semibold text-foreground">Attached Files</label>
+                            <label class="text-base font-semibold text-foreground">{{ t('Attached Files') }}</label>
 
                             <!-- Files List -->
                             <div v-if="props.transaction.files && props.transaction.files.length > 0" class="space-y-2 max-h-[500px] overflow-y-auto">
@@ -501,7 +503,7 @@ const openFile = (src: string) => {
                                         class="w-full text-xs"
                                     >
                                         <Icon name="external-link" class="w-3 h-3 mr-1" />
-                                        View
+                                        {{ t('View') }}
                                     </Button>
                                 </div>
                             </div>
@@ -510,10 +512,10 @@ const openFile = (src: string) => {
                             <div v-else class="flex flex-col items-center justify-center p-8 rounded-lg border border-dashed border-border bg-muted/30">
                                 <Icon name="file" class="w-12 h-12 text-muted-foreground mb-3" />
                                 <p class="text-sm font-medium text-muted-foreground text-center">
-                                    No files attached
+                                    {{ t('No files attached') }}
                                 </p>
                                 <p class="text-xs text-muted-foreground text-center mt-1">
-                                    This transaction has no attached documents
+                                    {{ t('This transaction has no attached documents') }}
                                 </p>
                             </div>
                         </div>
@@ -524,7 +526,7 @@ const openFile = (src: string) => {
             <!-- Actions -->
             <div class="flex justify-end gap-3 pt-4 border-t border-border">
                 <Button type="button" variant="outline" @click="emit('close')">
-                    Close
+                    {{ t('Close') }}
                 </Button>
             </div>
         </DialogContent>
