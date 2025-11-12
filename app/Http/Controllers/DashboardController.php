@@ -155,6 +155,26 @@ class DashboardController extends BaseController
             'active_mareas' => $vessel->mareas()->whereIn('status', ['preparing', 'at_sea', 'returned'])->count(),
         ];
 
+        // Get last 6 crew members
+        $last6CrewMembers = \App\Models\User::where('vessel_id', $vesselId)
+            ->whereNotNull('position_id')
+            ->with('position')
+            ->orderBy('created_at', 'desc')
+            ->limit(6)
+            ->get()
+            ->map(function ($member) {
+                return [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'email' => $member->email,
+                    'position_name' => $member->position ? $member->position->name : null,
+                    'status' => $member->status,
+                    'status_label' => ucfirst($member->status ?? 'active'),
+                    'created_at' => $member->created_at ? $member->created_at->format('Y-m-d') : null,
+                    'formatted_created_at' => $member->created_at ? $member->created_at->format('M d, Y') : null,
+                ];
+            });
+
         // Get user permissions for quick links
         $userRole = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
@@ -181,6 +201,7 @@ class DashboardController extends BaseController
             'preparingMareas' => $preparingMareas,
             'recentTransactions' => $recentTransactions,
             'vesselStats' => $vesselStats,
+            'last6CrewMembers' => $last6CrewMembers,
             'defaultCurrency' => $defaultCurrency,
             'permissions' => $permissions,
         ]);
