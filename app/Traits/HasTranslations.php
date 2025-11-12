@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Traits;
 
 use Illuminate\Support\Facades\App;
@@ -18,7 +17,7 @@ trait HasTranslations
     protected function trans(string $key, array $replace = [], ?string $locale = null): string
     {
         // Get user's language preference if available
-        if (!$locale && auth()->check() && auth()->user()->language) {
+        if (! $locale && auth()->check() && auth()->user()->language) {
             $locale = auth()->user()->language;
         }
 
@@ -51,7 +50,7 @@ trait HasTranslations
     protected function transFrom(string $file, string $key, array $replace = [], ?string $locale = null): string
     {
         // Get user's language preference if available
-        if (!$locale && auth()->check() && auth()->user()->language) {
+        if (! $locale && auth()->check() && auth()->user()->language) {
             $locale = auth()->user()->language;
         }
 
@@ -64,6 +63,19 @@ trait HasTranslations
         // Get translation from specific file
         $translation = trans("{$file}.{$key}", $replace);
 
+        // If translation not found (returns the full key path), fallback to just the key
+        // This prevents showing "emails.Crew Member Invitation" when translation is missing
+        if ($translation === "{$file}.{$key}") {
+            // Try English fallback
+            $englishTranslation = trans("{$file}.{$key}", $replace, 'en');
+            if ($englishTranslation !== "{$file}.{$key}") {
+                $translation = $englishTranslation;
+            } else {
+                // If still not found, return just the key (cleaner than full path)
+                $translation = $key;
+            }
+        }
+
         // Restore original locale
         if ($locale) {
             App::setLocale($originalLocale);
@@ -72,4 +84,3 @@ trait HasTranslations
         return $translation;
     }
 }
-
