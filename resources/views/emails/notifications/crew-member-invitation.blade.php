@@ -6,7 +6,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.5px; line-height: 1.2; text-align: center;">
-                    Convite para Tripulação
+                    {{ trans('emails.Crew Invitation') }}
                 </h1>
             </td>
         </tr>
@@ -17,7 +17,7 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Olá{{ $user->name ? ' ' . $user->name : '' }},
+                    {{ trans('emails.Hello :name', ['name' => $user->name ?? '']) }}
                 </p>
             </td>
         </tr>
@@ -25,9 +25,9 @@
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
                     @if($user->invitation_accepted_at)
-                        Você foi convidado para fazer parte da tripulação da embarcação <strong>{{ $vessel->name }}</strong>.
+                        {{ trans('emails.You have been invited to join the crew of vessel :vessel.', ['vessel' => $vessel->name]) }}
                     @else
-                        Você foi convidado para fazer parte da tripulação da embarcação <strong>{{ $vessel->name }}</strong>. Clique no botão abaixo para aceitar o convite e criar sua conta.
+                        {{ trans('emails.You have been invited to join the crew of vessel :vessel. Click the button below to accept the invitation and create your account.', ['vessel' => $vessel->name]) }}
                     @endif
                 </p>
             </td>
@@ -49,7 +49,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Embarcação
+                                                        {{ trans('emails.Vessel') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -71,7 +71,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Função
+                                                        {{ trans('emails.Role') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -92,7 +92,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Email
+                                                        {{ trans('emails.Email') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -123,7 +123,7 @@
                     <tr>
                         <td style="background-color: #111827; border-radius: 8px;">
                             <a href="{{ $acceptUrl }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
-                                Aceitar Convite
+                                {{ trans('emails.Accept Invitation') }}
                             </a>
                         </td>
                     </tr>
@@ -139,7 +139,7 @@
         <tr>
             <td align="center" style="padding-top: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
-                    <strong>Nota:</strong> Este convite expira em 7 dias. Se você não criar uma conta até lá, entre em contato com o administrador da embarcação.
+                    <strong>{{ trans('emails.Note: This invitation expires in 7 days. If you do not create an account by then, please contact the vessel administrator.') }}</strong>
                 </p>
             </td>
         </tr>
