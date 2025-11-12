@@ -4,7 +4,7 @@ namespace App\Pdf;
 
 use App\Models\Transaction;
 use App\Models\Vessel;
-use App\Services\MoneyService;
+use App\Actions\MoneyAction;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 

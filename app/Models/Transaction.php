@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Actions\MoneyAction;
-use App\Services\MoneyService;
 use App\Models\VatProfile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -270,7 +269,7 @@ class Transaction extends Model
                 if ($vatProfile) {
                     // VAT calculation is handled in controller based on amount_includes_vat flag
                     // Here we just set default if not provided
-                    $transaction->vat_amount = MoneyService::calculateVat(
+                    $transaction->vat_amount = MoneyAction::calculateVat(
                         $transaction->amount,
                         (float) $vatProfile->percentage,
                         $transaction->house_of_zeros ?? 2
@@ -317,7 +316,7 @@ class Transaction extends Model
                 if ($transaction->vat_profile_id && $transaction->type === 'income') {
                     $vatProfile = VatProfile::find($transaction->vat_profile_id);
                     if ($vatProfile) {
-                        $transaction->vat_amount = MoneyService::calculateVat(
+                        $transaction->vat_amount = MoneyAction::calculateVat(
                             $transaction->amount,
                             (float) $vatProfile->percentage,
                             $transaction->house_of_zeros ?? 2
