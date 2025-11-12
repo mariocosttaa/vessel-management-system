@@ -113,11 +113,14 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/crew-members/{crewMember}', [CrewMemberController::class, 'show'])->name('panel.crew-members.show');
     Route::get('/crew-members/{crewMember}/edit', [CrewMemberController::class, 'edit'])->name('panel.crew-members.edit');
     Route::get('/api/crew-members/search', [CrewMemberController::class, 'search'])->name('panel.api.crew-members.search');
+    Route::post('/api/crew-members/check-email', [CrewMemberController::class, 'checkEmail'])->name('panel.api.crew-members.check-email');
 
     Route::middleware('role:admin,manager')->group(function () {
         Route::post('/crew-members', [CrewMemberController::class, 'store'])->name('panel.crew-members.store');
         Route::put('/crew-members/{crewMember}', [CrewMemberController::class, 'update'])->name('panel.crew-members.update');
         Route::delete('/crew-members/{crewMember}', [CrewMemberController::class, 'destroy'])->name('panel.crew-members.destroy');
+        Route::post('/crew-members/{crewMember}/cancel-invitation', [CrewMemberController::class, 'cancelInvitation'])->name('panel.crew-members.cancel-invitation');
+        Route::post('/crew-members/{crewMember}/resend-invitation', [CrewMemberController::class, 'resendInvitation'])->name('panel.crew-members.resend-invitation');
     });
 
     // Crew Roles (scoped to current vessel, but includes global roles)
