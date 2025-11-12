@@ -44,6 +44,7 @@ interface CrewMember {
     status: string;
     status_label: string;
     status_color: string;
+    login_permitted?: boolean;
     notes?: string;
     created_at: string;
 }
@@ -146,8 +147,7 @@ const columns = computed(() => [
     { key: 'name', label: t('Name'), sortable: true },
     { key: 'position_name', label: t('Position'), sortable: false },
     { key: 'status_label', label: t('Status'), sortable: false },
-    { key: 'formatted_salary', label: t('Salary'), sortable: false },
-    { key: 'formatted_hire_date', label: t('Hire Date'), sortable: true },
+    { key: 'login_permitted', label: t('System Access'), sortable: false },
 ]);
 
 // Actions configuration based on permissions
@@ -232,8 +232,18 @@ const openShowModal = (crewMember: CrewMember) => {
 };
 
 const handleModalSaved = () => {
+    // Close modals before reloading
+    isCreateModalOpen.value = false;
+    isUpdateModalOpen.value = false;
     // Refresh the page to show updated data
     router.reload();
+};
+
+const handleRemoveFromModal = (crewMember: CrewMember) => {
+    // Close update modal
+    isUpdateModalOpen.value = false;
+    // Open delete confirmation dialog
+    deleteCrewMember(crewMember);
 };
 
 // Delete functions
@@ -338,6 +348,16 @@ const getStatusBadgeClass = (status: string) => {
             return `${baseClass} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400`;
         default:
             return `${baseClass} bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground`;
+    }
+};
+
+const getSystemAccessBadgeClass = (hasAccess: boolean | undefined) => {
+    const baseClass = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
+
+    if (hasAccess) {
+        return `${baseClass} bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400`;
+    } else {
+        return `${baseClass} bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground`;
     }
 };
 
@@ -539,9 +559,11 @@ const formatDate = (dateString: string) => {
                     </span>
                 </template>
 
-                <!-- Custom cell for hire date -->
-                <template #cell-formatted_hire_date="{ item }">
-                    {{ item.formatted_hire_date || formatDate(item.hire_date) }}
+                <!-- Custom cell for system access -->
+                <template #cell-login_permitted="{ item }">
+                    <span :class="getSystemAccessBadgeClass(item.login_permitted)">
+                        {{ item.login_permitted ? t('Yes') : t('No') }}
+                    </span>
                 </template>
             </DataTable>
 
@@ -571,6 +593,7 @@ const formatDate = (dateString: string) => {
             :currencies="currencies"
             :payment-frequencies="paymentFrequencies"
             @saved="handleModalSaved"
+            @remove="handleRemoveFromModal"
         />
 
         <CrewMemberShowModal
