@@ -91,7 +91,8 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
 });
 
 // All panel routes require vessel access
-Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}')->group(function () {
+// Note: {vessel} parameter is handled by EnsureVesselAccess middleware, not route model binding
+Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}')->where(['vessel' => '[^/]+'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('panel.dashboard');
@@ -145,11 +146,21 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/transactions/history/{year}/{month}', [TransactionController::class, 'historyMonth'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
         ->name('panel.transactions.history.month');
+    Route::get('/transactions/history/download-pdf', [TransactionController::class, 'downloadPdf'])
+        ->middleware('throttle:10,1')
+        ->name('panel.transactions.history.download-pdf');
+    Route::get('/transactions/history/{year}/{month}/download-pdf', [TransactionController::class, 'downloadPdfMonth'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->middleware('throttle:10,1')
+        ->name('panel.transactions.history.month.download-pdf');
+    Route::get('/transactions/download-pdf', [TransactionController::class, 'downloadPdfFiltered'])
+        ->middleware('throttle:10,1')
+        ->name('panel.transactions.download-pdf');
     Route::get('/transactions/{transactionId}', [TransactionController::class, 'show'])
-        ->where(['transactionId' => '[0-9]+'])
+        ->where(['transactionId' => '[^/]+'])
         ->name('panel.transactions.show');
     Route::get('/transactions/{transactionId}/edit', [TransactionController::class, 'edit'])
-        ->where(['transactionId' => '[0-9]+'])
+        ->where(['transactionId' => '[^/]+'])
         ->name('panel.transactions.edit');
     Route::get('/api/transactions/search', [TransactionController::class, 'search'])->name('panel.api.transactions.search');
     Route::get('/api/transactions/{transactionId}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');

@@ -23,16 +23,17 @@ import {
     Clock
 } from 'lucide-vue-next';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric for transition)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed ID (alphanumeric string) or numeric ID
+    const vesselMatch = path.match(/\/panel\/([^/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface Props {
     vessel: {
-        id: number;
+        id: string;
         name: string;
         registration_number: string;
         status: string;
@@ -56,7 +57,7 @@ interface Props {
     }>;
     vesselAtSea: boolean;
     activeMarea: {
-        id: number;
+        id: string;
         marea_number: string;
         name: string;
         status: string;
@@ -64,7 +65,7 @@ interface Props {
         estimated_return_date: string;
     } | null;
     preparingMareas: Array<{
-        id: number;
+        id: string;
         marea_number: string;
         name: string;
         status: string;
@@ -72,7 +73,7 @@ interface Props {
         estimated_return_date: string;
     }>;
     recentTransactions: Array<{
-        id: number;
+        id: string;
         transaction_number: string;
         type: string;
         type_label: string;
@@ -82,7 +83,7 @@ interface Props {
         formatted_transaction_date: string;
         description: string | null;
         category: {
-            id: number;
+            id: string;
             name: string;
             color: string;
         } | null;
@@ -94,7 +95,7 @@ interface Props {
         active_mareas: number;
     };
     last6CrewMembers: Array<{
-        id: number;
+        id: string;
         name: string;
         email?: string;
         position_name: string | null;
@@ -127,20 +128,23 @@ const getCurrencyData = (currencyCode: string) => {
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 const currencyData = computed(() => getCurrencyData(defaultCurrency.value));
 
+// Alias for easier template access
+const currentMonth = computed(() => props.currentMonth);
+
 // Navigate to transaction
-const viewTransaction = (transactionId: number) => {
+const viewTransaction = (transactionId: string) => {
     const vesselId = getCurrentVesselId();
     router.visit(`/panel/${vesselId}/transactions/${transactionId}`);
 };
 
 // Navigate to marea
-const viewMarea = (mareaId: number) => {
+const viewMarea = (mareaId: string) => {
     const vesselId = getCurrentVesselId();
     router.visit(`/panel/${vesselId}/mareas/${mareaId}`);
 };
 
 // Navigate to crew member
-const viewCrewMember = (memberId: number) => {
+const viewCrewMember = (memberId: string) => {
     const vesselId = getCurrentVesselId();
     router.visit(`/panel/${vesselId}/crew-members`);
 };
@@ -163,6 +167,7 @@ const getPreparationProgress = (marea: any) => {
     // Linear progression from 10% to 90% over 30 days
     return Math.min(90, Math.max(10, 90 - (daysUntilDeparture * 2.67)));
 };
+
 </script>
 
 <template>

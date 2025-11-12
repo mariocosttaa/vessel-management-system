@@ -4,6 +4,7 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import vatReports from '@/routes/panel/vat-reports';
 
 // Get current vessel ID from URL
@@ -29,6 +30,7 @@ const props = defineProps<Props>();
 
 // Permission check
 const { hasPermission } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to access reports
 onMounted(() => {
@@ -100,17 +102,17 @@ const groupedByYear = computed(() => {
 </script>
 
 <template>
-    <Head title="VAT Reports" />
+    <Head :title="t('VAT Reports')" />
 
     <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
-        { title: 'VAT Reports', href: vatReports.index.url({ vessel: getCurrentVesselId() }) }
+        { title: t('VAT Reports'), href: vatReports.index.url({ vessel: getCurrentVesselId() }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div>
-                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">VAT Reports</h1>
-                    <p class="text-muted-foreground dark:text-muted-foreground mt-1">Select a month and year to view detailed VAT reports</p>
+                    <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('VAT Reports') }}</h1>
+                    <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Select a month and year to view detailed VAT reports') }}</p>
                 </div>
             </div>
 
@@ -135,7 +137,7 @@ const groupedByYear = computed(() => {
                                     {{ item.month_label }}
                                 </div>
                                 <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-2">
-                                    {{ item.count }} {{ item.count === 1 ? 'transaction' : 'transactions' }}
+                                    {{ item.count }} {{ item.count === 1 ? t('transaction') : t('transactions') }}
                                 </div>
                                 <div class="text-lg font-semibold text-primary dark:text-primary">
                                     <MoneyDisplay
@@ -154,15 +156,15 @@ const groupedByYear = computed(() => {
 
             <!-- No Data Message -->
             <div v-else class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">No VAT reports available</p>
-                <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-2">VAT is only calculated for income transactions</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('No VAT reports available') }}</p>
+                <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-2">{{ t('VAT is only calculated for income transactions') }}</p>
             </div>
         </div>
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view VAT reports.</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('You do not have permission to view VAT reports.') }}</p>
             </div>
         </div>
     </VesselLayout>

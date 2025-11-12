@@ -25,6 +25,7 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'vessel_admin_notification' => ['nullable', 'boolean'],
         ];
     }
 }

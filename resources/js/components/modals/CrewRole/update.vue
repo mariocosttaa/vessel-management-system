@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Select from '@/components/ui/select/Select.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface CrewPosition {
     id: number;
@@ -36,6 +37,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -130,14 +132,14 @@ const handleClose = () => {
 <template>
     <BaseModal
         :open="open"
-        title="Edit Crew Role"
-        description="Update crew role information"
+        :title="t('Edit Crew Role')"
+        :description="t('Update crew role information')"
         size="lg"
         :loading="form.processing"
         :disabled="form.processing"
         :api-url="apiUrl"
         :enable-lazy-loading="true"
-        confirm-text="Update"
+        :confirm-text="t('Update')"
         @update:open="handleClose"
         @confirm="handleSave"
         @cancel="handleClose"
@@ -148,13 +150,13 @@ const handleClose = () => {
                 <!-- Role Name -->
                 <div>
                     <Label for="name" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                        Role Name <span class="text-destructive">*</span>
+                        {{ t('Role Name') }} <span class="text-destructive">*</span>
                     </Label>
                     <Input
                         id="name"
                         v-model="form.name"
                         type="text"
-                        placeholder="Enter role name (e.g., Captain, Engineer)"
+                        :placeholder="t('Enter role name (e.g., Captain, Engineer)')"
                         required
                         :disabled="apiLoading"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.name }"
@@ -165,13 +167,13 @@ const handleClose = () => {
                 <!-- Description -->
                 <div>
                     <Label for="description" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                        Description
+                        {{ t('Description') }}
                     </Label>
                     <textarea
                         id="description"
                         v-model="form.description"
                         rows="3"
-                        placeholder="Enter role description (optional)"
+                        :placeholder="t('Enter role description (optional)')"
                         :disabled="apiLoading"
                         class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
@@ -183,7 +185,7 @@ const handleClose = () => {
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <Label for="vessel_role_access_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Permission Level
+                            {{ t('Permission Level') }}
                         </Label>
                         <button
                             type="button"
@@ -191,28 +193,28 @@ const handleClose = () => {
                             class="text-xs text-primary hover:underline flex items-center gap-1"
                         >
                             <Icon name="info" class="h-3 w-3" />
-                            Learn about permission types
+                            {{ t('Learn about permission types') }}
                         </button>
                     </div>
                     <Select
                         id="vessel_role_access_id"
                         v-model="form.vessel_role_access_id"
                         :options="vesselRoleAccessOptions"
-                        placeholder="Select a permission level (optional)"
+                        :placeholder="t('Select a permission level (optional)')"
                         :searchable="true"
                         :disabled="apiLoading"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.vessel_role_access_id }"
                     />
                     <InputError :message="form.errors.vessel_role_access_id" class="mt-1" />
                     <p class="mt-1 text-xs text-muted-foreground">
-                        Select the permission level for this crew role. This determines what actions users with this role can perform.
+                        {{ t('Select the permission level for this crew role. This determines what actions users with this role can perform.') }}
                     </p>
                 </div>
 
                 <!-- Scope Info (read-only) -->
                 <div v-if="props.crewPosition || data?.crewPosition">
                     <Label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                        Scope
+                        {{ t('Scope') }}
                     </Label>
                     <div class="mt-1">
                         <span
@@ -223,11 +225,11 @@ const handleClose = () => {
                                     : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
                             ]"
                         >
-                            {{ (props.crewPosition?.is_global || data?.crewPosition?.is_global) ? 'Default' : 'Created' }}
+                            {{ (props.crewPosition?.is_global || data?.crewPosition?.is_global) ? t('Default') : t('Created') }}
                         </span>
                     </div>
                     <p class="mt-1 text-xs text-muted-foreground">
-                        The scope cannot be changed after creation.
+                        {{ t('The scope cannot be changed after creation.') }}
                     </p>
                 </div>
             </form>

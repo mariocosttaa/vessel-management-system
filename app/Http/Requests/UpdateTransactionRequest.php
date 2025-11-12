@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\TransactionCategory;
 use App\Models\User;
@@ -218,9 +219,21 @@ class UpdateTransactionRequest extends FormRequest
         // These are required fields and must be preserved exactly as sent
         $data = [];
 
-        // Preserve category_id - required field, must be present
-        if ($this->has('category_id') && $this->category_id !== null) {
-            $data['category_id'] = (int) $this->category_id;
+        // Unhash IDs from frontend
+        if ($this->filled('category_id')) {
+            $data['category_id'] = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+        }
+
+        if ($this->filled('vat_profile_id')) {
+            $data['vat_profile_id'] = EasyHashAction::decode($this->vat_profile_id, 'vatprofile-id');
+        }
+
+        if ($this->filled('supplier_id')) {
+            $data['supplier_id'] = EasyHashAction::decode($this->supplier_id, 'supplier-id');
+        }
+
+        if ($this->filled('crew_member_id')) {
+            $data['crew_member_id'] = EasyHashAction::decode($this->crew_member_id, 'user-id');
         }
 
         // Preserve transaction_date - required field, must be present

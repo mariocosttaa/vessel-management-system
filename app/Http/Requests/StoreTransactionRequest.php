@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\TransactionCategory;
 use App\Models\User;
@@ -61,20 +62,32 @@ class StoreTransactionRequest extends FormRequest
             return false;
         }
 
-        // Get vessel ID from route parameter
-        $vesselId = $this->route('vessel');
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = $this->attributes->get('vessel_id');
+        if (!$vesselId) {
+            // Fallback: try to get from route and unhash if needed
+            $vesselParam = $this->route('vessel');
+            if ($vesselParam) {
+                if (is_numeric($vesselParam)) {
+                    $vesselId = (int) $vesselParam;
+                } else {
+                    $vesselId = \App\Actions\General\EasyHashAction::decode($vesselParam, 'vessel-id');
+                }
+            }
+        }
+
         if (!$vesselId) {
             return false;
         }
 
         // Check if user has access to vessel
         /** @var \App\Models\User $user */
-        if (!$user->hasAccessToVessel(is_object($vesselId) ? $vesselId->id : (int) $vesselId)) {
+        if (!$user->hasAccessToVessel((int) $vesselId)) {
             return false;
         }
 
         // Check transactions.create permission from config
-        $vesselIdInt = is_object($vesselId) ? $vesselId->id : (int) $vesselId;
+        $vesselIdInt = (int) $vesselId;
         $userRole = $user->getRoleForVessel($vesselIdInt);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
@@ -129,9 +142,14 @@ class StoreTransactionRequest extends FormRequest
                 $validator->errors()->add('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
             }
 
+            // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+            $vesselId = $this->getVesselId();
+            if (!$vesselId) {
+                return;
+            }
+
             // Validate supplier belongs to current vessel (if provided)
             if ($this->supplier_id) {
-                $vesselId = $this->route('vessel');
                 $supplier = Supplier::find($this->supplier_id);
 
                 if ($supplier && $supplier->vessel_id !== (int) $vesselId) {
@@ -141,7 +159,6 @@ class StoreTransactionRequest extends FormRequest
 
             // Validate crew member belongs to current vessel (if provided)
             if ($this->crew_member_id) {
-                $vesselId = $this->route('vessel');
                 $crewMember = User::find($this->crew_member_id);
 
                 if ($crewMember && $crewMember->vessel_id !== (int) $vesselId) {
@@ -160,7 +177,6 @@ class StoreTransactionRequest extends FormRequest
 
             // Validate marea belongs to current vessel (if provided)
             if ($this->marea_id) {
-                $vesselId = $this->route('vessel');
                 $marea = \App\Models\Marea::find($this->marea_id);
 
                 if ($marea && $marea->vessel_id !== (int) $vesselId) {
@@ -170,7 +186,6 @@ class StoreTransactionRequest extends FormRequest
 
             // Validate maintenance belongs to current vessel (if provided)
             if ($this->maintenance_id) {
-                $vesselId = $this->route('vessel');
                 $maintenance = \App\Models\Maintenance::find($this->maintenance_id);
 
                 if ($maintenance && $maintenance->vessel_id !== (int) $vesselId) {
@@ -210,17 +225,81 @@ class StoreTransactionRequest extends FormRequest
     }
 
     /**
+     * Get vessel ID from request attributes or route parameter.
+     * This handles both hashed and numeric vessel IDs.
+     */
+    protected function getVesselId(): ?int
+    {
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = $this->attributes->get('vessel_id');
+        if ($vesselId) {
+            return (int) $vesselId;
+        }
+
+        // Fallback: try to get from route and unhash if needed
+        $vesselParam = $this->route('vessel');
+        if ($vesselParam) {
+            if (is_numeric($vesselParam)) {
+                return (int) $vesselParam;
+            } else {
+                return \App\Actions\General\EasyHashAction::decode($vesselParam, 'vessel-id');
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Prepare the data for validation.
      */
     protected function prepareForValidation(): void
     {
-        // Get vessel ID and currency from vessel_settings (priority) or vessel currency_code
-        $vesselId = $this->route('vessel');
+        // Unhash IDs from frontend
+        $data = [];
+
+        if ($this->filled('category_id')) {
+            $data['category_id'] = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+        }
+
+        if ($this->filled('vat_profile_id')) {
+            $data['vat_profile_id'] = EasyHashAction::decode($this->vat_profile_id, 'vatprofile-id');
+        }
+
+        if ($this->filled('supplier_id')) {
+            $data['supplier_id'] = EasyHashAction::decode($this->supplier_id, 'supplier-id');
+        }
+
+        if ($this->filled('crew_member_id')) {
+            $data['crew_member_id'] = EasyHashAction::decode($this->crew_member_id, 'user-id');
+        }
+
+        if ($this->filled('marea_id')) {
+            $data['marea_id'] = EasyHashAction::decode($this->marea_id, 'marea-id');
+        }
+
+        if ($this->filled('maintenance_id')) {
+            $data['maintenance_id'] = EasyHashAction::decode($this->maintenance_id, 'maintenance-id');
+        }
+
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        // This is the unhashed integer ID
+        $vesselId = $this->attributes->get('vessel_id');
+        if (!$vesselId) {
+            // Fallback: try to get from route and unhash if needed
+            $vesselParam = $this->route('vessel');
+            if ($vesselParam) {
+                if (is_numeric($vesselParam)) {
+                    $vesselId = (int) $vesselParam;
+                } else {
+                    $vesselId = \App\Actions\General\EasyHashAction::decode($vesselParam, 'vessel-id');
+                }
+            }
+        }
         $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
         $vessel = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel?->currency_code ?? 'EUR';
 
-        $data = [
+        $data = array_merge($data, [
             'type' => $this->type ?? 'expense',
             'status' => $this->status ?? 'completed',
             // Use currency from request if provided, otherwise use vessel settings currency (not EUR hardcoded)
@@ -228,7 +307,7 @@ class StoreTransactionRequest extends FormRequest
             'house_of_zeros' => $this->house_of_zeros ?? 2,
             'description' => $this->description ? trim($this->description) : null,
             'notes' => $this->notes ? trim($this->notes) : null,
-        ];
+        ]);
 
         // Normalize amount_per_unit and quantity if provided
         if ($this->filled('amount_per_unit')) {

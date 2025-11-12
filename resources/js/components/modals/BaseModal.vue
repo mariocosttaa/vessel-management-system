@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface Props {
     open: boolean;
@@ -23,6 +24,8 @@ interface Props {
     enableLazyLoading?: boolean;
     retryOnError?: boolean;
 }
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<Props>(), {
     size: 'md',
@@ -106,7 +109,7 @@ const makeApiRequest = async () => {
         apiData.value = data;
         emit('data-loaded', data);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+        const errorMessage = err instanceof Error ? err.message : t('An unknown error occurred');
         apiError.value = errorMessage;
         emit('error', errorMessage);
         console.error('API request failed:', err);
@@ -157,7 +160,7 @@ const handleConfirm = () => {
                     {{ description }}
                 </DialogDescription>
                 <DialogDescription v-else class="sr-only">
-                    {{ title }} dialog
+                    {{ title }} {{ t('dialog') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -165,7 +168,7 @@ const handleConfirm = () => {
             <div v-if="apiLoading" class="flex items-center justify-center py-8">
                 <div class="flex items-center space-x-2">
                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    <span class="text-muted-foreground">Loading data...</span>
+                    <span class="text-muted-foreground">{{ t('Loading data...') }}</span>
                 </div>
             </div>
 
@@ -174,7 +177,7 @@ const handleConfirm = () => {
                 <div class="text-center">
                     <p class="text-red-600 mb-4">{{ apiError }}</p>
                     <Button v-if="retryOnError" @click="retryRequest" variant="outline">
-                        Try Again
+                        {{ t('Try Again') }}
                     </Button>
                 </div>
             </div>
@@ -193,7 +196,7 @@ const handleConfirm = () => {
                     @click="handleCancel"
                     :disabled="isLoading"
                 >
-                    {{ cancelText }}
+                    {{ cancelText || t('Cancel') }}
                 </Button>
                 <Button
                     v-if="showConfirmButton"
@@ -201,7 +204,7 @@ const handleConfirm = () => {
                     :disabled="disabled || isLoading"
                 >
                     <Icon v-if="isLoading" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                    {{ confirmText }}
+                    {{ confirmText || t('Save') }}
                 </Button>
             </div>
         </DialogContent>

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 import suppliers from '@/routes/panel/suppliers';
 
 interface Supplier {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -110,9 +112,9 @@ const handleClose = () => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Edit Supplier</DialogTitle>
+                <DialogTitle>{{ t('Edit Supplier') }}</DialogTitle>
                 <DialogDescription>
-                    Update supplier information
+                    {{ t('Update supplier information') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -122,13 +124,13 @@ const handleClose = () => {
                         <!-- Company Name -->
                         <div>
                             <Label for="company_name" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Company Name <span class="text-destructive">*</span>
+                                {{ t('Company Name') }} <span class="text-destructive">*</span>
                             </Label>
                             <Input
                                 id="company_name"
                                 v-model="form.company_name"
                                 type="text"
-                                placeholder="Enter company name"
+                                :placeholder="t('Enter company name')"
                                 required
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.company_name }"
                             />
@@ -138,13 +140,13 @@ const handleClose = () => {
                         <!-- Description -->
                         <div>
                             <Label for="description" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Description
+                                {{ t('Description') }}
                             </Label>
                             <textarea
                                 id="description"
                                 v-model="form.description"
                                 rows="3"
-                                placeholder="Enter supplier description"
+                                :placeholder="t('Enter supplier description')"
                                 class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
                             ></textarea>
@@ -154,13 +156,13 @@ const handleClose = () => {
                         <!-- Email -->
                         <div>
                             <Label for="email" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Email
+                                {{ t('Email') }}
                             </Label>
                             <Input
                                 id="email"
                                 v-model="form.email"
                                 type="email"
-                                placeholder="Enter email address"
+                                :placeholder="t('Enter email address')"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.email }"
                             />
                             <InputError :message="form.errors.email" class="mt-1" />
@@ -169,13 +171,13 @@ const handleClose = () => {
                         <!-- Phone -->
                         <div>
                             <Label for="phone" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Phone
+                                {{ t('Phone') }}
                             </Label>
                             <Input
                                 id="phone"
                                 v-model="form.phone"
                                 type="tel"
-                                placeholder="Enter phone number"
+                                :placeholder="t('Enter phone number')"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.phone }"
                             />
                             <InputError :message="form.errors.phone" class="mt-1" />
@@ -184,13 +186,13 @@ const handleClose = () => {
                         <!-- Address -->
                         <div>
                             <Label for="address" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Address
+                                {{ t('Address') }}
                             </Label>
                             <textarea
                                 id="address"
                                 v-model="form.address"
                                 rows="3"
-                                placeholder="Enter address"
+                                :placeholder="t('Enter address')"
                                 class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.address }"
                             ></textarea>
@@ -200,13 +202,13 @@ const handleClose = () => {
                         <!-- Notes -->
                         <div>
                             <Label for="notes" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Notes
+                                {{ t('Notes') }}
                             </Label>
                             <textarea
                                 id="notes"
                                 v-model="form.notes"
                                 rows="3"
-                                placeholder="Enter additional notes"
+                                :placeholder="t('Enter additional notes')"
                                 class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                             ></textarea>
@@ -222,14 +224,14 @@ const handleClose = () => {
                     @click="handleClose"
                     :disabled="form.processing"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button
                     @click="handleSave"
                     :disabled="form.processing"
                 >
                     <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                    Update Supplier
+                    {{ t('Update Supplier') }}
                 </Button>
             </div>
         </DialogContent>

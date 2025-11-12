@@ -3,9 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class VesselResource extends JsonResource
+class VesselResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -15,7 +14,7 @@ class VesselResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->hashId($this->id),
             'name' => $this->name,
             'registration_number' => $this->registration_number,
             'vessel_type' => $this->vessel_type,
@@ -26,7 +25,7 @@ class VesselResource extends JsonResource
             'notes' => $this->notes,
             'logo' => $this->logo,
             'logo_url' => $this->logo_url,
-            'owner_id' => $this->owner_id,
+            'owner_id' => $this->hashIdForModel($this->owner_id, 'user'),
             'country_code' => $this->country_code,
             'currency_code' => $this->currency_code,
             'created_at' => $this->created_at?->toISOString(),

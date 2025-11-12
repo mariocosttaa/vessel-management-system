@@ -12,10 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem } from '@/types';
+import { useI18n } from '@/composables/useI18n';
+
+const { t } = useI18n();
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
-        title: 'Password settings',
+        title: t('Password settings'),
         href: edit().url,
     },
 ];
@@ -26,13 +29,13 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Password settings" />
+        <Head :title="t('Password settings')" />
 
         <SettingsLayout>
             <div class="space-y-6">
                 <HeadingSmall
-                    title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
+                    :title="t('Update password')"
+                    :description="t('Ensure your account is using a long, random password to stay secure')"
                 />
 
                 <Form
@@ -50,7 +53,7 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
                     <div class="grid gap-2">
-                        <Label for="current_password">Current password</Label>
+                        <Label for="current_password">{{ t('Current password') }}</Label>
                         <Input
                             id="current_password"
                             ref="currentPasswordInput"
@@ -58,13 +61,13 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="current-password"
-                            placeholder="Current password"
+                            :placeholder="t('Current password')"
                         />
                         <InputError :message="errors.current_password" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password">New password</Label>
+                        <Label for="password">{{ t('New password') }}</Label>
                         <Input
                             id="password"
                             ref="passwordInput"
@@ -72,14 +75,14 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            placeholder="New password"
+                            :placeholder="t('New password')"
                         />
                         <InputError :message="errors.password" />
                     </div>
 
                     <div class="grid gap-2">
                         <Label for="password_confirmation"
-                            >Confirm password</Label
+                            >{{ t('Confirm password') }}</Label
                         >
                         <Input
                             id="password_confirmation"
@@ -87,7 +90,7 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                             type="password"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            placeholder="Confirm password"
+                            :placeholder="t('Confirm password')"
                         />
                         <InputError :message="errors.password_confirmation" />
                     </div>
@@ -96,7 +99,7 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                         <Button
                             :disabled="processing"
                             data-test="update-password-button"
-                            >Save password</Button
+                            >{{ t('Save password') }}</Button
                         >
 
                         <Transition
@@ -109,7 +112,7 @@ const currentPasswordInput = ref<HTMLInputElement | null>(null);
                                 v-show="recentlySuccessful"
                                 class="text-sm text-neutral-600"
                             >
-                                Saved.
+                                {{ t('Saved.') }}
                             </p>
                         </Transition>
                     </div>

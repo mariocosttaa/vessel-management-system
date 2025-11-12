@@ -8,6 +8,7 @@ import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface Marea {
     id: number;
@@ -26,6 +27,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -107,9 +109,9 @@ const getTodayDate = () => {
     <Dialog :open="open" @update:open="handleClose">
         <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>Edit Marea: {{ marea.marea_number }}</DialogTitle>
+                <DialogTitle>{{ t('Edit Marea') }}: {{ marea.marea_number }}</DialogTitle>
                 <DialogDescription>
-                    Update marea information
+                    {{ t('Update marea information') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -118,13 +120,13 @@ const getTodayDate = () => {
                     <!-- Name -->
                     <div>
                         <Label for="name" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Name (Optional)
+                            {{ t('Name') }} ({{ t('Optional') }})
                         </Label>
                         <Input
                             id="name"
                             v-model="form.name"
                             type="text"
-                            placeholder="Enter marea name (e.g., 'Summer Fishing Trip')"
+                            :placeholder="t('Enter marea name (e.g., \'Summer Fishing Trip\')')"
                             :class="{ 'border-destructive dark:border-destructive': form.errors.name }"
                             :disabled="form.processing"
                         />
@@ -134,13 +136,13 @@ const getTodayDate = () => {
                     <!-- Description -->
                     <div>
                         <Label for="description" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Description (Optional)
+                            {{ t('Description') }} ({{ t('Optional') }})
                         </Label>
                         <textarea
                             id="description"
                             v-model="form.description"
                             rows="3"
-                            placeholder="Enter description or notes about this marea"
+                            :placeholder="t('Enter description or notes about this marea')"
                             class="flex min-h-[80px] w-full rounded-md border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
                             :disabled="form.processing"
@@ -153,7 +155,7 @@ const getTodayDate = () => {
                         <!-- Estimated Departure Date -->
                         <div>
                             <Label for="estimated_departure_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Departure Date
+                                {{ t('Estimated Departure Date') }}
                             </Label>
                             <DateInput
                                 id="estimated_departure_date"
@@ -167,7 +169,7 @@ const getTodayDate = () => {
                         <!-- Estimated Return Date -->
                         <div>
                             <Label for="estimated_return_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                Estimated Return Date
+                                {{ t('Estimated Return Date') }}
                             </Label>
                             <DateInput
                                 id="estimated_return_date"
@@ -178,7 +180,7 @@ const getTodayDate = () => {
                             />
                             <InputError :message="form.errors.estimated_return_date" class="mt-1" />
                             <p class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                                Must be after or equal to departure date
+                                {{ t('Must be after or equal to departure date') }}
                             </p>
                         </div>
                     </div>
@@ -191,7 +193,7 @@ const getTodayDate = () => {
                     @click="handleClose"
                     :disabled="form.processing"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button
                     @click="handleSubmit"
@@ -207,7 +209,7 @@ const getTodayDate = () => {
                         name="save"
                         class="w-4 h-4 mr-2"
                     />
-                    {{ form.processing ? 'Updating...' : 'Update Marea' }}
+                    {{ form.processing ? t('Updating...') : t('Update Marea') }}
                 </Button>
             </DialogFooter>
         </DialogContent>

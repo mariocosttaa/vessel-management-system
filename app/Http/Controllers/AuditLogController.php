@@ -26,11 +26,8 @@ class AuditLogController extends Controller
 
         // Check if user has permission to view audit logs
         // Only administrators should have access to audit logs
-        // Check if user has admin role (check both role names and vessel roles)
-        $hasAdminRole = $user && (
-            $user->hasAnyRole(['administrator', 'admin']) ||
-            ($vesselId && $user->getRoleForVessel($vesselId) === 'administrator')
-        );
+        // Check if user has administrator role for the vessel
+        $hasAdminRole = $user && $vesselId && $user->getRoleForVessel($vesselId) === 'Administrator';
 
         if (!$hasAdminRole) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to view audit logs.'));
@@ -155,10 +152,7 @@ class AuditLogController extends Controller
 
         // Check if user has permission to view audit logs
         // Only administrators should have access to audit logs
-        $hasAdminRole = $user && (
-            $user->hasAnyRole(['administrator', 'admin']) ||
-            ($vesselId && $user->getRoleForVessel($vesselId) === 'administrator')
-        );
+        $hasAdminRole = $user && $vesselId && $user->getRoleForVessel($vesselId) === 'Administrator';
 
         if (!$hasAdminRole) {
             return response()->json(['data' => []]);

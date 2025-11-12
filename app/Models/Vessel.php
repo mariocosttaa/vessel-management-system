@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\General\EasyHashAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -125,13 +126,6 @@ class Vessel extends Model
         return $this->hasMany(RecurringTransaction::class);
     }
 
-    /**
-     * Get the monthly balances for the vessel.
-     */
-    public function monthlyBalances(): HasMany
-    {
-        return $this->hasMany(MonthlyBalance::class);
-    }
 
     /**
      * Get the settings for the vessel.
@@ -220,5 +214,43 @@ class Vessel extends Model
             'inactive' => 'Inactive',
             default => ucfirst($this->status),
         };
+    }
+
+    /**
+     * Get the route key for the model.
+     * Returns the hashed ID for use in URLs.
+     */
+    public function getRouteKey(): string
+    {
+        return EasyHashAction::encode($this->id, 'vessel-id');
+    }
+
+    /**
+     * Retrieve the model for route model binding.
+     * Resolves hashed vessel IDs from URLs.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Try to decode as hashed ID first
+        $decoded = EasyHashAction::decode($value, 'vessel-id');
+        if ($decoded && is_numeric($decoded)) {
+            $vessel = $this->where($field ?: $this->getRouteKeyName(), (int) $decoded)->first();
+            if ($vessel) {
+                return $vessel;
+            }
+        }
+
+        // Fallback to numeric ID for backward compatibility
+        if (is_numeric($value)) {
+            return $this->where($field ?: $this->getRouteKeyName(), (int) $value)->first();
+        }
+
+        // If it's a string but not numeric and decode failed, try to find by hashed_id column if it exists
+        // This allows the middleware to handle it if route model binding fails
+        return null;
     }
 }

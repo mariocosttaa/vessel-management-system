@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import bankAccounts from '@/routes/bank-accounts';
 
 interface Country {
@@ -50,6 +51,7 @@ const emit = defineEmits<{
 }>();
 
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 // Checkbox states
 const useIban = ref(true);
@@ -69,7 +71,7 @@ const form = useForm({
 
 // Convert to Select component options format
 const countryOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a country' }];
+    const options = [{ value: null, label: t('Select a country') }];
     props.countries.forEach(country => {
         options.push({ value: country.id, label: `${country.name} (${country.code})` });
     });
@@ -123,14 +125,14 @@ const submit = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                message: `Bank account '${form.name}' has been updated successfully.`,
+                message: `${t('Bank account')} '${form.name}' ${t('has been updated successfully.')}`,
             });
             emit('success');
         },
         onError: () => {
             addNotification({
                 type: 'error',
-                message: 'Failed to update bank account. Please try again.',
+                message: t('Failed to update bank account. Please try again.'),
             });
         },
     });
@@ -140,11 +142,11 @@ const submit = () => {
 <template>
     <BaseModal
         :open="open"
-        title="Edit Bank Account"
+        :title="t('Edit Bank Account')"
         size="2xl"
         :api-url="`/api/bank-accounts/${bankAccount.id}/details`"
         :enable-lazy-loading="true"
-        confirm-text="Update"
+        :confirm-text="t('Update')"
         @close="emit('close')"
         @confirm="submit"
         @data-loaded="handleDataLoaded"
@@ -155,36 +157,36 @@ const submit = () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
                         <div>
-                            <Label for="name">Account Name *</Label>
+                            <Label for="name">{{ t('Account Name') }} *</Label>
                             <Input
                                 id="name"
                                 v-model="form.name"
                                 type="text"
-                                placeholder="Enter account name"
+                                :placeholder="t('Enter account name')"
                                 :class="{ 'border-red-500': form.errors.name }"
                             />
                             <InputError :message="form.errors.name" />
                         </div>
 
                         <div>
-                            <Label for="bank_name">Bank Name *</Label>
+                            <Label for="bank_name">{{ t('Bank Name') }} *</Label>
                             <Input
                                 id="bank_name"
                                 v-model="form.bank_name"
                                 type="text"
-                                placeholder="Enter bank name"
+                                :placeholder="t('Enter bank name')"
                                 :class="{ 'border-red-500': form.errors.bank_name }"
                             />
                             <InputError :message="form.errors.bank_name" />
                         </div>
 
                         <div>
-                            <Label for="country_id">Country</Label>
+                            <Label for="country_id">{{ t('Country') }}</Label>
                             <Select
                                 id="country_id"
                                 v-model="form.country_id"
                                 :options="countryOptions"
-                                placeholder="Select a country"
+                                :placeholder="t('Select a country')"
                                 searchable
                                 :error="!!form.errors.country_id"
                             />
@@ -194,7 +196,7 @@ const submit = () => {
 
                     <div class="space-y-4">
                         <div>
-                            <Label for="status">Status *</Label>
+                            <Label for="status">{{ t('Status') }} *</Label>
                             <Select
                                 id="status"
                                 v-model="form.status"
@@ -205,13 +207,13 @@ const submit = () => {
                         </div>
 
                         <div>
-                            <Label for="notes">Notes</Label>
+                            <Label for="notes">{{ t('Notes') }}</Label>
                             <textarea
                                 id="notes"
                                 v-model="form.notes"
                                 rows="3"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Enter any additional notes"
+                                :placeholder="t('Enter any additional notes')"
                             ></textarea>
                             <InputError :message="form.errors.notes" />
                         </div>
@@ -227,7 +229,7 @@ const submit = () => {
                                 type="checkbox"
                                 class="mr-2"
                             />
-                            Use IBAN
+                            {{ t('Use IBAN') }}
                         </label>
                         <label class="flex items-center">
                             <input
@@ -235,7 +237,7 @@ const submit = () => {
                                 type="checkbox"
                                 class="mr-2"
                             />
-                            Use Account Number
+                            {{ t('Use Account Number') }}
                         </label>
                         <label class="flex items-center">
                             <input
@@ -243,42 +245,42 @@ const submit = () => {
                                 type="checkbox"
                                 class="mr-2"
                             />
-                            Set Initial Balance
+                            {{ t('Set Initial Balance') }}
                         </label>
                     </div>
 
                     <div v-if="useIban" class="space-y-2">
-                        <Label for="iban">IBAN</Label>
+                        <Label for="iban">{{ t('IBAN') }}</Label>
                         <Input
                             id="iban"
                             v-model="form.iban"
                             type="text"
-                            placeholder="Enter IBAN"
+                            :placeholder="t('Enter IBAN')"
                             :class="{ 'border-red-500': form.errors.iban }"
                         />
                         <InputError :message="form.errors.iban" />
                     </div>
 
                     <div v-if="useAccountNumber" class="space-y-2">
-                        <Label for="account_number">Account Number</Label>
+                        <Label for="account_number">{{ t('Account Number') }}</Label>
                         <Input
                             id="account_number"
                             v-model="form.account_number"
                             type="text"
-                            placeholder="Enter account number"
+                            :placeholder="t('Enter account number')"
                             :class="{ 'border-red-500': form.errors.account_number }"
                         />
                         <InputError :message="form.errors.account_number" />
                     </div>
 
                     <div v-if="hasInitialBalance" class="space-y-2">
-                        <Label for="initial_balance">Initial Balance</Label>
+                        <Label for="initial_balance">{{ t('Initial Balance') }}</Label>
                         <Input
                             id="initial_balance"
                             v-model="form.initial_balance"
                             type="number"
                             step="0.01"
-                            placeholder="Enter initial balance"
+                            :placeholder="t('Enter initial balance')"
                             :class="{ 'border-red-500': form.errors.initial_balance }"
                         />
                         <InputError :message="form.errors.initial_balance" />

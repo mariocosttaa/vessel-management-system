@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\VatProfile;
 use Illuminate\Database\Eloquent\Model;
@@ -414,5 +415,41 @@ class Transaction extends Model
             $this->currency,
             true
         );
+    }
+
+    /**
+     * Get the route key for the model.
+     * Returns the hashed ID for use in URLs.
+     */
+    public function getRouteKey(): string
+    {
+        return EasyHashAction::encode($this->id, 'transaction-id');
+    }
+
+    /**
+     * Retrieve the model for route model binding.
+     * Resolves hashed transaction IDs from URLs.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Try to decode as hashed ID first
+        $decoded = EasyHashAction::decode($value, 'transaction-id');
+        if ($decoded && is_numeric($decoded)) {
+            $transaction = $this->where($field ?: $this->getRouteKeyName(), (int) $decoded)->first();
+            if ($transaction) {
+                return $transaction;
+            }
+        }
+
+        // Fallback to numeric ID for backward compatibility
+        if (is_numeric($value)) {
+            return $this->where($field ?: $this->getRouteKeyName(), (int) $value)->first();
+        }
+
+        return null;
     }
 }

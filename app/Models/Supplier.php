@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\General\EasyHashAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,6 +21,42 @@ class Supplier extends Model
         'notes',
         'vessel_id',
     ];
+
+    /**
+     * Get the route key for the model.
+     * Returns the hashed ID for use in URLs.
+     */
+    public function getRouteKey(): string
+    {
+        return EasyHashAction::encode($this->id, 'supplier-id');
+    }
+
+    /**
+     * Retrieve the model for route model binding.
+     * Resolves hashed supplier IDs from URLs.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Try to decode as hashed ID first
+        $decoded = EasyHashAction::decode($value, 'supplier-id');
+        if ($decoded && is_numeric($decoded)) {
+            $supplier = $this->where($field ?: $this->getRouteKeyName(), (int) $decoded)->first();
+            if ($supplier) {
+                return $supplier;
+            }
+        }
+
+        // Fallback to numeric ID for backward compatibility
+        if (is_numeric($value)) {
+            return $this->where($field ?: $this->getRouteKeyName(), (int) $value)->first();
+        }
+
+        return null;
+    }
 
     /**
      * Get the vessel that owns the supplier.

@@ -4,6 +4,8 @@ import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import { LineChart } from '@/components/ui/chart-line';
+import { BarChart } from '@/components/ui/chart-bar';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import vatReports from '@/routes/panel/vat-reports';
@@ -165,31 +167,36 @@ const dailyBreakdown = computed(() => props.dailyBreakdown);
 const mareaBreakdown = computed(() => props.mareaBreakdown);
 const transactions = computed(() => props.transactions);
 
-// Calculate chart max values for scaling
-const maxVat = computed(() => {
-    if (dailyBreakdown.value.length === 0) return props.summary.total_vat || 1;
-    return Math.max(...dailyBreakdown.value.map((d: DailyBreakdown) => d.vat_amount), props.summary.total_vat);
+// Prepare data for LineChart (daily breakdown)
+const dailyChartData = computed(() => {
+    return dailyBreakdown.value.map((day: DailyBreakdown) => ({
+        date: day.formatted_date,
+        vat: day.vat_amount, // Already in cents
+        base: day.base_amount, // Already in cents
+    }));
 });
 
-const maxBaseAmount = computed(() => {
-    if (dailyBreakdown.value.length === 0) return props.summary.total_base_amount || 1;
-    return Math.max(...dailyBreakdown.value.map((d: DailyBreakdown) => d.base_amount), props.summary.total_base_amount);
+// Prepare data for BarChart (VAT profile breakdown)
+const vatProfileChartData = computed(() => {
+    return vatProfileBreakdown.value.map((profile: VatProfileBreakdown) => ({
+        profile: `${profile.vat_profile_name} (${profile.vat_profile_percentage}%)`,
+        vat: profile.total_vat_amount, // Already in cents
+        base: profile.total_base_amount, // Already in cents
+    }));
 });
 
-const maxVatProfileValue = computed(() => {
-    if (vatProfileBreakdown.value.length === 0) return 1;
-    return Math.max(...vatProfileBreakdown.value.map((v: VatProfileBreakdown) => v.total_vat_amount), 1);
-});
 
-const maxCategoryValue = computed(() => {
-    if (categoryBreakdown.value.length === 0) return 1;
-    return Math.max(...categoryBreakdown.value.map((c: CategoryBreakdown) => c.total_vat_amount), 1);
-});
-
-// Chart bar height calculation
-const getBarHeight = (value: number, maxValue: number) => {
-    if (maxValue === 0) return 0;
-    return Math.max((value / maxValue) * 100, 2); // Minimum 2% for visibility
+// Currency formatter for charts (values are in cents)
+const currencyFormatter = (value: number | Date, index?: number) => {
+    if (typeof value === 'number') {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency.value,
+            minimumFractionDigits: currencyData.value.decimal_separator,
+            maximumFractionDigits: currencyData.value.decimal_separator,
+        }).format(value / 100);
+    }
+    return String(value);
 };
 
 // Format percentage change
@@ -319,197 +326,136 @@ const getChangeColor = (change: number) => {
 
             <!-- Charts Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <!-- Daily Breakdown Chart -->
+                <!-- Daily Breakdown Line Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Daily VAT Breakdown') }}</h3>
-                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                    <div v-if="dailyChartData.length > 0">
+                        <LineChart
+                            :data="dailyChartData"
+                            index="date"
+                            :categories="['vat', 'base']"
+                            :colors="['hsl(142 76% 36%)', 'hsl(217 91% 60%)']"
+                            :height="300"
+                            :y-formatter="currencyFormatter"
+                        />
+                    </div>
+                    <div v-else class="text-center text-muted-foreground dark:text-muted-foreground py-8">
+                        {{ t('No data available for this period') }}
+                    </div>
+                </div>
+
+                <!-- VAT Profile Breakdown Bar Chart -->
+                <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Profile') }}</h3>
+                    <div v-if="vatProfileChartData.length > 0">
+                        <BarChart
+                            :data="vatProfileChartData"
+                            index="profile"
+                            :categories="['vat', 'base']"
+                            :colors="['hsl(142 76% 36%)', 'hsl(217 91% 60%)']"
+                            :height="Math.max(300, vatProfileChartData.length * 50)"
+                            :y-formatter="currencyFormatter"
+                        />
+                    </div>
+                    <div v-else class="text-center text-muted-foreground dark:text-muted-foreground py-8">
+                        {{ t('No VAT profiles found') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- VAT Breakdown Summary -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- VAT by Profile -->
+                <div v-if="vatProfileBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">{{ t('VAT by Profile') }}</h3>
+                    <div class="space-y-3">
                         <div
-                            v-for="day in dailyBreakdown"
-                            :key="day.date"
-                            class="flex items-center gap-4"
+                            v-for="profile in vatProfileBreakdown"
+                            :key="`vat-profile-${profile.vat_profile_id}`"
+                            class="space-y-1"
                         >
-                            <div class="w-20 text-xs text-muted-foreground dark:text-muted-foreground">
-                                {{ day.formatted_date }}
-                            </div>
-                            <div class="flex-1 space-y-2">
-                                <!-- Base Amount Bar -->
-                                <div v-if="day.base_amount > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Base') }}</div>
-                                    <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-blue-500 dark:bg-blue-600 transition-all"
-                                            :style="{ width: `${getBarHeight(day.base_amount, maxBaseAmount)}%` }"
-                                        ></div>
-                                    </div>
-                                    <div class="w-20 text-xs text-right text-blue-600 dark:text-blue-400">
-                                        <MoneyDisplay
-                                            :value="day.base_amount"
-                                            :currency="currency"
-                                            :decimals="currencyData.decimal_separator"
-                                            variant="neutral"
-                                            size="xs"
-                                            :show-symbol="false"
-                                        />
-                                    </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
+                                        {{ profile.vat_profile_name }}
+                                    </span>
+                                    <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        ({{ profile.vat_profile_percentage }}%)
+                                    </span>
                                 </div>
-                                <!-- VAT Bar -->
-                                <div v-if="day.vat_amount > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}</div>
-                                    <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-green-500 dark:bg-green-600 transition-all"
-                                            :style="{ width: `${getBarHeight(day.vat_amount, maxVat)}%` }"
-                                        ></div>
-                                    </div>
-                                    <div class="w-20 text-xs text-right text-green-600 dark:text-green-400 font-medium">
+                                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span class="text-xs font-semibold text-card-foreground dark:text-card-foreground">
                                         <MoneyDisplay
-                                            :value="day.vat_amount"
+                                            :value="profile.total_vat_amount"
                                             :currency="currency"
                                             :decimals="currencyData.decimal_separator"
                                             variant="positive"
                                             size="xs"
                                             :show-symbol="false"
                                         />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-if="dailyBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            {{ t('No data available for this period') }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- VAT Profile Breakdown Chart -->
-                <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Profile') }}</h3>
-                    <div class="space-y-4 max-h-96 overflow-y-auto">
-                        <div
-                            v-for="profile in vatProfileBreakdown"
-                            :key="profile.vat_profile_id"
-                            class="space-y-2"
-                        >
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                        {{ profile.vat_profile_name }}
                                     </span>
                                     <span class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                        ({{ profile.vat_profile_percentage }}%)
-                                    </span>
-                                    <span v-if="profile.vat_profile_code" class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                        {{ profile.vat_profile_code }}
+                                        ({{ summary.total_vat > 0 ? ((profile.total_vat_amount / summary.total_vat) * 100).toFixed(1) : '0' }}%)
                                     </span>
                                 </div>
-                                <span class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                    {{ profile.transaction_count }} {{ t('transactions') }}
-                                </span>
                             </div>
-                            <!-- VAT Bar -->
-                            <div class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}</div>
-                                <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                    <div
-                                        class="h-full bg-green-500 dark:bg-green-600 transition-all"
-                                        :style="{ width: `${getBarHeight(profile.total_vat_amount, maxVatProfileValue)}%` }"
-                                    ></div>
-                                </div>
-                                <div class="w-24 text-xs text-right text-green-600 dark:text-green-400 font-medium">
-                                    <MoneyDisplay
-                                        :value="profile.total_vat_amount"
-                                        :currency="currency"
-                                        :decimals="currencyData.decimal_separator"
-                                        variant="positive"
-                                        size="xs"
-                                        :show-symbol="false"
-                                    />
-                                </div>
-                            </div>
-                            <!-- Base Amount (smaller) -->
-                            <div class="flex items-center gap-2 pl-16">
-                                <div class="flex-1 relative h-2 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                    <div
-                                        class="h-full bg-blue-500/50 dark:bg-blue-600/50 transition-all"
-                                        :style="{ width: `${getBarHeight(profile.total_base_amount, maxBaseAmount)}%` }"
-                                    ></div>
-                                </div>
-                                <div class="w-24 text-xs text-right text-muted-foreground dark:text-muted-foreground">
-                                    {{ t('Base') }}: <MoneyDisplay
-                                        :value="profile.total_base_amount"
-                                        :currency="currency"
-                                        :decimals="currencyData.decimal_separator"
-                                        variant="neutral"
-                                        size="xs"
-                                        :show-symbol="false"
-                                    />
-                                </div>
+                            <div class="relative h-2 bg-muted dark:bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full bg-green-500 dark:bg-green-600 transition-all rounded-full"
+                                    :style="{ width: `${summary.total_vat > 0 ? ((profile.total_vat_amount / summary.total_vat) * 100) : 0}%` }"
+                                ></div>
                             </div>
                         </div>
-                        <div v-if="vatProfileBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            {{ t('No VAT profiles found') }}
+                    </div>
+                </div>
+
+                <!-- VAT by Category -->
+                <div v-if="categoryBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">{{ t('VAT by Category') }}</h3>
+                    <div class="space-y-3">
+                        <div
+                            v-for="cat in categoryBreakdown"
+                            :key="`vat-category-${cat.category_id}`"
+                            class="space-y-1"
+                        >
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <div
+                                        v-if="cat.category_color"
+                                        class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        :style="{ backgroundColor: cat.category_color }"
+                                    ></div>
+                                    <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
+                                        {{ t(cat.category_name) }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span class="text-xs font-semibold text-card-foreground dark:text-card-foreground">
+                                        <MoneyDisplay
+                                            :value="cat.total_vat_amount"
+                                            :currency="currency"
+                                            :decimals="currencyData.decimal_separator"
+                                            variant="positive"
+                                            size="xs"
+                                            :show-symbol="false"
+                                        />
+                                    </span>
+                                    <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        ({{ summary.total_vat > 0 ? ((cat.total_vat_amount / summary.total_vat) * 100).toFixed(1) : '0' }}%)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="relative h-2 bg-muted dark:bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full bg-green-500 dark:bg-green-600 transition-all rounded-full"
+                                    :style="{ width: `${summary.total_vat > 0 ? ((cat.total_vat_amount / summary.total_vat) * 100) : 0}%` }"
+                                ></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Category Breakdown -->
-            <div v-if="categoryBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Category') }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div
-                        v-for="category in categoryBreakdown"
-                        :key="category.category_id"
-                        class="rounded-lg border border-border dark:border-border bg-muted/30 dark:bg-muted/20 p-4"
-                    >
-                        <div class="flex items-center gap-2 mb-3">
-                            <div
-                                v-if="category.category_color"
-                                class="w-3 h-3 rounded-full"
-                                :style="{ backgroundColor: category.category_color }"
-                            ></div>
-                            <h4 class="font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ t(category.category_name) }}
-                            </h4>
-                        </div>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}:</span>
-                                <MoneyDisplay
-                                    :value="category.total_vat_amount"
-                                    :currency="currency"
-                                    :decimals="currencyData.decimal_separator"
-                                    variant="positive"
-                                    size="sm"
-                                />
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Base') }}:</span>
-                                <MoneyDisplay
-                                    :value="category.total_base_amount"
-                                    :currency="currency"
-                                    :decimals="currencyData.decimal_separator"
-                                    variant="neutral"
-                                    size="sm"
-                                />
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Total') }}:</span>
-                                <MoneyDisplay
-                                    :value="category.total_amount_with_vat"
-                                    :currency="currency"
-                                    :decimals="currencyData.decimal_separator"
-                                    variant="positive"
-                                    size="sm"
-                                />
-                            </div>
-                            <div class="flex justify-between text-xs text-muted-foreground dark:text-muted-foreground mt-2 pt-2 border-t border-border dark:border-border">
-                                <span>{{ t('Transactions') }}:</span>
-                                <span>{{ category.transaction_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Marea Breakdown -->
             <div v-if="mareaBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">

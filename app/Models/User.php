@@ -36,6 +36,8 @@ class User extends Authenticatable
         'notes',
         'login_permitted',
         'temporary_password',
+        'vessel_admin_notification',
+        'language',
     ];
 
     /**
@@ -64,6 +66,7 @@ class User extends Authenticatable
             'hire_date' => 'date',
             'house_of_zeros' => 'integer',
             'login_permitted' => 'boolean',
+            'vessel_admin_notification' => 'boolean',
         ];
     }
 
@@ -74,101 +77,9 @@ class User extends Authenticatable
      */
     protected function appends(): array
     {
-        return [
-            'roles',
-            'permissions',
-        ];
+        return [];
     }
 
-    /**
-     * Get the user's roles as an array of role names.
-     */
-    public function getRolesAttribute(): array
-    {
-        return $this->roles()->pluck('name')->toArray();
-    }
-
-    /**
-     * Get the user's permissions based on their roles.
-     */
-    public function getPermissionsAttribute(): array
-    {
-        $permissions = [];
-
-        // Admin has all permissions
-        if ($this->hasRole('admin')) {
-            $permissions = [
-                'vessels.view' => true,
-                'vessels.create' => true,
-                'vessels.edit' => true,
-                'vessels.delete' => true,
-                'crew.view' => true,
-                'crew.create' => true,
-                'crew.edit' => true,
-                'crew.delete' => true,
-                'suppliers.view' => true,
-                'suppliers.create' => true,
-                'suppliers.edit' => true,
-                'suppliers.delete' => true,
-                'bank-accounts.view' => true,
-                'bank-accounts.create' => true,
-                'bank-accounts.edit' => true,
-                'bank-accounts.delete' => true,
-            ];
-        }
-        // Manager has most permissions except delete
-        elseif ($this->hasRole('manager')) {
-            $permissions = [
-                'vessels.view' => true,
-                'vessels.create' => true,
-                'vessels.edit' => true,
-                'vessels.delete' => false,
-                'crew.view' => true,
-                'crew.create' => true,
-                'crew.edit' => true,
-                'crew.delete' => false,
-                'suppliers.view' => true,
-                'suppliers.create' => true,
-                'suppliers.edit' => true,
-                'suppliers.delete' => false,
-                'bank-accounts.view' => true,
-                'bank-accounts.create' => true,
-                'bank-accounts.edit' => true,
-                'bank-accounts.delete' => false,
-            ];
-        }
-        // Viewer has only view permissions
-        elseif ($this->hasRole('viewer')) {
-            $permissions = [
-                'vessels.view' => true,
-                'vessels.create' => false,
-                'vessels.edit' => false,
-                'vessels.delete' => false,
-                'crew.view' => true,
-                'crew.create' => false,
-                'crew.edit' => false,
-                'crew.delete' => false,
-                'suppliers.view' => true,
-                'suppliers.create' => false,
-                'suppliers.edit' => false,
-                'suppliers.delete' => false,
-                'bank-accounts.view' => true,
-                'bank-accounts.create' => false,
-                'bank-accounts.edit' => false,
-                'bank-accounts.delete' => false,
-            ];
-        }
-
-        return $permissions;
-    }
-
-    /**
-     * Get the roles that belong to the user.
-     */
-    public function roles(): BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'user_roles');
-    }
 
     /**
      * The vessel users that belong to the user.
@@ -272,29 +183,6 @@ class User extends Authenticatable
         return $this->belongsTo(CrewPosition::class, 'position_id');
     }
 
-    /**
-     * Check if user has a specific role.
-     */
-    public function hasRole(string $role): bool
-    {
-        return $this->roles()->where('name', $role)->exists();
-    }
-
-    /**
-     * Check if user has any of the specified roles.
-     */
-    public function hasAnyRole(array $roles): bool
-    {
-        return $this->roles()->whereIn('name', $roles)->exists();
-    }
-
-    /**
-     * Check if user has all of the specified roles.
-     */
-    public function hasAllRoles(array $roles): bool
-    {
-        return $this->roles()->whereIn('name', $roles)->count() === count($roles);
-    }
 
     /**
      * Check if user has access to a specific vessel.
@@ -524,5 +412,58 @@ class User extends Authenticatable
             'login_permitted' => false,
             'temporary_password' => $this->generateTemporaryPassword(),
         ]);
+    }
+
+    /**
+     * Get email notifications for this user.
+     */
+    public function emailNotifications(): HasMany
+    {
+        return $this->hasMany(EmailNotification::class);
+    }
+
+    /**
+     * Check if user has high-level access to financial/vessel operations.
+     * Users with Supervisor or Administrator roles have high access.
+     * Checks permissions from config/permissions.php based on user's vessel role.
+     */
+    public function hasHighVesselAccess(int $vesselId): bool
+    {
+        $userRole = $this->getRoleForVessel($vesselId);
+        if (!$userRole) {
+            return false;
+        }
+
+        // Get permissions from config based on role display name
+        $allPermissions = config('permissions', []);
+        $permissions = $allPermissions[$userRole] ?? $allPermissions['default'] ?? [];
+
+        // Check if user has any high-level permissions (transactions, mareas, reports)
+        $highLevelPermissions = [
+            'transactions.view',
+            'transactions.create',
+            'transactions.edit',
+            'mareas.view',
+            'mareas.create',
+            'mareas.edit',
+            'reports.access',
+        ];
+
+        foreach ($highLevelPermissions as $permission) {
+            if ($permissions[$permission] ?? false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user should receive vessel admin notifications.
+     * User must have notifications enabled and high-level access.
+     */
+    public function shouldReceiveVesselNotifications(int $vesselId): bool
+    {
+        return $this->vessel_admin_notification && $this->hasHighVesselAccess($vesselId);
     }
 }

@@ -49,11 +49,12 @@ const currentVessel = computed(() => {
     return auth?.user?.current_vessel || auth?.current_vessel;
 });
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric for transition)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed ID (alphanumeric string) or numeric ID
+    const vesselMatch = path.match(/\/panel\/([^/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 const mainNavItems = computed((): NavItem[] => {

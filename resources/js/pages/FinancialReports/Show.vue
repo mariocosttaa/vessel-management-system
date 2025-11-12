@@ -4,6 +4,8 @@ import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import { LineChart } from '@/components/ui/chart-line';
+import { BarChart } from '@/components/ui/chart-bar';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import financialReports from '@/routes/panel/financial-reports';
@@ -112,26 +114,36 @@ const categoryBreakdown = computed(() => props.categoryBreakdown);
 const dailyBreakdown = computed(() => props.dailyBreakdown);
 const mareas = computed(() => props.mareas);
 
-// Calculate chart max values for scaling
-const maxIncome = computed(() => {
-    if (dailyBreakdown.value.length === 0) return props.summary.total_income || 1;
-    return Math.max(...dailyBreakdown.value.map((d: DailyBreakdown) => d.income), props.summary.total_income);
+// Prepare data for LineChart (daily breakdown)
+const dailyChartData = computed(() => {
+    return dailyBreakdown.value.map((day: DailyBreakdown) => ({
+        date: day.formatted_date,
+        income: day.income, // Already in cents
+        expenses: day.expenses, // Already in cents
+    }));
 });
 
-const maxExpenses = computed(() => {
-    if (dailyBreakdown.value.length === 0) return props.summary.total_expenses || 1;
-    return Math.max(...dailyBreakdown.value.map((d: DailyBreakdown) => d.expenses), props.summary.total_expenses);
+// Prepare data for BarChart (category breakdown)
+const categoryChartData = computed(() => {
+    return categoryBreakdown.value.map((cat: CategoryBreakdown) => ({
+        category: cat.category_name,
+        income: cat.income, // Already in cents
+        expenses: cat.expenses, // Already in cents
+    }));
 });
 
-const maxCategoryValue = computed(() => {
-    if (categoryBreakdown.value.length === 0) return 1;
-    return Math.max(...categoryBreakdown.value.map((c: CategoryBreakdown) => Math.max(c.income, c.expenses)), 1);
-});
 
-// Chart bar height calculation
-const getBarHeight = (value: number, maxValue: number) => {
-    if (maxValue === 0) return 0;
-    return Math.max((value / maxValue) * 100, 2); // Minimum 2% for visibility
+// Currency formatter for charts (values are in cents)
+const currencyFormatter = (value: number | Date, index?: number) => {
+    if (typeof value === 'number') {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency.value,
+            minimumFractionDigits: currencyData.value.decimal_separator,
+            maximumFractionDigits: currencyData.value.decimal_separator,
+        }).format(value / 100);
+    }
+    return String(value);
 };
 
 // Format percentage change
@@ -274,134 +286,133 @@ const getChangeColor = (change: number) => {
 
             <!-- Charts Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <!-- Daily Breakdown Chart -->
+                <!-- Daily Breakdown Line Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Daily Breakdown') }}</h3>
-                    <div class="space-y-4">
+                    <div v-if="dailyChartData.length > 0">
+                        <LineChart
+                            :data="dailyChartData"
+                            index="date"
+                            :categories="['income', 'expenses']"
+                            :colors="['hsl(142 76% 36%)', 'hsl(0 84% 60%)']"
+                            :height="300"
+                            :y-formatter="currencyFormatter"
+                        />
+                    </div>
+                    <div v-else class="text-center text-muted-foreground dark:text-muted-foreground py-8">
+                        {{ t('No data available for this period') }}
+                    </div>
+                </div>
+
+                <!-- Category Breakdown Bar Chart -->
+                <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Category Breakdown') }}</h3>
+                    <div v-if="categoryChartData.length > 0">
+                        <BarChart
+                            :data="categoryChartData"
+                            index="category"
+                            :categories="['income', 'expenses']"
+                            :colors="['hsl(142 76% 36%)', 'hsl(0 84% 60%)']"
+                            :height="Math.max(300, categoryChartData.length * 40)"
+                            :y-formatter="currencyFormatter"
+                        />
+                    </div>
+                    <div v-else class="text-center text-muted-foreground dark:text-muted-foreground py-8">
+                        {{ t('No categories found') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown Summary -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Expenses by Category -->
+                <div v-if="categoryBreakdown.filter((c: CategoryBreakdown) => c.expenses > 0).length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">{{ t('Expenses by Category') }}</h3>
+                    <div class="space-y-3">
                         <div
-                            v-for="day in dailyBreakdown"
-                            :key="day.date"
-                            class="flex items-center gap-4"
+                            v-for="cat in categoryBreakdown.filter((c: CategoryBreakdown) => c.expenses > 0)"
+                            :key="`expense-${cat.category_id}`"
+                            class="space-y-1"
                         >
-                            <div class="w-20 text-xs text-muted-foreground dark:text-muted-foreground">
-                                {{ day.formatted_date }}
-                            </div>
-                            <div class="flex-1 space-y-1">
-                                <!-- Income Bar -->
-                                <div v-if="day.income > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Income') }}</div>
-                                    <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-green-500 dark:bg-green-600 transition-all"
-                                            :style="{ width: `${getBarHeight(day.income, maxIncome)}%` }"
-                                        ></div>
-                                    </div>
-                                    <div class="w-20 text-xs text-right text-green-600 dark:text-green-400">
-                                        <MoneyDisplay
-                                            :value="day.income"
-                                            :currency="currency"
-                                            :decimals="currencyData.decimal_separator"
-                                            variant="positive"
-                                            size="xs"
-                                            :show-symbol="false"
-                                        />
-                                    </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <div
+                                        v-if="cat.category_color"
+                                        class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        :style="{ backgroundColor: cat.category_color }"
+                                    ></div>
+                                    <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
+                                        {{ t(cat.category_name) }}
+                                    </span>
                                 </div>
-                                <!-- Expenses Bar -->
-                                <div v-if="day.expenses > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</div>
-                                    <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-red-500 dark:bg-red-600 transition-all"
-                                            :style="{ width: `${getBarHeight(day.expenses, maxExpenses)}%` }"
-                                        ></div>
-                                    </div>
-                                    <div class="w-20 text-xs text-right text-red-600 dark:text-red-400">
+                                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span class="text-xs font-semibold text-card-foreground dark:text-card-foreground">
                                         <MoneyDisplay
-                                            :value="day.expenses"
+                                            :value="cat.expenses"
                                             :currency="currency"
                                             :decimals="currencyData.decimal_separator"
                                             variant="negative"
                                             size="xs"
                                             :show-symbol="false"
                                         />
-                                    </div>
+                                    </span>
+                                    <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        ({{ summary.total_expenses > 0 ? ((cat.expenses / summary.total_expenses) * 100).toFixed(1) : '0' }}%)
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                        <div v-if="dailyBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            {{ t('No data available for this period') }}
+                            <div class="relative h-2 bg-muted dark:bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full bg-red-500 dark:bg-red-600 transition-all rounded-full"
+                                    :style="{ width: `${summary.total_expenses > 0 ? ((cat.expenses / summary.total_expenses) * 100) : 0}%` }"
+                                ></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Category Breakdown Chart -->
-                <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Category Breakdown') }}</h3>
-                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                <!-- Income by Category -->
+                <div v-if="categoryBreakdown.filter((c: CategoryBreakdown) => c.income > 0).length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                    <h3 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">{{ t('Income by Category') }}</h3>
+                    <div class="space-y-3">
                         <div
-                            v-for="category in categoryBreakdown"
-                            :key="category.category_id"
-                            class="space-y-2"
+                            v-for="cat in categoryBreakdown.filter((c: CategoryBreakdown) => c.income > 0)"
+                            :key="`income-${cat.category_id}`"
+                            class="space-y-1"
                         >
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
                                     <div
-                                        v-if="category.category_color"
-                                        class="w-3 h-3 rounded-full"
-                                        :style="{ backgroundColor: category.category_color }"
+                                        v-if="cat.category_color"
+                                        class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        :style="{ backgroundColor: cat.category_color }"
                                     ></div>
-                                    <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                        {{ t(category.category_name) }}
+                                    <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
+                                        {{ t(cat.category_name) }}
                                     </span>
                                 </div>
-                                <span class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                    {{ category.count }} {{ t('transactions') }}
-                                </span>
-                            </div>
-                            <!-- Income Bar -->
-                            <div v-if="category.income > 0" class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Income') }}</div>
-                                <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                    <div
-                                        class="h-full bg-green-500 dark:bg-green-600 transition-all"
-                                        :style="{ width: `${getBarHeight(category.income, maxCategoryValue)}%` }"
-                                    ></div>
-                                </div>
-                                <div class="w-20 text-xs text-right text-green-600 dark:text-green-400">
-                                    <MoneyDisplay
-                                        :value="category.income"
-                                        :currency="currency"
-                                        :decimals="currencyData.decimal_separator"
-                                        variant="positive"
-                                        size="xs"
-                                        :show-symbol="false"
-                                    />
+                                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                                    <span class="text-xs font-semibold text-card-foreground dark:text-card-foreground">
+                                        <MoneyDisplay
+                                            :value="cat.income"
+                                            :currency="currency"
+                                            :decimals="currencyData.decimal_separator"
+                                            variant="positive"
+                                            size="xs"
+                                            :show-symbol="false"
+                                        />
+                                    </span>
+                                    <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                                        ({{ summary.total_income > 0 ? ((cat.income / summary.total_income) * 100).toFixed(1) : '0' }}%)
+                                    </span>
                                 </div>
                             </div>
-                            <!-- Expenses Bar -->
-                            <div v-if="category.expenses > 0" class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</div>
-                                <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
-                                    <div
-                                        class="h-full bg-red-500 dark:bg-red-600 transition-all"
-                                        :style="{ width: `${getBarHeight(category.expenses, maxCategoryValue)}%` }"
-                                    ></div>
-                                </div>
-                                <div class="w-20 text-xs text-right text-red-600 dark:text-red-400">
-                                    <MoneyDisplay
-                                        :value="category.expenses"
-                                        :currency="currency"
-                                        :decimals="currencyData.decimal_separator"
-                                        variant="negative"
-                                        size="xs"
-                                        :show-symbol="false"
-                                    />
-                                </div>
+                            <div class="relative h-2 bg-muted dark:bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full bg-green-500 dark:bg-green-600 transition-all rounded-full"
+                                    :style="{ width: `${summary.total_income > 0 ? ((cat.income / summary.total_income) * 100) : 0}%` }"
+                                ></div>
                             </div>
-                        </div>
-                        <div v-if="categoryBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            {{ t('No categories found') }}
                         </div>
                     </div>
                 </div>
@@ -496,4 +507,5 @@ const getChangeColor = (change: number) => {
         </div>
     </VesselLayout>
 </template>
+
 

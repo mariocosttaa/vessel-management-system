@@ -10,6 +10,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import MaintenanceCreateModal from '@/components/modals/Maintenance/create.vue';
 
@@ -54,6 +55,7 @@ interface Props {
 const props = defineProps<Props>();
 const { canCreate, canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 // Confirmation dialog state
 const showDeleteDialog = ref(false);
@@ -81,7 +83,7 @@ const statusFilter = ref(props.filters.status || '');
 
 // Convert to Select component options format
 const statusOptions = computed(() => {
-    const options = [{ value: '', label: 'All Statuses' }];
+    const options = [{ value: '', label: t('All Statuses') }];
     Object.entries(props.statuses).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -169,16 +171,16 @@ const confirmDelete = () => {
             isDeleting.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: `Maintenance '${maintenanceNumber}' has been deleted successfully.`,
+                title: t('Success'),
+                message: `${t('Maintenance')} '${maintenanceNumber}' ${t('has been deleted successfully')}.`,
             });
         },
         onError: () => {
             isDeleting.value = false;
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to delete maintenance. Please try again.',
+                title: t('Error'),
+                message: t('Failed to delete maintenance. Please try again.'),
             });
         },
     });
@@ -216,19 +218,29 @@ const formatDate = (dateString: string | null) => {
 
 // Get default currency from props (vessel settings)
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
+
+// Translate statuses
+const translatedStatuses = computed(() => {
+    const translated: Record<string, string> = {};
+    Object.entries(props.statuses).forEach(([key, value]) => {
+        // Try to translate the status value, fallback to the original value
+        translated[key] = t(value as string) || value as string;
+    });
+    return translated;
+});
 </script>
 
 <template>
-    <Head title="Maintenances" />
+    <Head :title="t('Maintenances')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Maintenances', href: maintenances.index.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Maintenances'), href: maintenances.index.url({ vessel: getCurrentVesselId() }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Maintenances</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage maintenance records and expenses for your vessel</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Maintenances') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage maintenance records and expenses for your vessel') }}</p>
                     </div>
                     <div v-if="canCreate('maintenances')" class="flex gap-3">
                         <button
@@ -236,7 +248,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                         >
                             <Icon name="plus" class="w-4 h-4 mr-2" />
-                            New Maintenance
+                            {{ t('New Maintenance') }}
                         </button>
                     </div>
                 </div>
@@ -252,7 +264,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search maintenances..."
+                                :placeholder="t('Search maintenances...')"
                                 @keyup.enter="applyFilters"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
@@ -264,7 +276,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         <Select
                             v-model="statusFilter"
                             :options="statusOptions"
-                            placeholder="All Statuses"
+                            :placeholder="t('All Statuses')"
                             searchable
                         />
                     </div>
@@ -285,7 +297,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                     >
                         <Icon name="check" class="h-4 w-4" />
-                        Apply
+                        {{ t('Apply') }}
                     </button>
 
                     <!-- Clear Filters Button -->
@@ -294,7 +306,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <Icon name="x" class="h-4 w-4" />
-                        Clear
+                        {{ t('Clear') }}
                     </button>
                 </div>
             </div>
@@ -303,7 +315,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
                 <div v-if="!props.maintenances || !props.maintenances.data || !Array.isArray(props.maintenances.data) || props.maintenances.data.length === 0"
                      class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
-                    No maintenances found
+                    {{ t('No maintenances found') }}
                 </div>
 
                 <div v-else class="divide-y divide-border dark:divide-border">
@@ -333,15 +345,15 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                                 getStatusColor(maintenance.status)
                                             ]"
                                         >
-                                            {{ statuses[maintenance.status] || maintenance.status }}
+                                            {{ translatedStatuses[maintenance.status] || t(maintenance.status) || maintenance.status }}
                                         </span>
                                     </div>
                                     <div class="mt-1 flex items-center gap-4 text-xs text-muted-foreground dark:text-muted-foreground">
                                         <span v-if="maintenance.start_date">
-                                            Start: {{ formatDate(maintenance.start_date) }}
+                                            {{ t('Start') }}: {{ formatDate(maintenance.start_date) }}
                                         </span>
                                         <span v-if="maintenance.end_date">
-                                            End: {{ formatDate(maintenance.end_date) }}
+                                            {{ t('End') }}: {{ formatDate(maintenance.end_date) }}
                                         </span>
                                     </div>
                                 </div>
@@ -350,7 +362,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             <!-- Financial Summary -->
                             <div class="flex items-center gap-6 ml-4">
                                 <div class="text-right">
-                                    <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">Total Expenses</div>
+                                    <div class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">{{ t('Total Expenses') }}</div>
                                     <MoneyDisplay
                                         :value="maintenance.total_expenses"
                                         :currency="defaultCurrency"
@@ -386,7 +398,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                             class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                                         >
                                             <Icon name="eye" class="w-4 h-4 mr-3" />
-                                            View Details
+                                            {{ t('View Details') }}
                                         </button>
                                         <button
                                             v-if="canDelete('maintenances')"
@@ -394,7 +406,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                             class="flex items-center w-full px-4 py-2 text-sm text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted transition-colors"
                                         >
                                             <Icon name="trash-2" class="w-4 h-4 mr-3" />
-                                            Delete Maintenance
+                                            {{ t('Delete Maintenance') }}
                                         </button>
                                     </div>
                                 </div>
@@ -413,11 +425,11 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            title="Delete Maintenance"
-            description="This action cannot be undone."
-            :message="maintenanceToDelete ? `Are you sure you want to delete maintenance '${maintenanceToDelete.maintenance_number}'? This will permanently remove the maintenance and all ${maintenanceToDelete.transaction_count || 0} transaction(s) associated with it.` : ''"
-            confirm-text="Delete Maintenance"
-            cancel-text="Cancel"
+            :title="t('Delete Maintenance')"
+            :description="t('This action cannot be undone.')"
+            :message="maintenanceToDelete ? `${t('Are you sure you want to delete maintenance')} '${maintenanceToDelete.maintenance_number}'? ${t('This will permanently remove the maintenance and all')} ${maintenanceToDelete.transaction_count || 0} ${t('transaction(s) associated with it')}.` : ''"
+            :confirm-text="t('Delete Maintenance')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"

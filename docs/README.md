@@ -331,6 +331,24 @@ The documentation is organized into **core guides** and **pattern references** t
 - Email template best practices
 - Usage examples and implementation workflow
 
+#### `pdf-patterns.md`
+**Purpose**: PDF generation patterns and conventions
+**When to use**:
+- Generating PDF documents from Blade views
+- Creating transaction reports
+- Implementing PDF download/stream functionality
+- Understanding PDF template structure
+- Working with DomPDF library
+
+**Key Content**:
+- PDF service structure and organization
+- PDF generator class patterns
+- Template structure and layout
+- Money formatting for PDFs
+- Page margins and styling
+- PDF generation methods (download, stream, save)
+- Best practices and common mistakes
+
 ### Development Workflow
 
 #### `git-commit-pattners.md`
@@ -371,6 +389,7 @@ The documentation is organized into **core guides** and **pattern references** t
    - **Theme**: Use `theme-configuration.md`
    - **Permissions**: Use `permissions-patterns.md`
    - **Notifications**: Use `notification-patterns.md`
+   - **PDFs**: Use `pdf-patterns.md`
    - **Multi-Tenant**: Use `multi-tenant-patterns.md` ⭐ **ESSENTIAL FOR VESSEL-BASED SYSTEM**
 
 ### Task-Specific Guidance
@@ -389,7 +408,8 @@ The documentation is organized into **core guides** and **pattern references** t
 11. Apply `permissions-patterns.md` for authorization
 12. Apply `notification-patterns.md` for user feedback
 13. Apply `email-patterns.md` for email templates
-14. Apply `layout-patterns.md` for UI consistency
+14. Apply `pdf-patterns.md` for PDF generation
+15. Apply `layout-patterns.md` for UI consistency
 
 #### When Working with Money:
 1. Always read `money-handling.md` first
@@ -516,6 +536,7 @@ docs/
     ├── permissions-patterns.md (vessel-specific RBAC system)
     ├── notification-patterns.md (user feedback)
     ├── email-patterns.md (email templates)
+    ├── pdf-patterns.md (PDF generation)
     ├── money-handling.md (monetary values)
     ├── multi-tenant-patterns.md (vessel-based architecture) ⭐ **ESSENTIAL**
     └── git-commit-pattners.md (commit rules)

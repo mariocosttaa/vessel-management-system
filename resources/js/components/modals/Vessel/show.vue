@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 
 interface Props {
     open: boolean;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -60,7 +62,7 @@ const handleClose = () => {
             <DialogHeader>
                 <DialogTitle>{{ vessel?.name }}</DialogTitle>
                 <DialogDescription>
-                    Vessel details and information
+                    {{ t('Vessel details and information') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -69,41 +71,41 @@ const handleClose = () => {
                     <!-- Basic Information -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Registration Number</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Registration Number') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">{{ vessel.registration_number }}</p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Vessel Type</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Vessel Type') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">{{ vesselTypeLabel }}</p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground ">Status</label> <br>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground ">{{ t('Status') }}</label> <br>
                             <span :class="statusColor" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                                 {{ statusLabel }}
                             </span>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Capacity</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Capacity') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">
-                                {{ vessel.capacity ? vessel.capacity.toLocaleString() : 'Not specified' }}
+                                {{ vessel.capacity ? vessel.capacity.toLocaleString() : t('Not specified') }}
                             </p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Year Built</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Year Built') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">
-                                {{ vessel.year_built || 'Not specified' }}
+                                {{ vessel.year_built || t('Not specified') }}
                             </p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Crew Members</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Crew Members') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">{{ vessel.crew_members_count }}</p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Transactions</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Transactions') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">{{ vessel.transactions_count }}</p>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Created</label>
+                            <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Created') }}</label>
                             <p class="text-sm text-card-foreground dark:text-card-foreground">
                                 {{ new Date(vessel.created_at).toLocaleDateString() }}
                             </p>
@@ -112,7 +114,7 @@ const handleClose = () => {
 
                     <!-- Notes -->
                     <div v-if="vessel.notes">
-                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Notes</label>
+                        <label class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Notes') }}</label>
                         <p class="text-sm text-card-foreground dark:text-card-foreground mt-1 p-3 bg-muted dark:bg-muted rounded-md">
                             {{ vessel.notes }}
                         </p>
@@ -120,21 +122,21 @@ const handleClose = () => {
 
                     <!-- Statistics -->
                     <div class="border-t border-border dark:border-border pt-6">
-                        <h3 class="text-lg font-medium text-card-foreground dark:text-card-foreground mb-4">Statistics</h3>
+                        <h3 class="text-lg font-medium text-card-foreground dark:text-card-foreground mb-4">{{ t('Statistics') }}</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="text-center p-4 bg-muted dark:bg-muted rounded-lg">
                                 <div class="text-2xl font-bold text-card-foreground dark:text-card-foreground">{{ vessel.crew_members_count }}</div>
-                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">Crew Members</div>
+                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">{{ t('Crew Members') }}</div>
                             </div>
                             <div class="text-center p-4 bg-muted dark:bg-muted rounded-lg">
                                 <div class="text-2xl font-bold text-card-foreground dark:text-card-foreground">{{ vessel.transactions_count }}</div>
-                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">Transactions</div>
+                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">{{ t('Transactions') }}</div>
                             </div>
                             <div class="text-center p-4 bg-muted dark:bg-muted rounded-lg">
                                 <div class="text-2xl font-bold text-card-foreground dark:text-card-foreground">
-                                    {{ vessel.year_built ? new Date().getFullYear() - vessel.year_built : 'N/A' }}
+                                    {{ vessel.year_built ? new Date().getFullYear() - vessel.year_built : t('N/A') }}
                                 </div>
-                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">Years Old</div>
+                                <div class="text-sm text-muted-foreground dark:text-muted-foreground">{{ t('Years Old') }}</div>
                             </div>
                         </div>
                     </div>
@@ -146,7 +148,7 @@ const handleClose = () => {
                     variant="outline"
                     @click="handleClose"
                 >
-                    Close
+                    {{ t('Close') }}
                 </Button>
             </div>
         </DialogContent>

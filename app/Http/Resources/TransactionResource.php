@@ -4,9 +4,8 @@ namespace App\Http\Resources;
 
 use App\Actions\MoneyAction;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class TransactionResource extends JsonResource
+class TransactionResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -16,7 +15,7 @@ class TransactionResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->hashId($this->id),
             'transaction_number' => $this->transaction_number,
             'type' => $this->type,
             'type_label' => ucfirst($this->type),
@@ -56,11 +55,11 @@ class TransactionResource extends JsonResource
             // Flags
             'is_recurring' => $this->is_recurring,
 
-            // Direct IDs for forms (always included)
-            'category_id' => $this->category_id,
-            'supplier_id' => $this->supplier_id,
-            'crew_member_id' => $this->crew_member_id,
-            'vat_profile_id' => $this->vat_profile_id,
+            // Direct IDs for forms (always included) - hashed
+            'category_id' => $this->hashIdForModel($this->category_id, 'transactioncategory'),
+            'supplier_id' => $this->hashIdForModel($this->supplier_id, 'supplier'),
+            'crew_member_id' => $this->hashIdForModel($this->crew_member_id, 'user'),
+            'vat_profile_id' => $this->hashIdForModel($this->vat_profile_id, 'vatprofile'),
             'amount_includes_vat' => $this->amount_includes_vat ?? false,
 
             // Relationships - use whenLoaded with closures for proper resource instantiation
@@ -69,7 +68,7 @@ class TransactionResource extends JsonResource
             }),
             'category' => $this->whenLoaded('category', function () {
                 return [
-                    'id' => $this->category->id,
+                    'id' => $this->hashIdForModel($this->category->id, 'transactioncategory'),
                     'name' => $this->category->name,
                     'type' => $this->category->type,
                     'color' => $this->category->color,
@@ -77,20 +76,20 @@ class TransactionResource extends JsonResource
             }),
             'supplier' => $this->whenLoaded('supplier', function () {
                 return [
-                    'id' => $this->supplier->id,
+                    'id' => $this->hashIdForModel($this->supplier->id, 'supplier'),
                     'company_name' => $this->supplier->company_name,
                 ];
             }),
             'crew_member' => $this->whenLoaded('crewMember', function () {
                 return [
-                    'id' => $this->crewMember->id,
+                    'id' => $this->hashIdForModel($this->crewMember->id, 'user'),
                     'name' => $this->crewMember->name,
                     'email' => $this->crewMember->email,
                 ];
             }),
             'vat_profile' => $this->whenLoaded('vatProfile', function () {
                 return [
-                    'id' => $this->vatProfile->id,
+                    'id' => $this->hashIdForModel($this->vatProfile->id, 'vatprofile'),
                     'name' => $this->vatProfile->name,
                     'percentage' => (float) $this->vatProfile->percentage,
                     'formatted_rate' => $this->vatProfile->formatted_rate,
@@ -99,7 +98,7 @@ class TransactionResource extends JsonResource
             }),
             'created_by' => $this->whenLoaded('createdBy', function () {
                 return [
-                    'id' => $this->createdBy->id,
+                    'id' => $this->hashIdForModel($this->createdBy->id, 'user'),
                     'name' => $this->createdBy->name,
                     'email' => $this->createdBy->email,
                 ];
@@ -110,7 +109,7 @@ class TransactionResource extends JsonResource
             'files' => $this->whenLoaded('files', function () {
                 return $this->files->map(function ($file) {
                     return [
-                        'id' => $file->id,
+                        'id' => $this->hashIdForModel($file->id, 'transactionfile'),
                         'src' => $file->src,
                         'name' => $file->name,
                         'size' => $file->size,
@@ -123,7 +122,7 @@ class TransactionResource extends JsonResource
             // Additional transaction metadata
             'transaction_month' => $this->transaction_month,
             'transaction_year' => $this->transaction_year,
-            'recurring_transaction_id' => $this->recurring_transaction_id,
+            'recurring_transaction_id' => $this->hashIdForModel($this->recurring_transaction_id, 'transaction'),
 
             // Timestamps
             'created_at' => $this->created_at?->format('c'), // ISO 8601 format for sorting

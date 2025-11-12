@@ -12,6 +12,7 @@ import CrewMemberShowModal from '@/components/modals/CrewMember/show.vue';
 import PermissionGate from '@/components/PermissionGate.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import crewMembers from '@/routes/panel/crew-members';
 
 // Get current vessel ID from URL
@@ -83,6 +84,7 @@ const props = defineProps<Props>();
 
 // Permissions
 const { can } = usePermissions();
+const { t } = useI18n();
 
 // Computed property for crew members data
 const crewMembersData = computed(() => props.crewMembers?.data || []);
@@ -96,7 +98,7 @@ const sortDirection = ref(props.filters.direction || 'desc');
 
 // Convert to Select component options format
 const statusOptions = computed(() => {
-    const options = [{ value: '', label: 'All Statuses' }];
+    const options = [{ value: '', label: t('All Statuses') }];
     Object.entries(props.statuses).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -104,7 +106,7 @@ const statusOptions = computed(() => {
 });
 
 const positionOptions = computed(() => {
-    const options = [{ value: '', label: 'All Positions' }];
+    const options = [{ value: '', label: t('All Positions') }];
     props.positions.forEach(position => {
         options.push({ value: String(position.id), label: position.name });
     });
@@ -124,13 +126,13 @@ const crewMemberToDelete = ref<CrewMember | null>(null);
 const isDeleting = ref(false);
 
 // Table configuration
-const columns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'position_name', label: 'Position', sortable: false },
-    { key: 'status_label', label: 'Status', sortable: false },
-    { key: 'formatted_salary', label: 'Salary', sortable: false },
-    { key: 'formatted_hire_date', label: 'Hire Date', sortable: true },
-];
+const columns = computed(() => [
+    { key: 'name', label: t('Name'), sortable: true },
+    { key: 'position_name', label: t('Position'), sortable: false },
+    { key: 'status_label', label: t('Status'), sortable: false },
+    { key: 'formatted_salary', label: t('Salary'), sortable: false },
+    { key: 'formatted_hire_date', label: t('Hire Date'), sortable: true },
+]);
 
 // Actions configuration based on permissions
 const actions = computed(() => {
@@ -138,7 +140,7 @@ const actions = computed(() => {
 
     if (can('view', 'crew')) {
         availableActions.push({
-            label: 'View Details',
+            label: t('View Details'),
             icon: 'eye',
             onClick: (crewMember: CrewMember) => openShowModal(crewMember),
         });
@@ -146,7 +148,7 @@ const actions = computed(() => {
 
     if (can('edit', 'crew')) {
         availableActions.push({
-            label: 'Edit Crew Member',
+            label: t('Edit Crew Member'),
             icon: 'edit',
             onClick: (crewMember: CrewMember) => openEditModal(crewMember),
         });
@@ -154,7 +156,7 @@ const actions = computed(() => {
 
     if (can('delete', 'crew')) {
         availableActions.push({
-            label: 'Delete Crew Member',
+            label: t('Delete Crew Member'),
             icon: 'trash-2',
             variant: 'destructive' as const,
             onClick: (crewMember: CrewMember) => deleteCrewMember(crewMember),
@@ -268,16 +270,16 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-    <Head title="Crew Members" />
+    <Head :title="t('Crew Members')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Crew Members', href: `/panel/${getCurrentVesselId()}/crew-members` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Crew Members'), href: `/panel/${getCurrentVesselId()}/crew-members` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Crew Members</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage your crew members and their information</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Crew Members') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage your crew members and their information') }}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <PermissionGate permission="crew.create">
@@ -286,7 +288,7 @@ const formatDate = (dateString: string) => {
                                 class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                             >
                                 <Icon name="plus" class="w-4 h-4 mr-2" />
-                                Add Crew Member
+                                {{ t('Add Crew Member') }}
                             </button>
                         </PermissionGate>
                     </div>
@@ -303,7 +305,7 @@ const formatDate = (dateString: string) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search crew members..."
+                                :placeholder="t('Search crew members...')"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
@@ -314,7 +316,7 @@ const formatDate = (dateString: string) => {
                         <Select
                             v-model="statusFilter"
                             :options="statusOptions"
-                            placeholder="All Statuses"
+                            :placeholder="t('All Statuses')"
                             searchable
                         />
                     </div>
@@ -324,7 +326,7 @@ const formatDate = (dateString: string) => {
                         <Select
                             v-model="positionFilter"
                             :options="positionOptions"
-                            placeholder="All Positions"
+                            :placeholder="t('All Positions')"
                             searchable
                         />
                     </div>
@@ -335,7 +337,7 @@ const formatDate = (dateString: string) => {
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <Icon name="x" class="h-4 w-4" />
-                        Clear
+                        {{ t('Clear') }}
                     </button>
                 </div>
             </div>
@@ -351,7 +353,7 @@ const formatDate = (dateString: string) => {
                 :sort-direction="sortDirection"
                 :on-sort="handleSort"
                 :loading="false"
-                empty-message="No crew members found"
+                :empty-message="t('No crew members found')"
             >
                 <!-- Custom cell for crew member name -->
                 <template #cell-name="{ item }">
@@ -414,11 +416,11 @@ const formatDate = (dateString: string) => {
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            title="Delete Crew Member"
-            description="This action cannot be undone."
-            :message="`Are you sure you want to delete the crew member '${crewMemberToDelete?.name}'? This will permanently remove the crew member and all their data.`"
-            confirm-text="Delete Crew Member"
-            cancel-text="Cancel"
+            :title="t('Delete Crew Member')"
+            :description="t('This action cannot be undone.')"
+            :message="`${t('Are you sure you want to delete the crew member')} '${crewMemberToDelete?.name}'? ${t('This will permanently remove the crew member and all their data')}.`"
+            :confirm-text="t('Delete Crew Member')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"

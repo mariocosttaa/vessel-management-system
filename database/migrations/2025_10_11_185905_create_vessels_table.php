@@ -20,6 +20,7 @@ return new class extends Migration
             $table->year('year_built')->nullable();
             $table->enum('status', ['active', 'suspended', 'maintenance', 'inactive'])->default('active');
             $table->text('notes')->nullable();
+            $table->string('logo')->nullable()->comment('Vessel logo file path');
             $table->foreignId('owner_id')->nullable()->constrained('users')->onDelete('set null');
 
             // Country and currency

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
 use App\Models\User;
 use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
@@ -29,10 +28,6 @@ class MultiTenantSeeder extends Seeder
             throw new \RuntimeException('Required vessel role access definitions are missing. Please run VesselRoleAccessSeeder first.');
         }
 
-        $adminRole = Role::where('name', 'admin')->first();
-        $managerRole = Role::where('name', 'manager')->first();
-        $viewerRole = Role::where('name', 'viewer')->first();
-
         $admin = User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
@@ -43,10 +38,6 @@ class MultiTenantSeeder extends Seeder
                 'login_permitted' => true,
             ]
         );
-
-        if ($adminRole) {
-            $admin->roles()->syncWithoutDetaching([$adminRole->id]);
-        }
 
         $manager = User::updateOrCreate(
             ['email' => 'manager@example.com'],
@@ -59,10 +50,6 @@ class MultiTenantSeeder extends Seeder
             ]
         );
 
-        if ($managerRole) {
-            $manager->roles()->syncWithoutDetaching([$managerRole->id]);
-        }
-
         $viewer = User::updateOrCreate(
             ['email' => 'viewer@example.com'],
             [
@@ -73,10 +60,6 @@ class MultiTenantSeeder extends Seeder
                 'login_permitted' => true,
             ]
         );
-
-        if ($viewerRole) {
-            $viewer->roles()->syncWithoutDetaching([$viewerRole->id]);
-        }
 
         $vessel1 = Vessel::updateOrCreate(
             ['registration_number' => 'OE-001'],

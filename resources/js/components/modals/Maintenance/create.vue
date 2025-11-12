@@ -8,6 +8,7 @@ import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
 import axios from 'axios';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t } = useI18n();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -114,9 +116,9 @@ const handleClose = () => {
     <Dialog :open="open" @update:open="handleDialogUpdate">
         <DialogContent class="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Create New Maintenance</DialogTitle>
+                <DialogTitle>{{ t('Create New Maintenance') }}</DialogTitle>
                 <DialogDescription>
-                    Create a new maintenance record for your vessel
+                    {{ t('Create a new maintenance record for your vessel') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -125,7 +127,7 @@ const handleClose = () => {
                     <!-- Maintenance Number -->
                     <div>
                         <Label for="maintenance_number" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Maintenance Number <span class="text-destructive">*</span>
+                            {{ t('Maintenance Number') }} <span class="text-destructive">*</span>
                         </Label>
                         <Input
                             id="maintenance_number"
@@ -138,17 +140,17 @@ const handleClose = () => {
                         />
                         <InputError :message="form.errors.maintenance_number" class="mt-1" />
                         <p v-if="loadingNextNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                            Loading next maintenance number...
+                            {{ t('Loading next maintenance number...') }}
                         </p>
                         <p v-else-if="nextMaintenanceNumber && form.maintenance_number === nextMaintenanceNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                            This number was auto-generated. You can change it if needed.
+                            {{ t('This number was auto-generated. You can change it if needed.') }}
                         </p>
                     </div>
 
                     <!-- Start Date -->
                     <div>
                         <Label for="start_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            Start Date <span class="text-destructive">*</span>
+                            {{ t('Start Date') }} <span class="text-destructive">*</span>
                         </Label>
                         <DateInput
                             id="start_date"
@@ -167,7 +169,7 @@ const handleClose = () => {
                     @click="handleClose"
                     :disabled="form.processing || loadingNextNumber"
                 >
-                    Cancel
+                    {{ t('Cancel') }}
                 </Button>
                 <Button
                     @click="handleSave"
@@ -175,7 +177,7 @@ const handleClose = () => {
                 >
                     <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
                     <Icon v-else name="plus" class="w-4 h-4 mr-2" />
-                    {{ form.processing ? 'Creating...' : 'Create Maintenance' }}
+                    {{ form.processing ? t('Creating...') : t('Create Maintenance') }}
                 </Button>
             </div>
         </DialogContent>

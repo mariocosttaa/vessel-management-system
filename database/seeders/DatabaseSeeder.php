@@ -14,7 +14,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,
             VesselRoleAccessSeeder::class,
             CrewPositionSeeder::class, // Run before UserVesselRoleSeeder so positions exist
             CountrySeeder::class, // Run before VatProfileSeeder
