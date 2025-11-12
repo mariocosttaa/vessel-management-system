@@ -31,7 +31,8 @@ class TransactionPdf
         ?string $startDate = null,
         ?string $endDate = null,
         string $title = 'Transaction Report',
-        ?string $subtitle = 'Movements and Transactions Overview'
+        ?string $subtitle = 'Movements and Transactions Overview',
+        bool $enableColors = false
     ) {
         // Load relationships for transactions
         $transactions->load('category');
@@ -45,6 +46,7 @@ class TransactionPdf
             'endDate' => $endDate,
             'title' => $title,
             'subtitle' => $subtitle,
+            'enableColors' => $enableColors,
         ]);
     }
 

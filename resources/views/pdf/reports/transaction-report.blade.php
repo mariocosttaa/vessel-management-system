@@ -16,7 +16,12 @@
     - $endDate: End date for period (optional)
     - $title: Report title (default: 'Transaction Report')
     - $subtitle: Report subtitle (optional)
+    - $enableColors: Boolean to enable/disable colors (default: true)
 --}}
+@php
+    // Set default value for enableColors if not provided (default to false - colors disabled)
+    $enableColors = $enableColors ?? false;
+@endphp
 
 @extends('pdf.layouts.base')
 
@@ -104,12 +109,30 @@
                             $amountValue = $transaction->total_amount ?? $transaction->amount;
                             $houseOfZeros = $transaction->house_of_zeros ?? 2;
                             $amount = MoneyAction::format($amountValue, $houseOfZeros, $currency, true);
+
+                            // Use the enableColors variable set at the top of the template
+
+                            // Determine sign and color based on transaction type
+                            $sign = '';
+                            $amountClass = 'amount-neutral';
+                            if ($transaction->type === 'income') {
+                                $sign = '+';
+                                $amountClass = $enableColors ? 'amount-income' : 'amount-neutral';
+                            } elseif ($transaction->type === 'expense') {
+                                $sign = '-';
+                                $amountClass = $enableColors ? 'amount-expense' : 'amount-neutral';
+                            }
+
+                            // Format amount with sign and space
+                            $formattedAmount = $sign ? $sign . ' ' . $amount : $amount;
                         @endphp
                         <tr>
                             <td class="col-date">{{ $transaction->transaction_date->format('d/m/Y') }}</td>
                             <td class="col-description">{{ $transaction->description ?? '-' }}</td>
                             <td class="col-category">{{ $transaction->category->name ?? '-' }}</td>
-                            <td class="col-amount">{{ $amount }}</td>
+                            <td class="col-amount {{ $amountClass }}">
+                                {{ $formattedAmount }}
+                            </td>
                             <td class="col-type">{{ $transaction->type }}</td>
                         </tr>
                     @endforeach
@@ -312,6 +335,19 @@
             font-size: 11px;
             font-weight: 700;
             font-family: 'DejaVu Sans', 'Helvetica', 'Arial', sans-serif;
+        }
+
+        /* Amount colors - Use RGB for better DomPDF support */
+        .amount-income {
+            color: rgb(34, 197, 94) !important; /* Green for income - more vibrant (#22c55e) */
+        }
+
+        .amount-expense {
+            color: rgb(239, 68, 68) !important; /* Red for expense (#ef4444) */
+        }
+
+        .amount-neutral {
+            color: rgb(0, 0, 0) !important; /* Black for transfers/neutral */
         }
 
         .col-type {
