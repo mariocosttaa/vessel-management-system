@@ -301,6 +301,39 @@ class CrewMemberController extends Controller
                 ]
             );
 
+            // Create VesselUserRole based on position's vessel_role_access_id
+            $vesselRoleAccessId = null;
+
+            // Get role from position if crew member has a position assigned
+            if ($crewMember->position_id) {
+                $position = CrewPosition::find($crewMember->position_id);
+                if ($position && $position->vessel_role_access_id) {
+                    $vesselRoleAccessId = $position->vessel_role_access_id;
+                }
+            }
+
+            // If no role from position, use default "normal" role
+            if (! $vesselRoleAccessId) {
+                $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
+                if ($normalRole) {
+                    $vesselRoleAccessId = $normalRole->id;
+                }
+            }
+
+            // Create VesselUserRole if we have a role access ID
+            if ($vesselRoleAccessId) {
+                VesselUserRole::updateOrCreate(
+                    [
+                        'vessel_id' => $vesselId,
+                        'user_id'   => $crewMember->id,
+                    ],
+                    [
+                        'vessel_role_access_id' => $vesselRoleAccessId,
+                        'is_active'             => true,
+                    ]
+                );
+            }
+
             // Send invitation email (only if email is provided and not creating without email)
             if (! $createWithoutEmail && $crewMember->email) {
                 try {
@@ -442,11 +475,12 @@ class CrewMemberController extends Controller
         ]);
     }
 
-    public function update(UpdateCrewMemberRequest $request, User $crewMember)
+    public function update(UpdateCrewMemberRequest $request, $vessel, User $crewMember)
     {
         try {
             Log::info('CrewMemberController::update - Start', [
                 'crew_member_id' => $crewMember->id,
+                'vessel_param'   => $vessel,
                 'request_url'    => $request->fullUrl(),
                 'request_method' => $request->method(),
             ]);
@@ -463,6 +497,9 @@ class CrewMemberController extends Controller
                 abort(403, 'Unauthorized access to crew member.');
             }
 
+            // Get the vessel model for email sending
+            $vessel = Vessel::findOrFail($vesselId);
+
             // Store original state for change detection BEFORE update
             $originalCrewMember = $crewMember->replicate();
 
@@ -470,8 +507,9 @@ class CrewMemberController extends Controller
             $hasExistingAccount = $crewMember->hasExistingAccount();
 
             // Handle password update
+            // Note: position_id is already decoded by UpdateCrewMemberRequest::prepareForValidation()
             $updateData = [
-                'position_id'   => $request->position_id ? $this->unhashId($request->position_id, 'crewposition') : null,
+                'position_id'   => $request->position_id,
                 'name'          => $request->name,
                 'phone'         => $request->phone,
                 'date_of_birth' => $request->date_of_birth,
@@ -480,48 +518,118 @@ class CrewMemberController extends Controller
                 'notes'         => $request->notes,
             ];
 
-            // Only update email if user doesn't have existing account
+            // Handle email update - only if user doesn't have existing account
             // For existing accounts, email shouldn't be changed through crew member update
-            if (! $hasExistingAccount && $request->email) {
-                $updateData['email'] = $request->email;
+            if (! $hasExistingAccount && $request->filled('email')) {
+                $email = strtolower(trim($request->email));
+
+                // Check if email is already used by another user
+                $emailUser = User::where('email', $email)->where('id', '!=', $crewMember->id)->first();
+                if ($emailUser) {
+                    return back()
+                        ->withInput()
+                        ->with('error', 'This email is already registered to another user.')
+                        ->with('notification_delay', 0);
+                }
+
+                $updateData['email'] = $email;
             }
 
-            // Handle password and login settings
-            if ($hasExistingAccount) {
-                // User has existing account - don't allow password changes
-                // Only update login_permitted status
-                $updateData['login_permitted'] = $request->login_permitted ?? false;
-                // Don't update password or temporary_password for existing accounts
+            // Handle login settings
+            // Password changes are no longer supported - users must use password reset
+            $wasLoginPermitted             = $crewMember->login_permitted;
+            $isEnablingAccess              = $request->login_permitted && ! $wasLoginPermitted;
+            $updateData['login_permitted'] = $request->login_permitted ?? false;
+
+            // If disabling login, clear temporary password
+            if (! $updateData['login_permitted']) {
+                $updateData['temporary_password'] = 'temp_' . time();
             } else {
-                // User doesn't have existing account - allow password changes
-                if ($request->login_permitted && $request->password) {
-                    $updateData['password']           = bcrypt($request->password);
-                    $updateData['temporary_password'] = null;
-                    $updateData['login_permitted']    = true;
-                } elseif (! $request->login_permitted) {
-                    $updateData['temporary_password'] = 'temp_' . time();
-                    $updateData['login_permitted']    = false;
+                // If enabling login and user doesn't have existing account, ensure email is set
+                if (! $hasExistingAccount && ! $request->filled('email')) {
+                    return back()
+                        ->withInput()
+                        ->with('error', 'Email is required when enabling system access.')
+                        ->with('notification_delay', 0);
+                }
+
+                // If enabling system access for the first time, prepare invitation
+                if ($isEnablingAccess && ! $hasExistingAccount) {
+                    // Generate invitation token if user doesn't have one or has already accepted
+                    if (! $crewMember->invitation_token || $crewMember->invitation_accepted_at) {
+                        $invitationToken                      = Str::random(64);
+                        $updateData['invitation_token']       = $invitationToken;
+                        $updateData['invitation_accepted_at'] = null; // Reset acceptance if re-inviting
+                    } else {
+                        $invitationToken = $crewMember->invitation_token;
+                    }
+
+                    // Set invitation sent date
+                    $updateData['invitation_sent_at'] = now();
+                    // Initially set login_permitted to false - they need to accept invitation first
+                    // This matches the create flow where users must accept invitation before they can log in
+                    $updateData['login_permitted'] = false;
                 }
             }
 
-            // Extract salary compensation data
-            // Note: fixed_amount comes from MoneyInput as integer (cents), no conversion needed
-            $salaryData = [
-                'compensation_type' => $request->compensation_type,
-                'fixed_amount'      => $request->compensation_type === 'fixed' ? (int) $request->fixed_amount : null,
-                'percentage'        => $request->compensation_type === 'percentage' ? $request->percentage : null,
-                'currency'          => $request->currency,
-                'payment_frequency' => $request->payment_frequency,
-                'is_active'         => true,
-            ];
-
             $crewMember->update($updateData);
 
-            // Update or create salary compensation
-            $crewMember->salaryCompensations()->updateOrCreate(
-                ['is_active' => true],
-                $salaryData
-            );
+            // Send invitation email if system access was just enabled
+            if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
+                try {
+                    $invitationToken = $crewMember->invitation_token;
+
+                    Mail::to($crewMember->email)->send(
+                        new CrewMemberInvitationMail(
+                            $crewMember,
+                            $vessel,
+                            $invitationToken
+                        )
+                    );
+
+                    // Track email send
+                    InvitationEmail::create([
+                        'user_id'          => $crewMember->id,
+                        'vessel_id'        => $vesselId,
+                        'email_type'       => 'invitation',
+                        'invitation_token' => $invitationToken,
+                        'sent_at'          => now(),
+                    ]);
+
+                    Log::info('CrewMemberController::update - Invitation email sent', [
+                        'user_id'   => $crewMember->id,
+                        'vessel_id' => $vesselId,
+                        'email'     => $crewMember->email,
+                    ]);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the request
+                    Log::error('Failed to send crew member invitation email on update', [
+                        'user_id'   => $crewMember->id,
+                        'vessel_id' => $vesselId,
+                        'error'     => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Handle salary compensation only if not skipped
+            if (! $request->skip_salary) {
+                // Extract salary compensation data
+                // Note: fixed_amount comes from MoneyInput as integer (cents), no conversion needed
+                $salaryData = [
+                    'compensation_type' => $request->compensation_type,
+                    'fixed_amount'      => $request->compensation_type === 'fixed' ? (int) $request->fixed_amount : null,
+                    'percentage'        => $request->compensation_type === 'percentage' ? $request->percentage : null,
+                    'currency'          => $request->currency,
+                    'payment_frequency' => $request->payment_frequency,
+                    'is_active'         => true,
+                ];
+
+                // Update or create salary compensation
+                $crewMember->salaryCompensations()->updateOrCreate(
+                    ['is_active' => true],
+                    $salaryData
+                );
+            }
 
             // Get changed fields and log the update action
             $changedFields = AuditLogAction::getChangedFields($crewMember, $originalCrewMember);
@@ -539,9 +647,17 @@ class CrewMemberController extends Controller
                 'vessel_id'        => $vesselId,
             ]);
 
+            // Set appropriate success message
+            $successMessage = "Crew member '{$crewMember->name}' has been updated successfully.";
+
+            // If invitation was sent, add that to the message
+            if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
+                $successMessage = "Invitation sent to '{$crewMember->email}'. They will receive an email to accept the invitation and set their password.";
+            }
+
             return redirect()
                 ->route('panel.crew-members.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
-                ->with('success', "Crew member '{$crewMember->name}' has been updated successfully.")
+                ->with('success', $successMessage)
                 ->with('notification_delay', 4); // 4 seconds delay
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('CrewMemberController::update - Validation Error', [
