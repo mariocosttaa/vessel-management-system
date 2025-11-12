@@ -5,6 +5,7 @@ import { computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import financialReports from '@/routes/panel/financial-reports';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-vue-next';
 
@@ -76,6 +77,7 @@ const props = defineProps<Props>();
 
 // Permission check
 const { hasPermission } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to access reports
 onMounted(() => {
@@ -156,10 +158,10 @@ const getChangeColor = (change: number) => {
 </script>
 
 <template>
-    <Head :title="`Financial Report - ${monthLabel} ${year}`" />
+    <Head :title="`${t('Financial Report')} - ${monthLabel} ${year}`" />
 
     <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
-        { title: 'Financial Reports', href: financialReports.index.url({ vessel: getCurrentVesselId() }) },
+        { title: t('Financial Reports'), href: financialReports.index.url({ vessel: getCurrentVesselId() }) },
         { title: `${monthLabel} ${year}`, href: financialReports.show.url({ vessel: getCurrentVesselId(), year: year, month: month }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -168,10 +170,10 @@ const getChangeColor = (change: number) => {
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">
-                            Financial Report - {{ monthLabel }} {{ year }}
+                            {{ t('Financial Report') }} - {{ monthLabel }} {{ year }}
                         </h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">
-                            Comprehensive financial overview for {{ monthLabel }} {{ year }}
+                            {{ t('Comprehensive financial overview for') }} {{ monthLabel }} {{ year }}
                         </p>
                     </div>
                     <Link
@@ -179,7 +181,7 @@ const getChangeColor = (change: number) => {
                         class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                     >
                         <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        Back to Reports
+                        {{ t('Back to Reports') }}
                     </Link>
                 </div>
             </div>
@@ -189,7 +191,7 @@ const getChangeColor = (change: number) => {
                 <!-- Total Income -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Total Income</h3>
+                            <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Total Income') }}</h3>
                         <component
                             :is="getChangeIcon(summary.income_change)"
                             :class="['w-4 h-4', getChangeColor(summary.income_change)]"
@@ -214,7 +216,7 @@ const getChangeColor = (change: number) => {
                 <!-- Total Expenses -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Total Expenses</h3>
+                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Total Expenses') }}</h3>
                         <component
                             :is="getChangeIcon(summary.expenses_change)"
                             :class="['w-4 h-4', getChangeColor(summary.expenses_change)]"
@@ -239,7 +241,7 @@ const getChangeColor = (change: number) => {
                 <!-- Net Balance -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Net Balance</h3>
+                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Net Balance') }}</h3>
                         <component
                             :is="getChangeIcon(summary.net_change)"
                             :class="['w-4 h-4', getChangeColor(summary.net_change)]"
@@ -263,7 +265,7 @@ const getChangeColor = (change: number) => {
 
                 <!-- Transaction Count -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">Transactions</h3>
+                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">{{ t('Transactions') }}</h3>
                     <div class="text-3xl font-bold text-card-foreground dark:text-card-foreground">
                         {{ summary.transaction_count }}
                     </div>
@@ -274,7 +276,7 @@ const getChangeColor = (change: number) => {
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <!-- Daily Breakdown Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Daily Breakdown</h3>
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Daily Breakdown') }}</h3>
                     <div class="space-y-4">
                         <div
                             v-for="day in dailyBreakdown"
@@ -287,7 +289,7 @@ const getChangeColor = (change: number) => {
                             <div class="flex-1 space-y-1">
                                 <!-- Income Bar -->
                                 <div v-if="day.income > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">Income</div>
+                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Income') }}</div>
                                     <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                         <div
                                             class="h-full bg-green-500 dark:bg-green-600 transition-all"
@@ -307,7 +309,7 @@ const getChangeColor = (change: number) => {
                                 </div>
                                 <!-- Expenses Bar -->
                                 <div v-if="day.expenses > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">Expenses</div>
+                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</div>
                                     <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                         <div
                                             class="h-full bg-red-500 dark:bg-red-600 transition-all"
@@ -328,14 +330,14 @@ const getChangeColor = (change: number) => {
                             </div>
                         </div>
                         <div v-if="dailyBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            No data available for this period
+                            {{ t('No data available for this period') }}
                         </div>
                     </div>
                 </div>
 
                 <!-- Category Breakdown Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Category Breakdown</h3>
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Category Breakdown') }}</h3>
                     <div class="space-y-4 max-h-96 overflow-y-auto">
                         <div
                             v-for="category in categoryBreakdown"
@@ -350,16 +352,16 @@ const getChangeColor = (change: number) => {
                                         :style="{ backgroundColor: category.category_color }"
                                     ></div>
                                     <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                        {{ category.category_name }}
+                                        {{ t(category.category_name) }}
                                     </span>
                                 </div>
                                 <span class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                    {{ category.count }} transactions
+                                    {{ category.count }} {{ t('transactions') }}
                                 </span>
                             </div>
                             <!-- Income Bar -->
                             <div v-if="category.income > 0" class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">Income</div>
+                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Income') }}</div>
                                 <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                     <div
                                         class="h-full bg-green-500 dark:bg-green-600 transition-all"
@@ -379,7 +381,7 @@ const getChangeColor = (change: number) => {
                             </div>
                             <!-- Expenses Bar -->
                             <div v-if="category.expenses > 0" class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">Expenses</div>
+                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</div>
                                 <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                     <div
                                         class="h-full bg-red-500 dark:bg-red-600 transition-all"
@@ -399,7 +401,7 @@ const getChangeColor = (change: number) => {
                             </div>
                         </div>
                         <div v-if="categoryBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            No categories found
+                            {{ t('No categories found') }}
                         </div>
                     </div>
                 </div>
@@ -407,7 +409,7 @@ const getChangeColor = (change: number) => {
 
             <!-- Marea Information -->
             <div v-if="mareas.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Mareas (Fishing Trips)</h3>
+                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Mareas (Fishing Trips)') }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div
                         v-for="marea in mareas"
@@ -435,7 +437,7 @@ const getChangeColor = (change: number) => {
                         </div>
                         <div class="space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Income:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Income') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.total_income"
                                     :currency="currency"
@@ -445,7 +447,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Expenses:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.total_expenses"
                                     :currency="currency"
@@ -455,7 +457,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between font-semibold">
-                                <span class="text-card-foreground dark:text-card-foreground">Net:</span>
+                                <span class="text-card-foreground dark:text-card-foreground">{{ t('Net') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.net_result"
                                     :currency="currency"
@@ -465,12 +467,12 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between text-xs text-muted-foreground dark:text-muted-foreground mt-2">
-                                <span>Transactions:</span>
+                                <span>{{ t('Transactions') }}:</span>
                                 <span>{{ marea.transaction_count }}</span>
                             </div>
                             <!-- Quantity Returns -->
                             <div v-if="marea.quantity_returns.length > 0" class="mt-3 pt-3 border-t border-border dark:border-border">
-                                <div class="text-xs font-medium text-muted-foreground dark:text-muted-foreground mb-2">Quantity Returns:</div>
+                                <div class="text-xs font-medium text-muted-foreground dark:text-muted-foreground mb-2">{{ t('Quantity Returns') }}:</div>
                                 <div
                                     v-for="qr in marea.quantity_returns"
                                     :key="qr.name"
@@ -489,7 +491,7 @@ const getChangeColor = (change: number) => {
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view financial reports.</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('You do not have permission to view financial reports.') }}</p>
             </div>
         </div>
     </VesselLayout>
