@@ -6,7 +6,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.5px; line-height: 1.2; text-align: center;">
-                    Convite Cancelado
+                    {{ trans('emails.Invitation Cancelled') }}
                 </h1>
             </td>
         </tr>
@@ -17,14 +17,14 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Olá{{ $user->name ? ' ' . $user->name : '' }},
+                    {{ trans('emails.Hello :name', ['name' => $user->name ?? '']) }}
                 </p>
             </td>
         </tr>
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Informamos que o convite para fazer parte da tripulação da embarcação <strong>{{ $vessel->name }}</strong> foi cancelado.
+                    {{ trans('emails.We inform you that the invitation to join the crew of vessel :vessel has been cancelled.', ['vessel' => $vessel->name]) }}
                 </p>
             </td>
         </tr>
@@ -45,7 +45,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Embarcação
+                                                        {{ trans('emails.Vessel') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -66,7 +66,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Email
+                                                        {{ trans('emails.Email') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -93,7 +93,7 @@
         <tr>
             <td align="center" style="padding-top: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Se você tiver alguma dúvida sobre este cancelamento, entre em contato com o administrador da embarcação.
+                    {{ trans('emails.If you have any questions about this cancellation, please contact the vessel administrator.') }}
                 </p>
             </td>
         </tr>

@@ -24,11 +24,11 @@
                             <tr>
                                 <td align="center">
                                     <a href="{{ route('privacy-policy') }}" style="color: #6b7280; text-decoration: none; font-size: 14px; font-weight: 700; padding-right: 12px;">
-                                        Privacy Policy
+                                        {{ trans('emails.Privacy Policy') }}
                                     </a>
                                     <span style="color: #d1d5db; font-size: 14px; padding: 0 8px;">|</span>
                                     <a href="{{ route('terms-of-service') }}" style="color: #6b7280; text-decoration: none; font-size: 14px; font-weight: 700; padding-left: 12px;">
-                                        Terms of Service
+                                        {{ trans('emails.Terms of Service') }}
                                     </a>
                                 </td>
                             </tr>
@@ -40,8 +40,13 @@
                 <tr>
                     <td align="center">
                         <p style="margin: 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.6; max-width: 500px;">
-                            Esta é uma mensagem automática do sistema {{ config('app.name', 'Bindamy Mareas') }}. Se não pretende receber estas mensagens, pode alterar as suas preferências nas configurações do seu perfil ou contactar-nos em
-                            <a href="mailto:geral@mareas.bindamy.site" style="color: #6b7280; text-decoration: none; font-weight: 700;">geral@mareas.bindamy.site</a>.
+                            @php
+                                $emailLink = '<a href="mailto:geral@mareas.bindamy.site" style="color: #6b7280; text-decoration: none; font-weight: 700;">geral@mareas.bindamy.site</a>';
+                            @endphp
+                            {!! trans('emails.This is an automatic message from the :app system. If you do not wish to receive these messages, you can change your preferences in your profile settings or contact us at :email.', [
+                                'app' => config('app.name', 'Bindamy Mareas'),
+                                'email' => $emailLink
+                            ]) !!}
                         </p>
                     </td>
                 </tr>
