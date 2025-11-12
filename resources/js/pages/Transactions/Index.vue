@@ -11,10 +11,13 @@ import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue
 import UpdateAddModal from '@/components/modals/Transaction/update-add.vue';
 import UpdateRemoveModal from '@/components/modals/Transaction/update-remove.vue';
 import TransactionShowModal from '@/components/modals/Transaction/show.vue';
+import DownloadPdfModal from '@/components/modals/Transaction/DownloadPdfModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-vue-next';
 import transactions from '@/routes/panel/transactions';
 
@@ -150,6 +153,7 @@ interface Props {
 const props = defineProps<Props>();
 const { canCreate, canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 // Computed property for transactions pagination (same pattern as Suppliers/CrewMembers)
 const paginatedTransactions = computed(() => props.transactions);
@@ -157,6 +161,10 @@ const paginatedTransactions = computed(() => props.transactions);
 // Modal states
 const showCreateAddModal = ref(false);
 const showCreateRemoveModal = ref(false);
+const showDownloadPdfModal = ref(false);
+const showPdfLoadingModal = ref(false);
+const isDownloading = ref(false);
+let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
 const showUpdateAddModal = ref(false);
 const showUpdateRemoveModal = ref(false);
 const showShowModal = ref(false);
@@ -241,9 +249,9 @@ const formatDate = (dateString: string) => {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-        return 'Today';
+        return t('Today');
     } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
+        return t('Yesterday');
     } else {
         return date.toLocaleDateString('en-US', {
             weekday: 'long',
@@ -318,6 +326,83 @@ const openCreateAddModal = () => {
 
 const openCreateRemoveModal = () => {
     showCreateRemoveModal.value = true;
+};
+
+const openDownloadPdfModal = () => {
+    showDownloadPdfModal.value = true;
+};
+
+const closeDownloadPdfModal = () => {
+    showDownloadPdfModal.value = false;
+};
+
+const handlePdfDownload = (options: { type: 'month' | 'range'; month?: number; year?: number; startDate?: string; endDate?: string; transactionType?: string; enableColors?: boolean }) => {
+    showDownloadPdfModal.value = false;
+    showPdfLoadingModal.value = true;
+    isDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    downloadTimeout = setTimeout(() => {
+        if (!isDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        let url = '';
+
+        if (options.type === 'month') {
+            const params = new URLSearchParams();
+            if (options.transactionType && options.transactionType !== 'all') {
+                params.append('transaction_type', options.transactionType);
+            }
+            if (options.enableColors !== undefined && options.enableColors) {
+                params.append('enable_colors', '1');
+            }
+            const queryString = params.toString();
+            url = `/panel/${vesselId}/transactions/history/${options.year}/${options.month}/download-pdf${queryString ? '?' + queryString : ''}`;
+        } else {
+            // Build URL with date range parameters
+            const params = new URLSearchParams({
+                start_date: options.startDate || '',
+                end_date: options.endDate || '',
+            });
+            if (options.transactionType && options.transactionType !== 'all') {
+                params.append('transaction_type', options.transactionType);
+            }
+            if (options.enableColors !== undefined && options.enableColors) {
+                params.append('enable_colors', '1');
+            }
+            url = `/panel/${vesselId}/transactions/download-pdf?${params.toString()}`;
+        }
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showPdfLoadingModal.value = false;
+            isDownloading.value = false;
+            downloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+const handlePdfDownloadCancel = () => {
+    if (downloadTimeout) {
+        clearTimeout(downloadTimeout);
+        downloadTimeout = null;
+    }
+    showPdfLoadingModal.value = false;
+    isDownloading.value = false;
+};
+
+const closePdfLoadingModal = () => {
+    if (!isDownloading.value) {
+        showPdfLoadingModal.value = false;
+    }
 };
 
 const openUpdateModal = (transaction: Transaction) => {
@@ -433,16 +518,16 @@ const confirmDelete = () => {
             isDeleting.value = false;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: `Transaction '${transactionNumber}' has been deleted successfully.`,
+                title: t('Success'),
+                message: `${t('Transaction')} '${transactionNumber}' ${t('has been deleted successfully')}.`,
             });
         },
         onError: () => {
             isDeleting.value = false;
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to delete transaction. Please try again.',
+                title: t('Error'),
+                message: t('Failed to delete transaction. Please try again.'),
             });
         },
     });
@@ -481,7 +566,7 @@ const categoryFilter = ref(props.filters.category_id || '');
 
 // Convert filters to Select component options format
 const typeOptions = computed(() => {
-    const options = [{ value: '', label: 'All Types' }];
+    const options = [{ value: '', label: t('All Types') }];
     Object.entries(props.transactionTypes).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -489,7 +574,7 @@ const typeOptions = computed(() => {
 });
 
 const statusOptions = computed(() => {
-    const options = [{ value: '', label: 'All Statuses' }];
+    const options = [{ value: '', label: t('All Statuses') }];
     Object.entries(props.statuses).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -497,7 +582,7 @@ const statusOptions = computed(() => {
 });
 
 const categoryOptions = computed(() => {
-    const options = [{ value: '', label: 'All Categories' }];
+    const options = [{ value: '', label: t('All Categories') }];
     props.categories.forEach(category => {
         options.push({ value: category.id, label: category.name });
     });
@@ -554,24 +639,31 @@ const clearFilters = () => {
 </script>
 
 <template>
-    <Head title="Transactions" />
+    <Head :title="t('Transactions')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Transactions', href: transactions.index.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Transactions'), href: transactions.index.url({ vessel: getCurrentVesselId() }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">Transactions</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">Manage financial transactions for your vessel</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Transactions') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage financial transactions for your vessel') }}</p>
                     </div>
                     <div class="flex gap-3">
+                        <button
+                            @click="openDownloadPdfModal"
+                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+                        >
+                            <Icon name="download" class="w-4 h-4 mr-2" />
+                            {{ t('Download PDF') }}
+                        </button>
                         <Link
                             :href="`/panel/${getCurrentVesselId()}/transactions/history`"
                             class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                         >
                             <Icon name="calendar" class="w-4 h-4 mr-2" />
-                            History
+                            {{ t('History') }}
                         </Link>
                         <div v-if="canCreate('transactions')" class="flex gap-3">
                             <button
@@ -579,14 +671,14 @@ const clearFilters = () => {
                                 class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                             >
                                 <Icon name="plus" class="w-4 h-4 mr-2" />
-                                Add
+                                {{ t('Add') }}
                             </button>
                             <button
                                 @click="openCreateRemoveModal"
                                 class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                             >
                                 <Icon name="minus" class="w-4 h-4 mr-2" />
-                                Remove
+                                {{ t('Remove') }}
                             </button>
                         </div>
                     </div>
@@ -603,7 +695,7 @@ const clearFilters = () => {
                             <input
                                 v-model="search"
                                 type="text"
-                                placeholder="Search transactions..."
+                                :placeholder="t('Search transactions...')"
                                 @keyup.enter="applyFilters"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
@@ -615,7 +707,7 @@ const clearFilters = () => {
                         <Select
                             v-model="typeFilter"
                             :options="typeOptions"
-                            placeholder="All Types"
+                            :placeholder="t('All Types')"
                             searchable
                         />
                     </div>
@@ -625,7 +717,7 @@ const clearFilters = () => {
                         <Select
                             v-model="statusFilter"
                             :options="statusOptions"
-                            placeholder="All Statuses"
+                            :placeholder="t('All Statuses')"
                             searchable
                         />
                     </div>
@@ -635,7 +727,7 @@ const clearFilters = () => {
                         <Select
                             v-model="categoryFilter"
                             :options="categoryOptions"
-                            placeholder="All Categories"
+                            :placeholder="t('All Categories')"
                             searchable
                         />
                     </div>
@@ -656,7 +748,7 @@ const clearFilters = () => {
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                     >
                         <Icon name="check" class="h-4 w-4" />
-                        Apply
+                        {{ t('Apply') }}
                     </button>
 
                     <!-- Clear Filters Button -->
@@ -665,7 +757,7 @@ const clearFilters = () => {
                         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-input dark:border-input rounded-lg bg-background dark:bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <Icon name="x" class="h-4 w-4" />
-                        Clear
+                        {{ t('Clear') }}
                     </button>
                 </div>
             </div>
@@ -673,7 +765,7 @@ const clearFilters = () => {
             <!-- Transactions Table with Date Grouping -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
                 <div v-if="!props.transactions || !props.transactions.data || !Array.isArray(props.transactions.data) || props.transactions.data.length === 0" class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
-                    No transactions found
+                    {{ t('No transactions found') }}
                 </div>
 
                 <div v-else-if="groupedTransactions && groupedTransactions.length > 0" class="divide-y divide-border dark:divide-border">
@@ -750,7 +842,7 @@ const clearFilters = () => {
                                             </div>
                                             <div class="mt-1">
                                                 <p class="text-sm text-card-foreground dark:text-card-foreground truncate">
-                                                    {{ transaction.description || 'No description' }}
+                                                    {{ transaction.description || t('No description') }}
                                                 </p>
                                                 <p v-if="transaction.created_at_datetime" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
                                                     {{ transaction.created_at_datetime }}
@@ -805,7 +897,7 @@ const clearFilters = () => {
                                                 </div>
                                                 <!-- VAT indicator (only if VAT exists) -->
                                                 <div v-if="transaction.vat_amount > 0" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
-                                                    incl. VAT
+                                                    {{ t('incl. VAT') }}
                                                 </div>
                                             </template>
                                         </div>
@@ -819,7 +911,7 @@ const clearFilters = () => {
                                             <button
                                                 @click.stop="openShowModal(transaction)"
                                                 class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                                title="View transaction details"
+                                                :title="t('View transaction details')"
                                             >
                                                 <Icon name="eye" class="w-4 h-4" />
                                             </button>
@@ -829,7 +921,7 @@ const clearFilters = () => {
                                                 v-if="canEdit('transactions')"
                                                 @click.stop="openUpdateModal(transaction)"
                                                 class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
-                                                title="Edit transaction"
+                                                :title="t('Edit transaction')"
                                             >
                                                 <Icon name="edit" class="w-4 h-4" />
                                             </button>
@@ -839,7 +931,7 @@ const clearFilters = () => {
                                                 v-if="canDelete('transactions')"
                                                 @click.stop="deleteTransaction(transaction)"
                                                 class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
-                                                title="Delete transaction"
+                                                :title="t('Delete transaction')"
                                             >
                                                 <Icon name="x" class="w-4 h-4" />
                                             </button>
@@ -917,16 +1009,31 @@ const clearFilters = () => {
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            title="Delete Transaction"
-            description="This action cannot be undone."
-            :message="`Are you sure you want to delete transaction '${transactionToDelete?.transaction_number}'? This will permanently remove the transaction and all its data.`"
-            confirm-text="Delete Transaction"
-            cancel-text="Cancel"
+            :title="t('Delete Transaction')"
+            :description="t('This action cannot be undone.')"
+            :message="`${t('Are you sure you want to delete transaction')} '${transactionToDelete?.transaction_number}'? ${t('This will permanently remove the transaction and all its data')}.`"
+            :confirm-text="t('Delete Transaction')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
             :loading="isDeleting"
             @confirm="confirmDelete"
             @cancel="cancelDelete"
+        />
+
+        <!-- Download PDF Modal -->
+        <DownloadPdfModal
+            :open="showDownloadPdfModal"
+            @close="closeDownloadPdfModal"
+            @download="handlePdfDownload"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfLoadingModal"
+            :countdown="5"
+            @close="closePdfLoadingModal"
+            @cancel="handlePdfDownloadCancel"
         />
     </VesselLayout>
 </template>
