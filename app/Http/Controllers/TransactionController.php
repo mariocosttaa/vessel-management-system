@@ -11,9 +11,9 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\VesselSetting;
-use App\Services\AuditLogService;
-use App\Services\EmailNotificationService;
-use App\Services\MoneyService;
+use App\Actions\AuditLogAction;
+use App\Actions\EmailNotificationAction;
+use App\Actions\MoneyAction;
 use App\Pdf\TransactionPdf;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
@@ -351,14 +351,14 @@ class TransactionController extends Controller
                         // Amount includes VAT - separate it
                         // base = total / (1 + vat_rate/100)
                         // vat = total - base
-                        $calculation = MoneyService::calculateFromTotalIncludingVat($amount, $vatRate);
+                        $calculation = MoneyAction::calculateFromTotalIncludingVat($amount, $vatRate);
                         $amount = $calculation['base']; // Store base amount
                         $vatAmount = $calculation['vat']; // Store VAT amount
                     } else {
                         // Amount excludes VAT - calculate VAT on top
                         // vat = amount * (vat_rate/100)
                         // total = amount + vat
-                        $vatAmount = MoneyService::calculateVat($amount, $vatRate);
+                        $vatAmount = MoneyAction::calculateVat($amount, $vatRate);
                         // amount stays as is (base amount)
                     }
                 }
@@ -441,7 +441,7 @@ class TransactionController extends Controller
             ]);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $transaction,
                 'Transaction',
                 $transaction->transaction_number,
@@ -453,7 +453,7 @@ class TransactionController extends Controller
                 $currencyModel = \App\Models\Currency::where('code', $currency)->first();
                 $currencySymbol = $currencyModel->symbol ?? '€';
 
-                EmailNotificationService::createNotification(
+                EmailNotificationAction::createNotification(
                     type: 'transaction_created',
                     subjectType: Transaction::class,
                     subjectId: $transaction->id,
@@ -786,12 +786,12 @@ class TransactionController extends Controller
 
                     if ($amountIncludesVat) {
                         // Amount includes VAT - separate it
-                        $calculation = MoneyService::calculateFromTotalIncludingVat($amount, $vatRate);
+                        $calculation = MoneyAction::calculateFromTotalIncludingVat($amount, $vatRate);
                         $amount = $calculation['base']; // Store base amount
                         $vatAmount = $calculation['vat']; // Store VAT amount
                     } else {
                         // Amount excludes VAT - calculate VAT on top
-                        $vatAmount = MoneyService::calculateVat($amount, $vatRate);
+                        $vatAmount = MoneyAction::calculateVat($amount, $vatRate);
                         // amount stays as is (base amount)
                     }
                 }
@@ -878,8 +878,8 @@ class TransactionController extends Controller
             ]);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($transaction, $originalTransaction);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($transaction, $originalTransaction);
+            AuditLogAction::logUpdate(
                 $transaction,
                 $changedFields,
                 'Transaction',
@@ -961,7 +961,7 @@ class TransactionController extends Controller
                 $currencyModel = \App\Models\Currency::where('code', $transaction->currency)->first();
                 $currencySymbol = $currencyModel->symbol ?? '€';
 
-                EmailNotificationService::createNotification(
+                EmailNotificationAction::createNotification(
                     type: 'transaction_deleted',
                     subjectType: Transaction::class,
                     subjectId: $transaction->id,
@@ -987,7 +987,7 @@ class TransactionController extends Controller
             }
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $transaction,
                 'Transaction',
                 $transactionNumber,

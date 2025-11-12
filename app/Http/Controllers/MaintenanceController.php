@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Maintenance;
 use App\Models\Transaction;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -211,7 +211,7 @@ class MaintenanceController extends Controller
             ]);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $maintenance,
                 'Maintenance',
                 $maintenance->maintenance_number,
@@ -439,7 +439,7 @@ class MaintenanceController extends Controller
             $transactionCount = \App\Models\Transaction::where('maintenance_id', $maintenance->id)->count();
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $maintenance,
                 'Maintenance',
                 $maintenanceNumber,
@@ -529,8 +529,8 @@ class MaintenanceController extends Controller
             $maintenance->update($validated);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($maintenance, $originalMaintenance);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($maintenance, $originalMaintenance);
+            AuditLogAction::logUpdate(
                 $maintenance,
                 $changedFields,
                 'Maintenance',
@@ -610,10 +610,10 @@ class MaintenanceController extends Controller
             $maintenance->refresh();
 
             // Get changed fields using the service method
-            $changedFields = AuditLogService::getChangedFields($maintenance, $originalMaintenance);
+            $changedFields = AuditLogAction::getChangedFields($maintenance, $originalMaintenance);
 
             // Log the finalize action
-            AuditLogService::logUpdate(
+            AuditLogAction::logUpdate(
                 $maintenance,
                 $changedFields,
                 'Maintenance',

@@ -9,7 +9,7 @@ use App\Models\Vessel;
 use App\Models\Country;
 use App\Models\Currency;
 use App\Models\VesselUser;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -156,7 +156,7 @@ class VesselController extends BaseController
             $vessel->update(['owner_id' => $user->id]);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $vessel,
                 'Vessel',
                 $vessel->name,
@@ -242,8 +242,8 @@ class VesselController extends BaseController
             ]);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($vessel, $originalVessel);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($vessel, $originalVessel);
+            AuditLogAction::logUpdate(
                 $vessel,
                 $changedFields,
                 'Vessel',
@@ -289,7 +289,7 @@ class VesselController extends BaseController
             $vesselName = $vessel->name;
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $vessel,
                 'Vessel',
                 $vesselName,

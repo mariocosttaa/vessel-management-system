@@ -6,7 +6,7 @@ use App\Http\Requests\StoreSupplierRequest;
 use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -99,7 +99,7 @@ class SupplierController extends Controller
             ]);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $supplier,
                 'Supplier',
                 $supplier->company_name,
@@ -183,8 +183,8 @@ class SupplierController extends Controller
             ]);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($supplier, $originalSupplier);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($supplier, $originalSupplier);
+            AuditLogAction::logUpdate(
                 $supplier,
                 $changedFields,
                 'Supplier',
@@ -234,7 +234,7 @@ class SupplierController extends Controller
             $supplierName = $supplier->company_name;
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $supplier,
                 'Supplier',
                 $supplierName,

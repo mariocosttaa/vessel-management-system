@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAttachmentRequest;
 use App\Models\Attachment;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use App\Traits\HasTranslations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,7 +82,7 @@ class AttachmentController extends Controller
         }
 
         // Log the create action
-        AuditLogService::logCreate(
+        AuditLogAction::logCreate(
             $attachment,
             'Attachment',
             $attachment->file_name,
@@ -140,7 +140,7 @@ class AttachmentController extends Controller
         $fileName = $attachment->file_name;
 
         // Log the delete action BEFORE deletion
-        AuditLogService::logDelete(
+        AuditLogAction::logDelete(
             $attachment,
             'Attachment',
             $fileName,
