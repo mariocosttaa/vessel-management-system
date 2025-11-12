@@ -66,6 +66,12 @@ class HandleInertiaRequests extends Middleware
                 'warning' => $request->session()->get('warning'),
                 'info' => $request->session()->get('info'),
                 'notification_delay' => $request->session()->get('notification_delay'),
+                // OAuth signup modal data
+                'show_signup_modal' => $request->session()->get('show_signup_modal'),
+                'oauth_provider' => $request->session()->get('oauth_provider'),
+                'oauth_email' => $request->session()->get('oauth_email'),
+                'oauth_name' => $request->session()->get('oauth_name'),
+                'active_tab' => $request->session()->get('active_tab'),
             ],
             'currencies' => Currency::orderBy('name')->get(['code', 'name', 'symbol', 'decimal_separator'])->map(function ($currency) {
                 return [
