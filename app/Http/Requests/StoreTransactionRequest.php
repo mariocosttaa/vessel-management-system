@@ -258,7 +258,13 @@ class StoreTransactionRequest extends FormRequest
         $data = [];
 
         if ($this->filled('category_id')) {
-            $data['category_id'] = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+            // Handle both hashed and numeric category IDs
+            if (is_numeric($this->category_id)) {
+                $data['category_id'] = (int) $this->category_id;
+            } else {
+                $decoded = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+                $data['category_id'] = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            }
         }
 
         if ($this->filled('vat_profile_id')) {
