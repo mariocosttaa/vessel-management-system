@@ -2,10 +2,10 @@
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
       <button
-        class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-muted/40 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/40 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        class="flex items-center justify-center w-full px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-card-foreground hover:bg-muted transition-colors"
         :title="themeTitle"
       >
-        <Icon :name="themeIcon" class="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+        <Icon :name="themeIcon" class="w-4 h-4" />
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" class="w-44">
@@ -13,19 +13,19 @@
         <DropdownMenuRadioItem value="light">
           <div class="flex items-center gap-2">
             <Icon name="sun" class="w-4 h-4" />
-            <span>Light</span>
+            <span>{{ t('Light') }}</span>
           </div>
         </DropdownMenuRadioItem>
         <DropdownMenuRadioItem value="dark">
           <div class="flex items-center gap-2">
             <Icon name="moon" class="w-4 h-4" />
-            <span>Dark</span>
+            <span>{{ t('Dark') }}</span>
           </div>
         </DropdownMenuRadioItem>
         <DropdownMenuRadioItem value="system">
           <div class="flex items-center gap-2">
             <Icon name="monitor" class="w-4 h-4" />
-            <span>Automatic</span>
+            <span>{{ t('Automatic') }}</span>
           </div>
         </DropdownMenuRadioItem>
       </DropdownMenuRadioGroup>
@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAppearance } from '@/composables/useAppearance'
+import { useI18n } from '@/composables/useI18n'
 import Icon from '@/components/Icon.vue'
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 const { appearance, updateAppearance } = useAppearance()
+const { t } = useI18n()
 
 const themeIcon = computed(() => {
   switch (appearance.value) {
@@ -62,12 +64,12 @@ const themeIcon = computed(() => {
 const themeTitle = computed(() => {
   switch (appearance.value) {
     case 'light':
-      return 'Light mode'
+      return t('Light mode')
     case 'dark':
-      return 'Dark mode'
+      return t('Dark mode')
     case 'system':
     default:
-      return 'Automatic (System)'
+      return t('Automatic (System)')
   }
 })
 </script>

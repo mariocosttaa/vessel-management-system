@@ -69,14 +69,42 @@ export function initializeTheme() {
 
 const appearance = ref<Appearance>('system');
 
+const getCookie = (name: string): string | null => {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
+};
+
 export function useAppearance() {
     onMounted(() => {
+        // Priority order:
+        // 1. localStorage (client-side persistence)
+        // 2. Cookie (set by backend middleware)
+        // 3. Default to 'system'
+
         const savedAppearance = localStorage.getItem(
             'appearance',
         ) as Appearance | null;
 
         if (savedAppearance) {
             appearance.value = savedAppearance;
+        } else {
+            // Check cookie if localStorage is empty
+            const cookieAppearance = getCookie('appearance') as Appearance | null;
+            if (cookieAppearance && ['light', 'dark', 'system'].includes(cookieAppearance)) {
+                appearance.value = cookieAppearance;
+                // Sync to localStorage
+                localStorage.setItem('appearance', cookieAppearance);
+            } else {
+                appearance.value = 'system';
+            }
         }
     });
 
