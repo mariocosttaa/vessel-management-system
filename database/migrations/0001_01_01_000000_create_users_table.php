@@ -41,7 +41,7 @@ return new class extends Migration
 
             // Notification preferences
             $table->boolean('vessel_admin_notification')->default(false)->comment('Enable email notifications for vessel admin activities');
-            
+
             // Language preference
             $table->string('language', 5)->default('en');
 
