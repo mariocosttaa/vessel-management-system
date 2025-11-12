@@ -16,6 +16,7 @@ import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
 import Icon from '@/components/Icon.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useMoney } from '@/composables/useMoney';
+import { useI18n } from '@/composables/useI18n';
 import { router } from '@inertiajs/vue3';
 import transactions from '@/routes/panel/transactions';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -81,6 +82,7 @@ const emit = defineEmits<{
 
 const { addNotification } = useNotifications();
 const { calculateVat, calculateTotal } = useMoney();
+const { t } = useI18n();
 const { canEdit } = usePermissions();
 const page = usePage();
 
@@ -147,18 +149,18 @@ const incomeCategories = computed(() => {
 
 // Convert to Select component options format
 const categoryOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a category' }];
+    const options = [{ value: null, label: t('Select a category') }];
     incomeCategories.value.forEach(category => {
-        options.push({ value: category.id, label: category.name });
+        options.push({ value: category.id, label: t(category.name) });
     });
     return options;
 });
 
 const statusOptions = computed(() => {
     return [
-        { value: 'pending', label: 'Pending' },
-        { value: 'completed', label: 'Completed' },
-        { value: 'cancelled', label: 'Cancelled' }
+        { value: 'pending', label: t('Pending') },
+        { value: 'completed', label: t('Completed') },
+        { value: 'cancelled', label: t('Cancelled') }
     ];
 });
 
@@ -591,8 +593,8 @@ const confirmDeleteFile = () => {
             isDeletingFile.value = false;
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to delete file. Please try again.',
+                title: t('Error'),
+                message: t('Failed to delete file. Please try again.'),
             });
         },
     });
@@ -616,8 +618,8 @@ const submit = async () => {
     if (!props.transaction?.id) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Transaction data is not available. Please try again.',
+            title: t('Error'),
+            message: t('Transaction data is not available. Please try again.'),
         });
         return;
     }
@@ -666,8 +668,8 @@ const submit = async () => {
         form.setError('category_id', 'Please select a category.');
         addNotification({
             type: 'error',
-            title: 'Validation Error',
-            message: 'Please select a category.',
+            title: t('Validation Error'),
+            message: t('Please select a category.'),
         });
         return;
     }
@@ -678,8 +680,8 @@ const submit = async () => {
         form.setError('transaction_date', 'Transaction date is required.');
         addNotification({
             type: 'error',
-            title: 'Validation Error',
-            message: 'Transaction date is required.',
+            title: t('Validation Error'),
+            message: t('Transaction date is required.'),
         });
         return;
     }
@@ -710,8 +712,8 @@ const submit = async () => {
         form.setError('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
         addNotification({
             type: 'error',
-            title: 'Validation Error',
-            message: 'Either amount or both amount_per_unit and quantity must be provided.',
+            title: t('Validation Error'),
+            message: t('Either amount or both amount_per_unit and quantity must be provided.'),
         });
         return;
     }
@@ -790,8 +792,8 @@ const submit = async () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: `Transaction '${props.transaction.transaction_number}' has been updated successfully.`,
+                title: t('Success'),
+                message: `${t('Transaction')} '${props.transaction.transaction_number}' ${t('has been updated successfully.')}`,
             });
             emit('success');
             emit('close');
@@ -801,8 +803,8 @@ const submit = async () => {
             console.error('Form data that was sent:', formDataBeforeSubmit);
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to update transaction. Please check the form for errors.',
+                title: t('Error'),
+                message: t('Failed to update transaction. Please check the form for errors.'),
             });
         },
     };
@@ -820,7 +822,7 @@ const submit = async () => {
     <Dialog :open="open" @update:open="handleDialogUpdate">
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
-                <DialogTitle class="text-green-600 dark:text-green-400">Update Transaction #{{ transaction.transaction_number }}</DialogTitle>
+                <DialogTitle class="text-green-600 dark:text-green-400">{{ t('Update Transaction') }} #{{ transaction.transaction_number }}</DialogTitle>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
@@ -830,12 +832,12 @@ const submit = async () => {
                     <div class="lg:col-span-2 space-y-6">
                 <!-- Category -->
                 <div class="space-y-2">
-                    <Label for="category_id">Category <span class="text-destructive">*</span></Label>
+                    <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
                     <Select
                         id="category_id"
                         v-model="form.category_id"
                         :options="categoryOptions"
-                        placeholder="Select a category"
+                        :placeholder="t('Select a category')"
                         searchable
                         :error="!!form.errors.category_id"
                     />
@@ -845,7 +847,7 @@ const submit = async () => {
                 <!-- Price Per Unit Checkbox -->
                 <div class="flex items-center justify-between p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
                     <Label for="use_price_per_unit" class="font-medium cursor-pointer" @click="usePricePerUnit = !usePricePerUnit">
-                        Use Price Per Unit and Quantity
+                        {{ t('Use Price Per Unit and Quantity') }}
                     </Label>
                     <Switch
                         id="use_price_per_unit"
@@ -861,7 +863,7 @@ const submit = async () => {
                         <div class="space-y-2">
                             <MoneyInputWithLabel
                                 v-model="pricePerUnit"
-                                label="Price Per Unit"
+                                :label="t('Price Per Unit')"
                                 :currency="currentCurrency"
                                 placeholder="0,00"
                                 :error="form.errors.amount_per_unit"
@@ -875,7 +877,7 @@ const submit = async () => {
 
                         <!-- Quantity -->
                         <div class="space-y-2">
-                            <Label for="quantity">Quantity <span class="text-destructive">*</span></Label>
+                            <Label for="quantity">{{ t('Quantity') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="quantity"
                                 v-model.number="quantity"
@@ -892,7 +894,7 @@ const submit = async () => {
 
                     <!-- Calculated Total -->
                     <div v-if="pricePerUnit !== null && quantity !== null && quantity > 0" class="flex justify-between items-center pt-2 border-t">
-                        <span class="text-sm font-medium">Total Amount:</span>
+                        <span class="text-sm font-medium">{{ t('Total Amount') }}:</span>
                         <MoneyDisplay
                             :value="calculatedAmount"
                             :currency="currentCurrency"
@@ -910,7 +912,7 @@ const submit = async () => {
                     <div v-if="!usePricePerUnit" class="space-y-2">
                         <MoneyInputWithLabel
                             v-model="form.amount"
-                            label="Amount"
+                            :label="t('Amount')"
                             :currency="currentCurrency"
                             placeholder="0,00"
                             :error="form.errors.amount"
@@ -923,7 +925,7 @@ const submit = async () => {
 
                     <!-- Transaction Date -->
                     <div class="space-y-2">
-                        <Label for="transaction_date">Transaction Date <span class="text-destructive">*</span></Label>
+                        <Label for="transaction_date">{{ t('Transaction Date') }} <span class="text-destructive">*</span></Label>
                         <DateInput
                             id="transaction_date"
                             v-model="form.transaction_date"
@@ -938,7 +940,7 @@ const submit = async () => {
                 <div v-if="selectedVatProfile && calculatedAmount > 0" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
                     <div class="flex items-center justify-between">
                         <Label for="amount_includes_vat" class="font-medium cursor-pointer" @click="amountIncludesVat = !amountIncludesVat">
-                            Amount already includes VAT
+                            {{ t('Amount already includes VAT') }}
                         </Label>
                         <Switch
                             id="amount_includes_vat"
@@ -949,14 +951,14 @@ const submit = async () => {
 
                     <div class="space-y-3">
                         <div class="flex justify-between items-center text-sm">
-                            <span class="text-muted-foreground">VAT Profile:</span>
+                            <span class="text-muted-foreground">{{ t('VAT Profile') }}:</span>
                             <span class="font-medium">{{ selectedVatProfile.name }} ({{ selectedVatProfile.percentage }}%)</span>
                         </div>
 
                         <!-- VAT Breakdown -->
                         <div class="space-y-2 pt-2 border-t">
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-muted-foreground">Base Amount:</span>
+                                <span class="text-sm text-muted-foreground">{{ t('Base Amount') }}:</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.baseAmount"
                                     :currency="currentCurrency"
@@ -965,7 +967,7 @@ const submit = async () => {
                                 />
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-muted-foreground">VAT Amount ({{ selectedVatProfile.percentage }}%):</span>
+                                <span class="text-sm text-muted-foreground">{{ t('VAT Amount') }} ({{ selectedVatProfile.percentage }}%):</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.vatAmount"
                                     :currency="currentCurrency"
@@ -975,7 +977,7 @@ const submit = async () => {
                                 />
                             </div>
                             <div class="flex justify-between items-center pt-2 border-t font-semibold">
-                                <span class="text-sm">Total Amount:</span>
+                                <span class="text-sm">{{ t('Total Amount') }}:</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.totalAmount"
                                     :currency="currentCurrency"
@@ -988,10 +990,10 @@ const submit = async () => {
 
                         <p class="text-xs text-muted-foreground italic">
                             <span v-if="amountIncludesVat">
-                                VAT ({{ selectedVatProfile.percentage }}%) is included in the amount above.
+                                {{ t('VAT') }} ({{ selectedVatProfile.percentage }}%) {{ t('is included in the amount above.') }}
                             </span>
                             <span v-else>
-                                VAT ({{ selectedVatProfile.percentage }}%) will be added to the amount above.
+                                {{ t('VAT') }} ({{ selectedVatProfile.percentage }}%) {{ t('will be added to the amount above.') }}
                             </span>
                         </p>
                     </div>
@@ -999,12 +1001,12 @@ const submit = async () => {
 
                 <!-- Description -->
                 <div class="space-y-2">
-                    <Label for="description">Description</Label>
+                    <Label for="description">{{ t('Description') }}</Label>
                     <Input
                         id="description"
                         v-model="form.description"
                         type="text"
-                        placeholder="Enter transaction description"
+                        :placeholder="t('Enter transaction description')"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
                     />
                     <InputError :message="form.errors.description" />
@@ -1012,12 +1014,12 @@ const submit = async () => {
 
                 <!-- Notes -->
                 <div class="space-y-2">
-                    <Label for="notes">Notes</Label>
+                    <Label for="notes">{{ t('Notes') }}</Label>
                     <textarea
                         id="notes"
                         v-model="form.notes"
                         rows="3"
-                        placeholder="Additional notes about this transaction"
+                        :placeholder="t('Additional notes about this transaction')"
                         class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                     />
@@ -1026,12 +1028,12 @@ const submit = async () => {
 
                 <!-- Status -->
                 <div class="space-y-2">
-                    <Label for="status">Status</Label>
+                    <Label for="status">{{ t('Status') }}</Label>
                     <Select
                         id="status"
                         v-model="form.status"
                         :options="statusOptions"
-                        placeholder="Select status"
+                        :placeholder="t('Select status')"
                         :error="!!form.errors.status"
                     />
                     <InputError :message="form.errors.status" />
@@ -1043,7 +1045,7 @@ const submit = async () => {
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <!-- Existing Files -->
                         <div v-if="transaction.files && transaction.files.length > 0" class="space-y-3">
-                            <Label class="text-base font-semibold">Existing Files</Label>
+                            <Label class="text-base font-semibold">{{ t('Existing Files') }}</Label>
                             <div class="space-y-2 max-h-[300px] overflow-y-auto">
                                 <div
                                     v-for="file in transaction.files"
@@ -1073,7 +1075,7 @@ const submit = async () => {
                                             class="flex-1 text-xs"
                                         >
                                             <Icon name="external-link" class="w-3 h-3 mr-1" />
-                                            View
+                                            {{ t('View') }}
                                         </Button>
                                         <Button
                                             v-if="canEdit('transactions')"
@@ -1082,7 +1084,7 @@ const submit = async () => {
                                             size="sm"
                                             @click="deleteFile({ id: file.id, name: file.name })"
                                             class="flex-shrink-0"
-                                            title="Delete file"
+                                            :title="t('Delete file')"
                                         >
                                             <Icon name="trash-2" class="w-4 h-4" />
                                         </Button>
@@ -1093,7 +1095,7 @@ const submit = async () => {
 
                         <!-- File Upload -->
                         <div class="space-y-2">
-                            <Label class="text-base font-semibold">Add New Files</Label>
+                            <Label class="text-base font-semibold">{{ t('Add New Files') }}</Label>
                             <MultiFileUpload
                                 v-model="selectedFiles"
                                 :error="form.errors.files"
@@ -1111,10 +1113,10 @@ const submit = async () => {
                 <!-- Actions -->
                 <div class="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" @click="emit('close')">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button type="submit" :disabled="form.processing">
-                        {{ form.processing ? 'Updating...' : 'Update Transaction' }}
+                        {{ form.processing ? t('Updating...') : t('Update Transaction') }}
                     </Button>
                 </div>
             </form>
@@ -1124,11 +1126,11 @@ const submit = async () => {
     <!-- File Deletion Confirmation Dialog -->
     <ConfirmationDialog
         v-model:open="showDeleteFileDialog"
-        title="Delete File"
-        description="This action cannot be undone."
-        :message="`Are you sure you want to delete the file '${fileToDelete?.name}'? This will permanently remove the file from this transaction.`"
-        confirm-text="Delete File"
-        cancel-text="Cancel"
+        :title="t('Delete File')"
+        :description="t('This action cannot be undone.')"
+        :message="t('Are you sure you want to delete the file') + ` '${fileToDelete?.name}'? ` + t('This will permanently remove the file from this transaction.')"
+        :confirm-text="t('Delete File')"
+        :cancel-text="t('Cancel')"
         variant="destructive"
         type="danger"
         :loading="isDeletingFile"

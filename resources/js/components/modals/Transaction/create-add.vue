@@ -15,6 +15,7 @@ import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useMoney } from '@/composables/useMoney';
+import { useI18n } from '@/composables/useI18n';
 import transactions from '@/routes/panel/transactions';
 
 interface TransactionCategory {
@@ -49,6 +50,7 @@ const emit = defineEmits<{
 
 const { addNotification } = useNotifications();
 const { calculateVat, calculateTotal } = useMoney();
+const { t } = useI18n();
 const page = usePage();
 
 // Get vessel currency from shared props - use currency from currency table
@@ -109,9 +111,9 @@ const incomeCategories = computed(() => {
 
 // Convert categories to Select component options format
 const categoryOptions = computed(() => {
-    const options = [{ value: null, label: 'Select a category' }];
+    const options = [{ value: null, label: t('Select a category') }];
     incomeCategories.value.forEach(category => {
-        options.push({ value: category.id, label: category.name });
+        options.push({ value: category.id, label: t(category.name) });
     });
     return options;
 });
@@ -408,8 +410,8 @@ const submit = () => {
             // Errors are already displayed via form.errors in the template
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to add funds. Please check the form for errors.',
+                title: t('Error'),
+                message: t('Failed to add funds. Please check the form for errors.'),
             });
         },
     });
@@ -420,9 +422,9 @@ const submit = () => {
     <Dialog :open="open" @update:open="handleDialogUpdate">
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
-                <DialogTitle class="text-green-600 dark:text-green-400">Add Transaction</DialogTitle>
+                <DialogTitle class="text-green-600 dark:text-green-400">{{ t('Add Transaction') }}</DialogTitle>
                 <DialogDescription class="sr-only">
-                    Add a new income transaction to the vessel
+                    {{ t('Add a new income transaction to the vessel') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -433,12 +435,12 @@ const submit = () => {
                     <div class="lg:col-span-2 space-y-6">
                 <!-- Category -->
                 <div class="space-y-2">
-                    <Label for="category_id">Category <span class="text-destructive">*</span></Label>
+                    <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
                     <Select
                         id="category_id"
                         v-model="form.category_id"
                         :options="categoryOptions"
-                        placeholder="Select a category"
+                        :placeholder="t('Select a category')"
                         searchable
                         :error="!!form.errors.category_id"
                     />
@@ -448,7 +450,7 @@ const submit = () => {
                 <!-- Price Per Unit Checkbox -->
                 <div class="flex items-center justify-between p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
                     <Label for="use_price_per_unit" class="font-medium cursor-pointer" @click="usePricePerUnit = !usePricePerUnit">
-                        Use Price Per Unit and Quantity
+                        {{ t('Use Price Per Unit and Quantity') }}
                     </Label>
                     <Switch
                         id="use_price_per_unit"
@@ -464,7 +466,7 @@ const submit = () => {
                         <div class="space-y-2">
                             <MoneyInputWithLabel
                                 v-model="pricePerUnit"
-                                label="Price Per Unit"
+                                :label="t('Price Per Unit')"
                                 :currency="currentCurrency"
                                 placeholder="0,00"
                                 :error="form.errors.amount_per_unit"
@@ -478,7 +480,7 @@ const submit = () => {
 
                         <!-- Quantity -->
                         <div class="space-y-2">
-                            <Label for="quantity">Quantity <span class="text-destructive">*</span></Label>
+                            <Label for="quantity">{{ t('Quantity') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="quantity"
                                 v-model.number="quantity"
@@ -495,7 +497,7 @@ const submit = () => {
 
                     <!-- Calculated Total -->
                     <div v-if="pricePerUnit !== null && quantity !== null && quantity > 0" class="flex justify-between items-center pt-2 border-t">
-                        <span class="text-sm font-medium">Total Amount:</span>
+                        <span class="text-sm font-medium">{{ t('Total Amount') }}:</span>
                         <MoneyDisplay
                             :value="calculatedAmount"
                             :currency="currentCurrency"
@@ -513,7 +515,7 @@ const submit = () => {
                     <div v-if="!usePricePerUnit" class="space-y-2">
                         <MoneyInputWithLabel
                             v-model="form.amount"
-                            label="Amount"
+                            :label="t('Amount')"
                             :currency="currentCurrency"
                             placeholder="0,00"
                             :error="form.errors.amount"
@@ -526,7 +528,7 @@ const submit = () => {
 
                     <!-- Transaction Date -->
                     <div class="space-y-2">
-                        <Label for="transaction_date">Transaction Date <span class="text-destructive">*</span></Label>
+                        <Label for="transaction_date">{{ t('Transaction Date') }} <span class="text-destructive">*</span></Label>
                         <DateInput
                             id="transaction_date"
                             v-model="form.transaction_date"
@@ -541,7 +543,7 @@ const submit = () => {
                 <div v-if="defaultVatProfile && calculatedAmount > 0" class="space-y-4 p-4 border rounded-lg bg-muted/50 dark:bg-muted/30">
                     <div class="flex items-center justify-between">
                         <Label for="amount_includes_vat" class="font-medium cursor-pointer" @click="amountIncludesVat = !amountIncludesVat">
-                            Amount already includes VAT
+                            {{ t('Amount already includes VAT') }}
                         </Label>
                         <Switch
                             id="amount_includes_vat"
@@ -552,14 +554,14 @@ const submit = () => {
 
                     <div class="space-y-3">
                         <div class="flex justify-between items-center text-sm">
-                            <span class="text-muted-foreground">VAT Profile:</span>
+                            <span class="text-muted-foreground">{{ t('VAT Profile') }}:</span>
                             <span class="font-medium">{{ defaultVatProfile.name }} ({{ defaultVatProfile.percentage }}%)</span>
                         </div>
 
                         <!-- VAT Breakdown -->
                         <div class="space-y-2 pt-2 border-t">
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-muted-foreground">Base Amount:</span>
+                                <span class="text-sm text-muted-foreground">{{ t('Base Amount') }}:</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.baseAmount"
                                     :currency="currentCurrency"
@@ -568,7 +570,7 @@ const submit = () => {
                                 />
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-muted-foreground">VAT Amount ({{ defaultVatProfile.percentage }}%):</span>
+                                <span class="text-sm text-muted-foreground">{{ t('VAT Amount') }} ({{ defaultVatProfile.percentage }}%):</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.vatAmount"
                                     :currency="currentCurrency"
@@ -578,7 +580,7 @@ const submit = () => {
                                 />
                             </div>
                             <div class="flex justify-between items-center pt-2 border-t font-semibold">
-                                <span class="text-sm">Total Amount:</span>
+                                <span class="text-sm">{{ t('Total Amount') }}:</span>
                                 <MoneyDisplay
                                     :value="vatCalculations.totalAmount"
                                     :currency="currentCurrency"
@@ -591,10 +593,10 @@ const submit = () => {
 
                         <p class="text-xs text-muted-foreground italic">
                             <span v-if="amountIncludesVat">
-                                VAT ({{ defaultVatProfile.percentage }}%) is included in the amount above.
+                                {{ t('VAT') }} ({{ defaultVatProfile.percentage }}%) {{ t('is included in the amount above.') }}
                             </span>
                             <span v-else>
-                                VAT ({{ defaultVatProfile.percentage }}%) will be added to the amount above.
+                                {{ t('VAT') }} ({{ defaultVatProfile.percentage }}%) {{ t('will be added to the amount above.') }}
                             </span>
                         </p>
                     </div>
@@ -602,12 +604,12 @@ const submit = () => {
 
                 <!-- Description -->
                 <div class="space-y-2">
-                    <Label for="description">Description</Label>
+                    <Label for="description">{{ t('Description') }}</Label>
                     <Input
                         id="description"
                         v-model="form.description"
                         type="text"
-                        placeholder="Enter transaction description"
+                        :placeholder="t('Enter transaction description')"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.description }"
                     />
                     <InputError :message="form.errors.description" />
@@ -615,12 +617,12 @@ const submit = () => {
 
                 <!-- Notes -->
                 <div class="space-y-2">
-                    <Label for="notes">Notes</Label>
+                    <Label for="notes">{{ t('Notes') }}</Label>
                     <textarea
                         id="notes"
                         v-model="form.notes"
                         rows="3"
-                        placeholder="Additional notes about this transaction"
+                        :placeholder="t('Additional notes about this transaction')"
                         class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                     />
@@ -653,10 +655,10 @@ const submit = () => {
                 <!-- Actions -->
                 <div class="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" @click="emit('close')">
-                        Cancel
+                        {{ t('Cancel') }}
                     </Button>
                     <Button type="submit" :disabled="form.processing">
-                        {{ form.processing ? 'Adding...' : 'Add Funds' }}
+                        {{ form.processing ? t('Adding...') : t('Add Funds') }}
                     </Button>
                 </div>
             </form>
