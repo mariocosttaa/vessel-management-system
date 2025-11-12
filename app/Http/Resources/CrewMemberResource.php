@@ -3,9 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class CrewMemberResource extends JsonResource
+class CrewMemberResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -15,10 +14,10 @@ class CrewMemberResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'vessel_id' => $this->vessel_id,
+            'id' => $this->hashId($this->id),
+            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'vessel' => new VesselResource($this->whenLoaded('vessel')),
-            'position_id' => $this->position_id,
+            'position_id' => $this->hashIdForModel($this->position_id, 'crewposition'),
             'position_name' => $this->whenLoaded('position', fn() => $this->position->name),
             'name' => $this->name,
             'document_number' => $this->document_number ?? null,

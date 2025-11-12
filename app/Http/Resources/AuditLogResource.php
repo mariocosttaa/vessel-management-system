@@ -4,10 +4,9 @@ namespace App\Http\Resources;
 
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\App;
 
-class AuditLogResource extends JsonResource
+class AuditLogResource extends BaseResource
 {
     use HasTranslations;
 
@@ -41,18 +40,18 @@ class AuditLogResource extends JsonResource
         App::setLocale($originalLocale);
 
         return [
-            'id' => $this->id,
-            'user_id' => $this->user_id,
+            'id' => $this->hashId($this->id),
+            'user_id' => $this->hashIdForModel($this->user_id, 'user'),
             'user_name' => $this->user?->name ?? 'System',
             'user_email' => $this->user?->email ?? null,
             'model_type' => $this->model_type,
-            'model_id' => $this->model_id,
+            'model_id' => $this->hashIdForModel($this->model_id, strtolower(class_basename($this->model_type))),
             'model_name' => $translatedModelName,
             'page_name' => $translatedModelName,
             'action' => $this->action,
             'action_label' => $translatedAction,
             'message' => $translatedMessage,
-            'vessel_id' => $this->vessel_id,
+            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'vessel_name' => $this->vessel?->name,
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,
@@ -79,49 +78,49 @@ class AuditLogResource extends JsonResource
     protected function translateMessage(string $message, string $action): string
     {
         $locale = App::getLocale();
-        
+
         // Pattern 1: "UserName created ModelName 'identifier'"
         if (preg_match('/^(.+?)\s+created\s+(.+?)(\s+\'(.+?)\')?$/', $message, $matches)) {
             $userName = $matches[1];
             $modelName = $matches[2];
             $identifier = $matches[4] ?? null;
             $identifierText = $identifier ? " '{$identifier}'" : '';
-            
+
             return trans('notifications.:user created :model:identifier', [
                 'user' => $userName,
                 'model' => $modelName,
                 'identifier' => $identifierText,
             ], $locale);
         }
-        
+
         // Pattern 2: "UserName deleted ModelName 'identifier'"
         if (preg_match('/^(.+?)\s+deleted\s+(.+?)(\s+\'(.+?)\')?$/', $message, $matches)) {
             $userName = $matches[1];
             $modelName = $matches[2];
             $identifier = $matches[4] ?? null;
             $identifierText = $identifier ? " '{$identifier}'" : '';
-            
+
             return trans('notifications.:user deleted :model:identifier', [
                 'user' => $userName,
                 'model' => $modelName,
                 'identifier' => $identifierText,
             ], $locale);
         }
-        
+
         // Pattern 3: "UserName updated in ModelName 'identifier'"
         if (preg_match('/^(.+?)\s+updated\s+in\s+(.+?)(\s+\'(.+?)\')?$/', $message, $matches)) {
             $userName = $matches[1];
             $modelName = $matches[2];
             $identifier = $matches[4] ?? null;
             $identifierText = $identifier ? " '{$identifier}'" : '';
-            
+
             return trans('notifications.:user updated :model:identifier', [
                 'user' => $userName,
                 'model' => $modelName,
                 'identifier' => $identifierText,
             ], $locale);
         }
-        
+
         // Pattern 4: "UserName changed changes in ModelName 'identifier'"
         if (preg_match('/^(.+?)\s+changed\s+(.+?)\s+in\s+(.+?)(\s+\'(.+?)\')?$/', $message, $matches)) {
             $userName = $matches[1];
@@ -129,10 +128,10 @@ class AuditLogResource extends JsonResource
             $modelName = $matches[3];
             $identifier = $matches[5] ?? null;
             $identifierText = $identifier ? " '{$identifier}'" : '';
-            
+
             // Translate individual change parts
             $translatedChanges = $this->translateChanges($changes, $locale);
-            
+
             return trans('notifications.:user changed :changes in :model:identifier', [
                 'user' => $userName,
                 'changes' => $translatedChanges,
@@ -140,7 +139,7 @@ class AuditLogResource extends JsonResource
                 'identifier' => $identifierText,
             ], $locale);
         }
-        
+
         // Fallback: return original message if pattern doesn't match
         return $message;
     }
@@ -153,17 +152,17 @@ class AuditLogResource extends JsonResource
         // Split by comma and translate each change
         $changeParts = explode(', ', $changes);
         $translatedParts = [];
-        
+
         foreach ($changeParts as $change) {
             if (preg_match('/^(.+?)\s+from\s+\'(.+?)\'\s+to\s+\'(.+?)\'$/', $change, $matches)) {
                 $field = $matches[1];
                 $oldValue = $matches[2];
                 $newValue = $matches[3];
-                
+
                 // Translate values
                 $oldValue = $this->translateValue($oldValue, $locale);
                 $newValue = $this->translateValue($newValue, $locale);
-                
+
                 $translatedParts[] = trans('notifications.changed :field from \':old\' to \':new\'', [
                     'field' => $field,
                     'old' => $oldValue,
@@ -173,7 +172,7 @@ class AuditLogResource extends JsonResource
                 $translatedParts[] = $change;
             }
         }
-        
+
         return implode(', ', $translatedParts);
     }
 
@@ -210,14 +209,14 @@ class AuditLogResource extends JsonResource
     protected function translateAction(string $action): string
     {
         $locale = App::getLocale();
-        
+
         $translations = [
             'en' => ['create' => 'Created', 'update' => 'Updated', 'delete' => 'Deleted'],
             'pt' => ['create' => 'Criado', 'update' => 'Atualizado', 'delete' => 'Excluído'],
             'es' => ['create' => 'Creado', 'update' => 'Actualizado', 'delete' => 'Eliminado'],
             'fr' => ['create' => 'Créé', 'update' => 'Mis à jour', 'delete' => 'Supprimé'],
         ];
-        
+
         return $translations[$locale][$action] ?? ucfirst($action);
     }
 
@@ -229,16 +228,16 @@ class AuditLogResource extends JsonResource
         if (!$date) {
             return null;
         }
-        
+
         $formats = [
             'en' => 'M d, Y, h:i A',
             'pt' => 'd/m/Y, H:i',
             'es' => 'd/m/Y, H:i',
             'fr' => 'd/m/Y, H:i',
         ];
-        
+
         $format = $formats[$locale] ?? $formats['en'];
-        
+
         return $date->format($format);
     }
 }
