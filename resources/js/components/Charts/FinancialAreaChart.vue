@@ -117,20 +117,20 @@ const tooltipPosition = computed(() => {
     const tooltipWidth = 150;
     const tooltipHeight = 58;
     const padding = 5;
-    
+
     // Calculate X position (center on point, but clamp to edges)
     let tooltipX = getXScale(hoveredIndex.value);
     const minX = padding;
     const maxX = innerWidth.value - tooltipWidth - padding;
     tooltipX = Math.max(minX + tooltipWidth / 2, Math.min(tooltipX, maxX + tooltipWidth / 2));
-    
+
     // Calculate Y position (above the higher value point)
     const higherValue = Math.max(data.income, data.expenses);
     let tooltipY = getYScale(higherValue) - tooltipHeight - 10;
     const minY = padding;
     const maxY = innerHeight.value - tooltipHeight - padding;
     tooltipY = Math.max(minY, Math.min(tooltipY, maxY));
-    
+
     return {
         x: tooltipX - tooltipWidth / 2,
         y: tooltipY,
