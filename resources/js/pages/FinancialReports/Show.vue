@@ -11,11 +11,12 @@ import { useI18n } from '@/composables/useI18n';
 import financialReports from '@/routes/panel/financial-reports';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-vue-next';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface CategoryBreakdown {
