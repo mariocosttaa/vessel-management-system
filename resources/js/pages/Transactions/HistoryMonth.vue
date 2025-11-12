@@ -424,7 +424,7 @@ const handlePdfDownloadCancel = () => {
                                                     color: transaction.category.color
                                                 } : {}"
                                             >
-                                                {{ transaction.category.name }}
+                                                {{ t(transaction.category.name) }}
                                             </span>
                                             <span
                                                 :class="[
