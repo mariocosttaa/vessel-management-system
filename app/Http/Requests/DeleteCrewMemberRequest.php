@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -17,16 +18,25 @@ class DeleteCrewMemberRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter
-        $vesselId = $this->route('vessel');
+        // Get vessel ID from route parameter (may be hashed)
+        $vesselIdParam = $this->route('vessel');
         $user = $this->user();
 
         if (!$user) {
             return false;
         }
 
+        // Decode vessel ID if it's hashed
+        $vesselId = is_numeric($vesselIdParam)
+            ? (int) $vesselIdParam
+            : EasyHashAction::decode($vesselIdParam, 'vessel-id');
+
+        if (!$vesselId || !is_numeric($vesselId)) {
+            return false;
+        }
+
         // Check if user can manage vessel users (administrator permission)
-        return $user->canManageVesselUsers($vesselId);
+        return $user->canManageVesselUsers((int) $vesselId);
     }
 
     /**

@@ -2,9 +2,9 @@
     <Dialog :open="open" @update:open="$emit('update:open', $event)">
         <DialogContent :class="dialogSizeClass">
             <DialogHeader>
-                <DialogTitle :class="titleClass">
-                    <Icon v-if="iconName" :name="iconName" :class="iconClass" class="mr-2" />
-                    {{ title }}
+                <DialogTitle :class="[titleClass, 'flex items-center']">
+                    <Icon v-if="iconName" :name="iconName" :class="iconClass" class="mr-2 flex-shrink-0" />
+                    <span>{{ title }}</span>
                 </DialogTitle>
                 <DialogDescription>
                     {{ description }}
