@@ -59,6 +59,11 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     Route::put('/password', [App\Http\Controllers\Settings\PasswordController::class, 'update'])->name('panel.password.update');
     Route::put('/language', [App\Http\Controllers\Settings\ProfileController::class, 'updateLanguage'])->name('panel.language.update');
 
+    // OAuth account linking/disconnecting
+    Route::post('/profile/oauth/{provider}/disconnect', [App\Http\Controllers\Settings\ProfileController::class, 'disconnectOAuth'])
+        ->where('provider', 'google|microsoft')
+        ->name('panel.profile.oauth.disconnect');
+
     // Vessel Management (panel level)
     Route::get('/vessel/create', [VesselController::class, 'create'])->name('panel.vessel.create');
     Route::post('/vessel', [VesselController::class, 'store'])->name('panel.vessel.store');
