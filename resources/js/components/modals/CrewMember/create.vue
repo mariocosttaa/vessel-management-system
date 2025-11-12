@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
 import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
@@ -61,7 +62,7 @@ const form = useForm({
     date_of_birth: '',
     hire_date: getTodayDate(),
     position_id: null as number | null,
-    skip_salary: false, // Default to showing salary step (can be toggled)
+    skip_salary: true, // Default to skipping salary
     compensation_type: 'fixed',
     fixed_amount: null as number | null,
     percentage: null as number | null,
@@ -69,30 +70,56 @@ const form = useForm({
     payment_frequency: 'monthly',
     status: 'active',
     notes: '',
-    login_permitted: false,
-    password: '',
-    password_confirmation: '',
+    create_without_email: false, // Allow creating without email/account access
 });
 
-// Wizard steps - always show all steps (salary can be skipped via checkbox)
-// Always show all 3 steps - don't hide based on skip_salary
+// Email checking state
+const emailExists = ref<boolean | null>(null);
+const existingUser = ref<{ id: number; name: string; email: string } | null>(null);
+const checkingEmail = ref(false);
+const emailChecked = ref(false);
+const createWithoutEmail = ref(false);
+
+// Wizard steps - always start with access choice (email vs no email)
 const steps = computed(() => {
-    return ['crew-info', 'salary', 'system-access'];
+    // Always start with access-choice step
+    const baseSteps = ['access-choice'];
+
+    // If creating without email, skip email step and go straight to crew-info
+    if (createWithoutEmail.value) {
+        return [...baseSteps, 'crew-info', 'salary'];
+    }
+
+    // If user has progressed past access-choice, include email step
+    // This allows navigation even if email hasn't been checked yet
+    if (currentStep.value > 0 || emailChecked.value) {
+        // If email exists, only show crew-info after email (position is in crew-info)
+        if (emailExists.value) {
+            return [...baseSteps, 'email', 'crew-info'];
+        }
+
+        // If email doesn't exist, show full flow
+        return [...baseSteps, 'email', 'crew-info', 'salary'];
+    }
+
+    // If email not checked yet and still on first step, only show access-choice
+    return baseSteps;
 });
 
 // Active tab for the modal (synced with currentStep)
 const activeTab = computed(() => {
     if (!steps.value || steps.value.length === 0) {
-        return 'crew-info';
+        return 'access-choice';
     }
-    return steps.value[currentStep.value] || 'crew-info';
+    return steps.value[currentStep.value] || 'access-choice';
 });
 
 // Track validation status for each step
 const stepValidation = ref({
+    'access-choice': { valid: false, errors: [] },
+    'email': { valid: false, errors: [] },
     'crew-info': { valid: false, errors: [] },
-    'salary': { valid: false, errors: [] },
-    'system-access': { valid: false, errors: [] }
+    'salary': { valid: false, errors: [] }
 });
 
 // Check if step is valid
@@ -111,19 +138,20 @@ const getStepErrors = (step: string) => {
 const validateStep = (step: string) => {
     const errors: string[] = [];
 
-    if (step === 'crew-info') {
-        if (!form.name?.trim()) errors.push('Name is required');
-        if (!form.hire_date) errors.push('Hire date is required');
-        if (!form.position_id) errors.push('Position is required');
-        if (!form.status) errors.push('Status is required');
-        // Email is required when system access is enabled
-        if (form.login_permitted && !form.email?.trim()) {
-            errors.push('Email is required when system access is enabled');
-        }
-        // Basic email format validation if email is provided
-        if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (step === 'access-choice') {
+        // Access choice is always valid - user just needs to choose
+        // No validation needed, but we mark it as valid once they've made a choice
+        return true;
+    } else if (step === 'email') {
+        if (!form.email?.trim()) {
+            errors.push('Email is required');
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
             errors.push('Please enter a valid email address');
         }
+    } else if (step === 'crew-info') {
+        if (!form.name?.trim()) errors.push('Name is required');
+        if (!form.position_id) errors.push('Position is required');
+        if (!form.hire_date) errors.push('Hire date is required');
     } else if (step === 'salary') {
         // Only validate salary fields if salary is not skipped
         if (!form.skip_salary) {
@@ -137,32 +165,13 @@ const validateStep = (step: string) => {
             }
             if (!form.payment_frequency) errors.push('Payment frequency is required');
         }
-    } else if (step === 'system-access') {
-        if (form.login_permitted && !form.email?.trim()) {
-            errors.push('Email is required when system access is enabled');
-        }
-        // Note: Password is not required if email belongs to existing user (handled by backend)
-        // For new users, password is required
-        if (form.login_permitted && form.email && !form.password) {
-            // Only show error if email is provided (existing users will be handled by backend)
-            errors.push('Password is required when system access is enabled');
-        }
-        if (form.login_permitted && form.password && !form.password_confirmation) {
-            errors.push('Password confirmation is required when system access is enabled');
-        }
-        if (form.login_permitted && form.password && form.password !== form.password_confirmation) {
-            errors.push('Passwords do not match');
-        }
-        // Basic email format validation if email is provided
-        if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-            errors.push('Please enter a valid email address');
-        }
     }
 
     const validation = stepValidation.value as Record<string, { valid: boolean; errors: string[] }>;
+    // Only show errors if user has interacted (tried to advance)
     validation[step] = {
         valid: errors.length === 0,
-        errors
+        errors: hasInteracted.value ? errors : [] // Only show errors after interaction
     };
 
     return errors.length === 0;
@@ -181,10 +190,55 @@ const goToStep = (index: number) => {
 
 // Next step
 const nextStep = () => {
-    hasInteracted.value = true; // Mark that user has interacted
+    // Mark that user has interacted when trying to advance
+    hasInteracted.value = true;
+
+    // Validate current step before advancing
     const currentStepValid = validateStep(activeTab.value);
-    if (currentStepValid && currentStep.value < steps.value.length - 1) {
+    if (!currentStepValid) {
+        // Re-validate to show errors now that hasInteracted is true
+        validateStep(activeTab.value);
+        return;
+    }
+
+    if (currentStep.value < steps.value.length - 1) {
         currentStep.value++;
+    }
+};
+
+// Handle create without email change
+const handleCreateWithoutEmailChange = () => {
+    form.create_without_email = createWithoutEmail.value;
+    if (createWithoutEmail.value) {
+        // Reset email-related state
+        emailChecked.value = true;
+        emailExists.value = false;
+        form.email = '';
+        // Don't automatically advance - user must click Continue
+    } else {
+        // Reset state
+        emailChecked.value = false;
+        emailExists.value = null;
+        // Stay on access-choice step - user can change their mind
+    }
+};
+
+// Update checkEmailExists to move to next step after checking
+const checkEmailExistsAndContinue = async () => {
+    // Mark that user has interacted when checking email
+    hasInteracted.value = true;
+
+    await checkEmailExists();
+    if (emailChecked.value && validateStep('email')) {
+        // Automatically move to next step
+        nextTick(() => {
+            if (currentStep.value < steps.value.length - 1) {
+                currentStep.value++;
+            }
+        });
+    } else if (emailChecked.value) {
+        // Re-validate to show errors now that hasInteracted is true
+        validateStep('email');
     }
 };
 
@@ -192,6 +246,31 @@ const nextStep = () => {
 const previousStep = () => {
     if (currentStep.value > 0) {
         currentStep.value--;
+    }
+};
+
+// Handle continue from access-choice step
+const handleAccessChoiceContinue = () => {
+    // Mark that user has interacted
+    hasInteracted.value = true;
+
+    // Validate access-choice step (always valid, but we need to mark it)
+    validateStep('access-choice');
+
+    // Move to next step - use nextTick to ensure reactive updates complete
+    if (createWithoutEmail.value) {
+        // Skip email step, go directly to crew-info step
+        nextTick(() => {
+            currentStep.value = 1; // access-choice is 0, crew-info will be 1
+        });
+    } else {
+        // Go to email step - temporarily mark as checked to allow steps to include email
+        // This will be properly validated when email is actually entered
+        emailChecked.value = true;
+        nextTick(() => {
+            // Now advance to email step (index 1)
+            currentStep.value = 1;
+        });
     }
 };
 
@@ -235,6 +314,7 @@ const paymentFrequencyOptions = computed(() => {
     return options;
 });
 
+
 // Computed properties for disabled states
 const isNextDisabled = computed(() => {
     return !validateStep(activeTab.value);
@@ -256,47 +336,69 @@ const isCreateDisabled = computed(() => {
 // Track if user has interacted with the form
 const hasInteracted = ref(false);
 
-// Reset form when modal opens/closes
+// Reset form function - used both on close and after successful save
+const resetForm = () => {
+    form.reset();
+    form.clearErrors();
+    // Reset all form fields explicitly
+    form.name = '';
+    form.email = '';
+    form.phone = '';
+    form.date_of_birth = '';
+    form.hire_date = getTodayDate();
+    form.position_id = null;
+    form.skip_salary = true;
+    form.compensation_type = 'fixed';
+    form.fixed_amount = null;
+    form.percentage = null;
+    form.currency = 'EUR';
+    form.payment_frequency = 'monthly';
+    form.status = 'active';
+    form.notes = '';
+    form.create_without_email = false;
+
+    // Reset wizard state
+    currentStep.value = 0;
+    createWithoutEmail.value = false;
+    emailChecked.value = false;
+    emailExists.value = null;
+    existingUser.value = null;
+    checkingEmail.value = false;
+    hasInteracted.value = false;
+    stepValidation.value = {
+        'access-choice': { valid: false, errors: [] },
+        'email': { valid: false, errors: [] },
+        'crew-info': { valid: false, errors: [] },
+        'salary': { valid: false, errors: [] }
+    };
+};
+
+// Reset form when modal opens
 watch(() => props.open, (isOpen: boolean) => {
     if (isOpen) {
-        form.reset();
-        form.hire_date = getTodayDate(); // Set to today's date
-        form.skip_salary = true; // Default to skipping salary
-        form.fixed_amount = null;
-        form.percentage = null;
-        form.currency = 'EUR';
-        form.payment_frequency = 'monthly';
-        form.status = 'active';
-        form.clearErrors();
-        // Reset wizard state
-        currentStep.value = 0;
-        hasInteracted.value = false; // Reset interaction flag
-        stepValidation.value = {
-            'crew-info': { valid: false, errors: [] },
-            'salary': { valid: false, errors: [] },
-            'system-access': { valid: false, errors: [] }
-        };
+        resetForm();
     }
 });
 
 // Auto-validate steps when form fields change (only after user interaction)
 watch(() => [
-    form.name,
-    form.hire_date,
-    form.position_id,
-    form.status,
-    form.email,
-    form.login_permitted
+    form.email
 ], () => {
-    if (hasInteracted.value) {
-        if (currentStep.value === 0) {
-            nextTick(() => validateStep('crew-info'));
-        }
-        if (currentStep.value === 2) {
-            nextTick(() => validateStep('system-access'));
-        }
+    if (hasInteracted.value && currentStep.value === 0) {
+        nextTick(() => validateStep('email'));
     }
 });
+
+watch(() => [
+    form.name,
+    form.position_id,
+    form.hire_date
+], () => {
+    if (hasInteracted.value && activeTab.value === 'crew-info') {
+        nextTick(() => validateStep('crew-info'));
+    }
+});
+
 
 // Watch for skip_salary changes and step changes
 watch(() => form.skip_salary, () => {
@@ -304,10 +406,9 @@ watch(() => form.skip_salary, () => {
     stepValidation.value['salary'] = { valid: false, errors: [] };
 });
 
-// Set skip_salary to true when moving from step 1 to step 2
+// Set skip_salary to true when moving to salary step
 watch(() => currentStep.value, (newStep, oldStep) => {
-    if (oldStep === 0 && newStep === 1) {
-        // Moving from crew-info to salary, ensure skip_salary is true
+    if (activeTab.value === 'salary' && !form.skip_salary) {
         form.skip_salary = true;
     }
 });
@@ -327,24 +428,74 @@ watch(() => [
     }
 });
 
-watch(() => [
-    form.login_permitted,
-    form.password,
-    form.password_confirmation
-], () => {
-    if (currentStep.value === 2) {
-        nextTick(() => validateStep('system-access'));
-    }
-});
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (hashed ID)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel ID (alphanumeric string after /panel/)
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
+};
+
+// Check if email exists
+const checkEmailExists = async () => {
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        return;
+    }
+
+    checkingEmail.value = true;
+    try {
+        // Get vessel ID from URL path (it's the hashed ID in the URL)
+        const path = window.location.pathname;
+        const vesselMatch = path.match(/\/panel\/([^/]+)/);
+        const vesselId = vesselMatch ? vesselMatch[1] : null;
+
+        if (!vesselId) {
+            console.error('Could not determine vessel ID from URL');
+            checkingEmail.value = false;
+            return;
+        }
+
+        const response = await fetch(`/panel/${vesselId}/api/crew-members/check-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email: form.email }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            emailExists.value = data.exists;
+            existingUser.value = data.user;
+            emailChecked.value = true;
+
+            // If user exists, pre-fill name
+            if (data.exists && data.user) {
+                form.name = data.user.name;
+            }
+        } else {
+            console.error('Failed to check email:', response.status, response.statusText);
+        }
+    } catch (error) {
+        console.error('Error checking email:', error);
+    } finally {
+        checkingEmail.value = false;
+    }
 };
 
 const handleSave = () => {
+    // Prevent double submission
+    if (form.processing) {
+        return;
+    }
+
+    // Mark that user has interacted when trying to save
+    hasInteracted.value = true;
+
     // Validate all steps before saving
     let isValid = true;
     let lastInvalidStep = '';
@@ -366,14 +517,22 @@ const handleSave = () => {
         return;
     }
 
-    // Prepare form data - only include password fields if system access is enabled
+    // Ensure position is set before saving (double-check validation)
+    if (!form.position_id) {
+        // Navigate to crew-info step if somehow position is missing
+        const crewInfoStepIndex = steps.value.indexOf('crew-info');
+        if (crewInfoStepIndex !== -1) {
+            currentStep.value = crewInfoStepIndex;
+        }
+        validateStep('crew-info');
+        return;
+    }
+
+    // Prepare form data
     const formData = { ...form.data() };
 
-    if (!formData.login_permitted) {
-        // Remove password fields if system access is not enabled
-        delete (formData as any).password;
-        delete (formData as any).password_confirmation;
-    }
+    // Include create_without_email flag
+    formData.create_without_email = createWithoutEmail.value;
 
     // Remove salary fields if salary is skipped
     if (formData.skip_salary) {
@@ -384,25 +543,34 @@ const handleSave = () => {
         delete (formData as any).payment_frequency;
     }
 
+    // If creating without email, remove email from form data
+    if (createWithoutEmail.value) {
+        delete (formData as any).email;
+    }
+
     form.transform(() => formData).post(crewMembers.store.url({ vessel: getCurrentVesselId() }), {
         onSuccess: () => {
+            // Reset form completely after successful creation
+            resetForm();
             emit('saved');
             emit('update:open', false);
+        },
+        onError: () => {
+            // Don't reset on error - keep form data for user to fix
         },
     });
 };
 
 const handleClose = () => {
     emit('update:open', false);
-    form.reset();
-    form.clearErrors();
+    resetForm();
 };
 
 </script>
 
 <template>
     <Dialog :open="open" @update:open="handleClose">
-        <DialogContent class="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle>{{ t('Create New Crew Member') }}</DialogTitle>
                 <DialogDescription>
@@ -411,10 +579,10 @@ const handleClose = () => {
             </DialogHeader>
 
             <div class="py-4">
-                <!-- Dynamic Wizard Progress Bar -->
+                <!-- Dynamic Wizard Progress Bar - Always show -->
                 <div class="mb-8">
                     <div class="flex items-center justify-between">
-                        <!-- Step 1: Crew Information -->
+                        <!-- Step 1: Access Choice (always first) -->
                         <div class="flex items-center flex-1">
                             <button
                                 type="button"
@@ -424,83 +592,208 @@ const handleClose = () => {
                                     currentStep === 0
                                         ? 'border-primary bg-primary text-primary-foreground'
                                         : currentStep > 0
-                                        ? isStepValid('crew-info')
                                             ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'border-destructive bg-destructive text-destructive-foreground'
-                                        : 'border-muted bg-muted text-muted-foreground'
+                                            : 'border-muted bg-muted text-muted-foreground'
                                 ]"
                             >
                                 <span class="font-semibold">{{ currentStep > 0 ? '✓' : '1' }}</span>
                             </button>
                             <div class="ml-2 text-sm">
-                                <div class="font-medium text-foreground">{{ t('Crew Information') }}</div>
-                                <div class="text-xs text-muted-foreground">{{ t('Basic details') }}</div>
+                                <div class="font-medium text-foreground">{{ t('Access Type') }}</div>
+                                <div class="text-xs text-muted-foreground">{{ createWithoutEmail ? t('No account access') : t('With email invitation') }}</div>
                             </div>
                         </div>
 
-                        <!-- Connector to Step 2: Salary -->
+                        <!-- Connector to Email (only if not creating without email) -->
                         <div
-                            :class="[
-                                'flex-1 h-0.5 mx-2',
-                                currentStep > 0 ? 'bg-primary' : 'bg-muted'
-                            ]"
+                            v-if="!createWithoutEmail && steps.includes('email')"
+                            class="flex-1 h-0.5 mx-2"
+                            :class="currentStep >= 1 ? 'bg-primary' : 'bg-muted'"
                         ></div>
-                        <div class="flex items-center flex-1">
+
+                        <!-- Step 2: Email (only if not creating without email) -->
+                        <div v-if="!createWithoutEmail && steps.includes('email')" class="flex items-center flex-1">
                             <button
                                 type="button"
-                                @click="goToStep(1)"
+                                @click="goToStep(steps.indexOf('email'))"
                                 :class="[
                                     'relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all',
-                                    currentStep === 1
+                                    activeTab === 'email'
                                         ? 'border-primary bg-primary text-primary-foreground'
-                                        : currentStep > 1
-                                        ? isStepValid('salary')
+                                        : currentStep > steps.indexOf('email') && emailChecked
                                             ? 'border-primary bg-primary text-primary-foreground'
-                                            : 'border-destructive bg-destructive text-destructive-foreground'
-                                        : 'border-muted bg-muted text-muted-foreground'
+                                            : 'border-muted bg-muted text-muted-foreground'
                                 ]"
                             >
-                                <span class="font-semibold">{{ currentStep > 1 ? '✓' : '2' }}</span>
+                                <span class="font-semibold">{{ currentStep > steps.indexOf('email') && emailChecked ? '✓' : '2' }}</span>
+                            </button>
+                            <div class="ml-2 text-sm">
+                                <div class="font-medium text-foreground">{{ t('Email') }}</div>
+                                <div class="text-xs text-muted-foreground">{{ form.email || t('Enter email') }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Connector to Crew Info -->
+                        <div
+                            v-if="steps.includes('crew-info')"
+                            class="flex-1 h-0.5 mx-2"
+                            :class="currentStep > (createWithoutEmail ? 0 : steps.indexOf('email')) ? 'bg-primary' : 'bg-muted'"
+                        ></div>
+
+                        <!-- Step 3 (or 2): Crew Information -->
+                        <div v-if="steps.includes('crew-info')" class="flex items-center flex-1">
+                            <button
+                                type="button"
+                                @click="goToStep(steps.indexOf('crew-info'))"
+                                :class="[
+                                    'relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all',
+                                    activeTab === 'crew-info'
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : currentStep > steps.indexOf('crew-info') && isStepValid('crew-info')
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-muted bg-muted text-muted-foreground'
+                                ]"
+                            >
+                                <span class="font-semibold">{{ currentStep > steps.indexOf('crew-info') && isStepValid('crew-info') ? '✓' : (createWithoutEmail ? '2' : '3') }}</span>
+                            </button>
+                            <div class="ml-2 text-sm">
+                                <div class="font-medium text-foreground">{{ t('Crew Information') }}</div>
+                                <div class="text-xs text-muted-foreground">{{ t('Basic details & position') }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Connector to Salary (only for new users) -->
+                        <div
+                            v-if="steps.includes('salary')"
+                            class="flex-1 h-0.5 mx-2"
+                            :class="currentStep > steps.indexOf('crew-info') ? 'bg-primary' : 'bg-muted'"
+                        ></div>
+
+                        <!-- Step 4 (or 3): Salary & Compensation (only for new users) -->
+                        <div v-if="steps.includes('salary')" class="flex items-center flex-1">
+                            <button
+                                type="button"
+                                @click="goToStep(steps.indexOf('salary'))"
+                                :class="[
+                                    'relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all',
+                                    activeTab === 'salary'
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : isStepValid('salary') && currentStep > steps.indexOf('salary')
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-muted bg-muted text-muted-foreground'
+                                ]"
+                            >
+                                <span class="font-semibold">{{ createWithoutEmail ? '3' : '4' }}</span>
                             </button>
                             <div class="ml-2 text-sm">
                                 <div class="font-medium text-foreground">{{ t('Salary & Compensation') }}</div>
                                 <div class="text-xs text-muted-foreground">{{ t('Payment details') }}</div>
                             </div>
                         </div>
-
-                        <!-- Connector to Step 3: System Access -->
-                        <div
-                            :class="[
-                                'flex-1 h-0.5 mx-2',
-                                currentStep > 1 ? 'bg-primary' : 'bg-muted'
-                            ]"
-                        ></div>
-
-                        <!-- Final Step: System Access -->
-                        <div class="flex items-center flex-1">
-                            <button
-                                type="button"
-                                @click="goToStep(2)"
-                                :class="[
-                                    'relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all',
-                                    currentStep === 2
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : isStepValid('system-access') && currentStep > 1
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'border-muted bg-muted text-muted-foreground'
-                                ]"
-                            >
-                                <span class="font-semibold">3</span>
-                            </button>
-                            <div class="ml-2 text-sm">
-                                <div class="font-medium text-foreground">{{ t('System Access') }}</div>
-                                <div class="text-xs text-muted-foreground">{{ t('Login credentials') }}</div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <form @submit.prevent="handleSave" class="space-y-6">
+                    <!-- Access Choice Step - First step always -->
+                    <div v-show="activeTab === 'access-choice'" class="space-y-6" role="tabpanel" id="access-choice-tabpanel">
+                        <div class="text-center mb-6">
+                            <h3 class="text-lg font-medium text-card-foreground mb-2">{{ t('Choose Access Type') }}</h3>
+                            <p class="text-muted-foreground">{{ t('Select how this crew member will access the system') }}</p>
+                        </div>
+
+                        <!-- Switch to create without email -->
+                        <div class="flex items-center justify-between p-6 border border-input rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <div class="flex-1">
+                                <Label for="create_without_email" class="text-base font-medium text-card-foreground dark:text-card-foreground cursor-pointer">
+                                    {{ t('Create without email and account access') }}
+                                </Label>
+                                <p class="text-sm text-muted-foreground mt-2">
+                                    {{ t('Create a crew member record without email invitation. They will not have system access.') }}
+                                </p>
+                            </div>
+                            <div class="flex items-center ml-4">
+                                <Switch
+                                    id="create_without_email"
+                                    :checked="createWithoutEmail"
+                                    @update:checked="(value) => { createWithoutEmail = value; handleCreateWithoutEmailChange(); }"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                @click="handleClose"
+                            >
+                                {{ t('Cancel') }}
+                            </Button>
+                            <Button
+                                type="button"
+                                @click="handleAccessChoiceContinue"
+                            >
+                                {{ t('Continue') }}
+                                <Icon name="arrow-right" class="w-4 h-4 ml-2" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Email Step - Only shown if not creating without email -->
+                    <div v-show="activeTab === 'email'" class="space-y-6" role="tabpanel" id="email-tabpanel">
+                        <div class="text-center mb-6">
+                            <h3 class="text-lg font-medium text-card-foreground mb-2">{{ t('Enter Email Address') }}</h3>
+                            <p class="text-muted-foreground">{{ t('Enter the email address to invite a crew member') }}</p>
+                        </div>
+
+                        <div>
+                            <Label for="email" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                {{ t('Email Address') }} <span class="text-destructive">*</span>
+                            </Label>
+                            <Input
+                                id="email"
+                                v-model="form.email"
+                                type="email"
+                                :placeholder="t('Enter email address')"
+                                :disabled="checkingEmail"
+                                :class="{ 'border-destructive dark:border-destructive': form.errors.email || getStepErrors('email').length > 0 }"
+                                @keyup.enter="checkEmailExistsAndContinue"
+                            />
+                            <InputError :message="form.errors.email" class="mt-1" />
+                            <div v-if="getStepErrors('email').length > 0" class="text-sm text-destructive mt-1">
+                                {{ getStepErrors('email')[0] }}
+                            </div>
+                            <div v-if="emailExists !== null && !checkingEmail" class="mt-2">
+                                <div v-if="emailExists" class="text-sm text-muted-foreground">
+                                    <span class="text-green-600 dark:text-green-400">{{ t('User with this email already exists') }}</span>
+                                    <span v-if="existingUser"> - {{ existingUser.name }}</span>
+                                </div>
+                                <div v-else class="text-sm text-muted-foreground">
+                                    <span class="text-blue-600 dark:text-blue-400">{{ t('New user - will be created') }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                @click="previousStep"
+                            >
+                                <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+                                {{ t('Back') }}
+                            </Button>
+                            <Button
+                                type="button"
+                                @click="checkEmailExistsAndContinue"
+                                :disabled="checkingEmail || !form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)"
+                            >
+                                <Icon v-if="checkingEmail" name="loader" class="w-4 h-4 mr-2 animate-spin" />
+                                {{ checkingEmail ? t('Checking...') : t('Continue') }}
+                                <Icon v-if="!checkingEmail" name="arrow-right" class="w-4 h-4 ml-2" />
+                            </Button>
+                        </div>
+                    </div>
+
                     <!-- Crew Information Tab -->
                     <div v-show="activeTab === 'crew-info'" class="grid grid-cols-1 md:grid-cols-2 gap-6" role="tabpanel" id="crew-info-tabpanel">
 
@@ -520,20 +813,26 @@ const handleClose = () => {
                             <InputError :message="form.errors.name" class="mt-1" />
                         </div>
 
-                        <!-- Email -->
+                        <!-- Position -->
                         <div>
-                            <Label for="email" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Email') }}
+                            <Label for="position_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                {{ t('Position') }} <span class="text-destructive">*</span>
                             </Label>
-                            <Input
-                                id="email"
-                                v-model="form.email"
-                                type="email"
-                                :placeholder="t('Enter email address')"
-                                :class="{ 'border-destructive dark:border-destructive': form.errors.email }"
+                            <Select
+                                id="position_id"
+                                v-model="form.position_id"
+                                :options="positionOptions"
+                                :placeholder="t('Choose a position')"
+                                searchable
+                                :error="!!(form.errors.position_id || getStepErrors('crew-info').some(e => e.includes('Position')))"
                             />
-                            <InputError :message="form.errors.email" class="mt-1" />
+                            <InputError :message="form.errors.position_id" class="mt-1" />
+                            <div v-if="getStepErrors('crew-info').some(e => e.includes('Position'))" class="text-sm text-destructive mt-1">
+                                {{ getStepErrors('crew-info').find(e => e.includes('Position')) }}
+                            </div>
                         </div>
+
+                        <!-- Email is already entered in first step, so we don't show it here -->
 
                         <!-- Phone -->
                         <div>
@@ -577,43 +876,6 @@ const handleClose = () => {
                             <InputError :message="form.errors.hire_date" class="mt-1" />
                         </div>
 
-                        <!-- Position -->
-                        <div>
-                            <Label for="position_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Position') }} <span class="text-destructive">*</span>
-                            </Label>
-                            <Select
-                                id="position_id"
-                                v-model="form.position_id"
-                                :options="positionOptions"
-                                :placeholder="t('Choose an option!')"
-                                searchable
-                                :error="!!(form.errors.position_id || getStepErrors('crew-info').some(e => e.includes('Position')))"
-                            />
-                            <InputError :message="form.errors.position_id" class="mt-1" />
-                            <div v-if="getStepErrors('crew-info').some(e => e.includes('Position'))" class="text-sm text-destructive mt-1">
-                                {{ getStepErrors('crew-info').find(e => e.includes('Position')) }}
-                            </div>
-                        </div>
-
-
-                        <!-- Status -->
-                        <div>
-                            <Label for="status" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Status') }} <span class="text-destructive">*</span>
-                            </Label>
-                            <Select
-                                id="status"
-                                v-model="form.status"
-                                :options="statusOptions"
-                                :placeholder="t('Choose an option!')"
-                                :error="!!(form.errors.status || getStepErrors('crew-info').some(e => e.includes('Status')))"
-                            />
-                            <InputError :message="form.errors.status" class="mt-1" />
-                            <div v-if="getStepErrors('crew-info').some(e => e.includes('Status'))" class="text-sm text-destructive mt-1">
-                                {{ getStepErrors('crew-info').find(e => e.includes('Status')) }}
-                            </div>
-                        </div>
 
                         <!-- Notes -->
                         <div class="md:col-span-2">
@@ -630,100 +892,24 @@ const handleClose = () => {
                             ></textarea>
                             <InputError :message="form.errors.notes" class="mt-1" />
                         </div>
-                    </div>
 
-                    <!-- System Access Tab -->
-                    <div v-show="activeTab === 'system-access'" class="space-y-6" role="tabpanel" id="system-access-tabpanel">
-                        <!-- System Access Toggle -->
-                        <div>
-                            <Label for="login_permitted" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('System Access') }}
-                            </Label>
-                            <div class="flex items-center space-x-2 mt-2">
-                                <input
-                                    id="login_permitted"
-                                    v-model="form.login_permitted"
-                                    type="checkbox"
-                                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                                />
-                                <label for="login_permitted" class="text-sm text-muted-foreground">
-                                    {{ t('Allow this crew member to access the system') }}
-                                </label>
-                            </div>
-                            <p class="text-sm text-muted-foreground mt-1">
-                                {{ t('If enabled, the crew member will be able to log into the system. If disabled, they will only be a crew member record.') }}
-                            </p>
-                        </div>
-
-                        <!-- Password Fields (only show when system access is enabled) -->
-                        <div v-show="form.login_permitted" class="space-y-4">
-                            <div class="border-t pt-4">
-                                <h3 class="text-lg font-medium text-card-foreground mb-4">{{ t('Login Credentials') }}</h3>
-
-                                <!-- Info Message -->
-                                <div class="bg-muted/50 border border-border rounded-lg p-3 mb-4">
-                                    <p class="text-sm text-muted-foreground">
-                                        <strong>{{ t('Note') }}:</strong> {{ t('If the email belongs to an existing user, they will be linked to this vessel and their existing account credentials will be preserved.') }}
-                                    </p>
-                                </div>
-
-                                <!-- Email Field -->
-                                <div class="mb-4">
-                                    <Label for="email" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                        {{ t('Email') }} <span class="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        id="email"
-                                        v-model="form.email"
-                                        type="email"
-                                        :placeholder="t('Enter email address')"
-                                        class="mt-1"
-                                        :class="{ 'border-destructive dark:border-destructive': form.errors.email || getStepErrors('system-access').some(e => e.includes('Email')) }"
-                                    />
-                                    <InputError :message="form.errors.email" class="mt-1" />
-                                    <div v-if="getStepErrors('system-access').some(e => e.includes('Email'))" class="text-sm text-destructive mt-1">
-                                        {{ getStepErrors('system-access').find(e => e.includes('Email')) }}
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <!-- Password -->
-                                    <div>
-                                        <Label for="password" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                            {{ t('Password') }} <span class="text-destructive">*</span>
-                                        </Label>
-                                        <Input
-                                            id="password"
-                                            v-model="form.password"
-                                            type="password"
-                                            :placeholder="t('Enter password')"
-                                            class="mt-1"
-                                            :class="{ 'border-destructive dark:border-destructive': form.errors.password }"
-                                        />
-                                        <InputError :message="form.errors.password" class="mt-1" />
-                                    </div>
-
-                                    <!-- Password Confirmation -->
-                                    <div>
-                                        <Label for="password_confirmation" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                            {{ t('Confirm Password') }} <span class="text-destructive">*</span>
-                                        </Label>
-                                        <Input
-                                            id="password_confirmation"
-                                            v-model="form.password_confirmation"
-                                            type="password"
-                                            :placeholder="t('Confirm password')"
-                                            class="mt-1"
-                                            :class="{ 'border-destructive dark:border-destructive': form.errors.password_confirmation }"
-                                        />
-                                        <InputError :message="form.errors.password_confirmation" class="mt-1" />
-                                    </div>
-                                </div>
-
-                                <p class="text-sm text-muted-foreground mt-2">
-                                    {{ t('The crew member will use these credentials to log into the system.') }}
-                                </p>
-                            </div>
+                        <div class="flex justify-end gap-3 mt-6">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                @click="previousStep"
+                            >
+                                <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+                                {{ t('Back') }}
+                            </Button>
+                            <Button
+                                type="button"
+                                @click="nextStep"
+                                :disabled="!form.name || !form.position_id || !form.hire_date"
+                            >
+                                {{ t('Next') }}
+                                <Icon name="arrow-right" class="w-4 h-4 ml-2" />
+                            </Button>
                         </div>
                     </div>
 
@@ -834,54 +1020,27 @@ const handleClose = () => {
                                 <InputError :message="form.errors.payment_frequency" class="mt-1" />
                             </div>
                         </div>
+
+                        <div class="flex justify-end gap-3 mt-6">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                @click="previousStep"
+                            >
+                                <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+                                {{ t('Back') }}
+                            </Button>
+                            <Button
+                                type="button"
+                                @click="handleSave"
+                                :disabled="form.processing"
+                            >
+                                <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
+                                {{ form.processing ? t('Creating...') : t('Create Crew Member') }}
+                            </Button>
+                        </div>
                     </div>
                 </form>
-            </div>
-
-            <div class="flex items-center justify-between">
-                <!-- Wizard Navigation -->
-                <div class="flex items-center space-x-3">
-                    <Button
-                        v-if="currentStep > 0"
-                        type="button"
-                        variant="outline"
-                        @click="previousStep"
-                        :disabled="form.processing"
-                    >
-                        <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        {{ t('Previous') }}
-                    </Button>
-                    <Button
-                        v-if="steps && currentStep < steps.length - 1"
-                        type="button"
-                        @click="nextStep"
-                        :disabled="form.processing || isNextDisabled"
-                    >
-                        {{ t('Next') }}
-                        <Icon name="arrow-right" class="w-4 h-4 ml-2" />
-                    </Button>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex items-center space-x-3">
-                    <Button
-                        variant="outline"
-                        type="button"
-                        @click="handleClose"
-                        :disabled="form.processing"
-                    >
-                        {{ t('Cancel') }}
-                    </Button>
-                    <Button
-                        v-if="steps && currentStep === steps.length - 1"
-                        type="button"
-                        @click="handleSave"
-                        :disabled="form.processing || isCreateDisabled"
-                    >
-                        <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                        {{ t('Create Crew Member') }}
-                    </Button>
-                </div>
             </div>
 
             <!-- Step Validation Errors -->

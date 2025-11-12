@@ -15,11 +15,12 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import crewMembers from '@/routes/panel/crew-members';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (hashed ID)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel ID (alphanumeric string after /panel/)
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface CrewMember {
@@ -78,6 +79,16 @@ interface Props {
         symbol: string;
     }>;
     paymentFrequencies: Record<string, string>;
+    pendingInvitations?: Array<{
+        id: number;
+        name: string;
+        email: string;
+        position: string | null;
+        invitation_sent_at: string | null;
+        days_since_invitation: number | null;
+        email_send_count?: number;
+        can_resend?: boolean;
+    }>;
 }
 
 const props = defineProps<Props>();
@@ -124,6 +135,11 @@ const viewingCrewMember = ref<CrewMember | null>(null);
 const showDeleteDialog = ref(false);
 const crewMemberToDelete = ref<CrewMember | null>(null);
 const isDeleting = ref(false);
+
+// Cancel invitation confirmation dialog state
+const showCancelInvitationDialog = ref(false);
+const invitationToCancel = ref<typeof props.pendingInvitations[0] | null>(null);
+const isCancellingInvitation = ref(false);
 
 // Table configuration
 const columns = computed(() => [
@@ -249,6 +265,67 @@ const cancelDelete = () => {
     isDeleting.value = false;
 };
 
+// Invitation functions
+const cancelInvitation = (invitation: typeof props.pendingInvitations[0]) => {
+    invitationToCancel.value = invitation;
+    showCancelInvitationDialog.value = true;
+};
+
+const confirmCancelInvitation = () => {
+    if (!invitationToCancel.value) return;
+
+    const invitation = invitationToCancel.value;
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Could not determine vessel ID from URL');
+        showCancelInvitationDialog.value = false;
+        invitationToCancel.value = null;
+        return;
+    }
+
+    isCancellingInvitation.value = true;
+
+    router.post(crewMembers.cancelInvitation.url({ vessel: vesselId, crewMember: invitation.id }), {}, {
+        onSuccess: () => {
+            showCancelInvitationDialog.value = false;
+            invitationToCancel.value = null;
+            isCancellingInvitation.value = false;
+            router.reload();
+        },
+        onError: (errors) => {
+            console.error('Error cancelling invitation:', errors);
+            isCancellingInvitation.value = false;
+        },
+    });
+};
+
+const cancelCancelInvitation = () => {
+    showCancelInvitationDialog.value = false;
+    invitationToCancel.value = null;
+    isCancellingInvitation.value = false;
+};
+
+const resendInvitation = (invitation: typeof props.pendingInvitations[0]) => {
+    if (!invitation.can_resend) {
+        return;
+    }
+
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Could not determine vessel ID from URL');
+        return;
+    }
+
+    router.post(crewMembers.resendInvitation.url({ vessel: vesselId, crewMember: invitation.id }), {}, {
+        onSuccess: () => {
+            router.reload();
+        },
+        onError: (errors) => {
+            console.error('Error resending invitation:', errors);
+        },
+    });
+};
+
 const getStatusBadgeClass = (status: string) => {
     const baseClass = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
 
@@ -342,6 +419,94 @@ const formatDate = (dateString: string) => {
                 </div>
             </div>
 
+            <!-- Pending Invitations Section -->
+            <div v-if="pendingInvitations && pendingInvitations.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
+                <div class="p-4 border-b border-sidebar-border/70 dark:border-sidebar-border">
+                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                        {{ t('Pending Invitations') }}
+                    </h2>
+                    <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-1">
+                        {{ t('Users who have been invited but have not yet accepted') }}
+                    </p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-border dark:divide-border">
+                        <thead class="bg-muted/50 dark:bg-muted/50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                                    {{ t('Name') }}
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                                    {{ t('Email') }}
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                                    {{ t('Position') }}
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                                    {{ t('Invited') }}
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">
+                                    {{ t('Actions') }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border dark:divide-border bg-card dark:bg-card">
+                            <tr v-for="invitation in pendingInvitations" :key="invitation.id" class="hover:bg-muted/50 dark:hover:bg-muted/50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ invitation.name }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ invitation.email }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ invitation.position || t('Not specified') }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        <span v-if="invitation.days_since_invitation !== null">
+                                            <template v-if="Math.floor(invitation.days_since_invitation) === 0">{{ t('Today') }}</template>
+                                            <template v-else-if="Math.floor(invitation.days_since_invitation) === 1">{{ t('1 day ago') }}</template>
+                                            <template v-else>{{ Math.floor(invitation.days_since_invitation) }} {{ t('days ago') }}</template>
+                                        </span>
+                                        <span v-else>{{ t('Unknown') }}</span>
+                                        <div v-if="invitation.email_send_count !== undefined" class="text-xs text-muted-foreground mt-1">
+                                            {{ t('Sent') }}: {{ invitation.email_send_count }}/3
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click.prevent="resendInvitation(invitation)"
+                                            :disabled="!invitation.can_resend"
+                                            class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <Icon name="mail" class="w-3 h-3 mr-1" />
+                                            {{ t('Resend') }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click.prevent="cancelInvitation(invitation)"
+                                            class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-destructive hover:text-destructive/80 transition-colors"
+                                        >
+                                            <Icon name="x" class="w-3 h-3 mr-1" />
+                                            {{ t('Cancel') }}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Data Table -->
             <DataTable
                 :columns="columns"
@@ -413,7 +578,7 @@ const formatDate = (dateString: string) => {
             :crew-member="viewingCrewMember"
         />
 
-        <!-- Confirmation Dialog -->
+        <!-- Confirmation Dialog for Delete -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
             :title="t('Delete Crew Member')"
@@ -426,6 +591,21 @@ const formatDate = (dateString: string) => {
             :loading="isDeleting"
             @confirm="confirmDelete"
             @cancel="cancelDelete"
+        />
+
+        <!-- Confirmation Dialog for Cancel Invitation -->
+        <ConfirmationDialog
+            v-model:open="showCancelInvitationDialog"
+            :title="t('Cancel Invitation')"
+            :description="t('An email will be sent to notify the user.')"
+            :message="`${t('Are you sure you want to cancel the invitation for')} '${invitationToCancel?.name}' (${invitationToCancel?.email})? ${t('This will cancel the invitation and send a notification email to the user')}.`"
+            :confirm-text="t('Cancel Invitation')"
+            :cancel-text="t('Keep Invitation')"
+            variant="destructive"
+            type="warning"
+            :loading="isCancellingInvitation"
+            @confirm="confirmCancelInvitation"
+            @cancel="cancelCancelInvitation"
         />
 
     </VesselLayout>
