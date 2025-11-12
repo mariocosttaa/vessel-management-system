@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\CrewPosition;
 use App\Models\User;
 use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
@@ -9,6 +10,7 @@ use App\Models\VesselUser;
 use App\Models\VesselUserRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -78,7 +80,7 @@ class InvitationController extends Controller
     {
         $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
-            'surname'    => ['required', 'string', 'max:255'],
+            'surname'    => ['nullable', 'string', 'max:255'],
             'password'   => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
@@ -99,8 +101,8 @@ class InvitationController extends Controller
                 ->with('error', 'This invitation link has expired. Please contact the vessel administrator.');
         }
 
-        // Combine first name and surname into full name
-        $fullName = trim($request->first_name . ' ' . $request->surname);
+        // Combine first name and surname into full name (surname is optional)
+        $fullName = trim($request->first_name . ($request->surname ? ' ' . $request->surname : ''));
 
         // Update user
         $user->update([
@@ -114,6 +116,7 @@ class InvitationController extends Controller
 
         // Ensure vessel access is active
         if ($user->vessel_id) {
+            // Create/update VesselUser for backward compatibility
             VesselUser::updateOrCreate(
                 [
                     'vessel_id' => $user->vessel_id,
@@ -124,9 +127,46 @@ class InvitationController extends Controller
                     'role'      => 'viewer', // Default role, actual role is in VesselUserRole
                 ]
             );
+
+            // Create/update VesselUserRole based on position's vessel_role_access_id
+            $vesselRoleAccessId = null;
+
+            // Get role from position if user has a position assigned
+            if ($user->position_id) {
+                $position = CrewPosition::find($user->position_id);
+                if ($position && $position->vessel_role_access_id) {
+                    $vesselRoleAccessId = $position->vessel_role_access_id;
+                }
+            }
+
+            // If no role from position, use default "normal" role
+            if (! $vesselRoleAccessId) {
+                $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
+                if ($normalRole) {
+                    $vesselRoleAccessId = $normalRole->id;
+                }
+            }
+
+            // Create VesselUserRole if we have a role access ID
+            if ($vesselRoleAccessId) {
+                VesselUserRole::updateOrCreate(
+                    [
+                        'vessel_id' => $user->vessel_id,
+                        'user_id'   => $user->id,
+                    ],
+                    [
+                        'vessel_role_access_id' => $vesselRoleAccessId,
+                        'is_active'             => true,
+                    ]
+                );
+            }
         }
 
-        return redirect()->route('login')
-            ->with('success', 'Invitation accepted! You can now log in with your email and password.');
+        // Log the user in automatically
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('panel.index')
+            ->with('success', 'Invitation accepted! Welcome to the vessel.');
     }
 }
