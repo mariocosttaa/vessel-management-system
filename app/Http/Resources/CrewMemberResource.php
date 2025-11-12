@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -14,42 +13,46 @@ class CrewMemberResource extends BaseResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->hashId($this->id),
-            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
-            'vessel' => new VesselResource($this->whenLoaded('vessel')),
-            'position_id' => $this->hashIdForModel($this->position_id, 'crewposition'),
-            'position_name' => $this->whenLoaded('position', fn() => $this->position->name),
-            'name' => $this->name,
-            'document_number' => $this->document_number ?? null,
-            'email' => $this->email,
-            'phone' => $this->phone,
-            'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
+            'id'                      => $this->hashId($this->id),
+            'vessel_id'               => $this->hashIdForModel($this->vessel_id, 'vessel'),
+            'vessel'                  => new VesselResource($this->whenLoaded('vessel')),
+            'position_id'             => $this->hashIdForModel($this->position_id, 'crewposition'),
+            'position_name'           => $this->whenLoaded('position', fn() => $this->position->name),
+            'name'                    => $this->name,
+            'document_number'         => $this->document_number ?? null,
+            'email'                   => $this->email,
+            'phone'                   => $this->phone,
+            'date_of_birth'           => $this->date_of_birth?->format('Y-m-d'),
             'formatted_date_of_birth' => $this->date_of_birth?->format('d/m/Y'),
-            'hire_date' => $this->hire_date?->format('Y-m-d'),
-            'formatted_hire_date' => $this->hire_date?->format('d/m/Y'),
-            'salary_compensation' => $this->whenLoaded('activeSalaryCompensation', function () {
+            'hire_date'               => $this->hire_date?->format('Y-m-d'),
+            'formatted_hire_date'     => $this->hire_date?->format('d/m/Y'),
+            'salary_compensation'     => $this->whenLoaded('activeSalaryCompensation', function () {
                 $compensation = $this->activeSalaryCompensation->first();
-                if (!$compensation) return null;
+                if (! $compensation) {
+                    return null;
+                }
 
                 return [
-                    'compensation_type' => $compensation->compensation_type,
-                    'fixed_amount' => $compensation->fixed_amount,
-                    'formatted_fixed_amount' => $compensation->formatted_fixed_amount,
-                    'percentage' => $compensation->percentage,
-                    'formatted_percentage' => $compensation->formatted_percentage,
-                    'currency' => $compensation->currency,
-                    'payment_frequency' => $compensation->payment_frequency,
+                    'compensation_type'       => $compensation->compensation_type,
+                    'fixed_amount'            => $compensation->fixed_amount,
+                    'formatted_fixed_amount'  => $compensation->formatted_fixed_amount,
+                    'percentage'              => $compensation->percentage,
+                    'formatted_percentage'    => $compensation->formatted_percentage,
+                    'currency'                => $compensation->currency,
+                    'payment_frequency'       => $compensation->payment_frequency,
                     'payment_frequency_label' => $this->getPaymentFrequencyLabel($compensation->payment_frequency),
                 ];
             }),
             // Legacy fields for frontend compatibility
-            'salary_amount' => $this->whenLoaded('activeSalaryCompensation', function () {
+            'salary_amount'           => $this->whenLoaded('activeSalaryCompensation', function () {
                 $compensation = $this->activeSalaryCompensation->first();
                 return $compensation && $compensation->compensation_type === 'fixed' ? $compensation->fixed_amount : null;
             }),
-            'formatted_salary' => $this->whenLoaded('activeSalaryCompensation', function () {
+            'formatted_salary'        => $this->whenLoaded('activeSalaryCompensation', function () {
                 $compensation = $this->activeSalaryCompensation->first();
-                if (!$compensation) return 'Not specified';
+                if (! $compensation) {
+                    return 'Not specified';
+                }
 
                 if ($compensation->compensation_type === 'fixed' && $compensation->fixed_amount) {
                     $amount = number_format($compensation->fixed_amount / 100, 2);
@@ -88,13 +91,13 @@ class CrewMemberResource extends BaseResource
     private function getPaymentFrequencyLabel(?string $frequency = null): string
     {
         $frequency = $frequency ?? $this->payment_frequency;
-        return match($frequency) {
-            'weekly' => 'Weekly',
+        return match ($frequency) {
+            'weekly'    => 'Weekly',
             'bi_weekly' => 'Bi-weekly',
-            'monthly' => 'Monthly',
+            'monthly'   => 'Monthly',
             'quarterly' => 'Quarterly',
-            'annually' => 'Annually',
-            default => ucfirst($frequency),
+            'annually'  => 'Annually',
+            default     => ucfirst($frequency),
         };
     }
 
@@ -103,11 +106,12 @@ class CrewMemberResource extends BaseResource
      */
     private function getStatusLabel(): string
     {
-        return match($this->status) {
-            'active' => 'Active',
+        return match ($this->status) {
+            'active'   => 'Active',
             'inactive' => 'Inactive',
             'on_leave' => 'On Leave',
-            default => ucfirst($this->status),
+            default    => ucfirst($this->status),
         };
     }
+
 }
