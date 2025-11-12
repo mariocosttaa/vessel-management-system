@@ -310,7 +310,21 @@ class TransactionController extends Controller
         try {
             // Get vessel_id from route parameter
             $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+
+            // Handle both route model binding (object) and hashed ID (string)
+            if (is_object($vessel)) {
+                $vesselId = $vessel->id;
+            } elseif (is_numeric($vessel)) {
+                $vesselId = (int) $vessel;
+            } else {
+                // Decode hashed vessel ID
+                $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                if (!$vesselId) {
+                    abort(404, 'Vessel not found.');
+                }
+            }
 
             // Get currency priority: request currency (from form) > vessel_settings > vessel currency_code > EUR
             // IMPORTANT: Always prioritize the currency sent from the frontend form, as it reflects user's intent and vessel settings
@@ -374,7 +388,8 @@ class TransactionController extends Controller
                 'vessel_id' => $vesselId,
                 'marea_id' => $request->marea_id ? $this->unhashId($request->marea_id, 'marea') : null,
                 'maintenance_id' => $request->maintenance_id ? $this->unhashId($request->maintenance_id, 'maintenance') : null,
-                'category_id' => $request->category_id ? $this->unhashId($request->category_id, 'transactioncategory') : null,
+                // category_id is already decoded in prepareForValidation(), use it directly
+                'category_id' => $request->category_id ? (int) $request->category_id : null,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit' => $request->amount_per_unit ?? null,
@@ -764,7 +779,22 @@ class TransactionController extends Controller
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
             if (!$vesselId) {
-                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+                $vessel = $request->route('vessel');
+
+                // Handle both route model binding (object) and hashed ID (string)
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                    if (!$vesselId) {
+                        abort(404, 'Vessel not found.');
+                    }
+                }
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
@@ -839,7 +869,8 @@ class TransactionController extends Controller
             $user = $request->user();
 
             $transaction->update([
-                'category_id' => $request->category_id ? $this->unhashId($request->category_id, 'transactioncategory') : null,
+                // category_id is already decoded in prepareForValidation(), use it directly
+                'category_id' => $request->category_id,
                 'type' => $request->type,
                 'amount' => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit' => $request->amount_per_unit ?? null,
