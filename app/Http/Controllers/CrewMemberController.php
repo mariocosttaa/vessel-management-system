@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\DeleteCrewMemberRequest;
 use App\Http\Requests\StoreCrewMemberRequest;
 use App\Http\Requests\UpdateCrewMemberRequest;
@@ -18,6 +19,7 @@ use Illuminate\Http\Request;
 
 class CrewMemberController extends Controller
 {
+    use HashesIds;
     public function index(Request $request)
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
@@ -105,11 +107,21 @@ class CrewMemberController extends Controller
         // No need for available users anymore - we create users directly
 
         return inertia('CrewMembers/Create', [
-            'vessels' => Vessel::select('id', 'name')->get(),
+            'vessels' => Vessel::select('id', 'name')->get()->map(function ($vessel) {
+                return [
+                    'id' => $this->hashId($vessel->id, 'vessel'),
+                    'name' => $vessel->name,
+                ];
+            }),
             'positions' => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                       ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
-            })->select('id', 'name')->get(),
+            })->select('id', 'name')->get()->map(function ($position) {
+                return [
+                    'id' => $this->hashId($position->id, 'crewposition'),
+                    'name' => $position->name,
+                ];
+            }),
             'statuses' => [
                 'active' => 'Active',
                 'inactive' => 'Inactive',
@@ -147,7 +159,7 @@ class CrewMemberController extends Controller
                 // If user already has account, don't allow password changes
                 // Only update crew member fields, not account credentials
                 $updateData = [
-                    'position_id' => $request->position_id,
+                    'position_id' => $request->position_id ? $this->unhashId($request->position_id, 'crewposition') : null,
                     'name' => $request->name,
                     'phone' => $request->phone,
                     'date_of_birth' => $request->date_of_birth,
@@ -198,7 +210,7 @@ class CrewMemberController extends Controller
                 }
 
                 $crewMember = User::create([
-                    'position_id' => $request->position_id,
+                    'position_id' => $request->position_id ? $this->unhashId($request->position_id, 'crewposition') : null,
                     'name' => $request->name,
                     'email' => $request->email,
                     'phone' => $request->phone,
@@ -317,11 +329,21 @@ class CrewMemberController extends Controller
 
         return inertia('CrewMembers/Edit', [
             'crewMember' => new CrewMemberResource($crewMember),
-            'vessels' => Vessel::select('id', 'name')->get(),
+            'vessels' => Vessel::select('id', 'name')->get()->map(function ($vessel) {
+                return [
+                    'id' => $this->hashId($vessel->id, 'vessel'),
+                    'name' => $vessel->name,
+                ];
+            }),
             'positions' => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                       ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
-            })->select('id', 'name')->get(),
+            })->select('id', 'name')->get()->map(function ($position) {
+                return [
+                    'id' => $this->hashId($position->id, 'crewposition'),
+                    'name' => $position->name,
+                ];
+            }),
             'statuses' => [
                 'active' => 'Active',
                 'inactive' => 'Inactive',
@@ -356,7 +378,7 @@ class CrewMemberController extends Controller
 
             // Handle password update
             $updateData = [
-                'position_id' => $request->position_id,
+                'position_id' => $request->position_id ? $this->unhashId($request->position_id, 'crewposition') : null,
                 'name' => $request->name,
                 'phone' => $request->phone,
                 'date_of_birth' => $request->date_of_birth,
@@ -546,7 +568,14 @@ class CrewMemberController extends Controller
                     ->orWhere('document_number', 'like', "%{$query}%");
             })
             ->limit(10)
-            ->get(['id', 'name', 'document_number']);
+            ->get(['id', 'name', 'document_number'])
+            ->map(function ($crewMember) {
+                return [
+                    'id' => $this->hashId($crewMember->id, 'user-id'),
+                    'name' => $crewMember->name,
+                    'document_number' => $crewMember->document_number,
+                ];
+            });
 
         return response()->json($crewMembers);
     }

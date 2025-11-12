@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\UpdateVesselGeneralRequest;
 use App\Http\Requests\UpdateVesselLocationRequest;
 use App\Http\Resources\VesselResource;
@@ -18,6 +19,7 @@ use Inertia\Inertia;
 
 class VesselSettingController extends Controller
 {
+    use HashesIds;
     /**
      * Show the form for editing vessel settings.
      */
@@ -26,17 +28,34 @@ class VesselSettingController extends Controller
         /** @var \App\Models\User|null $user */
         $user = $request->user();
 
-        // Get vessel_id from route parameter
-        $vessel = $request->route('vessel');
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+        if (!$vesselId) {
+            // Fallback to route parameter if attributes not set
+            $vesselParam = $request->route('vessel');
+            if (is_object($vesselParam)) {
+                $vesselId = $vesselParam->id;
+            } else {
+                // Try to unhash if it's a hashed string
+                $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
+                if (!$vessel) {
+                    abort(404, 'Vessel not found.');
+                }
+                $vesselId = $vessel->id;
+            }
+        }
 
         // Check if user has permission to manage vessel settings
         if (!$user || !$user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor'])) {
             abort(403, 'You do not have permission to manage vessel settings.');
         }
 
-        // Get the vessel
-        $vessel = Vessel::findOrFail($vesselId);
+        // Get the vessel from request attributes or find it
+        $vessel = $request->attributes->get('vessel');
+        if (!$vessel) {
+            $vessel = Vessel::findOrFail($vesselId);
+        }
 
         // Get or create settings for the vessel
         $setting = VesselSetting::getForVessel($vesselId);
@@ -71,12 +90,29 @@ class VesselSettingController extends Controller
     public function updateGeneral(UpdateVesselGeneralRequest $request)
     {
         try {
-            // Get vessel_id from route parameter
-            $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                // Fallback to route parameter if attributes not set
+                $vesselParam = $request->route('vessel');
+                if (is_object($vesselParam)) {
+                    $vesselId = $vesselParam->id;
+                } else {
+                    // Try to unhash if it's a hashed string
+                    $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
+                    if (!$vessel) {
+                        abort(404, 'Vessel not found.');
+                    }
+                    $vesselId = $vessel->id;
+                }
+            }
 
-            // Get the vessel and update
-            $vessel = Vessel::findOrFail($vesselId);
+            // Get the vessel from request attributes or find it
+            $vessel = $request->attributes->get('vessel');
+            if (!$vessel) {
+                $vessel = Vessel::findOrFail($vesselId);
+            }
 
             // Log received data for debugging
             Log::info('Vessel settings update request', [
@@ -163,9 +199,23 @@ class VesselSettingController extends Controller
     public function updateLocation(UpdateVesselLocationRequest $request)
     {
         try {
-            // Get vessel_id from route parameter
-            $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                // Fallback to route parameter if attributes not set
+                $vesselParam = $request->route('vessel');
+                if (is_object($vesselParam)) {
+                    $vesselId = $vesselParam->id;
+                } else {
+                    // Try to unhash if it's a hashed string
+                    $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
+                    if (!$vessel) {
+                        abort(404, 'Vessel not found.');
+                    }
+                    $vesselId = $vessel->id;
+                }
+            }
 
             // Get or create settings for the vessel, then update
             $setting = VesselSetting::getForVessel($vesselId);
@@ -176,7 +226,10 @@ class VesselSettingController extends Controller
             ]);
 
             // Also update vessel's country and currency if they exist on the vessel table
-            $vessel = Vessel::findOrFail($vesselId);
+            $vessel = $request->attributes->get('vessel');
+            if (!$vessel) {
+                $vessel = Vessel::findOrFail($vesselId);
+            }
             $vessel->update([
                 'country_code' => $request->country_code,
                 'currency_code' => $request->currency_code,
@@ -187,7 +240,7 @@ class VesselSettingController extends Controller
             $setting->load(['country', 'currency', 'vatProfile']);
 
             return redirect()
-                ->route('panel.settings.edit', ['vessel' => $vesselId])
+                ->route('panel.settings.edit', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', 'Vessel location settings have been updated successfully.')
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {
