@@ -543,7 +543,7 @@ const salaryTransactions = computed(() =>
     props.marea.transactions.filter(t =>
         t.type === 'expense' &&
         t.crew_member_id !== null &&
-        t.category?.name === 'Salários'
+        (t.category?.name === 'Salaries' || t.category?.name === 'Crew Salaries' || t.category?.name === 'Wages')
     )
 );
 
@@ -551,7 +551,7 @@ const salaryTransactions = computed(() =>
 const nonSalaryExpenseTransactions = computed(() =>
     props.marea.transactions.filter(t =>
         t.type === 'expense' &&
-        (t.crew_member_id === null || t.category?.name !== 'Salários')
+        (t.crew_member_id === null || !(t.category?.name === 'Salaries' || t.category?.name === 'Crew Salaries' || t.category?.name === 'Wages'))
     )
 );
 
@@ -1668,7 +1668,7 @@ const cancelDeleteMarea = () => {
                                             color: transaction.category.color
                                         } : {}"
                                     >
-                                        {{ transaction.category.name }}
+                                        {{ t(transaction.category.name) }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
                                         {{ transaction.description || t('No description') }}
@@ -1809,7 +1809,7 @@ const cancelDeleteMarea = () => {
                                             color: transaction.category.color
                                         } : {}"
                                     >
-                                        {{ transaction.category.name }}
+                                        {{ t(transaction.category.name) }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
                                         {{ transaction.description || t('No description') }}
