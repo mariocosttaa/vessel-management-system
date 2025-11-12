@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HashesIds;
 use App\Models\Transaction;
 use App\Models\Marea;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Carbon\Carbon;
 
 class DashboardController extends BaseController
 {
+    use HashesIds;
     /**
      * Display the dashboard for the current vessel.
      */
@@ -94,7 +96,7 @@ class DashboardController extends BaseController
 
             if ($activeMarea) {
                 $activeMarea = [
-                    'id' => $activeMarea->id,
+                    'id' => $this->hashId($activeMarea->id, 'marea-id'),
                     'marea_number' => $activeMarea->marea_number,
                     'name' => $activeMarea->name,
                     'status' => $activeMarea->status,
@@ -111,7 +113,7 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($marea) {
                 return [
-                    'id' => $marea->id,
+                    'id' => $this->hashId($marea->id, 'marea-id'),
                     'marea_number' => $marea->marea_number,
                     'name' => $marea->name,
                     'status' => $marea->status,
@@ -130,7 +132,7 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($transaction) {
                 return [
-                    'id' => $transaction->id,
+                    'id' => $this->hashId($transaction->id, 'transaction-id'),
                     'transaction_number' => $transaction->transaction_number,
                     'type' => $transaction->type,
                     'type_label' => ucfirst($transaction->type),
@@ -140,7 +142,7 @@ class DashboardController extends BaseController
                     'formatted_transaction_date' => $transaction->transaction_date ? $transaction->transaction_date->format('M d, Y') : null,
                     'description' => $transaction->description,
                     'category' => $transaction->category ? [
-                        'id' => $transaction->category->id,
+                        'id' => $this->hashId($transaction->category->id, 'transactioncategory-id'),
                         'name' => $transaction->category->name,
                         'color' => $transaction->category->color,
                     ] : null,
@@ -164,7 +166,7 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($member) {
                 return [
-                    'id' => $member->id,
+                    'id' => $this->hashId($member->id, 'user-id'),
                     'name' => $member->name,
                     'email' => $member->email,
                     'position_name' => $member->position ? $member->position->name : null,
@@ -181,7 +183,7 @@ class DashboardController extends BaseController
 
         return Inertia::render('Dashboard', [
             'vessel' => [
-                'id' => $vessel->id,
+                'id' => $this->hashId($vessel->id, 'vessel'),
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\General\EasyHashAction;
+use App\Http\Controllers\Concerns\HashesIds;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class VesselSelectorController extends Controller
 {
+    use HashesIds;
     /**
      * Display the vessel selector page.
      */
@@ -27,7 +30,7 @@ class VesselSelectorController extends Controller
                 $roleAccess = $user->getVesselRoleAccess($vessel->id);
 
                 return [
-                    'id' => $vessel->id,
+                    'id' => $this->hashId($vessel->id, 'vessel'),
                     'name' => $vessel->name,
                     'registration_number' => $vessel->registration_number,
                     'vessel_type' => $vessel->vessel_type,
@@ -53,7 +56,7 @@ class VesselSelectorController extends Controller
         return Inertia::render('Index', [
             'vessels' => $vessels,
             'user' => [
-                'id' => $user->id,
+                'id' => $this->hashId($user->id, 'user'),
                 'name' => $user->name,
                 'email' => $user->email,
             ],
@@ -69,17 +72,24 @@ class VesselSelectorController extends Controller
     public function select(Request $request)
     {
         $request->validate([
-            'vessel_id' => ['required', 'integer', 'exists:vessels,id'],
+            'vessel_id' => ['required', 'string'], // Changed from integer to string since it's now hashed
         ]);
 
         $user = $request->user();
-        $vesselId = $request->vessel_id;
+
+        // Unhash the vessel ID from frontend
+        $vesselId = $this->unhashId($request->vessel_id, 'vessel');
+        if (!$vesselId) {
+            abort(404, 'Vessel not found.');
+        }
 
         // Verify user has access to this vessel
         if (!$user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        return redirect()->route('panel.dashboard', ['vessel' => $vesselId]);
+        // Hash the vessel ID for the URL
+        $hashedVesselId = $this->hashId($vesselId, 'vessel');
+        return redirect()->route('panel.dashboard', ['vessel' => $hashedVesselId]);
     }
 }
