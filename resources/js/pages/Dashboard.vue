@@ -4,7 +4,9 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import Icon from '@/components/Icon.vue';
+import FinancialAreaChart from '@/components/Charts/FinancialAreaChart.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import {
     TrendingUp,
     TrendingDown,
@@ -91,6 +93,16 @@ interface Props {
         total_mareas: number;
         active_mareas: number;
     };
+    last6CrewMembers: Array<{
+        id: number;
+        name: string;
+        email?: string;
+        position_name: string | null;
+        status: string;
+        status_label: string;
+        created_at: string | null;
+        formatted_created_at: string | null;
+    }>;
     defaultCurrency?: string;
     permissions: Record<string, boolean>;
 }
@@ -98,6 +110,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const { hasPermission, canView } = usePermissions();
+const { t } = useI18n();
 
 // Get currency data from shared props
 const page = usePage();
@@ -114,18 +127,6 @@ const getCurrencyData = (currencyCode: string) => {
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 const currencyData = computed(() => getCurrencyData(defaultCurrency.value));
 
-// Calculate max value for chart scaling
-const maxChartValue = computed(() => {
-    const allValues = props.last6Months.flatMap(m => [m.income, m.expenses]);
-    return Math.max(...allValues, 1);
-});
-
-// Get chart bar width percentage
-const getBarWidth = (value: number) => {
-    if (maxChartValue.value === 0) return 0;
-    return Math.max((Math.abs(value) / maxChartValue.value) * 100, 2);
-};
-
 // Navigate to transaction
 const viewTransaction = (transactionId: number) => {
     const vesselId = getCurrentVesselId();
@@ -136,6 +137,12 @@ const viewTransaction = (transactionId: number) => {
 const viewMarea = (mareaId: number) => {
     const vesselId = getCurrentVesselId();
     router.visit(`/panel/${vesselId}/mareas/${mareaId}`);
+};
+
+// Navigate to crew member
+const viewCrewMember = (memberId: number) => {
+    const vesselId = getCurrentVesselId();
+    router.visit(`/panel/${vesselId}/crew-members`);
 };
 
 // Calculate preparation progress (mock calculation - you can enhance this)
@@ -159,9 +166,9 @@ const getPreparationProgress = (marea: any) => {
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="t('Dashboard')" />
 
-    <VesselLayout :breadcrumbs="[{ title: 'Dashboard', href: `/panel/${getCurrentVesselId()}/dashboard` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Dashboard'), href: `/panel/${getCurrentVesselId()}/dashboard` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto p-4">
             <!-- Compact Header with Status -->
             <div class="flex items-center justify-between">
@@ -189,7 +196,7 @@ const getPreparationProgress = (marea: any) => {
                         :class="vesselAtSea ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'"
                     >
                         <component :is="vesselAtSea ? Ship : Anchor" class="w-4 h-4" />
-                        <span>{{ vesselAtSea ? 'At Sea' : 'In Port' }}</span>
+                        <span>{{ vesselAtSea ? t('At Sea') : t('In Port') }}</span>
                     </div>
                 </div>
             </div>
@@ -202,7 +209,7 @@ const getPreparationProgress = (marea: any) => {
                 <div class="flex items-center gap-2 mb-2">
                     <Loader2 class="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />
                     <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
-                        Preparing Mareas ({{ preparingMareas.length }})
+                        {{ t('Preparing Mareas') }} ({{ preparingMareas.length }})
                     </h2>
                 </div>
                 <div class="space-y-3">
@@ -219,7 +226,7 @@ const getPreparationProgress = (marea: any) => {
                                         {{ marea.marea_number }}
                                     </h3>
                                     <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
-                                        Preparing
+                                        {{ t('Preparing') }}
                                     </span>
                                 </div>
                                 <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-2">
@@ -228,7 +235,7 @@ const getPreparationProgress = (marea: any) => {
                                 <div class="flex items-center gap-4 text-xs text-muted-foreground dark:text-muted-foreground">
                                     <div v-if="marea.estimated_departure_date" class="flex items-center gap-1">
                                         <Clock class="w-3 h-3" />
-                                        <span>Departure: {{ new Date(marea.estimated_departure_date).toLocaleDateString() }}</span>
+                                        <span>{{ t('Departure') }}: {{ new Date(marea.estimated_departure_date).toLocaleDateString() }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -237,7 +244,7 @@ const getPreparationProgress = (marea: any) => {
                         <!-- Progress Bar -->
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between text-xs">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Preparation Progress</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Preparation Progress') }}</span>
                                 <span class="font-medium text-blue-600 dark:text-blue-400">{{ getPreparationProgress(marea) }}%</span>
                             </div>
                             <div class="w-full h-2 bg-muted dark:bg-muted/50 rounded-full overflow-hidden">
@@ -259,17 +266,17 @@ const getPreparationProgress = (marea: any) => {
                 class="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
                 <!-- Income -->
-                <div class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="rounded-lg border border-emerald-200/50 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="w-8 h-8 rounded-md bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <TrendingUp class="w-4 h-4 text-green-600 dark:text-green-400" />
+                        <div class="w-8 h-8 rounded-md bg-emerald-500 dark:bg-emerald-600 flex items-center justify-center">
+                            <TrendingUp class="w-4 h-4 text-white" />
                         </div>
-                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                        <span class="text-xs text-emerald-700/60 dark:text-emerald-400/60">
                             {{ currentMonth.month_label }}
                         </span>
                     </div>
-                    <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">Income</p>
-                    <p class="text-lg font-semibold text-green-600 dark:text-green-400">
+                    <p class="text-xs text-emerald-700/70 dark:text-emerald-400/70 mb-1">{{ t('Income') }}</p>
+                    <p class="text-lg font-semibold text-emerald-700 dark:text-emerald-400">
                         <MoneyDisplay
                             :value="currentMonth.total_income"
                             :currency="defaultCurrency"
@@ -281,17 +288,17 @@ const getPreparationProgress = (marea: any) => {
                 </div>
 
                 <!-- Expenses -->
-                <div class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="rounded-lg border border-red-200/50 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/20 p-3">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="w-8 h-8 rounded-md bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <TrendingDown class="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <div class="w-8 h-8 rounded-md bg-red-500 dark:bg-red-600 flex items-center justify-center">
+                            <TrendingDown class="w-4 h-4 text-white" />
                         </div>
-                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                        <span class="text-xs text-red-700/60 dark:text-red-400/60">
                             {{ currentMonth.month_label }}
                         </span>
                     </div>
-                    <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">Expenses</p>
-                    <p class="text-lg font-semibold text-red-600 dark:text-red-400">
+                    <p class="text-xs text-red-700/70 dark:text-red-400/70 mb-1">{{ t('Expenses') }}</p>
+                    <p class="text-lg font-semibold text-red-700 dark:text-red-400">
                         <MoneyDisplay
                             :value="currentMonth.total_expenses"
                             :currency="defaultCurrency"
@@ -303,19 +310,19 @@ const getPreparationProgress = (marea: any) => {
                 </div>
 
                 <!-- Net Balance -->
-                <div class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="rounded-lg border border-slate-200/50 dark:border-slate-800/30 bg-slate-50/50 dark:bg-slate-900/20 p-3">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="w-8 h-8 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <DollarSign class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <div class="w-8 h-8 rounded-md bg-slate-500 dark:bg-slate-600 flex items-center justify-center">
+                            <DollarSign class="w-4 h-4 text-white" />
                         </div>
-                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                        <span class="text-xs text-slate-700/60 dark:text-slate-400/60">
                             {{ currentMonth.month_label }}
                         </span>
                     </div>
-                    <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">Net Balance</p>
+                    <p class="text-xs text-slate-700/70 dark:text-slate-400/70 mb-1">{{ t('Net Balance') }}</p>
                     <p
                         class="text-lg font-semibold"
-                        :class="currentMonth.net_balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                        :class="currentMonth.net_balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'"
                     >
                         <MoneyDisplay
                             :value="currentMonth.net_balance"
@@ -328,17 +335,17 @@ const getPreparationProgress = (marea: any) => {
                 </div>
 
                 <!-- Transaction Count -->
-                <div class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="rounded-lg border border-slate-200/50 dark:border-slate-800/30 bg-slate-50/50 dark:bg-slate-900/20 p-3">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="w-8 h-8 rounded-md bg-muted dark:bg-muted/50 flex items-center justify-center">
-                            <Activity class="w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
+                        <div class="w-8 h-8 rounded-md bg-slate-500 dark:bg-slate-600 flex items-center justify-center">
+                            <Activity class="w-4 h-4 text-white" />
                         </div>
-                        <span class="text-xs text-muted-foreground dark:text-muted-foreground">
+                        <span class="text-xs text-slate-700/60 dark:text-slate-400/60">
                             {{ currentMonth.month_label }}
                         </span>
                     </div>
-                    <p class="text-xs text-muted-foreground dark:text-muted-foreground mb-1">Transactions</p>
-                    <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                    <p class="text-xs text-slate-700/70 dark:text-slate-400/70 mb-1">{{ t('Transactions') }}</p>
+                    <p class="text-lg font-semibold text-slate-700 dark:text-slate-400">
                         {{ currentMonth.transaction_count }}
                     </p>
                 </div>
@@ -349,131 +356,115 @@ const getPreparationProgress = (marea: any) => {
                 <!-- Chart Section -->
                 <div
                     v-if="hasPermission('reports.access')"
-                    class="lg:col-span-2 rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4"
+                    class="lg:col-span-2 rounded-lg border border-slate-200/60 dark:border-slate-800/60 bg-card dark:bg-card p-4"
                 >
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
-                            6 Months Overview
+                            {{ t('6 Months Overview') }}
                         </h2>
                         <Link
                             :href="`/panel/${getCurrentVesselId()}/financial-reports`"
                             class="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
                         >
-                            View Reports
+                            {{ t('View Reports') }}
                             <ArrowRight class="w-3 h-3" />
                         </Link>
                     </div>
-                    <!-- Horizontal Bar Chart -->
-                    <div class="space-y-3">
-                        <div
-                            v-for="month in last6Months"
-                            :key="`${month.year}-${month.month}`"
-                            class="space-y-1.5"
-                        >
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="text-muted-foreground dark:text-muted-foreground font-medium w-16">
-                                    {{ month.month_label }}
-                                </span>
-                                <div class="flex items-center gap-2 flex-1 max-w-xs">
-                                    <!-- Income Bar -->
-                                    <div class="flex-1 relative h-5 bg-muted/30 dark:bg-muted/20 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-green-500 dark:bg-green-600 rounded transition-all"
-                                            :style="{ width: `${getBarWidth(month.income)}%` }"
-                                        ></div>
-                                        <div
-                                            v-if="month.income > 0"
-                                            class="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-green-700 dark:text-green-300"
-                                        >
-                                            <MoneyDisplay
-                                                v-if="getBarWidth(month.income) > 15"
-                                                :value="month.income"
-                                                :currency="defaultCurrency"
-                                                :decimals="currencyData.decimal_separator"
-                                                variant="positive"
-                                                size="xs"
-                                                :show-symbol="false"
-                                            />
-                                        </div>
-                                    </div>
-                                    <!-- Expenses Bar -->
-                                    <div class="flex-1 relative h-5 bg-muted/30 dark:bg-muted/20 rounded overflow-hidden">
-                                        <div
-                                            class="h-full bg-red-500 dark:bg-red-600 rounded transition-all"
-                                            :style="{ width: `${getBarWidth(month.expenses)}%` }"
-                                        ></div>
-                                        <div
-                                            v-if="month.expenses > 0"
-                                            class="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-red-700 dark:text-red-300"
-                                        >
-                                            <MoneyDisplay
-                                                v-if="getBarWidth(month.expenses) > 15"
-                                                :value="month.expenses"
-                                                :currency="defaultCurrency"
-                                                :decimals="currencyData.decimal_separator"
-                                                variant="negative"
-                                                size="xs"
-                                                :show-symbol="false"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4 mt-4 pt-3 border-t border-border dark:border-border">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-2.5 h-2.5 rounded bg-green-500 dark:bg-green-600"></div>
-                            <span class="text-xs text-muted-foreground dark:text-muted-foreground">Income</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-2.5 h-2.5 rounded bg-red-500 dark:bg-red-600"></div>
-                            <span class="text-xs text-muted-foreground dark:text-muted-foreground">Expenses</span>
-                        </div>
-                    </div>
+                    <!-- Modern Area Chart -->
+                    <FinancialAreaChart
+                        v-if="last6Months.length > 0"
+                        :data="last6Months"
+                        :currency="defaultCurrency"
+                        :currency-data="currencyData"
+                        :height="280"
+                    />
                 </div>
 
-                <!-- Vessel Statistics -->
-                <div class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
-                    <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">
-                        Statistics
-                    </h2>
-                    <div class="grid grid-cols-2 gap-2.5">
-                        <div class="p-3 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <Users class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Crew</span>
+                <!-- Right Sidebar -->
+                <div class="space-y-4">
+                    <!-- Statistics -->
+                    <div class="rounded-lg border border-slate-200/60 dark:border-slate-800/60 bg-card dark:bg-card p-4">
+                        <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground mb-3">
+                            {{ t('Statistics') }}
+                        </h2>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div class="p-2.5 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
+                                <div class="flex items-center gap-1.5 mb-1.5">
+                                    <Users class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
+                                    <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">{{ t('Crew') }}</span>
+                                </div>
+                                <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    {{ vesselStats.total_crew }}
+                                </p>
                             </div>
-                            <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ vesselStats.total_crew }}
-                            </p>
+                            <div class="p-2.5 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
+                                <div class="flex items-center gap-1.5 mb-1.5">
+                                    <Receipt class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
+                                    <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">{{ t('Transactions') }}</span>
+                                </div>
+                                <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    {{ vesselStats.total_transactions }}
+                                </p>
+                            </div>
+                            <div class="p-2.5 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
+                                <div class="flex items-center gap-1.5 mb-1.5">
+                                    <Ship class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
+                                    <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">{{ t('Mareas') }}</span>
+                                </div>
+                                <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    {{ vesselStats.total_mareas }}
+                                </p>
+                            </div>
+                            <div class="p-2.5 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
+                                <div class="flex items-center gap-1.5 mb-1.5">
+                                    <Calendar class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
+                                    <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">{{ t('Active') }}</span>
+                                </div>
+                                <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
+                                    {{ vesselStats.active_mareas }}
+                                </p>
+                            </div>
                         </div>
-                        <div class="p-3 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <Receipt class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Transactions</span>
-                            </div>
-                            <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ vesselStats.total_transactions }}
-                            </p>
+                    </div>
+
+                    <!-- Last 6 Crew Members -->
+                    <div
+                        v-if="canView('crew-members') && last6CrewMembers.length > 0"
+                        class="rounded-lg border border-slate-200/60 dark:border-slate-800/60 bg-card dark:bg-card p-4"
+                    >
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
+                                {{ t('Last 6 Members') }}
+                            </h2>
+                            <Link
+                                :href="`/panel/${getCurrentVesselId()}/crew-members`"
+                                class="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                            >
+                                {{ t('View All') }}
+                                <ArrowRight class="w-3 h-3" />
+                            </Link>
                         </div>
-                        <div class="p-3 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <Ship class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Mareas</span>
+                        <div class="space-y-2">
+                            <div
+                                v-for="member in last6CrewMembers"
+                                :key="member.id"
+                                @click="viewCrewMember(member.id)"
+                                class="flex items-center gap-2.5 p-2 rounded-md border border-border dark:border-border hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors cursor-pointer"
+                            >
+                                <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                        {{ member.name.charAt(0).toUpperCase() }}
+                                    </span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-card-foreground dark:text-card-foreground truncate">
+                                        {{ member.name }}
+                                    </p>
+                                    <p class="text-[10px] text-muted-foreground dark:text-muted-foreground truncate">
+                                        {{ member.position_name || t('No position') }}
+                                    </p>
+                                </div>
                             </div>
-                            <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ vesselStats.total_mareas }}
-                            </p>
-                        </div>
-                        <div class="p-3 rounded-md border border-border dark:border-border bg-muted/30 dark:bg-muted/20">
-                            <div class="flex items-center gap-1.5 mb-1.5">
-                                <Calendar class="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground" />
-                                <span class="text-[10px] text-muted-foreground dark:text-muted-foreground">Active</span>
-                            </div>
-                            <p class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ vesselStats.active_mareas }}
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -486,13 +477,13 @@ const getPreparationProgress = (marea: any) => {
             >
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
-                        Recent Transactions
+                        {{ t('Recent Transactions') }}
                     </h2>
                     <Link
                         :href="`/panel/${getCurrentVesselId()}/transactions`"
                         class="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
                     >
-                        View All
+                        {{ t('View All') }}
                         <ArrowRight class="w-3 h-3" />
                     </Link>
                 </div>
@@ -518,7 +509,7 @@ const getPreparationProgress = (marea: any) => {
                                     {{ transaction.transaction_number }}
                                 </p>
                                 <p class="text-[10px] text-muted-foreground dark:text-muted-foreground truncate">
-                                    {{ transaction.description || 'No description' }}
+                                    {{ transaction.description || t('No description') }}
                                 </p>
                             </div>
                         </div>
