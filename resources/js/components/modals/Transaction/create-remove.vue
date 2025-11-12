@@ -274,11 +274,12 @@ watch([pricePerUnit, quantity, usePricePerUnit], () => {
 
 // VAT is not used for expenses/removals
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 const handleDialogUpdate = (value: boolean) => {
