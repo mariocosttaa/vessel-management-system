@@ -172,7 +172,21 @@ class MaintenanceController extends Controller
 
             // Get vessel_id from route parameter
             $vessel = $request->route('vessel');
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+
+            // Handle both route model binding (object) and hashed ID (string)
+            if (is_object($vessel)) {
+                $vesselId = $vessel->id;
+            } elseif (is_numeric($vessel)) {
+                $vesselId = (int) $vessel;
+            } else {
+                // Decode hashed vessel ID
+                $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                if (!$vesselId) {
+                    abort(404, 'Vessel not found.');
+                }
+            }
 
             // Check permissions
             if (!$user || !$user->hasAccessToVessel($vesselId)) {
@@ -493,7 +507,22 @@ class MaintenanceController extends Controller
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
             if (!$vesselId) {
-                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+                $vessel = $request->route('vessel');
+
+                // Handle both route model binding (object) and hashed ID (string)
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                    if (!$vesselId) {
+                        abort(404, 'Vessel not found.');
+                    }
+                }
             }
 
             // CRITICAL: Get maintenance ID directly from route parameter
