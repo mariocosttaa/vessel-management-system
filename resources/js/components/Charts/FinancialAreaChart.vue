@@ -37,7 +37,7 @@ onMounted(() => {
 });
 
 // Chart dimensions
-const chartPadding = { top: 20, right: 20, bottom: 40, left: 60 };
+const chartPadding = { top: 30, right: 40, bottom: 50, left: 70 };
 const chartWidth = computed(() => 800);
 const chartHeight = computed(() => props.height);
 const innerWidth = computed(() => chartWidth.value - chartPadding.left - chartPadding.right);
@@ -107,6 +107,37 @@ const formatCurrency = (value: number) => {
         maximumFractionDigits: props.currencyData.decimal_separator,
     }).format(value / 100);
 };
+
+// Tooltip positioning (computed to stay within bounds)
+const tooltipPosition = computed(() => {
+    if (hoveredIndex.value === null || !props.data[hoveredIndex.value]) {
+        return null;
+    }
+    const data = props.data[hoveredIndex.value];
+    const tooltipWidth = 150;
+    const tooltipHeight = 58;
+    const padding = 5;
+    
+    // Calculate X position (center on point, but clamp to edges)
+    let tooltipX = getXScale(hoveredIndex.value);
+    const minX = padding;
+    const maxX = innerWidth.value - tooltipWidth - padding;
+    tooltipX = Math.max(minX + tooltipWidth / 2, Math.min(tooltipX, maxX + tooltipWidth / 2));
+    
+    // Calculate Y position (above the higher value point)
+    const higherValue = Math.max(data.income, data.expenses);
+    let tooltipY = getYScale(higherValue) - tooltipHeight - 10;
+    const minY = padding;
+    const maxY = innerHeight.value - tooltipHeight - padding;
+    tooltipY = Math.max(minY, Math.min(tooltipY, maxY));
+    
+    return {
+        x: tooltipX - tooltipWidth / 2,
+        y: tooltipY,
+        textX: tooltipX,
+        textY: tooltipY + 15,
+    };
+});
 </script>
 
 <template>
@@ -122,12 +153,22 @@ const formatCurrency = (value: number) => {
                 ref="chartRef"
                 :width="chartWidth.value"
                 :height="chartHeight.value"
-                class="w-full h-auto"
-                viewBox="0 0 800 320"
+                class="w-full h-auto block"
+                :viewBox="`0 0 ${chartWidth.value} ${chartHeight.value}`"
                 preserveAspectRatio="xMidYMid meet"
+                style="overflow: hidden;"
             >
                 <!-- Gradient Definitions -->
                 <defs>
+                    <!-- Clip path to prevent overflow -->
+                    <clipPath id="chartClip">
+                        <rect
+                            :x="chartPadding.left"
+                            :y="chartPadding.top"
+                            :width="innerWidth.value"
+                            :height="innerHeight.value"
+                        />
+                    </clipPath>
                     <!-- Income Gradient -->
                     <linearGradient id="incomeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" :style="{ stopColor: '#10b981', stopOpacity: 0.8 }" />
@@ -165,7 +206,7 @@ const formatCurrency = (value: number) => {
                 </g>
 
                 <!-- Area Charts -->
-                <g :transform="`translate(${chartPadding.left}, ${chartPadding.top})`">
+                <g :transform="`translate(${chartPadding.left}, ${chartPadding.top})`" clip-path="url(#chartClip)">
                     <!-- Expenses Area (behind) -->
                     <path
                         :d="expensesAreaPath"
@@ -215,7 +256,7 @@ const formatCurrency = (value: number) => {
                 </g>
 
                 <!-- Y-Axis Labels -->
-                <g :transform="`translate(${chartPadding.left - 10}, ${chartPadding.top})`">
+                <g :transform="`translate(${chartPadding.left - 8}, ${chartPadding.top})`">
                     <text
                         v-for="(tick, index) in yAxisTicks"
                         :key="`y-label-${index}`"
@@ -224,14 +265,14 @@ const formatCurrency = (value: number) => {
                         text-anchor="end"
                         dominant-baseline="middle"
                         class="fill-slate-600 dark:fill-slate-400 text-xs font-medium"
-                        font-size="11"
+                        font-size="10"
                     >
                         {{ formatCurrency(tick) }}
                     </text>
                 </g>
 
                 <!-- X-Axis Labels -->
-                <g :transform="`translate(${chartPadding.left}, ${chartPadding.top + innerHeight.value + 15})`">
+                <g :transform="`translate(${chartPadding.left}, ${chartPadding.top + innerHeight.value + 25})`">
                     <text
                         v-for="(item, index) in props.data"
                         :key="`x-label-${index}`"
@@ -240,14 +281,14 @@ const formatCurrency = (value: number) => {
                         text-anchor="middle"
                         dominant-baseline="hanging"
                         class="fill-slate-600 dark:fill-slate-400 text-xs font-medium"
-                        font-size="11"
+                        font-size="10"
                     >
                         {{ item.month_label }}
                     </text>
                 </g>
 
                 <!-- Hover Tooltip -->
-                <g v-if="hoveredIndex !== null && props.data[hoveredIndex]" :transform="`translate(${chartPadding.left}, ${chartPadding.top})`">
+                <g v-if="hoveredIndex !== null && props.data[hoveredIndex] && tooltipPosition" :transform="`translate(${chartPadding.left}, ${chartPadding.top})`">
                     <!-- Vertical Line -->
                     <line
                         :x1="getXScale(hoveredIndex)"
@@ -261,41 +302,41 @@ const formatCurrency = (value: number) => {
                     />
                     <!-- Tooltip Background -->
                     <rect
-                        :x="getXScale(hoveredIndex) - 80"
-                        :y="getYScale(props.data[hoveredIndex].income) - 70"
-                        width="160"
-                        height="60"
-                        rx="8"
+                        :x="tooltipPosition.x"
+                        :y="tooltipPosition.y"
+                        width="150"
+                        height="58"
+                        rx="6"
                         fill="rgba(15, 23, 42, 0.95)"
-                        class="dark:fill-slate-800/95 backdrop-blur-md"
+                        class="dark:fill-slate-800/95"
                         stroke="#334155"
                         stroke-width="1"
                     />
                     <!-- Tooltip Text -->
                     <text
-                        :x="getXScale(hoveredIndex)"
-                        :y="getYScale(props.data[hoveredIndex].income) - 50"
+                        :x="tooltipPosition.textX"
+                        :y="tooltipPosition.textY"
                         text-anchor="middle"
                         class="fill-slate-200 text-xs font-semibold"
-                        font-size="11"
+                        font-size="10"
                     >
                         {{ props.data[hoveredIndex].month_label }}
                     </text>
                     <text
-                        :x="getXScale(hoveredIndex)"
-                        :y="getYScale(props.data[hoveredIndex].income) - 35"
+                        :x="tooltipPosition.textX"
+                        :y="tooltipPosition.textY + 14"
                         text-anchor="middle"
                         class="fill-emerald-400 text-xs font-medium"
-                        font-size="10"
+                        font-size="9"
                     >
                         Income: {{ formatCurrency(props.data[hoveredIndex].income) }}
                     </text>
                     <text
-                        :x="getXScale(hoveredIndex)"
-                        :y="getYScale(props.data[hoveredIndex].income) - 20"
+                        :x="tooltipPosition.textX"
+                        :y="tooltipPosition.textY + 26"
                         text-anchor="middle"
                         class="fill-red-400 text-xs font-medium"
-                        font-size="10"
+                        font-size="9"
                     >
                         Expenses: {{ formatCurrency(props.data[hoveredIndex].expenses) }}
                     </text>
