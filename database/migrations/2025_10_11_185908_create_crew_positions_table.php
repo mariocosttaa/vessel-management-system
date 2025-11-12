@@ -38,9 +38,9 @@ return new class extends Migration
         if (DB::getDriverName() === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = OFF;');
         }
-        
+
         Schema::dropIfExists('crew_positions');
-        
+
         if (DB::getDriverName() === 'sqlite') {
             DB::statement('PRAGMA foreign_keys = ON;');
         }
