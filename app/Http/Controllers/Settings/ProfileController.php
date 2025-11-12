@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,11 +34,21 @@ class ProfileController extends Controller
             }
         }
 
+        // Check if user has a real password (not just OAuth-generated)
+        // OAuth users have a random password, but we can check if they have provider set
+        // If they have provider and no password was manually set, they're OAuth-only
+        $hasPassword = !empty($user->provider) ? false : true; // OAuth users don't need password for deletion
+
         return Inertia::render('panel/Profile', [
             'user' => $user,
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'hasHighVesselAccess' => $hasHighVesselAccess,
+            'oauth_connected' => [
+                'google' => $user->provider === 'google' && !empty($user->provider_id),
+                'microsoft' => $user->provider === 'microsoft' && !empty($user->provider_id),
+            ],
+            'requires_password_for_deletion' => $hasPassword,
         ]);
     }
 
@@ -106,11 +117,15 @@ class ProfileController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         try {
-            $request->validate([
-                'password' => ['required', 'current_password'],
-            ]);
-
             $user = $request->user();
+
+            // Only require password if user doesn't have OAuth provider (regular account)
+            // OAuth-only users don't have a password they know
+            if (empty($user->provider)) {
+                $request->validate([
+                    'password' => ['required', 'current_password'],
+                ]);
+            }
 
             Auth::logout();
 
@@ -155,6 +170,46 @@ class ProfileController extends Controller
             ]);
 
             return back()->with('error', $this->transFrom('notifications', 'Failed to update language.'));
+        }
+    }
+
+    /**
+     * Disconnect OAuth account from user profile.
+     */
+    public function disconnectOAuth(Request $request, string $provider): RedirectResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Validate provider
+            if (!in_array($provider, ['google', 'microsoft'])) {
+                return back()->with('error', 'Invalid OAuth provider.');
+            }
+
+            // Check if user has this provider connected
+            if ($user->provider !== $provider) {
+                return back()->with('error', ucfirst($provider) . ' account is not connected.');
+            }
+
+            // Note: Password is required in the database, so all users have a password
+            // OAuth users get a random password, but they can still disconnect
+            // They should set a proper password if they want to use password login
+
+            // Disconnect the OAuth account
+            $user->provider = null;
+            $user->provider_id = null;
+            $user->save();
+
+            return redirect()->route('panel.profile.edit')
+                ->with('success', ucfirst($provider) . ' account disconnected successfully.');
+        } catch (\Exception $e) {
+            Log::error('OAuth disconnect failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+                'provider' => $provider,
+            ]);
+
+            return back()->with('error', 'Failed to disconnect ' . $provider . ' account. Please try again.');
         }
     }
 }
