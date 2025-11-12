@@ -7,6 +7,7 @@ import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
+import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
 import { DateInput } from '@/components/ui/date-input';
@@ -96,6 +97,7 @@ interface Props {
 const props = defineProps<Props>();
 const { canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
+const { t } = useI18n();
 
 // Modal states
 const showCreateExpenseModal = ref(false);
@@ -150,15 +152,15 @@ const confirmRemoveTransaction = () => {
             transactionToDelete.value = null;
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Transaction has been removed from the maintenance.',
+                title: t('Success'),
+                message: t('Transaction has been removed from the maintenance.'),
             });
         },
         onError: () => {
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to remove transaction. Please try again.',
+                title: t('Error'),
+                message: t('Failed to remove transaction. Please try again.'),
             });
         },
     });
@@ -178,15 +180,15 @@ const updateEndDate = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'End date has been updated.',
+                title: t('Success'),
+                message: t('End date has been updated.'),
             });
         },
         onError: () => {
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to update end date. Please try again.',
+                title: t('Error'),
+                message: t('Failed to update end date. Please try again.'),
             });
         },
     });
@@ -197,8 +199,8 @@ const finalizeMaintenance = () => {
     if (!endDateForm.end_date) {
         addNotification({
             type: 'error',
-            title: 'Error',
-            message: 'Please set an end date before finalizing.',
+            title: t('Error'),
+            message: t('Please set an end date before finalizing.'),
         });
         return;
     }
@@ -212,15 +214,15 @@ const finalizeMaintenance = () => {
         onSuccess: () => {
             addNotification({
                 type: 'success',
-                title: 'Success',
-                message: 'Maintenance has been finalized.',
+                title: t('Success'),
+                message: t('Maintenance has been finalized.'),
             });
         },
         onError: () => {
             addNotification({
                 type: 'error',
-                title: 'Error',
-                message: 'Failed to finalize maintenance. Please try again.',
+                title: t('Error'),
+                message: t('Failed to finalize maintenance. Please try again.'),
             });
         },
     });
@@ -234,7 +236,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
     <Head :title="`Maintenance ${props.maintenance.maintenance_number}`" />
 
     <VesselLayout :breadcrumbs="[
-        { title: 'Maintenances', href: maintenances.index.url({ vessel: getCurrentVesselId() }) },
+        { title: t('Maintenances'), href: maintenances.index.url({ vessel: getCurrentVesselId() }) },
         { title: props.maintenance.maintenance_number, href: maintenances.show.url({ vessel: getCurrentVesselId(), maintenanceId: props.maintenance.id }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -252,7 +254,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                     getStatusColor(props.maintenance.status)
                                 ]"
                             >
-                                {{ props.maintenance.status === 'open' ? 'Open' : props.maintenance.status === 'closed' ? 'Closed' : 'Cancelled' }}
+                                {{ props.maintenance.status === 'open' ? t('Open') : props.maintenance.status === 'closed' ? t('Closed') : t('Cancelled') }}
                             </span>
                         </div>
                         <p v-if="props.maintenance.name" class="text-muted-foreground dark:text-muted-foreground mt-1">
@@ -261,11 +263,11 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         <div class="mt-2 flex items-center gap-4 text-sm text-muted-foreground dark:text-muted-foreground">
                             <span v-if="props.maintenance.start_date">
                                 <Icon name="calendar" class="w-4 h-4 inline mr-1" />
-                                Start: {{ formatDate(props.maintenance.start_date) }}
+                                {{ t('Start') }}: {{ formatDate(props.maintenance.start_date) }}
                             </span>
                             <span v-if="props.maintenance.end_date">
                                 <Icon name="calendar" class="w-4 h-4 inline mr-1" />
-                                End: {{ formatDate(props.maintenance.end_date) }}
+                                {{ t('End') }}: {{ formatDate(props.maintenance.end_date) }}
                             </span>
                         </div>
                     </div>
@@ -275,7 +277,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                         >
                             <Icon name="plus" class="w-4 h-4 mr-2" />
-                            Add Expense
+                            {{ t('Add Expense') }}
                         </button>
                     </div>
                 </div>
@@ -285,7 +287,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                     <div class="flex items-end gap-4">
                         <div class="flex-1">
                             <label for="end_date" class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
-                                End Date
+                                {{ t('End Date') }}
                             </label>
                             <div class="flex items-center gap-3">
                                 <DateInput
@@ -303,14 +305,14 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                 >
                                     <Icon v-if="endDateForm.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
                                     <Icon v-else name="save" class="w-4 h-4 mr-2" />
-                                    {{ endDateForm.processing ? 'Saving...' : 'Save End Date' }}
+                                    {{ endDateForm.processing ? t('Saving...') : t('Save End Date') }}
                                 </Button>
                             </div>
                             <p v-if="endDateForm.errors.end_date" class="mt-1 text-sm text-destructive">
                                 {{ endDateForm.errors.end_date }}
                             </p>
                             <p v-else class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                                Set the end date when maintenance is completed
+                                {{ t('Set the end date when maintenance is completed') }}
                             </p>
                         </div>
                         <div>
@@ -321,7 +323,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                 class="bg-green-600 hover:bg-green-700 text-white"
                             >
                                 <Icon name="check" class="w-4 h-4 mr-2" />
-                                Finalize Maintenance
+                                {{ t('Finalize Maintenance') }}
                             </Button>
                         </div>
                     </div>
@@ -330,10 +332,10 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 
             <!-- Summary Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Summary</h2>
+                <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Summary') }}</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="p-4 rounded-lg bg-muted/50 dark:bg-muted/20">
-                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">Total Expenses</div>
+                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">{{ t('Total Expenses') }}</div>
                         <MoneyDisplay
                             :value="props.maintenance.total_expenses"
                             :currency="defaultCurrency"
@@ -343,13 +345,13 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         />
                     </div>
                     <div class="p-4 rounded-lg bg-muted/50 dark:bg-muted/20">
-                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">Transactions</div>
+                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">{{ t('Transactions') }}</div>
                         <div class="text-2xl font-bold text-card-foreground dark:text-card-foreground">
                             {{ props.maintenance.transactions.length }}
                         </div>
                     </div>
                     <div class="p-4 rounded-lg bg-muted/50 dark:bg-muted/20">
-                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">Status</div>
+                        <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">{{ t('Status') }}</div>
                         <div class="text-lg font-semibold text-card-foreground dark:text-card-foreground">
                             {{ props.maintenance.status === 'open' ? 'Open' : props.maintenance.status === 'closed' ? 'Closed' : 'Cancelled' }}
                         </div>
@@ -360,11 +362,11 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             <!-- Transactions Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
                 <div class="p-6 border-b border-border dark:border-border">
-                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">Expenses</h2>
+                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">{{ t('Expenses') }}</h2>
                 </div>
                 <div v-if="!props.maintenance.transactions || props.maintenance.transactions.length === 0"
                      class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
-                    No expenses found. Add an expense to get started.
+                    {{ t('No expenses found. Add an expense to get started.') }}
                 </div>
                 <div v-else class="divide-y divide-border dark:divide-border">
                     <div
@@ -385,7 +387,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                             `bg-[${transaction.category.color}]/20 text-[${transaction.category.color}]`
                                         ]"
                                     >
-                                        {{ transaction.category.name }}
+                                        {{ t(transaction.category.name) }}
                                     </span>
                                 </div>
                                 <div class="mt-1 text-sm text-muted-foreground dark:text-muted-foreground">
@@ -438,11 +440,11 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
         <!-- Remove Transaction Confirmation -->
         <ConfirmationDialog
             v-model:open="showDeleteTransactionDialog"
-            title="Remove Transaction"
-            description="This will remove the transaction from this maintenance, but the transaction will still exist."
-            :message="transactionToDelete ? `Are you sure you want to remove transaction '${transactionToDelete.transaction_number}' from this maintenance?` : ''"
-            confirm-text="Remove"
-            cancel-text="Cancel"
+            :title="t('Remove Transaction')"
+            :description="t('This will remove the transaction from this maintenance, but the transaction will still exist.')"
+            :message="transactionToDelete ? t('Are you sure you want to remove transaction') + ` '${transactionToDelete.transaction_number}' ` + t('from this maintenance?') : ''"
+            :confirm-text="t('Remove')"
+            :cancel-text="t('Cancel')"
             variant="destructive"
             type="warning"
             @confirm="confirmRemoveTransaction"

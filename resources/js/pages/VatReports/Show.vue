@@ -5,6 +5,7 @@ import { computed, onMounted } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useI18n } from '@/composables/useI18n';
 import vatReports from '@/routes/panel/vat-reports';
 import { TrendingUp, TrendingDown, Minus, Receipt } from 'lucide-vue-next';
 
@@ -127,6 +128,7 @@ const props = defineProps<Props>();
 
 // Permission check
 const { hasPermission } = usePermissions();
+const { t } = useI18n();
 
 // Check if user has permission to access reports
 onMounted(() => {
@@ -214,10 +216,10 @@ const getChangeColor = (change: number) => {
 </script>
 
 <template>
-    <Head :title="`VAT Report - ${monthLabel} ${year}`" />
+    <Head :title="`${t('VAT Report')} - ${monthLabel} ${year}`" />
 
     <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
-        { title: 'VAT Reports', href: vatReports.index.url({ vessel: getCurrentVesselId() }) },
+        { title: t('VAT Reports'), href: vatReports.index.url({ vessel: getCurrentVesselId() }) },
         { title: `${monthLabel} ${year}`, href: vatReports.show.url({ vessel: getCurrentVesselId(), year: year, month: month }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
@@ -226,10 +228,10 @@ const getChangeColor = (change: number) => {
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">
-                            VAT Report - {{ monthLabel }} {{ year }}
+                            {{ t('VAT Report') }} - {{ monthLabel }} {{ year }}
                         </h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">
-                            Comprehensive VAT overview for {{ monthLabel }} {{ year }}
+                            {{ t('Comprehensive VAT overview for') }} {{ monthLabel }} {{ year }}
                         </p>
                     </div>
                     <Link
@@ -237,7 +239,7 @@ const getChangeColor = (change: number) => {
                         class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                     >
                         <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        Back to Reports
+                        {{ t('Back to Reports') }}
                     </Link>
                 </div>
             </div>
@@ -247,7 +249,7 @@ const getChangeColor = (change: number) => {
                 <!-- Total VAT -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Total VAT</h3>
+                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Total VAT') }}</h3>
                         <component
                             :is="getChangeIcon(summary.vat_change)"
                             :class="['w-4 h-4', getChangeColor(summary.vat_change)]"
@@ -272,7 +274,7 @@ const getChangeColor = (change: number) => {
                 <!-- Base Amount -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Base Amount</h3>
+                        <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Base Amount') }}</h3>
                         <component
                             :is="getChangeIcon(summary.base_change)"
                             :class="['w-4 h-4', getChangeColor(summary.base_change)]"
@@ -296,7 +298,7 @@ const getChangeColor = (change: number) => {
 
                 <!-- Total with VAT -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">Total with VAT</h3>
+                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">{{ t('Total with VAT') }}</h3>
                     <MoneyDisplay
                         :value="summary.total_amount_with_vat"
                         :currency="currency"
@@ -308,7 +310,7 @@ const getChangeColor = (change: number) => {
 
                 <!-- Transaction Count -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">Transactions</h3>
+                    <h3 class="text-sm font-medium text-muted-foreground dark:text-muted-foreground mb-2">{{ t('Transactions') }}</h3>
                     <div class="text-3xl font-bold text-card-foreground dark:text-card-foreground">
                         {{ summary.transaction_count }}
                     </div>
@@ -319,7 +321,7 @@ const getChangeColor = (change: number) => {
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <!-- Daily Breakdown Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">Daily VAT Breakdown</h3>
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('Daily VAT Breakdown') }}</h3>
                     <div class="space-y-4 max-h-96 overflow-y-auto">
                         <div
                             v-for="day in dailyBreakdown"
@@ -332,7 +334,7 @@ const getChangeColor = (change: number) => {
                             <div class="flex-1 space-y-2">
                                 <!-- Base Amount Bar -->
                                 <div v-if="day.base_amount > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">Base</div>
+                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Base') }}</div>
                                     <div class="flex-1 relative h-3 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                         <div
                                             class="h-full bg-blue-500 dark:bg-blue-600 transition-all"
@@ -352,7 +354,7 @@ const getChangeColor = (change: number) => {
                                 </div>
                                 <!-- VAT Bar -->
                                 <div v-if="day.vat_amount > 0" class="flex items-center gap-2">
-                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">VAT</div>
+                                    <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}</div>
                                     <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                         <div
                                             class="h-full bg-green-500 dark:bg-green-600 transition-all"
@@ -373,14 +375,14 @@ const getChangeColor = (change: number) => {
                             </div>
                         </div>
                         <div v-if="dailyBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            No data available for this period
+                            {{ t('No data available for this period') }}
                         </div>
                     </div>
                 </div>
 
                 <!-- VAT Profile Breakdown Chart -->
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">VAT by Profile</h3>
+                    <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Profile') }}</h3>
                     <div class="space-y-4 max-h-96 overflow-y-auto">
                         <div
                             v-for="profile in vatProfileBreakdown"
@@ -400,12 +402,12 @@ const getChangeColor = (change: number) => {
                                     </span>
                                 </div>
                                 <span class="text-xs text-muted-foreground dark:text-muted-foreground">
-                                    {{ profile.transaction_count }} transactions
+                                    {{ profile.transaction_count }} {{ t('transactions') }}
                                 </span>
                             </div>
                             <!-- VAT Bar -->
                             <div class="flex items-center gap-2">
-                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">VAT</div>
+                                <div class="w-16 text-xs text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}</div>
                                 <div class="flex-1 relative h-4 bg-muted dark:bg-muted/50 rounded overflow-hidden">
                                     <div
                                         class="h-full bg-green-500 dark:bg-green-600 transition-all"
@@ -432,7 +434,7 @@ const getChangeColor = (change: number) => {
                                     ></div>
                                 </div>
                                 <div class="w-24 text-xs text-right text-muted-foreground dark:text-muted-foreground">
-                                    Base: <MoneyDisplay
+                                    {{ t('Base') }}: <MoneyDisplay
                                         :value="profile.total_base_amount"
                                         :currency="currency"
                                         :decimals="currencyData.decimal_separator"
@@ -444,7 +446,7 @@ const getChangeColor = (change: number) => {
                             </div>
                         </div>
                         <div v-if="vatProfileBreakdown.length === 0" class="text-center text-muted-foreground dark:text-muted-foreground py-8">
-                            No VAT profiles found
+                            {{ t('No VAT profiles found') }}
                         </div>
                     </div>
                 </div>
@@ -452,7 +454,7 @@ const getChangeColor = (change: number) => {
 
             <!-- Category Breakdown -->
             <div v-if="categoryBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">VAT by Category</h3>
+                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Category') }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div
                         v-for="category in categoryBreakdown"
@@ -466,12 +468,12 @@ const getChangeColor = (change: number) => {
                                 :style="{ backgroundColor: category.category_color }"
                             ></div>
                             <h4 class="font-semibold text-card-foreground dark:text-card-foreground">
-                                {{ category.category_name }}
+                                {{ t(category.category_name) }}
                             </h4>
                         </div>
                         <div class="space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">VAT:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}:</span>
                                 <MoneyDisplay
                                     :value="category.total_vat_amount"
                                     :currency="currency"
@@ -481,7 +483,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Base:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Base') }}:</span>
                                 <MoneyDisplay
                                     :value="category.total_base_amount"
                                     :currency="currency"
@@ -491,7 +493,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Total:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Total') }}:</span>
                                 <MoneyDisplay
                                     :value="category.total_amount_with_vat"
                                     :currency="currency"
@@ -501,7 +503,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between text-xs text-muted-foreground dark:text-muted-foreground mt-2 pt-2 border-t border-border dark:border-border">
-                                <span>Transactions:</span>
+                                <span>{{ t('Transactions') }}:</span>
                                 <span>{{ category.transaction_count }}</span>
                             </div>
                         </div>
@@ -511,7 +513,7 @@ const getChangeColor = (change: number) => {
 
             <!-- Marea Breakdown -->
             <div v-if="mareaBreakdown.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">VAT by Marea</h3>
+                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('VAT by Marea') }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div
                         v-for="marea in mareaBreakdown"
@@ -526,7 +528,7 @@ const getChangeColor = (change: number) => {
                         </div>
                         <div class="space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">VAT:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.total_vat_amount"
                                     :currency="currency"
@@ -536,7 +538,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Base:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Base') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.total_base_amount"
                                     :currency="currency"
@@ -546,7 +548,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-muted-foreground dark:text-muted-foreground">Total:</span>
+                                <span class="text-muted-foreground dark:text-muted-foreground">{{ t('Total') }}:</span>
                                 <MoneyDisplay
                                     :value="marea.total_amount_with_vat"
                                     :currency="currency"
@@ -556,7 +558,7 @@ const getChangeColor = (change: number) => {
                                 />
                             </div>
                             <div class="flex justify-between text-xs text-muted-foreground dark:text-muted-foreground mt-2 pt-2 border-t border-border dark:border-border">
-                                <span>Transactions:</span>
+                                <span>{{ t('Transactions') }}:</span>
                                 <span>{{ marea.transaction_count }}</span>
                             </div>
                         </div>
@@ -566,19 +568,19 @@ const getChangeColor = (change: number) => {
 
             <!-- Transactions List -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
-                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">All Transactions with VAT</h3>
+                <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">{{ t('All Transactions with VAT') }}</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
                             <tr class="border-b border-border dark:border-border">
-                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Date</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Transaction</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Description</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Category</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">VAT Profile</th>
-                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Base Amount</th>
-                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">VAT</th>
-                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">Total</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Date') }}</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Transaction') }}</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Description') }}</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Category') }}</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('VAT Profile') }}</th>
+                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Base Amount') }}</th>
+                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('VAT') }}</th>
+                                <th class="text-right py-3 px-4 text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Total') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -605,7 +607,7 @@ const getChangeColor = (change: number) => {
                                             color: transaction.category.color
                                         } : {}"
                                     >
-                                        {{ transaction.category.name }}
+                                        {{ t(transaction.category.name) }}
                                     </span>
                                     <span v-else class="text-xs text-muted-foreground dark:text-muted-foreground">—</span>
                                 </td>
@@ -649,14 +651,14 @@ const getChangeColor = (change: number) => {
                             </tr>
                             <tr v-if="transactions.length === 0">
                                 <td colspan="8" class="py-8 text-center text-muted-foreground dark:text-muted-foreground">
-                                    No transactions with VAT found for this period
+                                    {{ t('No transactions with VAT found for this period') }}
                                 </td>
                             </tr>
                         </tbody>
                         <tfoot v-if="transactions.length > 0" class="bg-muted/30 dark:bg-muted/20">
                             <tr>
                                 <td colspan="5" class="py-3 px-4 text-sm font-semibold text-card-foreground dark:text-card-foreground">
-                                    Total
+                                    {{ t('Total') }}
                                 </td>
                                 <td class="py-3 px-4 text-right text-sm font-semibold">
                                     <MoneyDisplay
@@ -695,7 +697,7 @@ const getChangeColor = (change: number) => {
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-12 text-center">
-                <p class="text-muted-foreground dark:text-muted-foreground">You do not have permission to view VAT reports.</p>
+                <p class="text-muted-foreground dark:text-muted-foreground">{{ t('You do not have permission to view VAT reports.') }}</p>
             </div>
         </div>
     </VesselLayout>
