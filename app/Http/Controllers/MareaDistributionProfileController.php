@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MareaDistributionProfile;
 use App\Models\MareaDistributionProfileItem;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -161,7 +161,7 @@ class MareaDistributionProfileController extends Controller
             $vesselId = $request->attributes->get('vessel_id');
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $profile,
                 'Distribution Profile',
                 $profile->name,
@@ -397,8 +397,8 @@ class MareaDistributionProfileController extends Controller
             $vesselId = $request->attributes->get('vessel_id');
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($profile, $originalProfile);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($profile, $originalProfile);
+            AuditLogAction::logUpdate(
                 $profile,
                 $changedFields,
                 'Distribution Profile',
@@ -442,7 +442,7 @@ class MareaDistributionProfileController extends Controller
             $profileName = $profile->name;
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $profile,
                 'Distribution Profile',
                 $profileName,

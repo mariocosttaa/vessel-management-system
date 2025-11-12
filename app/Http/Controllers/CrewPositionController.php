@@ -8,7 +8,7 @@ use App\Http\Resources\CrewPositionResource;
 use App\Models\CrewPosition;
 use App\Models\User;
 use App\Models\VesselRoleAccess;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -127,7 +127,7 @@ class CrewPositionController extends Controller
             $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $crewPosition,
                 'Crew Position',
                 $crewPosition->name,
@@ -199,8 +199,8 @@ class CrewPositionController extends Controller
             $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($crewPosition, $originalCrewPosition);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($crewPosition, $originalCrewPosition);
+            AuditLogAction::logUpdate(
                 $crewPosition,
                 $changedFields,
                 'Crew Position',
@@ -267,7 +267,7 @@ class CrewPositionController extends Controller
             $crewPositionName = $crewPosition->name;
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $crewPosition,
                 'Crew Position',
                 $crewPositionName,

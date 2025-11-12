@@ -9,8 +9,8 @@ use App\Models\MareaCrew;
 use App\Models\MareaQuantityReturn;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Services\AuditLogService;
-use App\Services\EmailNotificationService;
+use App\Actions\AuditLogAction;
+use App\Actions\EmailNotificationAction;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -228,7 +228,7 @@ class MareaController extends Controller
             ]);
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $marea,
                 'Marea',
                 $marea->marea_number,
@@ -680,8 +680,8 @@ class MareaController extends Controller
             ]);
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($marea, $originalMarea);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($marea, $originalMarea);
+            AuditLogAction::logUpdate(
                 $marea,
                 $changedFields,
                 'Marea',
@@ -750,7 +750,7 @@ class MareaController extends Controller
             $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $marea,
                 'Marea',
                 $mareaNumber,
@@ -835,7 +835,7 @@ class MareaController extends Controller
 
             // Create email notification for other users (not the user who marked it as at sea)
             try {
-                EmailNotificationService::createNotification(
+                EmailNotificationAction::createNotification(
                     type: 'marea_started',
                     subjectType: Marea::class,
                     subjectId: $marea->id,
@@ -916,7 +916,7 @@ class MareaController extends Controller
 
             // Create email notification for other users (not the user who marked it as returned)
             try {
-                EmailNotificationService::createNotification(
+                EmailNotificationAction::createNotification(
                     type: 'marea_completed',
                     subjectType: Marea::class,
                     subjectId: $marea->id,

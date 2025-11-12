@@ -13,7 +13,7 @@ use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
 use App\Models\VesselUser;
 use App\Models\VesselUserRole;
-use App\Services\AuditLogService;
+use App\Actions\AuditLogAction;
 use Illuminate\Http\Request;
 
 class CrewMemberController extends Controller
@@ -268,7 +268,7 @@ class CrewMemberController extends Controller
             );
 
             // Log the create action
-            AuditLogService::logCreate(
+            AuditLogAction::logCreate(
                 $crewMember,
                 'Crew Member',
                 $crewMember->name,
@@ -409,8 +409,8 @@ class CrewMemberController extends Controller
             );
 
             // Get changed fields and log the update action
-            $changedFields = AuditLogService::getChangedFields($crewMember, $originalCrewMember);
-            AuditLogService::logUpdate(
+            $changedFields = AuditLogAction::getChangedFields($crewMember, $originalCrewMember);
+            AuditLogAction::logUpdate(
                 $crewMember,
                 $changedFields,
                 'Crew Member',
@@ -457,7 +457,7 @@ class CrewMemberController extends Controller
             $crewMemberName = $crewMember->name;
 
             // Log the delete action BEFORE deletion
-            AuditLogService::logDelete(
+            AuditLogAction::logDelete(
                 $crewMember,
                 'Crew Member',
                 $crewMemberName,
