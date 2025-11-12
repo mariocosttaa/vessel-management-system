@@ -61,14 +61,24 @@ class UpdateTransactionRequest extends FormRequest
         }
 
         // Get vessel ID from route parameter
-        $vesselId = $this->route('vessel');
-        if (!$vesselId) {
+        $vessel = $this->route('vessel');
+        if (!$vessel) {
             return false;
         }
 
-        // Check if user has access to vessel
-        /** @var \App\Models\User $user */
-        $vesselIdInt = is_object($vesselId) ? $vesselId->id : (int) $vesselId;
+        // Handle both route model binding (object) and hashed ID (string)
+        if (is_object($vessel)) {
+            $vesselIdInt = $vessel->id;
+        } elseif (is_numeric($vessel)) {
+            $vesselIdInt = (int) $vessel;
+        } else {
+            // Decode hashed vessel ID
+            $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $vesselIdInt = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            if (!$vesselIdInt) {
+                return false;
+            }
+        }
         if (!$user->hasAccessToVessel($vesselIdInt)) {
             return false;
         }
@@ -208,7 +218,20 @@ class UpdateTransactionRequest extends FormRequest
         // CRITICAL: Never get vessel_id from transaction model in prepareForValidation
         // Route model binding may not have occurred yet, and we should trust the route parameter
         $vessel = $this->route('vessel');
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+
+        // Handle both route model binding (object) and hashed ID (string)
+        if (is_object($vessel)) {
+            $vesselId = $vessel->id;
+        } elseif (is_numeric($vessel)) {
+            $vesselId = (int) $vessel;
+        } else {
+            // Decode hashed vessel ID
+            $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            if (!$vesselId) {
+                abort(404, 'Vessel not found.');
+            }
+        }
 
         // Get currency from vessel_settings (priority) or vessel currency_code
         $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
@@ -221,7 +244,13 @@ class UpdateTransactionRequest extends FormRequest
 
         // Unhash IDs from frontend
         if ($this->filled('category_id')) {
-            $data['category_id'] = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+            // Handle both hashed and numeric category IDs
+            if (is_numeric($this->category_id)) {
+                $data['category_id'] = (int) $this->category_id;
+            } else {
+                $decoded = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+                $data['category_id'] = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            }
         }
 
         if ($this->filled('vat_profile_id')) {
