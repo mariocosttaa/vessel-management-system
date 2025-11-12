@@ -14,6 +14,7 @@ use App\Models\VesselSetting;
 use App\Services\AuditLogService;
 use App\Services\EmailNotificationService;
 use App\Services\MoneyService;
+use App\Pdf\TransactionPdf;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -1347,6 +1348,283 @@ class TransactionController extends Controller
             ->get(['id', 'transaction_number', 'description', 'type', 'amount', 'currency']);
 
         return response()->json($transactions);
+    }
+
+    /**
+     * Download PDF for all transactions (history page).
+     */
+    public function downloadPdf(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (!$vessel) {
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
+        }
+
+        // Get all transactions for the vessel
+        $query = Transaction::where('vessel_id', $vesselId);
+
+        // Filter by transaction type if provided
+        $transactionType = $request->get('transaction_type');
+        if ($transactionType && in_array($transactionType, ['income', 'expense'])) {
+            $query->where('type', $transactionType);
+        }
+
+        $transactions = $query->with(['category'])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        // Calculate summary
+        $totalIncome = $transactions->where('type', 'income')->sum('total_amount');
+        $totalExpenses = $transactions->where('type', 'expense')->sum('total_amount');
+        $netBalance = $totalIncome - $totalExpenses;
+
+        $summary = [
+            'total_income' => $totalIncome,
+            'total_expenses' => $totalExpenses,
+            'net_balance' => $netBalance,
+            'total_count' => $transactions->count(),
+        ];
+
+        // Calculate start and end dates
+        $startDate = null;
+        $endDate = null;
+        if ($transactions->count() > 0) {
+            $startDate = $transactions->min('transaction_date')->format('Y-m-d');
+            $endDate = $transactions->max('transaction_date')->format('Y-m-d');
+        }
+
+        $period = 'All Transactions';
+        $filename = "transaction_report_{$vessel->id}_all_" . date('Y-m-d') . '.pdf';
+
+        // Check if colors should be enabled (default to false - colors disabled)
+        // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
+        $enableColors = $request->get('enable_colors') === '1';
+
+        $pdf = TransactionPdf::generate(
+            $vessel,
+            $transactions,
+            $summary,
+            $period,
+            $startDate,
+            $endDate,
+            'Transaction Report',
+            'Movements and Transactions Overview',
+            $enableColors
+        );
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Download PDF for a specific month/year (history month page).
+     */
+    public function downloadPdfMonth(Request $request, $year, $month)
+    {
+        // Get parameters from route
+        $year = (int) $request->route('year');
+        $month = (int) $request->route('month');
+
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        // Validate month and year
+        if ($month < 1 || $month > 12) {
+            abort(404, $this->transFrom('notifications', 'Invalid month.'));
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            abort(404, $this->transFrom('notifications', 'Invalid year.'));
+        }
+
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (!$vessel) {
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
+        }
+
+        // Get transactions for the month/year
+        $query = Transaction::where('vessel_id', $vesselId)
+            ->where('transaction_month', $month)
+            ->where('transaction_year', $year);
+
+        // Filter by transaction type if provided
+        $transactionType = $request->get('transaction_type');
+        if ($transactionType && in_array($transactionType, ['income', 'expense'])) {
+            $query->where('type', $transactionType);
+        }
+
+        $transactions = $query->with(['category'])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        // Calculate summary
+        $totalIncome = $transactions->where('type', 'income')->sum('total_amount');
+        $totalExpenses = $transactions->where('type', 'expense')->sum('total_amount');
+        $netBalance = $totalIncome - $totalExpenses;
+
+        $summary = [
+            'total_income' => $totalIncome,
+            'total_expenses' => $totalExpenses,
+            'net_balance' => $netBalance,
+            'total_count' => $transactions->count(),
+        ];
+
+        // Calculate start and end dates for the month
+        $startDate = date('Y-m-d', mktime(0, 0, 0, $month, 1, $year));
+        $endDate = date('Y-m-t', mktime(0, 0, 0, $month, 1, $year)); // Last day of month
+
+        $monthLabel = date('F', mktime(0, 0, 0, $month, 1));
+        $period = "{$monthLabel} {$year}";
+        $filename = "transaction_report_{$vessel->id}_{$year}_{$month}_" . date('Y-m-d') . '.pdf';
+
+        // Check if colors should be enabled (default to false - colors disabled)
+        // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
+        $enableColors = $request->get('enable_colors') === '1';
+
+        $pdf = TransactionPdf::generate(
+            $vessel,
+            $transactions,
+            $summary,
+            $period,
+            $startDate,
+            $endDate,
+            'Transaction Report',
+            'Movements and Transactions Overview',
+            $enableColors
+        );
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Download PDF for transactions filtered by date range.
+     */
+    public function downloadPdfFiltered(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check transactions.view permission from config
+        $userRole = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (!($permissions['transactions.view'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (!$vessel) {
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
+        }
+
+        // Get date range from request
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        if (!$startDate || !$endDate) {
+            abort(400, $this->transFrom('notifications', 'Start date and end date are required.'));
+        }
+
+        // Validate dates
+        try {
+            $start = \Carbon\Carbon::parse($startDate);
+            $end = \Carbon\Carbon::parse($endDate);
+
+            if ($start->gt($end)) {
+                abort(400, $this->transFrom('notifications', 'Start date must be before or equal to end date.'));
+            }
+        } catch (\Exception $e) {
+            abort(400, $this->transFrom('notifications', 'Invalid date format.'));
+        }
+
+        // Get transactions for the date range
+        $query = Transaction::where('vessel_id', $vesselId)
+            ->whereBetween('transaction_date', [$startDate, $endDate]);
+
+        // Filter by transaction type if provided
+        $transactionType = $request->get('transaction_type');
+        if ($transactionType && in_array($transactionType, ['income', 'expense'])) {
+            $query->where('type', $transactionType);
+        }
+
+        $transactions = $query->with(['category'])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        // Calculate summary
+        $totalIncome = $transactions->where('type', 'income')->sum('total_amount');
+        $totalExpenses = $transactions->where('type', 'expense')->sum('total_amount');
+        $netBalance = $totalIncome - $totalExpenses;
+
+        $summary = [
+            'total_income' => $totalIncome,
+            'total_expenses' => $totalExpenses,
+            'net_balance' => $netBalance,
+            'total_count' => $transactions->count(),
+        ];
+
+        $period = \Carbon\Carbon::parse($startDate)->format('d/m/Y') . ' - ' . \Carbon\Carbon::parse($endDate)->format('d/m/Y');
+        $filename = "transaction_report_{$vessel->id}_" . str_replace('/', '-', $period) . '_' . date('Y-m-d') . '.pdf';
+
+        // Check if colors should be enabled (default to false - colors disabled)
+        // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
+        $enableColors = $request->get('enable_colors') === '1';
+
+        $pdf = TransactionPdf::generate(
+            $vessel,
+            $transactions,
+            $summary,
+            $period,
+            $startDate,
+            $endDate,
+            'Transaction Report',
+            'Movements and Transactions Overview',
+            $enableColors
+        );
+
+        return $pdf->download($filename);
     }
 }
 
