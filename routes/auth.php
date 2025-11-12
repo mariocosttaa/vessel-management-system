@@ -46,6 +46,13 @@ Route::middleware('guest')->group(function () {
 
     Route::get('auth/microsoft/callback', [\App\Http\Controllers\Auth\OAuthController::class, 'handleMicrosoftCallback'])
         ->name('oauth.microsoft.callback');
+
+    // Invitation acceptance (only accessible when not logged in)
+    Route::get('invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'show'])
+        ->name('invitation.accept');
+
+    Route::post('invitation/{token}', [\App\Http\Controllers\Auth\InvitationController::class, 'accept'])
+        ->name('invitation.accept.store');
 });
 
 Route::middleware('auth')->group(function () {
