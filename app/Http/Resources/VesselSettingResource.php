@@ -3,9 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class VesselSettingResource extends JsonResource
+class VesselSettingResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -15,11 +14,11 @@ class VesselSettingResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'vessel_id' => $this->vessel_id,
+            'id' => $this->hashId($this->id),
+            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'country_code' => $this->country_code,
             'currency_code' => $this->currency_code,
-            'vat_profile_id' => $this->vat_profile_id,
+            'vat_profile_id' => $this->hashIdForModel($this->vat_profile_id, 'vatprofile'),
             'country' => $this->whenLoaded('country', function () {
                 return [
                     'code' => $this->country->code,
@@ -36,13 +35,13 @@ class VesselSettingResource extends JsonResource
             }),
             'vat_profile' => $this->whenLoaded('vatProfile', function () {
                 return [
-                    'id' => $this->vatProfile->id,
+                    'id' => $this->hashIdForModel($this->vatProfile->id, 'vatprofile'),
                     'name' => $this->vatProfile->name,
                     'percentage' => $this->vatProfile->percentage,
                     'formatted_rate' => $this->vatProfile->formatted_rate,
                     'display_name' => $this->vatProfile->display_name,
                     'country' => $this->vatProfile->relationLoaded('country') ? [
-                        'id' => $this->vatProfile->country->id,
+                        'id' => $this->hashIdForModel($this->vatProfile->country->id, 'country'),
                         'code' => $this->vatProfile->country->code,
                         'name' => $this->vatProfile->country->name,
                     ] : null,

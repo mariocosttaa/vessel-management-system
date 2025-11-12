@@ -3,9 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class CrewPositionResource extends JsonResource
+class CrewPositionResource extends BaseResource
 {
     /**
      * Transform the resource into an array.
@@ -15,11 +14,11 @@ class CrewPositionResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->hashId($this->id),
             'name' => $this->name,
             'description' => $this->description,
-            'vessel_id' => $this->vessel_id,
-            'vessel_role_access_id' => $this->vessel_role_access_id,
+            'vessel_id' => $this->hashIdForModel($this->vessel_id, 'vessel'),
+            'vessel_role_access_id' => $this->hashIdForModel($this->vessel_role_access_id, 'vesselroleaccess'),
             'is_global' => $this->vessel_id === null,
             'scope_label' => $this->vessel_id === null ? 'Default' : 'Created',
 
@@ -30,7 +29,7 @@ class CrewPositionResource extends JsonResource
                 ($this->relationLoaded('crewMembers') ? $this->crewMembers->count() : 0),
             'vessel_role_access' => $this->whenLoaded('vesselRoleAccess', function () {
                 return [
-                    'id' => $this->vesselRoleAccess->id,
+                    'id' => $this->hashIdForModel($this->vesselRoleAccess->id, 'vesselroleaccess'),
                     'name' => $this->vesselRoleAccess->name,
                     'display_name' => $this->vesselRoleAccess->display_name,
                     'description' => $this->vesselRoleAccess->description,
