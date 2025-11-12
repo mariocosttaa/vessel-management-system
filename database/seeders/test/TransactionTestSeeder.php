@@ -51,7 +51,7 @@ class TransactionTestSeeder extends Seeder
         $incomeCategories = $categories->where('type', 'income');
         $expenseCategories = $categories->where('type', 'expense');
 
-        $transactionTypes = ['income', 'expense', 'transfer'];
+        $transactionTypes = ['income', 'expense'];
         $statuses = ['completed', 'pending', 'cancelled'];
 
         // Transaction descriptions
@@ -79,12 +79,6 @@ class TransactionTestSeeder extends Seeder
             'Cleaning services',
         ];
 
-        $transferDescriptions = [
-            'Bank transfer',
-            'Account transfer',
-            'Fund movement',
-        ];
-
         $createdCount = 0;
         $now = Carbon::now();
 
@@ -104,7 +98,6 @@ class TransactionTestSeeder extends Seeder
             $statuses,
             $incomeDescriptions,
             $expenseDescriptions,
-            $transferDescriptions,
             15 // 15 transactions for current month
         );
 
@@ -126,7 +119,6 @@ class TransactionTestSeeder extends Seeder
                 $statuses,
                 $incomeDescriptions,
                 $expenseDescriptions,
-                $transferDescriptions,
                 rand(10, 20) // Random number of transactions per month
             );
         }
@@ -152,7 +144,6 @@ class TransactionTestSeeder extends Seeder
                     $statuses,
                     $incomeDescriptions,
                     $expenseDescriptions,
-                    $transferDescriptions,
                     rand(8, 15) // Random number of transactions per month
                 );
             }
@@ -179,14 +170,10 @@ class TransactionTestSeeder extends Seeder
         array $statuses,
         array $incomeDescriptions,
         array $expenseDescriptions,
-        array $transferDescriptions,
         int $count
     ): int {
         $created = 0;
         $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
-
-        // Get all categories for transfer transactions
-        $allCategories = TransactionCategory::all();
 
         for ($i = 0; $i < $count; $i++) {
             $vessel = $vessels->random();
@@ -199,17 +186,11 @@ class TransactionTestSeeder extends Seeder
                 $category = $incomeCategories->isNotEmpty() ? $incomeCategories->random() : null;
                 $description = $incomeDescriptions[array_rand($incomeDescriptions)];
                 $vatProfile = $vatProfiles->isNotEmpty() ? $vatProfiles->random() : $defaultVatProfile;
-            } elseif ($type === 'expense') {
+            } else {
+                // Expense
                 $category = $expenseCategories->isNotEmpty() ? $expenseCategories->random() : null;
                 $description = $expenseDescriptions[array_rand($expenseDescriptions)];
                 $vatProfile = null; // Expenses don't have VAT
-            } else {
-                // Transfer - use any category, but prefer expense categories
-                $category = $expenseCategories->isNotEmpty()
-                    ? $expenseCategories->random()
-                    : ($allCategories->isNotEmpty() ? $allCategories->random() : null);
-                $description = $transferDescriptions[array_rand($transferDescriptions)];
-                $vatProfile = null;
             }
 
             if (!$category) {
@@ -267,7 +248,7 @@ class TransactionTestSeeder extends Seeder
                     'amount' => $amount,
                     'amount_per_unit' => $amountPerUnit,
                     'quantity' => $quantity,
-                    'currency' => $vessel->currency_code ?? 'EUR',
+                    'currency' => 'AOA',
                     'house_of_zeros' => 2,
                     'vat_profile_id' => $vatProfile ? $vatProfile->id : null,
                     'vat_amount' => $vatAmount,
