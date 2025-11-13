@@ -17,7 +17,7 @@ class CrewMemberResource extends BaseResource
             'vessel_id'               => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'vessel'                  => new VesselResource($this->whenLoaded('vessel')),
             'position_id'             => $this->hashIdForModel($this->position_id, 'crewposition'),
-            'position_name'           => $this->whenLoaded('position', fn() => $this->position->name),
+            'position_name'           => $this->whenLoaded('position', fn() => $this->position->translated_name),
             'name'                    => $this->name,
             'document_number'         => $this->document_number ?? null,
             'email'                   => $this->email,

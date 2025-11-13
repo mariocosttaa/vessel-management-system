@@ -95,7 +95,7 @@ class CrewMemberController extends Controller
                     'id'                    => $user->id,
                     'name'                  => $user->name,
                     'email'                 => $user->email,
-                    'position'              => $user->position ? $user->position->name : null,
+                    'position'              => $user->position ? $user->position->translated_name : null,
                     'invitation_sent_at'    => $user->invitation_sent_at?->format('Y-m-d H:i:s'),
                     'days_since_invitation' => $user->invitation_sent_at ? $user->invitation_sent_at->diffInDays(now()) : null,
                     'email_send_count'      => $emailCount,
@@ -110,7 +110,12 @@ class CrewMemberController extends Controller
             'positions'          => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                     ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
-            })->select('id', 'name')->get(),
+            })->get()->map(function ($position) {
+                return [
+                    'id'   => $this->hashId($position->id, 'crewposition'),
+                    'name' => $position->translated_name,
+                ];
+            }),
             'statuses'           => [
                 'active'   => 'Active',
                 'inactive' => 'Inactive',
@@ -145,10 +150,10 @@ class CrewMemberController extends Controller
             'positions'          => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                     ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
-            })->select('id', 'name')->get()->map(function ($position) {
+            })->get()->map(function ($position) {
                 return [
                     'id'   => $this->hashId($position->id, 'crewposition'),
-                    'name' => $position->name,
+                    'name' => $position->translated_name,
                 ];
             }),
             'statuses'           => [
@@ -453,10 +458,10 @@ class CrewMemberController extends Controller
             'positions'          => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                     ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
-            })->select('id', 'name')->get()->map(function ($position) {
+            })->get()->map(function ($position) {
                 return [
                     'id'   => $this->hashId($position->id, 'crewposition'),
-                    'name' => $position->name,
+                    'name' => $position->translated_name,
                 ];
             }),
             'statuses'           => [
