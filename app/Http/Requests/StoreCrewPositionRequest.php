@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Http\Requests;
 
-use App\Actions\General\EasyHashAction;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,9 +9,7 @@ use Illuminate\Validation\Rule;
  *
  * Input fields:
  * @property string $name
- * @property string|null $description
  * @property bool $is_global
- * @property int|null $vessel_role_access_id
  *
  * Route parameters (for authorization only):
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -37,7 +33,7 @@ class StoreCrewPositionRequest extends FormRequest
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -62,7 +58,7 @@ class StoreCrewPositionRequest extends FormRequest
         $isGlobal = $this->boolean('is_global');
 
         return [
-            'name' => [
+            'name'      => [
                 'required',
                 'string',
                 'max:255',
@@ -76,13 +72,7 @@ class StoreCrewPositionRequest extends FormRequest
                         }
                     }),
             ],
-            'description' => ['nullable', 'string', 'max:1000'],
             'is_global' => ['nullable', 'boolean'],
-            'vessel_role_access_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
-            ],
         ];
     }
 
@@ -95,9 +85,8 @@ class StoreCrewPositionRequest extends FormRequest
     {
         return [
             'name.required' => 'The crew role name is required.',
-            'name.max' => 'The crew role name may not be greater than 255 characters.',
-            'name.unique' => 'A crew role with this name already exists.',
-            'description.max' => 'The description may not be greater than 1000 characters.',
+            'name.max'      => 'The crew role name may not be greater than 255 characters.',
+            'name.unique'   => 'A crew role with this name already exists.',
         ];
     }
 
@@ -106,18 +95,9 @@ class StoreCrewPositionRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $data = [];
-
-        // Unhash IDs from frontend
-        if ($this->filled('vessel_role_access_id')) {
-            $data['vessel_role_access_id'] = EasyHashAction::decode($this->vessel_role_access_id, 'vesselroleaccess-id');
-        }
-
-        $this->merge(array_merge($data, [
-            'name' => trim($this->name),
-            'description' => $this->description ? trim($this->description) : null,
+        $this->merge([
+            'name'      => trim($this->name),
             'is_global' => $this->boolean('is_global') ?? false,
-        ]));
+        ]);
     }
 }
-
