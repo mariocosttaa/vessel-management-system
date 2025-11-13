@@ -37,7 +37,7 @@ class VatProfile extends Model
      */
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transaction::class, 'vat_profile_id');
+        return $this->hasMany(Movimentation::class, 'vat_profile_id');
     }
 
     /**
