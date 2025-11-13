@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -37,6 +36,7 @@ class User extends Authenticatable
         'hire_date',
         'house_of_zeros',
         'status',
+        'administrative',
         'notes',
         'login_permitted',
         'temporary_password',
@@ -67,15 +67,16 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'date_of_birth' => 'date',
-            'hire_date' => 'date',
-            'house_of_zeros' => 'integer',
-            'login_permitted' => 'boolean',
+            'email_verified_at'         => 'datetime',
+            'password'                  => 'hashed',
+            'date_of_birth'             => 'date',
+            'hire_date'                 => 'date',
+            'house_of_zeros'            => 'integer',
+            'login_permitted'           => 'boolean',
+            'administrative'            => 'boolean',
             'vessel_admin_notification' => 'boolean',
-            'invitation_sent_at' => 'datetime',
-            'invitation_accepted_at' => 'datetime',
+            'invitation_sent_at'        => 'datetime',
+            'invitation_accepted_at'    => 'datetime',
         ];
     }
 
@@ -88,7 +89,6 @@ class User extends Authenticatable
     {
         return [];
     }
-
 
     /**
      * The vessel users that belong to the user.
@@ -104,9 +104,9 @@ class User extends Authenticatable
     public function vessels(): BelongsToMany
     {
         return $this->belongsToMany(Vessel::class, 'vessel_users')
-                    ->withPivot(['is_active', 'role'])
-                    ->withTimestamps()
-                    ->wherePivot('is_active', true);
+            ->withPivot(['is_active', 'role'])
+            ->withTimestamps()
+            ->wherePivot('is_active', true);
     }
 
     /**
@@ -123,9 +123,9 @@ class User extends Authenticatable
     public function vesselsThroughRoles(): BelongsToMany
     {
         return $this->belongsToMany(Vessel::class, 'vessel_user_roles')
-                    ->withPivot(['vessel_role_access_id', 'is_active'])
-                    ->withTimestamps()
-                    ->wherePivot('is_active', true);
+            ->withPivot(['vessel_role_access_id', 'is_active'])
+            ->withTimestamps()
+            ->wherePivot('is_active', true);
     }
 
     /**
@@ -192,7 +192,6 @@ class User extends Authenticatable
         return $this->belongsTo(CrewPosition::class, 'position_id');
     }
 
-
     /**
      * Check if user has access to a specific vessel.
      */
@@ -253,7 +252,7 @@ class User extends Authenticatable
             ->with('vesselRoleAccess')
             ->first();
 
-        if (!$vesselUserRole) {
+        if (! $vesselUserRole) {
             return false;
         }
 
@@ -272,7 +271,7 @@ class User extends Authenticatable
             ->with('vesselRoleAccess')
             ->first();
 
-        if (!$vesselUserRole) {
+        if (! $vesselUserRole) {
             return false;
         }
 
@@ -290,7 +289,7 @@ class User extends Authenticatable
             ->with('vesselRoleAccess')
             ->first();
 
-        if (!$vesselUserRole) {
+        if (! $vesselUserRole) {
             return false;
         }
 
@@ -322,7 +321,7 @@ class User extends Authenticatable
             ->with('vesselRoleAccess')
             ->first();
 
-        if (!$vesselUserRole) {
+        if (! $vesselUserRole) {
             return false;
         }
 
@@ -351,7 +350,7 @@ class User extends Authenticatable
      */
     public function canBeCrewMemberOnVessel(int $vesselId): bool
     {
-        return $this->hasAccessToVessel($vesselId) && !$this->isCrewMemberOnVessel($vesselId);
+        return $this->hasAccessToVessel($vesselId) && ! $this->isCrewMemberOnVessel($vesselId);
     }
 
     /**
@@ -359,7 +358,7 @@ class User extends Authenticatable
      */
     public function isCrewMember(): bool
     {
-        return !is_null($this->vessel_id) && !is_null($this->position_id);
+        return ! is_null($this->vessel_id) && ! is_null($this->position_id);
     }
 
     /**
@@ -407,7 +406,7 @@ class User extends Authenticatable
     public function enableSystemAccess(): void
     {
         $this->update([
-            'login_permitted' => true,
+            'login_permitted'    => true,
             'temporary_password' => null,
         ]);
     }
@@ -418,7 +417,7 @@ class User extends Authenticatable
     public function disableSystemAccess(): void
     {
         $this->update([
-            'login_permitted' => false,
+            'login_permitted'    => false,
             'temporary_password' => $this->generateTemporaryPassword(),
         ]);
     }
@@ -439,13 +438,13 @@ class User extends Authenticatable
     public function hasHighVesselAccess(int $vesselId): bool
     {
         $userRole = $this->getRoleForVessel($vesselId);
-        if (!$userRole) {
+        if (! $userRole) {
             return false;
         }
 
         // Get permissions from config based on role display name
         $allPermissions = config('permissions', []);
-        $permissions = $allPermissions[$userRole] ?? $allPermissions['default'] ?? [];
+        $permissions    = $allPermissions[$userRole] ?? $allPermissions['default'] ?? [];
 
         // Check if user has any high-level permissions (transactions, mareas, reports)
         $highLevelPermissions = [
