@@ -69,6 +69,7 @@ const form = useForm({
     currency: 'EUR',
     payment_frequency: 'monthly',
     status: 'active',
+    administrative: false,
     notes: '',
     create_without_email: false, // Allow creating without email/account access
 });
@@ -144,26 +145,26 @@ const validateStep = (step: string) => {
         return true;
     } else if (step === 'email') {
         if (!form.email?.trim()) {
-            errors.push('Email is required');
+            errors.push(t('Email is required'));
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-            errors.push('Please enter a valid email address');
+            errors.push(t('Please enter a valid email address'));
         }
     } else if (step === 'crew-info') {
-        if (!form.name?.trim()) errors.push('Name is required');
-        if (!form.position_id) errors.push('Position is required');
-        if (!form.hire_date) errors.push('Hire date is required');
+        if (!form.name?.trim()) errors.push(t('Name is required'));
+        if (!form.position_id) errors.push(t('Position is required'));
+        if (!form.hire_date) errors.push(t('Hire date is required'));
     } else if (step === 'salary') {
         // Only validate salary fields if salary is not skipped
         if (!form.skip_salary) {
-            if (!form.compensation_type) errors.push('Compensation type is required');
-            if (!form.currency) errors.push('Currency is required');
+            if (!form.compensation_type) errors.push(t('Compensation type is required'));
+            if (!form.currency) errors.push(t('Currency is required'));
             if (form.compensation_type === 'fixed' && !form.fixed_amount) {
-                errors.push('Fixed amount is required');
+                errors.push(t('Fixed amount is required'));
             }
             if (form.compensation_type === 'percentage' && !form.percentage) {
-                errors.push('Percentage is required');
+                errors.push(t('Percentage is required'));
             }
-            if (!form.payment_frequency) errors.push('Payment frequency is required');
+            if (!form.payment_frequency) errors.push(t('Payment frequency is required'));
         }
     }
 
@@ -354,6 +355,7 @@ const resetForm = () => {
     form.currency = 'EUR';
     form.payment_frequency = 'monthly';
     form.status = 'active';
+    form.administrative = false;
     form.notes = '';
     form.create_without_email = false;
 
@@ -876,6 +878,24 @@ const handleClose = () => {
                             <InputError :message="form.errors.hire_date" class="mt-1" />
                         </div>
 
+                        <!-- Administrative -->
+                        <div class="md:col-span-2">
+                            <div class="flex items-center space-x-2">
+                                <input
+                                    id="administrative"
+                                    v-model="form.administrative"
+                                    type="checkbox"
+                                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                />
+                                <Label for="administrative" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                    {{ t('Administrative Member') }}
+                                </Label>
+                            </div>
+                            <p class="text-sm text-muted-foreground mt-1">
+                                {{ t('Check this if this member is an administrative member rather than a crew member') }}
+                            </p>
+                            <InputError :message="form.errors.administrative" class="mt-1" />
+                        </div>
 
                         <!-- Notes -->
                         <div class="md:col-span-2">

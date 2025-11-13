@@ -32,6 +32,7 @@ interface CrewMember {
     };
     payment_frequency: string;
     status: string;
+    administrative?: boolean;
     notes?: string;
     login_permitted: boolean;
     has_existing_account?: boolean;
@@ -107,6 +108,7 @@ const form = useForm({
     currency: 'EUR',
     payment_frequency: 'monthly',
     status: 'active',
+    administrative: false,
     notes: '',
     login_permitted: false,
 });
@@ -252,19 +254,29 @@ const isStepValid = (step: string) => {
     return stepValidation.value[step]?.valid || false;
 };
 
-// Navigation functions
+// Navigation functions - allow free navigation between steps
 const goToStep = (stepIndex: number) => {
     if (stepIndex >= 0 && stepIndex < steps.value.length) {
         currentStep.value = stepIndex;
+        // Validate the new step after navigation (if user has interacted)
+        nextTick(() => {
+            if (hasInteracted.value) {
+                validateStep(activeTab.value);
+            }
+        });
     }
 };
 
-// Next step
+// Next step - allow navigation without validation (users can save later)
 const nextStep = () => {
-    hasInteracted.value = true;
-    const currentStepValid = validateStep(activeTab.value);
-    if (currentStepValid && currentStep.value < steps.value.length - 1) {
+    if (currentStep.value < steps.value.length - 1) {
         currentStep.value++;
+        // Validate the new step after navigation
+        nextTick(() => {
+            if (hasInteracted.value) {
+                validateStep(activeTab.value);
+            }
+        });
     }
 };
 
@@ -421,6 +433,7 @@ const resetForm = () => {
             form.skip_salary = true;
         }
         form.status = props.crewMember.status;
+        form.administrative = props.crewMember.administrative || false;
         form.notes = props.crewMember.notes || '';
         form.login_permitted = props.crewMember.login_permitted || false;
     }
@@ -453,7 +466,8 @@ const getCurrentVesselId = () => {
     return vesselMatch ? vesselMatch[1] : null;
 };
 
-const handleSave = () => {
+// Save current step only
+const saveCurrentStep = () => {
     // Prevent double submission
     if (form.processing) {
         return;
@@ -462,36 +476,18 @@ const handleSave = () => {
     if (props.crewMember) {
         hasInteracted.value = true;
 
-        // Validate all steps before saving
-        let isValid = true;
-        let lastInvalidStep = '';
+        // Validate only the current step
+        const currentStepValid = validateStep(activeTab.value);
 
-        for (const step of steps.value) {
-            if (!validateStep(step)) {
-                isValid = false;
-                lastInvalidStep = step;
-                break;
-            }
-        }
-
-        if (!isValid) {
-            // Navigate to the first invalid step
-            const stepIndex = steps.value.indexOf(lastInvalidStep);
-            if (stepIndex !== -1) {
-                currentStep.value = stepIndex;
-            }
+        if (!currentStepValid) {
             return;
         }
 
         // If enabling access and email changed, ensure email was checked
-        if (form.login_permitted && emailChanged.value && !emailChecked.value) {
+        if (form.login_permitted && activeTab.value === 'system-access' && emailChanged.value && !emailChecked.value) {
             // Check email now
             checkEmailExists().then(() => {
                 if (!validateStep('system-access')) {
-                    const systemAccessIndex = steps.value.indexOf('system-access');
-                    if (systemAccessIndex !== -1) {
-                        currentStep.value = systemAccessIndex;
-                    }
                     return;
                 }
                 // Continue with save
@@ -504,6 +500,11 @@ const handleSave = () => {
     }
 };
 
+// Save all steps (original behavior - kept for final step)
+const handleSave = () => {
+    saveCurrentStep();
+};
+
 const performSave = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
@@ -511,7 +512,7 @@ const performSave = () => {
         return;
     }
 
-    // Prepare form data
+    // Prepare form data with all current form values
     const formData = { ...form.data() };
 
     // Remove salary fields if salary is skipped
@@ -525,23 +526,24 @@ const performSave = () => {
 
     // Only include email if it changed or if enabling access
     if (!emailChanged.value && form.email === originalEmail.value) {
-        // Email hasn't changed, don't send it
-        delete (formData as any).email;
+        // Email hasn't changed, don't send it (unless we're on system-access step and login_permitted is true)
+        if (activeTab.value !== 'system-access' || !form.login_permitted) {
+            delete (formData as any).email;
+        }
     }
-
-    // Close modal optimistically - will reopen if there's an error
-    emit('update:open', false);
 
     form.transform(() => formData).put(crewMembers.update.url({ vessel: vesselId, crewMember: props.crewMember!.id }), {
         preserveScroll: false,
         onSuccess: () => {
-            // Reset form on success
-            resetForm();
+            // Don't reset form or close modal - just emit saved event to refresh data
             emit('saved');
+            // Mark current step as saved
+            stepValidation.value[activeTab.value] = {
+                valid: true,
+                errors: []
+            };
         },
         onError: (errors) => {
-            // Reopen modal on error and keep form data for user to fix
-            emit('update:open', true);
             console.error('Update crew member errors:', errors);
         },
     });
@@ -716,6 +718,25 @@ const handleClose = () => {
                             <div v-if="getStepErrors('crew-info').some(e => e.includes('Hire date'))" class="text-sm text-destructive mt-1">
                                 {{ getStepErrors('crew-info').find(e => e.includes('Hire date')) }}
                             </div>
+                        </div>
+
+                        <!-- Administrative -->
+                        <div class="md:col-span-2">
+                            <div class="flex items-center space-x-2">
+                                <input
+                                    id="administrative"
+                                    v-model="form.administrative"
+                                    type="checkbox"
+                                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                />
+                                <Label for="administrative" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                    {{ t('Administrative Member') }}
+                                </Label>
+                            </div>
+                            <p class="text-sm text-muted-foreground mt-1">
+                                {{ t('Check this if this member is an administrative member rather than a crew member') }}
+                            </p>
+                            <InputError :message="form.errors.administrative" class="mt-1" />
                         </div>
 
                         <!-- Position -->
@@ -1029,23 +1050,26 @@ const handleClose = () => {
                     >
                         {{ t('Cancel') }}
                     </Button>
+                    <!-- Save button for current step -->
+                    <Button
+                        type="button"
+                        @click="saveCurrentStep"
+                        :disabled="form.processing || (hasInteracted && !isStepValid(activeTab))"
+                        class="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
+                        {{ form.processing ? t('Saving...') : t('Save') }}
+                    </Button>
+                    <!-- Next button (only show if not on last step) -->
                     <Button
                         v-if="currentStep < steps.length - 1"
                         type="button"
+                        variant="outline"
                         @click="nextStep"
-                        :disabled="form.processing || (hasInteracted && !isStepValid(activeTab))"
+                        :disabled="form.processing"
                     >
                         {{ t('Next') }}
                         <Icon name="arrow-right" class="w-4 h-4 ml-2" />
-                    </Button>
-                    <Button
-                        v-if="currentStep === steps.length - 1"
-                        type="button"
-                        @click="handleSave"
-                        :disabled="form.processing || !isStepValid(activeTab)"
-                    >
-                        <Icon v-if="form.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
-                        {{ form.processing ? t('Updating...') : t('Update Crew Member') }}
                     </Button>
                 </div>
             </div>
