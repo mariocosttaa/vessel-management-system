@@ -668,7 +668,7 @@ const clearFilters = () => {
                             <Icon name="calendar" class="w-4 h-4 mr-2" />
                             {{ t('History') }}
                         </Link>
-                        <div v-if="canCreate('transactions')" class="flex gap-3">
+                        <div v-if="canCreate('movimentations')" class="flex gap-3">
                             <button
                                 @click="openCreateAddModal"
                                 class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
