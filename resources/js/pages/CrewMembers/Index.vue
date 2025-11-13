@@ -60,6 +60,11 @@ interface CrewPosition {
 }
 
 interface Props {
+    administrativeMembers?: {
+        data: CrewMember[];
+        links: any[];
+        meta: any;
+    };
     crewMembers: {
         data: CrewMember[];
         links: any[];
@@ -98,8 +103,32 @@ const props = defineProps<Props>();
 const { can } = usePermissions();
 const { t } = useI18n();
 
-// Computed property for crew members data
+// Active tab state
+const activeTab = ref<'administrative' | 'crew'>('crew');
+
+// Computed properties for members data
+const administrativeMembersData = computed(() => props.administrativeMembers?.data || []);
 const crewMembersData = computed(() => props.crewMembers?.data || []);
+
+// Computed property for current tab data
+const currentTabData = computed(() => {
+    return activeTab.value === 'administrative' ? administrativeMembersData.value : crewMembersData.value;
+});
+
+// Computed property for current tab pagination
+const currentTabPagination = computed(() => {
+    return activeTab.value === 'administrative' ? props.administrativeMembers : props.crewMembers;
+});
+
+// Computed property for administrative members count
+const administrativeMembersCount = computed(() => {
+    return props.administrativeMembers?.meta?.total || 0;
+});
+
+// Computed property for crew members count
+const crewMembersCount = computed(() => {
+    return props.crewMembers?.meta?.total || 0;
+});
 
 const search = ref(props.filters.search || '');
 const statusFilter = ref(props.filters.status || '');
@@ -164,7 +193,7 @@ const actions = computed(() => {
 
     if (can('edit', 'crew')) {
         availableActions.push({
-            label: t('Edit Crew Member'),
+            label: t('Edit Member'),
             icon: 'edit',
             onClick: (crewMember: CrewMember) => openEditModal(crewMember),
         });
@@ -172,7 +201,7 @@ const actions = computed(() => {
 
     if (can('delete', 'crew')) {
         availableActions.push({
-            label: t('Delete Crew Member'),
+            label: t('Delete Member'),
             icon: 'trash-2',
             variant: 'destructive' as const,
             onClick: (crewMember: CrewMember) => deleteCrewMember(crewMember),
@@ -367,16 +396,16 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-    <Head :title="t('Crew Members')" />
+    <Head :title="t('Members')" />
 
-    <VesselLayout :breadcrumbs="[{ title: t('Crew Members'), href: `/panel/${getCurrentVesselId()}/crew-members` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Members'), href: `/panel/${getCurrentVesselId()}/crew-members` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Crew Members') }}</h1>
-                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage your crew members and their information') }}</p>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Members') }}</h1>
+                        <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage your administrative and crew members') }}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <PermissionGate permission="crew.create">
@@ -385,7 +414,7 @@ const formatDate = (dateString: string) => {
                                 class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
                             >
                                 <Icon name="plus" class="w-4 h-4 mr-2" />
-                                {{ t('Add Crew Member') }}
+                                {{ t('Add Member') }}
                             </button>
                         </PermissionGate>
                     </div>
@@ -402,7 +431,7 @@ const formatDate = (dateString: string) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                :placeholder="t('Search crew members...')"
+                                :placeholder="t('Search members...')"
                                 class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
                             />
                         </div>
@@ -527,52 +556,163 @@ const formatDate = (dateString: string) => {
                 </div>
             </div>
 
-            <!-- Data Table -->
-            <DataTable
-                :columns="columns"
-                :data="crewMembersData"
-                :clickable="true"
-                :on-row-click="openShowModal"
-                :actions="actions"
-                :sort-field="sortField"
-                :sort-direction="sortDirection"
-                :on-sort="handleSort"
-                :loading="false"
-                :empty-message="t('No crew members found')"
-            >
-                <!-- Custom cell for crew member name -->
-                <template #cell-name="{ item }">
-                    <div>
-                        <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            {{ item.name }}
-                        </div>
-                        <div v-if="item.email" class="text-sm text-muted-foreground dark:text-muted-foreground">
-                            {{ item.email }}
-                        </div>
+            <!-- Members Tabs -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
+                <!-- Tab Navigation -->
+                <div class="border-b border-sidebar-border/70 dark:border-sidebar-border">
+                    <nav class="flex gap-1 p-4">
+                        <button
+                            @click="activeTab = 'crew'"
+                            :class="[
+                                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+                                activeTab === 'crew'
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
+                            ]"
+                        >
+                            <Icon name="users" class="h-4 w-4" />
+                            {{ t('Crew Members') }}
+                            <span
+                                v-if="crewMembersCount > 0"
+                                :class="[
+                                    'ml-2 px-2 py-0.5 text-xs font-medium rounded-full',
+                                    activeTab === 'crew'
+                                        ? 'bg-primary/20 text-primary'
+                                        : 'bg-muted text-muted-foreground'
+                                ]"
+                            >
+                                {{ crewMembersCount }}
+                            </span>
+                        </button>
+                        <button
+                            @click="activeTab = 'administrative'"
+                            :class="[
+                                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+                                activeTab === 'administrative'
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
+                            ]"
+                        >
+                            <Icon name="user-cog" class="h-4 w-4" />
+                            {{ t('Administrative Members') }}
+                            <span
+                                v-if="administrativeMembersCount > 0"
+                                :class="[
+                                    'ml-2 px-2 py-0.5 text-xs font-medium rounded-full',
+                                    activeTab === 'administrative'
+                                        ? 'bg-primary/20 text-primary'
+                                        : 'bg-muted text-muted-foreground'
+                                ]"
+                            >
+                                {{ administrativeMembersCount }}
+                            </span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="p-4">
+                    <!-- Crew Members Tab -->
+                    <div v-show="activeTab === 'crew'">
+                        <DataTable
+                            :columns="columns"
+                            :data="crewMembersData"
+                            :clickable="true"
+                            :on-row-click="openShowModal"
+                            :actions="actions"
+                            :sort-field="sortField"
+                            :sort-direction="sortDirection"
+                            :on-sort="handleSort"
+                            :loading="false"
+                            :empty-message="t('No crew members found')"
+                        >
+                            <!-- Custom cell for crew member name -->
+                            <template #cell-name="{ item }">
+                                <div>
+                                    <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ item.name }}
+                                    </div>
+                                    <div v-if="item.email" class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ item.email }}
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Custom cell for status -->
+                            <template #cell-status_label="{ item }">
+                                <span :class="getStatusBadgeClass(item.status)">
+                                    {{ item.status_label }}
+                                </span>
+                            </template>
+
+                            <!-- Custom cell for system access -->
+                            <template #cell-login_permitted="{ item }">
+                                <span :class="getSystemAccessBadgeClass(item.login_permitted)">
+                                    {{ item.login_permitted ? t('Yes') : t('No') }}
+                                </span>
+                            </template>
+                        </DataTable>
+
+                        <!-- Pagination -->
+                        <Pagination
+                            v-if="props.crewMembers?.links && props.crewMembers.links.length > 3"
+                            :links="props.crewMembers.links"
+                            :meta="props.crewMembers"
+                            class="mt-4"
+                        />
                     </div>
-                </template>
 
-                <!-- Custom cell for status -->
-                <template #cell-status_label="{ item }">
-                    <span :class="getStatusBadgeClass(item.status)">
-                        {{ item.status_label }}
-                    </span>
-                </template>
+                    <!-- Administrative Members Tab -->
+                    <div v-show="activeTab === 'administrative'">
+                        <DataTable
+                            :columns="columns"
+                            :data="administrativeMembersData"
+                            :clickable="true"
+                            :on-row-click="openShowModal"
+                            :actions="actions"
+                            :sort-field="sortField"
+                            :sort-direction="sortDirection"
+                            :on-sort="handleSort"
+                            :loading="false"
+                            :empty-message="t('No administrative members found')"
+                        >
+                            <!-- Custom cell for member name -->
+                            <template #cell-name="{ item }">
+                                <div>
+                                    <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                        {{ item.name }}
+                                    </div>
+                                    <div v-if="item.email" class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                        {{ item.email }}
+                                    </div>
+                                </div>
+                            </template>
 
-                <!-- Custom cell for system access -->
-                <template #cell-login_permitted="{ item }">
-                    <span :class="getSystemAccessBadgeClass(item.login_permitted)">
-                        {{ item.login_permitted ? t('Yes') : t('No') }}
-                    </span>
-                </template>
-            </DataTable>
+                            <!-- Custom cell for status -->
+                            <template #cell-status_label="{ item }">
+                                <span :class="getStatusBadgeClass(item.status)">
+                                    {{ item.status_label }}
+                                </span>
+                            </template>
 
-            <!-- Pagination -->
-            <Pagination
-                v-if="crewMembers?.links && crewMembers.links.length > 3"
-                :links="crewMembers.links"
-                :meta="crewMembers"
-            />
+                            <!-- Custom cell for system access -->
+                            <template #cell-login_permitted="{ item }">
+                                <span :class="getSystemAccessBadgeClass(item.login_permitted)">
+                                    {{ item.login_permitted ? t('Yes') : t('No') }}
+                                </span>
+                            </template>
+                        </DataTable>
+
+                        <!-- Pagination -->
+                        <Pagination
+                            v-if="props.administrativeMembers?.links && props.administrativeMembers.links.length > 3"
+                            :links="props.administrativeMembers.links"
+                            :meta="props.administrativeMembers"
+                            class="mt-4"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Crew Member Modals -->
@@ -604,10 +744,10 @@ const formatDate = (dateString: string) => {
         <!-- Confirmation Dialog for Delete -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
-            :title="t('Delete Crew Member')"
+            :title="t('Delete Member')"
             :description="t('This action cannot be undone.')"
-            :message="`${t('Are you sure you want to delete the crew member')} '${crewMemberToDelete?.name}'? ${t('This will permanently remove the crew member and all their data')}.`"
-            :confirm-text="t('Delete Crew Member')"
+            :message="`${t('Are you sure you want to delete the member')} '${crewMemberToDelete?.name}'? ${t('This will permanently remove the member and all their data')}.`"
+            :confirm-text="t('Delete Member')"
             :cancel-text="t('Cancel')"
             variant="destructive"
             type="danger"
