@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Requests;
 
 use App\Models\Vessel;
@@ -35,21 +34,43 @@ class UpdateVesselGeneralRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter
-        $vessel = $this->route('vessel');
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from route parameter
+        $vessel = $this->route('vessel');
+        if (! $vessel) {
+            return false;
+        }
 
-        // Check if user has permission to manage vessel settings
-        // Only administrators and supervisors can manage settings
-        return $user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']);
+        // Handle both route model binding (object) and hashed ID (string)
+        $vesselIdInt = null;
+        if (is_object($vessel)) {
+            $vesselIdInt = $vessel->id;
+        } elseif (is_numeric($vessel)) {
+            $vesselIdInt = (int) $vessel;
+        } else {
+            // Decode hashed vessel ID
+            $decoded     = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $vesselIdInt = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            if (! $vesselIdInt) {
+                return false;
+            }
+        }
+
+        if (! $user->hasAccessToVessel($vesselIdInt)) {
+            return false;
+        }
+
+        // Check settings.access permission from config
+        $userRole    = $user->getRoleForVessel($vesselIdInt);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+        return $permissions['settings.access'] ?? false;
     }
 
     /**
@@ -60,23 +81,34 @@ class UpdateVesselGeneralRequest extends FormRequest
     public function rules(): array
     {
         $vessel = $this->route('vessel');
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+
+        // Handle both route model binding (object) and hashed ID (string)
+        $vesselIdInt = null;
+        if (is_object($vessel)) {
+            $vesselIdInt = $vessel->id;
+        } elseif (is_numeric($vessel)) {
+            $vesselIdInt = (int) $vessel;
+        } else {
+            // Decode hashed vessel ID
+            $decoded     = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $vesselIdInt = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+        }
 
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name'                => ['required', 'string', 'max:255'],
             'registration_number' => [
                 'required',
                 'string',
                 'max:100',
-                Rule::unique(Vessel::class, 'registration_number')->ignore($vesselId),
+                Rule::unique(Vessel::class, 'registration_number')->ignore($vesselIdInt),
             ],
-            'vessel_type' => ['required', 'string', 'max:100'],
-            'capacity' => ['nullable', 'integer', 'min:0'],
-            'year_built' => ['nullable', 'integer', 'min:1800', 'max:' . (date('Y') + 1)],
-            'status' => ['required', 'string', Rule::in(['active', 'suspended', 'maintenance'])],
-            'notes' => ['nullable', 'string'],
-            'logo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
-            'remove_logo' => ['nullable', 'boolean'],
+            'vessel_type'         => ['required', 'string', 'max:100'],
+            'capacity'            => ['nullable', 'integer', 'min:0'],
+            'year_built'          => ['nullable', 'integer', 'min:1800', 'max:' . (date('Y') + 1)],
+            'status'              => ['required', 'string', Rule::in(['active', 'suspended', 'maintenance'])],
+            'notes'               => ['nullable', 'string'],
+            'logo'                => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
+            'remove_logo'         => ['nullable', 'boolean'],
         ];
     }
 
@@ -88,18 +120,17 @@ class UpdateVesselGeneralRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'The vessel name is required.',
+            'name.required'                => 'The vessel name is required.',
             'registration_number.required' => 'The registration number is required.',
-            'registration_number.unique' => 'This registration number is already in use.',
-            'vessel_type.required' => 'The vessel type is required.',
-            'capacity.integer' => 'The capacity must be a number.',
-            'capacity.min' => 'The capacity must be at least 0.',
-            'year_built.integer' => 'The year built must be a valid year.',
-            'year_built.min' => 'The year built must be after 1800.',
-            'year_built.max' => 'The year built cannot be in the future.',
-            'status.required' => 'The status is required.',
-            'status.in' => 'The status must be active, suspended, or maintenance.',
+            'registration_number.unique'   => 'This registration number is already in use.',
+            'vessel_type.required'         => 'The vessel type is required.',
+            'capacity.integer'             => 'The capacity must be a number.',
+            'capacity.min'                 => 'The capacity must be at least 0.',
+            'year_built.integer'           => 'The year built must be a valid year.',
+            'year_built.min'               => 'The year built must be after 1800.',
+            'year_built.max'               => 'The year built cannot be in the future.',
+            'status.required'              => 'The status is required.',
+            'status.in'                    => 'The status must be active, suspended, or maintenance.',
         ];
     }
 }
-

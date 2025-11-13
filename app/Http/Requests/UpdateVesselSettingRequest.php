@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Requests;
 
 use App\Models\Country;
@@ -33,21 +32,43 @@ class UpdateVesselSettingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter
-        $vessel = $this->route('vessel');
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from route parameter
+        $vessel = $this->route('vessel');
+        if (! $vessel) {
+            return false;
+        }
 
-        // Check if user has permission to manage vessel settings
-        // Only administrators and supervisors can manage settings
-        return $user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor']);
+        // Handle both route model binding (object) and hashed ID (string)
+        $vesselIdInt = null;
+        if (is_object($vessel)) {
+            $vesselIdInt = $vessel->id;
+        } elseif (is_numeric($vessel)) {
+            $vesselIdInt = (int) $vessel;
+        } else {
+            // Decode hashed vessel ID
+            $decoded     = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $vesselIdInt = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            if (! $vesselIdInt) {
+                return false;
+            }
+        }
+
+        if (! $user->hasAccessToVessel($vesselIdInt)) {
+            return false;
+        }
+
+        // Check settings.access permission from config
+        $userRole    = $user->getRoleForVessel($vesselIdInt);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+
+        return $permissions['settings.access'] ?? false;
     }
 
     /**
@@ -58,8 +79,8 @@ class UpdateVesselSettingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'country_code' => ['nullable', 'string', 'size:2', Rule::exists(Country::class, 'code')],
-            'currency_code' => ['nullable', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
+            'country_code'   => ['nullable', 'string', 'size:2', Rule::exists(Country::class, 'code')],
+            'currency_code'  => ['nullable', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
             'vat_profile_id' => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
         ];
     }
@@ -72,8 +93,8 @@ class UpdateVesselSettingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'country_code.exists' => 'The selected country is invalid.',
-            'currency_code.exists' => 'The selected currency is invalid.',
+            'country_code.exists'   => 'The selected country is invalid.',
+            'currency_code.exists'  => 'The selected currency is invalid.',
             'vat_profile_id.exists' => 'The selected VAT profile is invalid.',
         ];
     }
