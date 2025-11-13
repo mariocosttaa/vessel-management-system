@@ -2,21 +2,21 @@
 
 return [
     // Email Subjects
-    'Transactions Created'                                                                                                                                                               => 'Transactions Created',
-    'Transactions Deleted'                                                                                                                                                               => 'Transactions Deleted',
+    'Transactions Created'                                                                                                                                                               => 'Movimentations Created',
+    'Transactions Deleted'                                                                                                                                                               => 'Movimentations Deleted',
     'Mareas Started'                                                                                                                                                                     => 'Mareas Started',
     'Mareas Completed'                                                                                                                                                                   => 'Mareas Completed',
     'System Notifications'                                                                                                                                                               => 'System Notifications',
-    'Transaction Created'                                                                                                                                                                => 'Transaction Created',
-    'Transaction Deleted'                                                                                                                                                                => 'Transaction Deleted',
+    'Transaction Created'                                                                                                                                                                => 'Movimentation Created',
+    'Transaction Deleted'                                                                                                                                                                => 'Movimentation Deleted',
     'Marea Started'                                                                                                                                                                      => 'Marea Started',
     'Marea Completed'                                                                                                                                                                    => 'Marea Completed',
 
     // Email Content
     'Hello :name'                                                                                                                                                                        => 'Hello :name',
-    'New transactions have been created for vessel :vessel'                                                                                                                              => 'New transactions have been created for vessel :vessel',
-    'A new transaction has been created for vessel :vessel'                                                                                                                              => 'A new transaction has been created for vessel :vessel',
-    'Transactions have been deleted from vessel :vessel'                                                                                                                                 => 'Transactions have been deleted from vessel :vessel',
+    'New transactions have been created for vessel :vessel'                                                                                                                              => 'New movimentations have been created for vessel :vessel',
+    'A new transaction has been created for vessel :vessel'                                                                                                                              => 'A new movimentation has been created for vessel :vessel',
+    'Transactions have been deleted from vessel :vessel'                                                                                                                                 => 'Movimentations have been deleted from vessel :vessel',
     'New marea has been started for vessel :vessel'                                                                                                                                      => 'New marea has been started for vessel :vessel',
     'Marea has been completed for vessel :vessel'                                                                                                                                        => 'Marea has been completed for vessel :vessel',
     'View Details'                                                                                                                                                                       => 'View Details',
@@ -30,8 +30,8 @@ return [
     'Description'                                                                                                                                                                        => 'Description',
     'Income'                                                                                                                                                                             => 'Income',
     'Expense'                                                                                                                                                                            => 'Expense',
-    'View Transactions'                                                                                                                                                                  => 'View Transactions',
-    'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.'                                                                         => 'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.',
+    'View Transactions'                                                                                                                                                                  => 'View Movimentations',
+    'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.'                                                                         => 'These notifications have been grouped to avoid spam. The last :count movimentations created are shown above.',
 
     // Crew Member Invitations
     'Crew Member Invitation'                                                                                                                                                             => 'Crew Member Invitation',
