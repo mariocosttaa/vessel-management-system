@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use App\Actions\General\EasyHashAction;
@@ -29,7 +28,7 @@ class Vessel extends Model
 
     protected $casts = [
         'year_built' => 'integer',
-        'capacity' => 'integer',
+        'capacity'   => 'integer',
     ];
 
     /**
@@ -46,9 +45,9 @@ class Vessel extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'vessel_users')
-                    ->withPivot(['is_active', 'role'])
-                    ->withTimestamps()
-                    ->wherePivot('is_active', true);
+            ->withPivot(['is_active', 'role'])
+            ->withTimestamps()
+            ->wherePivot('is_active', true);
     }
 
     /**
@@ -65,9 +64,9 @@ class Vessel extends Model
     public function usersThroughRoles(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'vessel_user_roles')
-                    ->withPivot(['vessel_role_access_id', 'is_active'])
-                    ->withTimestamps()
-                    ->wherePivot('is_active', true);
+            ->withPivot(['vessel_role_access_id', 'is_active'])
+            ->withTimestamps()
+            ->wherePivot('is_active', true);
     }
 
     /**
@@ -103,11 +102,19 @@ class Vessel extends Model
     }
 
     /**
-     * Get the transactions for the vessel.
+     * Get the movimentations for the vessel.
+     */
+    public function movimentations(): HasMany
+    {
+        return $this->hasMany(Movimentation::class);
+    }
+
+    /**
+     * Get the transactions for the vessel (alias for backward compatibility).
      */
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transaction::class);
+        return $this->movimentations();
     }
 
     /**
@@ -123,9 +130,8 @@ class Vessel extends Model
      */
     public function recurringTransactions(): HasMany
     {
-        return $this->hasMany(RecurringTransaction::class);
+        return $this->hasMany(RecurringMovimentation::class);
     }
-
 
     /**
      * Get the settings for the vessel.
@@ -189,7 +195,7 @@ class Vessel extends Model
      */
     public function getLogoUrlAttribute(): ?string
     {
-        if (!$this->logo) {
+        if (! $this->logo) {
             return null;
         }
 
@@ -207,12 +213,12 @@ class Vessel extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
-            'active' => 'Active',
-            'suspended' => 'Suspended',
+        return match ($this->status) {
+            'active'      => 'Active',
+            'suspended'   => 'Suspended',
             'maintenance' => 'Maintenance',
-            'inactive' => 'Inactive',
-            default => ucfirst($this->status),
+            'inactive'    => 'Inactive',
+            default       => ucfirst($this->status),
         };
     }
 
