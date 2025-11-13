@@ -83,11 +83,11 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3'
 import { Upload, LoaderCircle, File } from 'lucide-vue-next'
-import Icon from '@/Components/Icon.vue'
-import InputError from '@/Components/InputError.vue'
-import { Button } from '@/Components/ui/button'
-import { Input } from '@/Components/ui/input'
-import { Label } from '@/Components/ui/label'
+import Icon from '@/components/Icon.vue'
+import InputError from '@/components/InputError.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { ref } from 'vue'
 
 interface Props {
