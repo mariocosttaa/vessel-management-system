@@ -13,7 +13,7 @@ abstract class BaseResource extends JsonResource
      */
     protected function getModelName(): string
     {
-        // Get class name without namespace (e.g., 'TransactionResource' -> 'Transaction')
+        // Get class name without namespace (e.g., 'MovimentationResource' -> 'Transaction')
         $className = class_basename(static::class);
 
         // Remove 'Resource' suffix and convert to lowercase
