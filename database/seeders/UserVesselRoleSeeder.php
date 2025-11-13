@@ -116,10 +116,10 @@ class UserVesselRoleSeeder extends Seeder
 
             // Assign vessel_id and position_id to user so they appear in crew members list
             $user->update([
-                'vessel_id'     => $vessel->id,
-                'position_id'   => $assignment['position']->id,
-                'status'        => 'active',
-                'hire_date'     => now(),
+                'vessel_id'      => $vessel->id,
+                'position_id'    => $assignment['position']->id,
+                'status'         => 'active',
+                'hire_date'      => now(),
                 'administrative' => true, // Set all seeded users as administrative members
             ]);
         }
