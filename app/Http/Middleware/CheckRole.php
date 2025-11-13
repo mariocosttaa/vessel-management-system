@@ -62,7 +62,7 @@ class CheckRole
                 break; // User has access through legacy role mapping
             }
 
-            // Handle permission-based checks (e.g., 'transactions.create')
+            // Handle permission-based checks (e.g., 'movimentations.create')
             if (isset($permissions[$requirement]) && $permissions[$requirement] === true) {
                 $hasAccess = true;
                 break; // User has this permission

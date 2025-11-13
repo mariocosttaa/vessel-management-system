@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Pdf;
 
 use App\Models\Movimentation;
 use App\Models\Vessel;
+use App\Actions\MoneyAction;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -36,14 +38,14 @@ class MovimentationPdf
         $transactions->load('category');
 
         return PdfService::generate('pdf.reports.transaction-report', [
-            'vessel'       => $vessel,
+            'vessel' => $vessel,
             'transactions' => $transactions,
-            'summary'      => $summary,
-            'period'       => $period,
-            'startDate'    => $startDate,
-            'endDate'      => $endDate,
-            'title'        => $title,
-            'subtitle'     => $subtitle,
+            'summary' => $summary,
+            'period' => $period,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'title' => $title,
+            'subtitle' => $subtitle,
             'enableColors' => $enableColors,
         ]);
     }
@@ -67,10 +69,10 @@ class MovimentationPdf
             $period = 'All Transactions';
         } else {
             // Get filter parameters
-            $month     = $request->get('month', now()->month);
-            $year      = $request->get('year', now()->year);
+            $month = $request->get('month', now()->month);
+            $year = $request->get('year', now()->year);
             $startDate = $request->get('start_date');
-            $endDate   = $request->get('end_date');
+            $endDate = $request->get('end_date');
 
             // Build query
             $query = Movimentation::query()
@@ -84,46 +86,46 @@ class MovimentationPdf
                 $period = date('d/m/Y', strtotime($startDate)) . ' - ' . date('d/m/Y', strtotime($endDate));
             } else {
                 $query->where('transaction_year', $year)
-                    ->where('transaction_month', $month);
+                      ->where('transaction_month', $month);
                 $period = date('F Y', mktime(0, 0, 0, $month, 1, $year));
             }
 
             $transactions = $query->get();
 
             // Calculate start and end dates for the month
-            if (! $startDate || ! $endDate) {
+            if (!$startDate || !$endDate) {
                 $startDate = date('Y-m-d', mktime(0, 0, 0, $month, 1, $year));
-                $endDate   = date('Y-m-t', mktime(0, 0, 0, $month, 1, $year)); // Last day of month
+                $endDate = date('Y-m-t', mktime(0, 0, 0, $month, 1, $year)); // Last day of month
             }
         }
 
         // Calculate summary
-        $totalIncome   = $transactions->where('type', 'income')->sum('total_amount');
+        $totalIncome = $transactions->where('type', 'income')->sum('total_amount');
         $totalExpenses = $transactions->where('type', 'expense')->sum('total_amount');
-        $netBalance    = $totalIncome - $totalExpenses;
+        $netBalance = $totalIncome - $totalExpenses;
 
         $summary = [
-            'total_income'   => $totalIncome,
+            'total_income' => $totalIncome,
             'total_expenses' => $totalExpenses,
-            'net_balance'    => $netBalance,
-            'total_count'    => $transactions->count(),
+            'net_balance' => $netBalance,
+            'total_count' => $transactions->count(),
         ];
 
         // Calculate start and end dates for "All Transactions"
         if ($request->get('all') === 'true' && $transactions->count() > 0) {
             $startDate = $transactions->min('transaction_date')->format('Y-m-d');
-            $endDate   = $transactions->max('transaction_date')->format('Y-m-d');
+            $endDate = $transactions->max('transaction_date')->format('Y-m-d');
         }
 
         return PdfService::generate('pdf.reports.transaction-report', [
-            'vessel'       => $vessel,
+            'vessel' => $vessel,
             'transactions' => $transactions,
-            'summary'      => $summary,
-            'period'       => $period,
-            'startDate'    => $startDate ?? null,
-            'endDate'      => $endDate ?? null,
-            'title'        => 'Transaction Report',
-            'subtitle'     => 'Movements and Transactions Overview',
+            'summary' => $summary,
+            'period' => $period,
+            'startDate' => $startDate ?? null,
+            'endDate' => $endDate ?? null,
+            'title' => 'Transaction Report',
+            'subtitle' => 'Movements and Transactions Overview',
         ]);
     }
 
@@ -144,9 +146,9 @@ class MovimentationPdf
         ?string $period = null,
         ?string $filename = null
     ) {
-        if (! $filename) {
+        if (!$filename) {
             $periodSlug = $period ? str_replace(' ', '_', strtolower($period)) : 'report';
-            $filename   = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
+            $filename = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
         }
 
         $pdf = self::generate($vessel, $transactions, $summary, $period, null, null);
@@ -170,12 +172,13 @@ class MovimentationPdf
         ?string $period = null,
         ?string $filename = null
     ) {
-        if (! $filename) {
+        if (!$filename) {
             $periodSlug = $period ? str_replace(' ', '_', strtolower($period)) : 'report';
-            $filename   = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
+            $filename = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
         }
 
         $pdf = self::generate($vessel, $transactions, $summary, $period, null, null);
         return $pdf->stream($filename);
     }
 }
+
