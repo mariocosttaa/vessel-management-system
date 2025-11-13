@@ -16,6 +16,8 @@ import MultiFileUpload from '@/components/Forms/MultiFileUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import transactions from '@/routes/panel/movimentations';
+import CategoryCreateModal from '@/components/modals/Category/create.vue';
+import { Plus } from 'lucide-vue-next';
 
 interface TransactionCategory {
     id: number;
@@ -105,9 +107,10 @@ const currentCurrencyDecimals = computed(() => {
     return vesselCurrencyData.value.decimals || 2;
 });
 
-// Filter categories for expense only
+
+// Update expense categories when categories list changes
 const expenseCategories = computed(() => {
-    return props.categories.filter(cat => cat.type === 'expense');
+    return categoriesList.value.filter(cat => cat.type === 'expense');
 });
 
 // Convert to Select component options format
@@ -118,6 +121,22 @@ const categoryOptions = computed(() => {
     });
     return options;
 });
+
+// Handle category creation success
+const handleCategoryCreated = (newCategory: TransactionCategory) => {
+    // Check if category already exists in the list
+    const exists = categoriesList.value.find(cat => cat.id === newCategory.id);
+    if (!exists) {
+        // Add new category to the list
+        categoriesList.value.push(newCategory);
+    }
+
+    // Select the newly created category
+    form.category_id = newCategory.id;
+
+    // Close category modal (it will be closed by the modal itself, but ensure it's closed)
+    showCategoryModal.value = false;
+};
 
 const supplierOptions = computed(() => {
     const options = [{ value: null, label: t('Select a supplier') }];
@@ -190,9 +209,13 @@ const form = useForm({
 const selectedFiles = ref<File[]>([]);
 const fileUploadRef = ref<InstanceType<typeof MultiFileUpload> | null>(null);
 
+// Category creation modal
+const showCategoryModal = ref(false);
+const categoriesList = ref<TransactionCategory[]>(props.categories);
+
 // Find maintenance category ID
 const maintenanceCategoryId = computed(() => {
-    const maintenanceCategory = props.categories.find(
+    const maintenanceCategory = categoriesList.value.find(
         cat => cat.type === 'expense' && cat.name === 'Maintenance'
     );
     return maintenanceCategory?.id ?? null;
@@ -428,7 +451,7 @@ const submit = () => {
             <DialogHeader>
                 <DialogTitle class="text-red-600 dark:text-red-400">{{ t('Remove Transaction') }}</DialogTitle>
                 <DialogDescription class="sr-only">
-                    {{ t('Add a new expense transaction to the vessel') }}
+                    {{ t('Add a new expense movimentation to the vessel') }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -439,7 +462,20 @@ const submit = () => {
                     <div class="lg:col-span-2 space-y-6">
                 <!-- Category -->
                 <div class="space-y-2">
-                    <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
+                    <div class="flex items-center justify-between">
+                        <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
+                        <Button
+                            v-if="!props.maintenanceId"
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            class="h-8 text-xs"
+                            @click="showCategoryModal = true"
+                        >
+                            <Plus class="h-3 w-3 mr-1" />
+                            {{ t('Create Category') }}
+                        </Button>
+                    </div>
                     <Select
                         id="category_id"
                         v-model="form.category_id"
@@ -637,5 +673,13 @@ const submit = () => {
             </form>
         </DialogContent>
     </Dialog>
+
+    <!-- Category Creation Modal -->
+    <CategoryCreateModal
+        :open="showCategoryModal"
+        category-type="expense"
+        @close="showCategoryModal = false"
+        @success="handleCategoryCreated"
+    />
 </template>
 
