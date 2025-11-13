@@ -88,6 +88,7 @@ class StoreCrewMemberRequest extends FormRequest
             'date_of_birth'        => ['nullable', 'date', 'before:today'],
             'hire_date'            => ['required', 'date'],
             'status'               => ['nullable', 'in:active,inactive,on_leave'],
+            'administrative'       => ['boolean'],
             'notes'                => ['nullable', 'string', 'max:1000'],
             'skip_salary'          => ['boolean'],
             'create_without_email' => ['boolean'],

@@ -96,6 +96,7 @@ class UpdateCrewMemberRequest extends FormRequest
             'date_of_birth'   => ['nullable', 'date', 'before:today'],
             'hire_date'       => ['required', 'date', 'before_or_equal:today'],
             'status'          => ['required', 'in:active,inactive,on_leave'],
+            'administrative'  => ['boolean'],
             'notes'           => ['nullable', 'string', 'max:1000'],
             'skip_salary'     => ['boolean'],
         ];

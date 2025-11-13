@@ -67,15 +67,33 @@ class CrewMemberController extends Controller
         // Sorting
         $sortField     = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
-        $query->orderBy($sortField, $sortDirection);
 
-        $crewMembers = $query->with(['vessel', 'position', 'activeSalaryCompensation'])
-            ->paginate(15)
+        // Create separate queries for administrative and crew members
+        $administrativeQuery = (clone $query)->where('administrative', true);
+        $crewQuery           = (clone $query)->where(function ($q) {
+            $q->where('administrative', false)->orWhereNull('administrative');
+        });
+
+        // Apply sorting to both queries
+        $administrativeQuery->orderBy($sortField, $sortDirection);
+        $crewQuery->orderBy($sortField, $sortDirection);
+
+        // Paginate both queries
+        $administrativeMembers = $administrativeQuery->with(['vessel', 'position', 'activeSalaryCompensation'])
+            ->paginate(15, ['*'], 'admin_page')
+            ->withQueryString();
+
+        $crewMembers = $crewQuery->with(['vessel', 'position', 'activeSalaryCompensation'])
+            ->paginate(15, ['*'], 'crew_page')
             ->withQueryString();
 
         // Transform the data manually without using JsonResource
-        $crewMembers->through(function ($crewMember) use ($request) {
-            return (new CrewMemberResource($crewMember))->toArray($request);
+        $administrativeMembers->through(function ($member) use ($request) {
+            return (new CrewMemberResource($member))->toArray($request);
+        });
+
+        $crewMembers->through(function ($member) use ($request) {
+            return (new CrewMemberResource($member))->toArray($request);
         });
 
         // Get pending invitations (users with invitation_token but not accepted)
@@ -104,10 +122,11 @@ class CrewMemberController extends Controller
             });
 
         return inertia('CrewMembers/Index', [
-            'crewMembers'        => $crewMembers,
-            'pendingInvitations' => $pendingInvitations,
-            'filters'            => $request->only(['search', 'status', 'position_id', 'sort', 'direction']),
-            'positions'          => CrewPosition::where(function ($query) use ($vesselId) {
+            'administrativeMembers' => $administrativeMembers,
+            'crewMembers'           => $crewMembers,
+            'pendingInvitations'    => $pendingInvitations,
+            'filters'               => $request->only(['search', 'status', 'position_id', 'sort', 'direction']),
+            'positions'             => CrewPosition::where(function ($query) use ($vesselId) {
                 $query->where('vessel_id', $vesselId)
                     ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
             })->get()->map(function ($position) {
@@ -116,13 +135,13 @@ class CrewMemberController extends Controller
                     'name' => $position->translated_name,
                 ];
             }),
-            'statuses'           => [
+            'statuses'              => [
                 'active'   => 'Active',
                 'inactive' => 'Inactive',
                 'on_leave' => 'On Leave',
             ],
-            'currencies'         => Currency::active()->orderBy('name')->get(['code', 'name', 'symbol'])->toArray(),
-            'paymentFrequencies' => [
+            'currencies'            => Currency::active()->orderBy('name')->get(['code', 'name', 'symbol'])->toArray(),
+            'paymentFrequencies'    => [
                 'weekly'    => 'Weekly',
                 'bi_weekly' => 'Bi-weekly',
                 'monthly'   => 'Monthly',
@@ -247,15 +266,16 @@ class CrewMemberController extends Controller
             } else {
                 // Create new user
                 $userData = [
-                    'position_id'   => $request->position_id, // Already decoded in prepareForValidation
-                    'name'          => $request->name,
-                    'phone'         => $request->phone,
-                    'date_of_birth' => $request->date_of_birth,
-                    'hire_date'     => $request->hire_date,
-                    'status'        => $request->status ?? 'active',
-                    'notes'         => $request->notes,
-                    'vessel_id'     => $vesselId,
-                    'user_type'     => 'employee_of_vessel',
+                    'position_id'    => $request->position_id, // Already decoded in prepareForValidation
+                    'name'           => $request->name,
+                    'phone'          => $request->phone,
+                    'date_of_birth'  => $request->date_of_birth,
+                    'hire_date'      => $request->hire_date,
+                    'status'         => $request->status ?? 'active',
+                    'administrative' => $request->boolean('administrative') ?? false,
+                    'notes'          => $request->notes,
+                    'vessel_id'      => $vesselId,
+                    'user_type'      => 'employee_of_vessel',
                 ];
 
                 if ($createWithoutEmail) {
@@ -514,13 +534,14 @@ class CrewMemberController extends Controller
             // Handle password update
             // Note: position_id is already decoded by UpdateCrewMemberRequest::prepareForValidation()
             $updateData = [
-                'position_id'   => $request->position_id,
-                'name'          => $request->name,
-                'phone'         => $request->phone,
-                'date_of_birth' => $request->date_of_birth,
-                'hire_date'     => $request->hire_date,
-                'status'        => $request->status,
-                'notes'         => $request->notes,
+                'position_id'    => $request->position_id,
+                'name'           => $request->name,
+                'phone'          => $request->phone,
+                'date_of_birth'  => $request->date_of_birth,
+                'hire_date'      => $request->hire_date,
+                'status'         => $request->status,
+                'administrative' => $request->boolean('administrative') ?? false,
+                'notes'          => $request->notes,
             ];
 
             // Handle email update - only if user doesn't have existing account
