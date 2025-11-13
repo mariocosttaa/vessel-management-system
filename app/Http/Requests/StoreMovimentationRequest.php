@@ -1,18 +1,19 @@
 <?php
+
 namespace App\Http\Requests;
 
 use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\MovimentationCategory;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\Vessel;
+use App\Models\Supplier;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * StoreTransactionRequest validates creating a new transaction.
+ * StoreMovimentationRequest validates creating a new transaction.
  *
  * Input fields:
  * @property int $category_id
@@ -48,7 +49,7 @@ use Illuminate\Validation\Rule;
  *
  * @mixin \Illuminate\Http\Request
  */
-class StoreTransactionRequest extends FormRequest
+class StoreMovimentationRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -57,13 +58,13 @@ class StoreTransactionRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user) {
+        if (!$user) {
             return false;
         }
 
         // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
         $vesselId = $this->attributes->get('vessel_id');
-        if (! $vesselId) {
+        if (!$vesselId) {
             // Fallback: try to get from route and unhash if needed
             $vesselParam = $this->route('vessel');
             if ($vesselParam) {
@@ -75,22 +76,22 @@ class StoreTransactionRequest extends FormRequest
             }
         }
 
-        if (! $vesselId) {
+        if (!$vesselId) {
             return false;
         }
 
         // Check if user has access to vessel
         /** @var \App\Models\User $user */
-        if (! $user->hasAccessToVessel((int) $vesselId)) {
+        if (!$user->hasAccessToVessel((int) $vesselId)) {
             return false;
         }
 
-        // Check transactions.create permission from config
+        // Check movimentations.create permission from config
         $vesselIdInt = (int) $vesselId;
-        $userRole    = $user->getRoleForVessel($vesselIdInt);
+        $userRole = $user->getRoleForVessel($vesselIdInt);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
-        return $permissions['transactions.create'] ?? false;
+        return $permissions['movimentations.create'] ?? false;
     }
 
     /**
@@ -101,25 +102,25 @@ class StoreTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id'         => ['required', 'integer', Rule::exists(MovimentationCategory::class, 'id')],
-            'type'                => ['required', 'string', 'in:income,expense,transfer'],
-            'amount'              => ['nullable', 'numeric', 'min:0'],
-            'amount_per_unit'     => ['nullable', 'numeric', 'min:0', 'required_with:quantity'],
-            'quantity'            => ['nullable', 'integer', 'min:1', 'required_with:amount_per_unit'],
-            'currency'            => ['required', 'string', 'size:3'],
-            'house_of_zeros'      => ['nullable', 'integer', 'min:0', 'max:4'],
-            'vat_profile_id'      => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
+            'category_id' => ['required', 'integer', Rule::exists(MovimentationCategory::class, 'id')],
+            'type' => ['required', 'string', 'in:income,expense,transfer'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'amount_per_unit' => ['nullable', 'numeric', 'min:0', 'required_with:quantity'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'required_with:amount_per_unit'],
+            'currency' => ['required', 'string', 'size:3'],
+            'house_of_zeros' => ['nullable', 'integer', 'min:0', 'max:4'],
+            'vat_profile_id' => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
             'amount_includes_vat' => ['nullable', 'boolean'],
-            'transaction_date'    => ['required', 'date', 'before_or_equal:today'],
-            'description'         => ['nullable', 'string', 'max:500'],
-            'notes'               => ['nullable', 'string', 'max:1000'],
-            'supplier_id'         => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
-            'crew_member_id'      => ['nullable', 'integer', Rule::exists(User::class, 'id')],
-            'marea_id'            => ['nullable', 'integer', Rule::exists('mareas', 'id')],
-            'maintenance_id'      => ['nullable', 'integer', Rule::exists('maintenances', 'id')],
-            'status'              => ['nullable', 'string', 'in:pending,completed,cancelled'],
-            'files'               => ['nullable', 'array', 'max:10'],
-            'files.*'             => [
+            'transaction_date' => ['required', 'date', 'before_or_equal:today'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'supplier_id' => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
+            'crew_member_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
+            'marea_id' => ['nullable', 'integer', Rule::exists('mareas', 'id')],
+            'maintenance_id' => ['nullable', 'integer', Rule::exists('maintenances', 'id')],
+            'status' => ['nullable', 'string', 'in:pending,completed,cancelled'],
+            'files' => ['nullable', 'array', 'max:10'],
+            'files.*' => [
                 'file',
                 'max:10240', // 10MB max
                 'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt,csv',
@@ -137,13 +138,13 @@ class StoreTransactionRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             // Validate that either amount or both amount_per_unit and quantity are provided
-            if (! $this->filled('amount') && (! ($this->filled('amount_per_unit') && $this->filled('quantity')))) {
+            if (!$this->filled('amount') && (!($this->filled('amount_per_unit') && $this->filled('quantity')))) {
                 $validator->errors()->add('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
             }
 
             // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
             $vesselId = $this->getVesselId();
-            if (! $vesselId) {
+            if (!$vesselId) {
                 return;
             }
 
@@ -202,24 +203,24 @@ class StoreTransactionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'category_id.required'             => 'Please select a category.',
-            'category_id.exists'               => 'The selected category is invalid.',
-            'type.required'                    => 'Please select transaction type.',
-            'type.in'                          => 'Transaction type must be income, expense, or transfer.',
-            'amount.required'                  => 'Amount is required.',
-            'amount.numeric'                   => 'Amount must be a valid number.',
-            'amount.min'                       => 'Amount must be greater than zero.',
-            'currency.required'                => 'Currency is required.',
-            'currency.size'                    => 'Currency must be a 3-character code (e.g., EUR, USD).',
-            'transaction_date.required'        => 'Transaction date is required.',
-            'transaction_date.date'            => 'Transaction date must be a valid date.',
+            'category_id.required' => 'Please select a category.',
+            'category_id.exists' => 'The selected category is invalid.',
+            'type.required' => 'Please select transaction type.',
+            'type.in' => 'Transaction type must be income, expense, or transfer.',
+            'amount.required' => 'Amount is required.',
+            'amount.numeric' => 'Amount must be a valid number.',
+            'amount.min' => 'Amount must be greater than zero.',
+            'currency.required' => 'Currency is required.',
+            'currency.size' => 'Currency must be a 3-character code (e.g., EUR, USD).',
+            'transaction_date.required' => 'Transaction date is required.',
+            'transaction_date.date' => 'Transaction date must be a valid date.',
             'transaction_date.before_or_equal' => 'Transaction date cannot be in the future.',
-            'supplier_id.exists'               => 'The selected supplier is invalid.',
-            'crew_member_id.exists'            => 'The selected crew member is invalid.',
-            'status.in'                        => 'Status must be pending, completed, or cancelled.',
-            'files.max'                        => 'You can upload a maximum of 10 files.',
-            'files.*.max'                      => 'Each file must not exceed 10MB.',
-            'files.*.mimes'                    => 'The file must be one of the following types: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV.',
+            'supplier_id.exists' => 'The selected supplier is invalid.',
+            'crew_member_id.exists' => 'The selected crew member is invalid.',
+            'status.in' => 'Status must be pending, completed, or cancelled.',
+            'files.max' => 'You can upload a maximum of 10 files.',
+            'files.*.max' => 'Each file must not exceed 10MB.',
+            'files.*.mimes' => 'The file must be one of the following types: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV.',
         ];
     }
 
@@ -261,7 +262,7 @@ class StoreTransactionRequest extends FormRequest
             if (is_numeric($this->category_id)) {
                 $data['category_id'] = (int) $this->category_id;
             } else {
-                $decoded             = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+                $decoded = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
                 $data['category_id'] = $decoded && is_numeric($decoded) ? (int) $decoded : null;
             }
         }
@@ -289,7 +290,7 @@ class StoreTransactionRequest extends FormRequest
         // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
         // This is the unhashed integer ID
         $vesselId = $this->attributes->get('vessel_id');
-        if (! $vesselId) {
+        if (!$vesselId) {
             // Fallback: try to get from route and unhash if needed
             $vesselParam = $this->route('vessel');
             if ($vesselParam) {
@@ -300,18 +301,18 @@ class StoreTransactionRequest extends FormRequest
                 }
             }
         }
-        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel          = \App\Models\Vessel::find($vesselId);
+        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel?->currency_code ?? 'EUR';
 
         $data = array_merge($data, [
-            'type'           => $this->type ?? 'expense',
-            'status'         => $this->status ?? 'completed',
+            'type' => $this->type ?? 'expense',
+            'status' => $this->status ?? 'completed',
             // Use currency from request if provided, otherwise use vessel settings currency (not EUR hardcoded)
-            'currency'       => strtoupper($this->currency ?? $defaultCurrency),
+            'currency' => strtoupper($this->currency ?? $defaultCurrency),
             'house_of_zeros' => $this->house_of_zeros ?? 2,
-            'description'    => $this->description ? trim($this->description) : null,
-            'notes'          => $this->notes ? trim($this->notes) : null,
+            'description' => $this->description ? trim($this->description) : null,
+            'notes' => $this->notes ? trim($this->notes) : null,
         ]);
 
         // Normalize amount_per_unit and quantity if provided
@@ -324,8 +325,8 @@ class StoreTransactionRequest extends FormRequest
 
         // Calculate amount from amount_per_unit * quantity if both are provided
         if ($this->filled('amount_per_unit') && $this->filled('quantity')) {
-            $amountPerUnit  = $this->normalizeMoney($this->amount_per_unit);
-            $quantity       = (int) $this->quantity;
+            $amountPerUnit = $this->normalizeMoney($this->amount_per_unit);
+            $quantity = (int) $this->quantity;
             $data['amount'] = (int) round($amountPerUnit * $quantity);
         } elseif ($this->filled('amount')) {
             // Normalize money amount - handle both string and numeric inputs
@@ -396,3 +397,4 @@ class StoreTransactionRequest extends FormRequest
         }
     }
 }
+
