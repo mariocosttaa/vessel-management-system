@@ -23,6 +23,7 @@
                     {{ cancelText || t('Cancel') }}
                 </Button>
                 <Button
+                    type="button"
                     :variant="variant"
                     @click="$emit('confirm')"
                     :disabled="loading"

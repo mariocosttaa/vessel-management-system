@@ -134,7 +134,7 @@ const currentMonth = computed(() => props.currentMonth);
 // Navigate to transaction
 const viewTransaction = (transactionId: string) => {
     const vesselId = getCurrentVesselId();
-    router.visit(`/panel/${vesselId}/transactions/${transactionId}`);
+    router.visit(`/panel/${vesselId}/movimentations/${transactionId}`);
 };
 
 // Navigate to marea
@@ -267,7 +267,7 @@ const getPreparationProgress = (marea: any) => {
 
             <!-- Compact Financial Stats Cards -->
             <div
-                v-if="hasPermission('transactions.view') || hasPermission('reports.access')"
+                v-if="hasPermission('movimentations.view') || hasPermission('reports.access')"
                 class="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
                 <!-- Income -->
@@ -477,7 +477,7 @@ const getPreparationProgress = (marea: any) => {
 
             <!-- Recent Transactions -->
             <div
-                v-if="canView('transactions') && recentTransactions.length > 0"
+                v-if="canView('movimentations') && recentTransactions.length > 0"
                 class="rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4"
             >
                 <div class="flex items-center justify-between mb-3">
@@ -485,7 +485,7 @@ const getPreparationProgress = (marea: any) => {
                         {{ t('Recent Transactions') }}
                     </h2>
                     <Link
-                        :href="`/panel/${getCurrentVesselId()}/transactions`"
+                        :href="`/panel/${getCurrentVesselId()}/movimentations`"
                         class="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
                     >
                         {{ t('View All') }}

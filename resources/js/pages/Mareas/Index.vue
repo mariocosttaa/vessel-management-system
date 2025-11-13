@@ -14,11 +14,12 @@ import { useI18n } from '@/composables/useI18n';
 import mareas from '@/routes/panel/mareas';
 import MareaCreateModal from '@/components/modals/Marea/create.vue';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface Marea {
@@ -478,8 +479,9 @@ const translatedStatuses = computed(() => {
 
         <!-- Create Marea Modal -->
         <MareaCreateModal
+            v-if="getCurrentVesselId()"
             :open="showCreateModal"
-            :vessel-id="getCurrentVesselId()"
+            :vessel-id="getCurrentVesselId()!"
             @update:open="showCreateModal = $event"
             @saved="router.reload()"
         />
