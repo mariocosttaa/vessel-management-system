@@ -77,11 +77,17 @@ const { addNotification } = useNotifications();
 const { t } = useI18n();
 const page = usePage();
 
-// Get current vessel ID from URL
-const getCurrentVesselId = () => {
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
+// Falls back to vessel.id from props if URL extraction fails
+const getCurrentVesselId = (): string => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed ID (alphanumeric string) or numeric ID
+    const vesselMatch = path.match(/\/panel\/([^/]+)/);
+    if (vesselMatch) {
+        return vesselMatch[1];
+    }
+    // Fallback to vessel ID from props (should be hashed)
+    return vesselData.value?.id?.toString() || '';
 };
 
 // Get the actual setting data (Inertia might wrap resources)
@@ -218,7 +224,12 @@ const submitGeneral = () => {
     console.log('Has logo file:', !!logoFile.value)
     console.log('Remove logo:', removeLogo.value)
 
-    const submitUrl = settings.update.general.url({ vessel: getCurrentVesselId() })
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+    const submitUrl = settings.update.general.url({ vessel: vesselId })
 
     // ALWAYS use POST when files are present (required for multipart/form-data)
     // Laravel will handle method spoofing via _method field
@@ -331,7 +342,12 @@ const isLogoRemovalPending = computed(() => {
 })
 
 const submitLocation = () => {
-    locationForm.patch(settings.update.location.url({ vessel: getCurrentVesselId() }), {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+    locationForm.patch(settings.update.location.url({ vessel: vesselId }), {
         onSuccess: () => {
             addNotification({
                 type: 'success',
