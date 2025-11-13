@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAppearance } from '@/composables/useAppearance'
-import Icon from '@/Components/Icon.vue'
+import Icon from '@/components/Icon.vue'
 
 const { appearance, updateAppearance } = useAppearance()
 

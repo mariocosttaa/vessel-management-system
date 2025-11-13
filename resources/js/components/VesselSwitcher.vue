@@ -89,7 +89,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { Ship, ChevronDown, ChevronUp, Check, Plus } from 'lucide-vue-next'
-import Icon from '@/Components/Icon.vue'
+import Icon from '@/components/Icon.vue'
 
 interface Vessel {
   id: string // Changed from number to string (hashed ID)
