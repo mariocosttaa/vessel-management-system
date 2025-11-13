@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-4">
     <div class="space-y-2">
-      <Label>Attach Documents <span class="text-muted-foreground text-xs">(Max 10 files)</span></Label>
+      <Label>{{ t('Attach Documents') }} <span class="text-muted-foreground text-xs">({{ t('Max 10 files') }})</span></Label>
       <p class="text-xs text-muted-foreground">
-        Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV (Max: 10MB per file)
+        {{ t('Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV (Max: 10MB per file)') }}
       </p>
     </div>
 
@@ -40,10 +40,10 @@
           class="w-12 h-12 mx-auto mb-3 text-muted-foreground"
         />
         <p class="text-sm font-medium text-foreground mb-1">
-          {{ isDragging ? 'Drop files here' : 'Click to upload or drag and drop' }}
+          {{ isDragging ? t('Drop files here') : t('Click to upload or drag and drop') }}
         </p>
         <p class="text-xs text-muted-foreground">
-          {{ files.length }}/{{ maxFiles }} files selected
+          {{ files.length }}/{{ maxFiles }} {{ t('files selected') }}
         </p>
       </div>
     </label>
@@ -110,7 +110,7 @@
                 size="sm"
                 @click="startEditing(index)"
                 class="flex-shrink-0 text-muted-foreground hover:text-foreground"
-                title="Edit file name"
+                :title="t('Edit file name')"
               >
                 <Icon name="edit" class="w-4 h-4" />
               </Button>
@@ -127,7 +127,7 @@
             size="sm"
             @click="removeFile(index)"
             class="flex-shrink-0 text-destructive hover:text-destructive"
-            title="Remove file"
+            :title="t('Remove file')"
           >
             <Icon name="x" class="w-4 h-4" />
           </Button>
@@ -146,6 +146,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
+import { useI18n } from '@/composables/useI18n';
+
+const { t } = useI18n();
 
 interface FileWithCustomName extends File {
   customName?: string;
@@ -274,7 +277,7 @@ const emitFilesUpdate = () => {
 
 const triggerFileInput = () => {
   if (files.value.length >= props.maxFiles) {
-    setError(`Maximum ${props.maxFiles} files allowed`);
+    setError(t('Maximum {count} files allowed', { count: props.maxFiles }));
     return;
   }
 
@@ -317,7 +320,7 @@ const handleDrop = (event: DragEvent) => {
   isDragging.value = false;
 
   if (files.value.length >= props.maxFiles) {
-    setError(`Maximum ${props.maxFiles} files allowed`);
+    setError(t('Maximum {count} files allowed', { count: props.maxFiles }));
     return;
   }
 
@@ -333,7 +336,7 @@ const processFiles = (newFiles: File[]) => {
   // Check total file count
   const totalFiles = files.value.length + newFiles.length;
   if (totalFiles > props.maxFiles) {
-    setError(`Maximum ${props.maxFiles} files allowed. Please remove some files first.`);
+    setError(t('Maximum {count} files allowed. Please remove some files first.', { count: props.maxFiles }));
     return;
   }
 
@@ -344,19 +347,19 @@ const processFiles = (newFiles: File[]) => {
   for (const file of newFiles) {
     // Check file size
     if (file.size > props.maxSize) {
-      setError(`File "${file.name}" exceeds maximum size of ${formatFileSize(props.maxSize)}`);
+      setError(t('File "{name}" exceeds maximum size of {size}', { name: file.name, size: formatFileSize(props.maxSize) }));
       continue;
     }
 
     // Check file type
     if (!isFileTypeAllowed(file)) {
-      setError(`File "${file.name}" is not a supported file type`);
+      setError(t('File "{name}" is not a supported file type', { name: file.name }));
       continue;
     }
 
     // Check for duplicates
     if (files.value.some(f => f.name === file.name && f.size === file.size)) {
-      setError(`File "${file.name}" is already selected`);
+      setError(t('File "{name}" is already selected', { name: file.name }));
       continue;
     }
 
@@ -438,14 +441,14 @@ const saveFileName = (index: number) => {
   const trimmedName = editingName.value.trim();
 
   if (trimmedName === '') {
-    setError('File name cannot be empty');
+    setError(t('File name cannot be empty'));
     cancelEdit();
     return;
   }
 
   // Validate that the new name doesn't contain invalid characters
   if (!/^[^<>:"/\\|?*]+$/.test(trimmedName)) {
-    setError('File name contains invalid characters');
+    setError(t('File name contains invalid characters'));
     return;
   }
 
