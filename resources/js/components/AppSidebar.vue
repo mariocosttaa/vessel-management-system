@@ -136,7 +136,7 @@ const mainNavItems = computed((): NavItem[] => {
         }
 
         items.push({
-            title: t('Crew Members'),
+            title: t('Members'),
             href: crewMembers.index.url({ vessel: vesselId }),
             icon: Users,
             group: t('Crew Management'),
