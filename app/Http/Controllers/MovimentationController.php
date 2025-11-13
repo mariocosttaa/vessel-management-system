@@ -5,22 +5,22 @@ use App\Actions\AuditLogAction;
 use App\Actions\EmailNotificationAction;
 use App\Actions\MoneyAction;
 use App\Http\Controllers\Concerns\HashesIds;
-use App\Http\Requests\StoreTransactionRequest;
-use App\Http\Requests\UpdateTransactionRequest;
-use App\Http\Resources\TransactionResource;
+use App\Http\Requests\StoreMovimentationRequest;
+use App\Http\Requests\UpdateMovimentationRequest;
+use App\Http\Resources\MovimentationResource;
 use App\Models\Movimentation;
 use App\Models\MovimentationCategory;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\VesselSetting;
-use App\Pdf\TransactionPdf;
+use App\Pdf\MovimentationPdf;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
-class TransactionController extends Controller
+class MovimentationController extends Controller
 {
     use HasTranslations, HashesIds;
     /**
@@ -40,10 +40,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -110,7 +110,7 @@ class TransactionController extends Controller
 
         // Transform the data manually to preserve pagination metadata
         $transactions->through(function ($transaction) {
-            return (new TransactionResource($transaction))->resolve();
+            return (new MovimentationResource($transaction))->resolve();
         });
 
         // Related data for filters/forms
@@ -157,7 +157,7 @@ class TransactionController extends Controller
             'cancelled' => 'Cancelled',
         ];
 
-        return Inertia::render('Transactions/Index', [
+        return Inertia::render('Movimentations/Index', [
             'transactions'      => $transactions,
             'defaultCurrency'   => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories'        => $categories->map(function ($category) {
@@ -219,10 +219,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.create permission from config
+        // Check movimentations.create permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.create'] ?? false)) {
+        if (! ($permissions['movimentations.create'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -258,7 +258,7 @@ class TransactionController extends Controller
             'cancelled' => 'Cancelled',
         ];
 
-        return Inertia::render('Transactions/Create', [
+        return Inertia::render('Movimentations/Create', [
             'defaultCurrency'   => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories'        => $categories->map(function ($category) {
                 return [
@@ -304,7 +304,7 @@ class TransactionController extends Controller
     /**
      * Store a newly created transaction.
      */
-    public function store(StoreTransactionRequest $request)
+    public function store(StoreMovimentationRequest $request)
     {
         try {
             // Get vessel_id from route parameter
@@ -543,13 +543,13 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter and unhash it
-        $transactionIdFromRoute = $request->route('transactionId');
-        // Unhash transaction ID if it's a hashed string
-        if ($transactionIdFromRoute && ! is_numeric($transactionIdFromRoute)) {
-            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+        $movimentationIdFromRoute = $request->route('movimentationId');
+        // Unhash movimentation ID if it's a hashed string
+        if ($movimentationIdFromRoute && ! is_numeric($movimentationIdFromRoute)) {
+            $transactionId = $this->unhashId($movimentationIdFromRoute, 'movimentation');
         } else {
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
             abort(404, 'Transaction not found.');
@@ -565,10 +565,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -583,8 +583,8 @@ class TransactionController extends Controller
             'files',
         ]);
 
-        return Inertia::render('Transactions/Show', [
-            'transaction' => new TransactionResource($transaction),
+        return Inertia::render('Movimentations/Show', [
+            'transaction' => new MovimentationResource($transaction),
         ]);
     }
 
@@ -604,13 +604,13 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter and unhash it
-        $transactionIdFromRoute = $request->route('transactionId');
-        // Unhash transaction ID if it's a hashed string
-        if ($transactionIdFromRoute && ! is_numeric($transactionIdFromRoute)) {
-            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+        $movimentationIdFromRoute = $request->route('movimentationId');
+        // Unhash movimentation ID if it's a hashed string
+        if ($movimentationIdFromRoute && ! is_numeric($movimentationIdFromRoute)) {
+            $transactionId = $this->unhashId($movimentationIdFromRoute, 'movimentation');
         } else {
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
             abort(404, 'Transaction not found.');
@@ -626,10 +626,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -644,7 +644,7 @@ class TransactionController extends Controller
         ]);
 
         return response()->json([
-            'transaction' => new TransactionResource($transaction),
+            'transaction' => new MovimentationResource($transaction),
         ]);
     }
 
@@ -664,13 +664,13 @@ class TransactionController extends Controller
         }
         $vesselId = (int) $vesselId; // Ensure integer
 
-        // CRITICAL: Get transaction ID directly from route parameter and unhash it
-        $transactionIdFromRoute = $request->route('transactionId');
-        // Unhash transaction ID if it's a hashed string
-        if ($transactionIdFromRoute && ! is_numeric($transactionIdFromRoute)) {
-            $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+        // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+        $movimentationIdFromRoute = $request->route('movimentationId');
+        // Unhash movimentation ID if it's a hashed string
+        if ($movimentationIdFromRoute && ! is_numeric($movimentationIdFromRoute)) {
+            $transactionId = $this->unhashId($movimentationIdFromRoute, 'movimentation');
         } else {
-            $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+            $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
             abort(404, 'Transaction not found.');
@@ -686,10 +686,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.edit permission from config
+        // Check movimentations.edit permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.edit'] ?? false)) {
+        if (! ($permissions['movimentations.edit'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -734,8 +734,8 @@ class TransactionController extends Controller
         // Get default currency: vessel_settings > vessel currency_code > EUR
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
-        return Inertia::render('Transactions/Edit', [
-            'transaction'       => new TransactionResource($transaction),
+        return Inertia::render('Movimentations/Edit', [
+            'transaction'       => new MovimentationResource($transaction),
             'defaultCurrency'   => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories'        => $categories->map(function ($category) {
                 return [
@@ -781,7 +781,7 @@ class TransactionController extends Controller
     /**
      * Update the specified transaction.
      */
-    public function update(UpdateTransactionRequest $request, $vessel, $transactionId)
+    public function update(UpdateMovimentationRequest $request, $vessel, $transactionId)
     {
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
@@ -807,10 +807,10 @@ class TransactionController extends Controller
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
-            // CRITICAL: Get transaction ID directly from route parameter and unhash it
-            $transactionIdFromRoute = $request->route('transactionId');
-            $hashedId               = $transactionIdFromRoute ?? $transactionId;
-            $transactionId          = $this->unhashId($hashedId, 'transaction');
+            // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+            $movimentationIdFromRoute = $request->route('movimentationId');
+            $hashedId                 = $movimentationIdFromRoute ?? $transactionId;
+            $transactionId            = $this->unhashId($hashedId, 'movimentation');
             if (! $transactionId) {
                 abort(404, 'Transaction not found.');
             }
@@ -1000,13 +1000,13 @@ class TransactionController extends Controller
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
-            // CRITICAL: Get transaction ID directly from route parameter
-            $transactionIdFromRoute = $request->route('transactionId');
-            // Unhash transaction ID if it's a hashed string
-            if ($transactionIdFromRoute && ! is_numeric($transactionIdFromRoute)) {
-                $transactionId = $this->unhashId($transactionIdFromRoute, 'transaction-id');
+            // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+            $movimentationIdFromRoute = $request->route('movimentationId');
+            // Unhash movimentation ID if it's a hashed string
+            if ($movimentationIdFromRoute && ! is_numeric($movimentationIdFromRoute)) {
+                $transactionId = $this->unhashId($movimentationIdFromRoute, 'movimentation');
             } else {
-                $transactionId = (int) ($transactionIdFromRoute ?? $transactionId);
+                $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
             }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
@@ -1017,7 +1017,7 @@ class TransactionController extends Controller
             // Check vessel-specific permissions for deletion using config permissions
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (! ($permissions['transactions.delete'] ?? false)) {
+            if (! ($permissions['movimentations.delete'] ?? false)) {
                 abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
             }
 
@@ -1084,7 +1084,7 @@ class TransactionController extends Controller
             $transaction->delete(); // Cascade delete will remove TransactionFile records
 
             return redirect()
-                ->route('panel.transactions.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
+                ->route('panel.movimentations.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', $this->transFrom('notifications', "Transaction ':number' has been deleted successfully.", [
                     'number' => $transactionNumber,
                 ]))
@@ -1114,10 +1114,10 @@ class TransactionController extends Controller
             }
             $vesselId = (int) $vesselId; // Ensure integer
 
-            // CRITICAL: Get transaction ID directly from route parameter and unhash it
-            $transactionIdFromRoute = $request->route('transactionId');
-            $hashedId               = $transactionIdFromRoute ?? $transactionId;
-            $transactionId          = $this->unhashId($hashedId, 'transaction');
+            // CRITICAL: Get movimentation ID directly from route parameter and unhash it
+            $movimentationIdFromRoute = $request->route('movimentationId');
+            $hashedId                 = $movimentationIdFromRoute ?? $transactionId;
+            $transactionId            = $this->unhashId($hashedId, 'movimentation');
             if (! $transactionId) {
                 abort(404, 'Transaction not found.');
             }
@@ -1130,7 +1130,7 @@ class TransactionController extends Controller
             // Get file ID from route parameter and unhash it
             $fileIdFromRoute = $request->route('fileId');
             $hashedFileId    = $fileIdFromRoute ?? $fileId;
-            $fileId          = $this->unhashId($hashedFileId, 'transactionfile');
+            $fileId          = $this->unhashId($hashedFileId, 'movimentationfile');
             if (! $fileId) {
                 abort(404, 'File not found.');
             }
@@ -1141,10 +1141,10 @@ class TransactionController extends Controller
                 ->firstOrFail();
 
             // Check vessel-specific permissions for deletion using config permissions
-            // File deletion requires transactions.edit permission (users who can edit can delete files)
+            // File deletion requires movimentations.edit permission (users who can edit can delete files)
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (! ($permissions['transactions.edit'] ?? false)) {
+            if (! ($permissions['movimentations.edit'] ?? false)) {
                 abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
             }
 
@@ -1197,10 +1197,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1223,7 +1223,7 @@ class TransactionController extends Controller
             })
             ->values();
 
-        return Inertia::render('Transactions/History', [
+        return Inertia::render('Movimentations/History', [
             'monthYearCombinations' => $monthYearCombinations,
         ]);
     }
@@ -1248,10 +1248,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1311,7 +1311,7 @@ class TransactionController extends Controller
 
         // Transform the data manually to preserve pagination metadata
         $transactions->through(function ($transaction) {
-            return (new TransactionResource($transaction))->resolve();
+            return (new MovimentationResource($transaction))->resolve();
         });
 
         // Related data for filters/forms
@@ -1359,7 +1359,7 @@ class TransactionController extends Controller
         // Get month label
         $monthLabel = date('F', mktime(0, 0, 0, $month, 1));
 
-        return Inertia::render('Transactions/HistoryMonth', [
+        return Inertia::render('Movimentations/HistoryMonth', [
             'transactions'      => $transactions,
             'defaultCurrency'   => $defaultCurrency,
             'categories'        => $categories->map(function ($category) {
@@ -1424,10 +1424,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config (search requires view permission)
+        // Check movimentations.view permission from config (search requires view permission)
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1443,7 +1443,7 @@ class TransactionController extends Controller
             ->get(['id', 'transaction_number', 'description', 'type', 'amount', 'currency'])
             ->map(function ($transaction) {
                 return [
-                    'id'                 => $this->hashId($transaction->id, 'transaction-id'),
+                    'id'                 => $this->hashId($transaction->id, 'movimentation'),
                     'transaction_number' => $transaction->transaction_number,
                     'description'        => $transaction->description,
                     'type'               => $transaction->type,
@@ -1472,10 +1472,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1524,7 +1524,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovimentationPdf::generate(
             $vessel,
             $transactions,
             $summary,
@@ -1560,10 +1560,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1620,7 +1620,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovimentationPdf::generate(
             $vessel,
             $transactions,
             $summary,
@@ -1652,10 +1652,10 @@ class TransactionController extends Controller
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
-        // Check transactions.view permission from config
+        // Check movimentations.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['transactions.view'] ?? false)) {
+        if (! ($permissions['movimentations.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -1717,7 +1717,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovimentationPdf::generate(
             $vessel,
             $transactions,
             $summary,
