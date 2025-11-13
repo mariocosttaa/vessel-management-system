@@ -1,15 +1,13 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use App\Actions\AuditLogAction;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\StoreCrewPositionRequest;
 use App\Http\Requests\UpdateCrewPositionRequest;
 use App\Http\Resources\CrewPositionResource;
 use App\Models\CrewPosition;
 use App\Models\User;
-use App\Models\VesselRoleAccess;
-use App\Actions\AuditLogAction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -30,24 +28,21 @@ class CrewPositionController extends Controller
 
         // Check if user has permission to view crew roles (moderator and administrator only)
         // Normal users should not have access to this page
-        if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+        if (! $user || ! $user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
             abort(403, 'You do not have permission to view crew roles.');
         }
 
         $query = CrewPosition::query()
             ->where(function ($q) use ($vesselId) {
                 $q->where('vessel_id', $vesselId)
-                  ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
+                    ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
             })
-            ->with(['vessel', 'crewMembers', 'vesselRoleAccess']);
+            ->with(['vessel', 'crewMembers']);
 
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
+            $query->where('name', 'like', "%{$search}%");
         }
 
         // Filter by scope (global vs vessel-specific)
@@ -60,7 +55,7 @@ class CrewPositionController extends Controller
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'name');
+        $sortField     = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
         $query->orderBy($sortField, $sortDirection);
 
@@ -71,39 +66,9 @@ class CrewPositionController extends Controller
             return (new CrewPositionResource($position))->resolve();
         });
 
-        // Get all vessel role accesses for the dropdown
-        $vesselRoleAccesses = VesselRoleAccess::where('is_active', true)
-            ->orderBy('name')
-            ->get()
-            ->map(function ($roleAccess) {
-                return [
-                    'id' => $this->hashId($roleAccess->id, 'vesselroleaccess'),
-                    'name' => $roleAccess->name,
-                    'display_name' => $roleAccess->display_name,
-                    'description' => $roleAccess->description,
-                ];
-            });
-
-        // Get permissions configuration for info modal
-        $permissionsConfig = config('permissions', []);
-        // Remove 'default' from the config as it's not a role users can assign
-        unset($permissionsConfig['default']);
-        // Format permissions for display
-        $formattedPermissions = [];
-        foreach ($permissionsConfig as $roleName => $permissions) {
-            $formattedPermissions[$roleName] = [
-                'name' => $roleName,
-                'permissions' => $permissions,
-                // Group permissions by resource for easier display
-                'grouped_permissions' => $this->groupPermissionsByResource($permissions),
-            ];
-        }
-
         return Inertia::render('CrewRoles/Index', [
             'crewPositions' => $crewPositions,
-            'filters' => $request->only(['search', 'scope', 'sort', 'direction']),
-            'vesselRoleAccesses' => $vesselRoleAccesses,
-            'permissionsConfig' => $formattedPermissions,
+            'filters'       => $request->only(['search', 'scope', 'sort', 'direction']),
         ]);
     }
 
@@ -120,13 +85,13 @@ class CrewPositionController extends Controller
 
             // Access validated values directly as properties (never use validated())
             $crewPosition = CrewPosition::create([
-                'name' => $request->name,
-                'description' => $request->description,
-                'vessel_id' => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
-                'vessel_role_access_id' => $request->vessel_role_access_id ? $this->unhashId($request->vessel_role_access_id, 'vesselroleaccess') : null,
+                'name'                  => $request->name,
+                'description'           => null,
+                'vessel_id'             => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
+                'vessel_role_access_id' => null,
             ]);
 
-            $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
+            $crewPosition->load(['vessel', 'crewMembers']);
 
             // Log the create action
             AuditLogAction::logCreate(
@@ -168,8 +133,8 @@ class CrewPositionController extends Controller
         try {
             // Get the ID from the route parameter and unhash it
             $hashedId = $request->route('crewPosition');
-            $id = $this->unhashId($hashedId, 'crewposition');
-            if (!$id) {
+            $id       = $this->unhashId($hashedId, 'crewposition');
+            if (! $id) {
                 abort(404, 'Crew position not found.');
             }
 
@@ -196,13 +161,13 @@ class CrewPositionController extends Controller
 
             // Access validated values directly as properties (never use validated())
             $crewPosition->update([
-                'name' => $request->name,
-                'description' => $request->description,
-                'vessel_role_access_id' => $request->vessel_role_access_id ? $this->unhashId($request->vessel_role_access_id, 'vesselroleaccess') : null,
+                'name'                  => $request->name,
+                'description'           => null,
+                'vessel_role_access_id' => null,
                 // Note: vessel_id cannot be changed after creation (global vs vessel-specific)
             ]);
 
-            $crewPosition->load(['vessel', 'crewMembers', 'vesselRoleAccess']);
+            $crewPosition->load(['vessel', 'crewMembers']);
 
             // Get changed fields and log the update action
             $changedFields = AuditLogAction::getChangedFields($crewPosition, $originalCrewPosition);
@@ -237,8 +202,8 @@ class CrewPositionController extends Controller
         try {
             // Get the ID from the route parameter and unhash it
             $hashedId = $request->route('crewPosition');
-            $id = $this->unhashId($hashedId, 'crewposition');
-            if (!$id) {
+            $id       = $this->unhashId($hashedId, 'crewposition');
+            if (! $id) {
                 abort(404, 'Crew position not found.');
             }
 
@@ -263,7 +228,7 @@ class CrewPositionController extends Controller
             $crewMembersCount = User::where('position_id', $crewPosition->id)
                 ->where(function ($q) use ($vesselId) {
                     $q->where('vessel_id', $vesselId)
-                      ->orWhereNull('vessel_id');
+                        ->orWhereNull('vessel_id');
                 })
                 ->count();
 
@@ -309,12 +274,12 @@ class CrewPositionController extends Controller
             // Get the ID from the route parameter and unhash it
             $crewPositionIdFromRoute = $request->route('crewPositionId');
             // Unhash crew position ID if it's a hashed string
-            if ($crewPositionIdFromRoute && !is_numeric($crewPositionIdFromRoute)) {
+            if ($crewPositionIdFromRoute && ! is_numeric($crewPositionIdFromRoute)) {
                 $id = $this->unhashId($crewPositionIdFromRoute, 'crewposition-id');
             } else {
                 $id = (int) $crewPositionIdFromRoute;
             }
-            if (!$id) {
+            if (! $id) {
                 abort(404, 'Crew position not found.');
             }
 
@@ -326,7 +291,7 @@ class CrewPositionController extends Controller
             $vesselId = (int) $request->attributes->get('vessel_id', 0);
 
             // Check if user has permission to view crew roles (moderator and administrator only)
-            if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
+            if (! $user || ! $user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
                 abort(403, 'You do not have permission to view crew role details.');
             }
 
@@ -336,7 +301,6 @@ class CrewPositionController extends Controller
             }
 
             // Load relationships for edit modal
-            $crewPosition->load(['vesselRoleAccess']);
             $crewPosition->loadCount('crewMembers');
 
             return response()->json([
@@ -344,28 +308,10 @@ class CrewPositionController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to load crew role details.',
+                'error'   => 'Failed to load crew role details.',
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Group permissions by resource for easier display in the info modal.
-     */
-    private function groupPermissionsByResource(array $permissions): array
-    {
-        $grouped = [];
-        foreach ($permissions as $permission => $value) {
-            if ($value) {
-                [$resource, $action] = explode('.', $permission, 2);
-                if (!isset($grouped[$resource])) {
-                    $grouped[$resource] = [];
-                }
-                $grouped[$resource][] = $action;
-            }
-        }
-        return $grouped;
-    }
 }
-

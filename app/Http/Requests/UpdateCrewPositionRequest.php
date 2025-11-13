@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Http\Requests;
 
-use App\Actions\General\EasyHashAction;
 use App\Models\CrewPosition;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -12,8 +10,6 @@ use Illuminate\Validation\Rule;
  *
  * Input fields:
  * @property string $name
- * @property string|null $description
- * @property int|null $vessel_role_access_id
  *
  * Route parameters:
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -34,12 +30,12 @@ class UpdateCrewPositionRequest extends FormRequest
     public function authorize(): bool
     {
         // Get vessel ID from route parameter for authorization check only
-        $vessel = $this->route('vessel');
+        $vessel         = $this->route('vessel');
         $crewPositionId = $this->route('crewPosition');
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -51,7 +47,7 @@ class UpdateCrewPositionRequest extends FormRequest
 
         // Check if user can manage crew (for crew roles management)
         // This allows administrators and supervisors to edit crew roles
-        if (!$user->hasVesselPermission($vesselId, 'manage_crew')) {
+        if (! $user->hasVesselPermission($vesselId, 'manage_crew')) {
             return false;
         }
 
@@ -70,14 +66,14 @@ class UpdateCrewPositionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $vessel = $this->route('vessel');
+        $vessel         = $this->route('vessel');
         $crewPositionId = $this->route('crewPosition');
         // Extract vessel ID (handle both model instance and ID)
         $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
 
         // Resolve crew position manually (handle both model instance and ID)
         $crewPosition = is_object($crewPositionId) ? $crewPositionId : CrewPosition::findOrFail($crewPositionId);
-        $isGlobal = $crewPosition->vessel_id === null;
+        $isGlobal     = $crewPosition->vessel_id === null;
 
         return [
             'name' => [
@@ -95,12 +91,6 @@ class UpdateCrewPositionRequest extends FormRequest
                         }
                     }),
             ],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'vessel_role_access_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
-            ],
         ];
     }
 
@@ -113,9 +103,8 @@ class UpdateCrewPositionRequest extends FormRequest
     {
         return [
             'name.required' => 'The crew role name is required.',
-            'name.max' => 'The crew role name may not be greater than 255 characters.',
-            'name.unique' => 'A crew role with this name already exists.',
-            'description.max' => 'The description may not be greater than 1000 characters.',
+            'name.max'      => 'The crew role name may not be greater than 255 characters.',
+            'name.unique'   => 'A crew role with this name already exists.',
         ];
     }
 
@@ -124,17 +113,8 @@ class UpdateCrewPositionRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $data = [];
-
-        // Unhash IDs from frontend
-        if ($this->filled('vessel_role_access_id')) {
-            $data['vessel_role_access_id'] = EasyHashAction::decode($this->vessel_role_access_id, 'vesselroleaccess-id');
-        }
-
-        $this->merge(array_merge($data, [
+        $this->merge([
             'name' => trim($this->name),
-            'description' => $this->description ? trim($this->description) : null,
-        ]));
+        ]);
     }
 }
-
