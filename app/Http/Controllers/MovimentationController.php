@@ -114,7 +114,8 @@ class MovimentationController extends Controller
         });
 
         // Related data for filters/forms
-        $categories  = MovimentationCategory::orderBy('name')->get();
+        // Get categories: system categories (vessel_id = null) + vessel-specific categories
+        $categories  = MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
@@ -227,7 +228,8 @@ class MovimentationController extends Controller
         }
 
         // Related data for form
-        $categories  = MovimentationCategory::orderBy('name')->get();
+        // Get categories: system categories (vessel_id = null) + vessel-specific categories
+        $categories  = MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
@@ -703,7 +705,8 @@ class MovimentationController extends Controller
         ]);
 
         // Related data for form
-        $categories  = MovimentationCategory::orderBy('name')->get();
+        // Get categories: system categories (vessel_id = null) + vessel-specific categories
+        $categories  = MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
@@ -1315,7 +1318,8 @@ class MovimentationController extends Controller
         });
 
         // Related data for filters/forms
-        $categories  = MovimentationCategory::orderBy('name')->get();
+        // Get categories: system categories (vessel_id = null) + vessel-specific categories
+        $categories  = MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
