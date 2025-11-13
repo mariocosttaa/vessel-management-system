@@ -1,12 +1,9 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Models\Transaction;
 use App\Models\Marea;
-use App\Models\MareaQuantityReturn;
+use App\Models\Movimentation;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class FinancialReportController extends Controller
@@ -24,24 +21,24 @@ class FinancialReportController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view transactions using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Check reports.access permission from config (reports require specific access permission)
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['reports.access'] ?? false)) {
+        if (! ($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view financial reports.');
         }
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get all month/year combinations from transactions with summary data
-        $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
+        $monthYearCombinations = Movimentation::where('vessel_id', $vesselId)
             ->where('status', 'completed')
             ->selectRaw('
                 DISTINCT transaction_month as month,
@@ -57,25 +54,25 @@ class FinancialReportController extends Controller
             ->orderBy('transaction_month', 'desc')
             ->get()
             ->map(function ($item) {
-                $totalIncome = (int) $item->total_income;
+                $totalIncome   = (int) $item->total_income;
                 $totalExpenses = (int) $item->total_expenses;
-                $netBalance = $totalIncome - $totalExpenses;
+                $netBalance    = $totalIncome - $totalExpenses;
 
                 return [
-                    'month' => (int) $item->month,
-                    'year' => (int) $item->year,
-                    'month_label' => date('F', mktime(0, 0, 0, $item->month, 1)),
-                    'count' => (int) $item->count,
-                    'total_income' => $totalIncome,
+                    'month'          => (int) $item->month,
+                    'year'           => (int) $item->year,
+                    'month_label'    => date('F', mktime(0, 0, 0, $item->month, 1)),
+                    'count'          => (int) $item->count,
+                    'total_income'   => $totalIncome,
                     'total_expenses' => $totalExpenses,
-                    'net_balance' => $netBalance,
+                    'net_balance'    => $netBalance,
                 ];
             })
             ->values();
 
         return Inertia::render('FinancialReports/Index', [
             'monthYearCombinations' => $monthYearCombinations,
-            'defaultCurrency' => $defaultCurrency,
+            'defaultCurrency'       => $defaultCurrency,
         ]);
     }
 
@@ -85,7 +82,7 @@ class FinancialReportController extends Controller
     public function show(Request $request, $year, $month)
     {
         // Get parameters from route (ensures correct binding)
-        $year = (int) $request->route('year');
+        $year  = (int) $request->route('year');
         $month = (int) $request->route('month');
 
         /** @var \App\Models\User|null $user */
@@ -96,14 +93,14 @@ class FinancialReportController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view transactions using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Check reports.access permission from config
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['reports.access'] ?? false)) {
+        if (! ($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view financial reports.');
         }
 
@@ -117,12 +114,12 @@ class FinancialReportController extends Controller
         }
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get all transactions for the month/year
-        $transactions = Transaction::where('vessel_id', $vesselId)
+        $transactions = Movimentation::where('vessel_id', $vesselId)
             ->where('transaction_month', $month)
             ->where('transaction_year', $year)
             ->where('status', 'completed') // Only completed transactions
@@ -130,22 +127,22 @@ class FinancialReportController extends Controller
             ->get();
 
         // Calculate summary statistics
-        $totalIncome = $transactions->where('type', 'income')->sum('total_amount');
-        $totalExpenses = $transactions->where('type', 'expense')->sum('total_amount');
-        $netBalance = $totalIncome - $totalExpenses;
+        $totalIncome      = $transactions->where('type', 'income')->sum('total_amount');
+        $totalExpenses    = $transactions->where('type', 'expense')->sum('total_amount');
+        $netBalance       = $totalIncome - $totalExpenses;
         $transactionCount = $transactions->count();
 
         // Get category breakdown
         $categoryBreakdown = $transactions->groupBy('category_id')->map(function ($categoryTransactions, $categoryId) {
             $category = $categoryTransactions->first()->category;
             return [
-                'category_id' => $categoryId,
-                'category_name' => $category ? $category->name : 'Uncategorized',
-                'category_type' => $category ? $category->type : null,
+                'category_id'    => $categoryId,
+                'category_name'  => $category ? $category->name : 'Uncategorized',
+                'category_type'  => $category ? $category->type : null,
                 'category_color' => $category ? $category->color : null,
-                'income' => $categoryTransactions->where('type', 'income')->sum('total_amount'),
-                'expenses' => $categoryTransactions->where('type', 'expense')->sum('total_amount'),
-                'count' => $categoryTransactions->count(),
+                'income'         => $categoryTransactions->where('type', 'income')->sum('total_amount'),
+                'expenses'       => $categoryTransactions->where('type', 'expense')->sum('total_amount'),
+                'count'          => $categoryTransactions->count(),
             ];
         })->values()->sortByDesc('expenses')->values();
 
@@ -158,12 +155,12 @@ class FinancialReportController extends Controller
             return \Carbon\Carbon::parse($date)->format('Y-m-d');
         })->map(function ($dayTransactions, $date) {
             return [
-                'date' => $date,
+                'date'           => $date,
                 'formatted_date' => \Carbon\Carbon::parse($date)->format('M d'),
-                'income' => $dayTransactions->where('type', 'income')->sum('total_amount'),
-                'expenses' => $dayTransactions->where('type', 'expense')->sum('total_amount'),
-                'net' => $dayTransactions->where('type', 'income')->sum('total_amount') - $dayTransactions->where('type', 'expense')->sum('total_amount'),
-                'count' => $dayTransactions->count(),
+                'income'         => $dayTransactions->where('type', 'income')->sum('total_amount'),
+                'expenses'       => $dayTransactions->where('type', 'expense')->sum('total_amount'),
+                'net'            => $dayTransactions->where('type', 'income')->sum('total_amount') - $dayTransactions->where('type', 'expense')->sum('total_amount'),
+                'count'          => $dayTransactions->count(),
             ];
         })->sortBy('date')->values();
 
@@ -174,7 +171,7 @@ class FinancialReportController extends Controller
                 $query->where(function ($q) use ($year, $month) {
                     // Check if marea's dates overlap with the month
                     $startDate = sprintf('%04d-%02d-01', $year, $month);
-                    $endDate = \Carbon\Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d');
+                    $endDate   = \Carbon\Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d');
 
                     $q->where(function ($subQ) use ($startDate, $endDate) {
                         $subQ->whereNotNull('actual_departure_date')
@@ -193,33 +190,33 @@ class FinancialReportController extends Controller
             ->get()
             ->map(function ($marea) use ($month, $year) {
                 // Get transactions for this marea in this month
-                $mareaTransactions = Transaction::where('vessel_id', $marea->vessel_id)
+                $mareaTransactions = Movimentation::where('vessel_id', $marea->vessel_id)
                     ->where('marea_id', $marea->id)
                     ->where('transaction_month', $month)
                     ->where('transaction_year', $year)
                     ->where('status', 'completed')
                     ->get();
 
-                $mareaIncome = $mareaTransactions->where('type', 'income')->sum('total_amount');
+                $mareaIncome   = $mareaTransactions->where('type', 'income')->sum('total_amount');
                 $mareaExpenses = $mareaTransactions->where('type', 'expense')->sum('total_amount');
-                $mareaNet = $mareaIncome - $mareaExpenses;
+                $mareaNet      = $mareaIncome - $mareaExpenses;
 
                 return [
-                    'id' => $marea->id,
-                    'marea_number' => $marea->marea_number,
-                    'name' => $marea->name,
-                    'status' => $marea->status,
-                    'actual_departure_date' => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
-                    'actual_return_date' => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
+                    'id'                       => $marea->id,
+                    'marea_number'             => $marea->marea_number,
+                    'name'                     => $marea->name,
+                    'status'                   => $marea->status,
+                    'actual_departure_date'    => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
+                    'actual_return_date'       => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
                     'estimated_departure_date' => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
-                    'estimated_return_date' => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
-                    'total_income' => $mareaIncome,
-                    'total_expenses' => $mareaExpenses,
-                    'net_result' => $mareaNet,
-                    'transaction_count' => $mareaTransactions->count(),
-                    'quantity_returns' => $marea->quantityReturns->map(function ($qr) {
+                    'estimated_return_date'    => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
+                    'total_income'             => $mareaIncome,
+                    'total_expenses'           => $mareaExpenses,
+                    'net_result'               => $mareaNet,
+                    'transaction_count'        => $mareaTransactions->count(),
+                    'quantity_returns'         => $marea->quantityReturns->map(function ($qr) {
                         return [
-                            'name' => $qr->name,
+                            'name'     => $qr->name,
                             'quantity' => (float) $qr->quantity,
                         ];
                     }),
@@ -231,21 +228,21 @@ class FinancialReportController extends Controller
 
         // Calculate percentage changes (compare with previous month if available)
         $previousMonth = $month - 1;
-        $previousYear = $year;
+        $previousYear  = $year;
         if ($previousMonth < 1) {
             $previousMonth = 12;
-            $previousYear = $year - 1;
+            $previousYear  = $year - 1;
         }
 
-        $previousMonthTransactions = Transaction::where('vessel_id', $vesselId)
+        $previousMonthTransactions = Movimentation::where('vessel_id', $vesselId)
             ->where('transaction_month', $previousMonth)
             ->where('transaction_year', $previousYear)
             ->where('status', 'completed')
             ->get();
 
-        $previousMonthIncome = $previousMonthTransactions->where('type', 'income')->sum('total_amount');
+        $previousMonthIncome   = $previousMonthTransactions->where('type', 'income')->sum('total_amount');
         $previousMonthExpenses = $previousMonthTransactions->where('type', 'expense')->sum('total_amount');
-        $previousMonthNet = $previousMonthIncome - $previousMonthExpenses;
+        $previousMonthNet      = $previousMonthIncome - $previousMonthExpenses;
 
         $incomeChange = $previousMonthIncome > 0
             ? (($totalIncome - $previousMonthIncome) / $previousMonthIncome) * 100
@@ -258,23 +255,22 @@ class FinancialReportController extends Controller
             : 0;
 
         return Inertia::render('FinancialReports/Show', [
-            'month' => $month,
-            'year' => $year,
-            'monthLabel' => $monthLabel,
-            'defaultCurrency' => $defaultCurrency,
-            'summary' => [
-                'total_income' => $totalIncome,
-                'total_expenses' => $totalExpenses,
-                'net_balance' => $netBalance,
+            'month'             => $month,
+            'year'              => $year,
+            'monthLabel'        => $monthLabel,
+            'defaultCurrency'   => $defaultCurrency,
+            'summary'           => [
+                'total_income'      => $totalIncome,
+                'total_expenses'    => $totalExpenses,
+                'net_balance'       => $netBalance,
                 'transaction_count' => $transactionCount,
-                'income_change' => round($incomeChange, 2),
-                'expenses_change' => round($expensesChange, 2),
-                'net_change' => round($netChange, 2),
+                'income_change'     => round($incomeChange, 2),
+                'expenses_change'   => round($expensesChange, 2),
+                'net_change'        => round($netChange, 2),
             ],
             'categoryBreakdown' => $categoryBreakdown,
-            'dailyBreakdown' => $dailyBreakdown,
-            'mareas' => $mareas,
+            'dailyBreakdown'    => $dailyBreakdown,
+            'mareas'            => $mareas,
         ]);
     }
 }
-

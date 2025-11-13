@@ -1,11 +1,9 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Models\Transaction;
+use App\Models\Movimentation;
 use App\Models\VatProfile;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class VatReportController extends Controller
@@ -23,24 +21,24 @@ class VatReportController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view transactions using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Check reports.access permission from config (reports require specific access permission)
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['reports.access'] ?? false)) {
+        if (! ($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view VAT reports.');
         }
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get all month/year combinations from transactions with VAT (only income transactions have VAT)
-        $monthYearCombinations = Transaction::where('vessel_id', $vesselId)
+        $monthYearCombinations = Movimentation::where('vessel_id', $vesselId)
             ->where('type', 'income') // Only income transactions have VAT
             ->where('status', 'completed')
             ->where('vat_amount', '>', 0) // Only transactions with VAT
@@ -53,18 +51,18 @@ class VatReportController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
-                    'month' => (int) $item->month,
-                    'year' => (int) $item->year,
+                    'month'       => (int) $item->month,
+                    'year'        => (int) $item->year,
                     'month_label' => date('F', mktime(0, 0, 0, $item->month, 1)),
-                    'count' => (int) $item->count,
-                    'total_vat' => (int) $item->total_vat,
+                    'count'       => (int) $item->count,
+                    'total_vat'   => (int) $item->total_vat,
                 ];
             })
             ->values();
 
         return Inertia::render('VatReports/Index', [
             'monthYearCombinations' => $monthYearCombinations,
-            'defaultCurrency' => $defaultCurrency,
+            'defaultCurrency'       => $defaultCurrency,
         ]);
     }
 
@@ -74,7 +72,7 @@ class VatReportController extends Controller
     public function show(Request $request, $year, $month)
     {
         // Get parameters from route (ensures correct binding)
-        $year = (int) $request->route('year');
+        $year  = (int) $request->route('year');
         $month = (int) $request->route('month');
 
         /** @var \App\Models\User|null $user */
@@ -85,14 +83,14 @@ class VatReportController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view transactions using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Check reports.access permission from config
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['reports.access'] ?? false)) {
+        if (! ($permissions['reports.access'] ?? false)) {
             abort(403, 'You do not have permission to view VAT reports.');
         }
 
@@ -106,12 +104,12 @@ class VatReportController extends Controller
         }
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get all transactions with VAT for the month/year (only income transactions have VAT)
-        $transactions = Transaction::where('vessel_id', $vesselId)
+        $transactions = Movimentation::where('vessel_id', $vesselId)
             ->where('transaction_month', $month)
             ->where('transaction_year', $year)
             ->where('type', 'income') // Only income transactions have VAT
@@ -121,26 +119,26 @@ class VatReportController extends Controller
                 'category:id,name,type,color',
                 'vatProfile:id,name,percentage,code,country_id',
                 'vatProfile.country:id,name,code',
-                'marea:id,marea_number,name'
+                'marea:id,marea_number,name',
             ])
             ->get();
 
         // Calculate summary statistics
-        $totalVat = $transactions->sum('vat_amount');
-        $totalBaseAmount = $transactions->sum('amount');
+        $totalVat           = $transactions->sum('vat_amount');
+        $totalBaseAmount    = $transactions->sum('amount');
         $totalAmountWithVat = $transactions->sum('total_amount');
-        $transactionCount = $transactions->count();
+        $transactionCount   = $transactions->count();
 
         // Get VAT breakdown by VAT profile
         $vatProfileBreakdown = $transactions->groupBy('vat_profile_id')->map(function ($profileTransactions, $profileId) {
-            $vatProfile = $profileTransactions->first()->vatProfile;
+            $vatProfile       = $profileTransactions->first()->vatProfile;
             $transactionsList = $profileTransactions->map(function ($transaction) {
-                $date = $transaction->transaction_date;
+                $date          = $transaction->transaction_date;
                 $formattedDate = null;
 
                 if ($date) {
                     try {
-                        if ($date instanceof \Carbon\Carbon || $date instanceof \DateTimeInterface) {
+                        if ($date instanceof \Carbon\Carbon  || $date instanceof \DateTimeInterface) {
                             $formattedDate = \Carbon\Carbon::instance($date)->format('Y-m-d');
                         } else {
                             $formattedDate = \Carbon\Carbon::parse((string) $date)->format('Y-m-d');
@@ -151,36 +149,36 @@ class VatReportController extends Controller
                 }
 
                 return [
-                    'id' => $transaction->id,
+                    'id'                 => $transaction->id,
                     'transaction_number' => $transaction->transaction_number,
-                    'transaction_date' => $formattedDate,
-                    'description' => $transaction->description,
-                    'base_amount' => $transaction->amount,
-                    'vat_amount' => $transaction->vat_amount,
-                    'total_amount' => $transaction->total_amount,
-                    'category' => $transaction->category ? [
-                        'id' => $transaction->category->id,
-                        'name' => $transaction->category->name,
+                    'transaction_date'   => $formattedDate,
+                    'description'        => $transaction->description,
+                    'base_amount'        => $transaction->amount,
+                    'vat_amount'         => $transaction->vat_amount,
+                    'total_amount'       => $transaction->total_amount,
+                    'category'           => $transaction->category ? [
+                        'id'    => $transaction->category->id,
+                        'name'  => $transaction->category->name,
                         'color' => $transaction->category->color,
                     ] : null,
                 ];
             })->values();
 
             return [
-                'vat_profile_id' => $profileId,
-                'vat_profile_name' => $vatProfile ? $vatProfile->name : 'Unknown',
+                'vat_profile_id'         => $profileId,
+                'vat_profile_name'       => $vatProfile ? $vatProfile->name : 'Unknown',
                 'vat_profile_percentage' => $vatProfile ? (float) $vatProfile->percentage : 0,
-                'vat_profile_code' => $vatProfile ? $vatProfile->code : null,
-                'country' => $vatProfile && $vatProfile->country ? [
-                    'id' => $vatProfile->country->id,
+                'vat_profile_code'       => $vatProfile ? $vatProfile->code : null,
+                'country'                => $vatProfile && $vatProfile->country ? [
+                    'id'   => $vatProfile->country->id,
                     'name' => $vatProfile->country->name,
                     'code' => $vatProfile->country->code,
                 ] : null,
-                'total_base_amount' => $profileTransactions->sum('amount'),
-                'total_vat_amount' => $profileTransactions->sum('vat_amount'),
-                'total_amount_with_vat' => $profileTransactions->sum('total_amount'),
-                'transaction_count' => $profileTransactions->count(),
-                'transactions' => $transactionsList,
+                'total_base_amount'      => $profileTransactions->sum('amount'),
+                'total_vat_amount'       => $profileTransactions->sum('vat_amount'),
+                'total_amount_with_vat'  => $profileTransactions->sum('total_amount'),
+                'transaction_count'      => $profileTransactions->count(),
+                'transactions'           => $transactionsList,
             ];
         })->values()->sortByDesc('total_vat_amount')->values();
 
@@ -188,13 +186,13 @@ class VatReportController extends Controller
         $categoryBreakdown = $transactions->groupBy('category_id')->map(function ($categoryTransactions, $categoryId) {
             $category = $categoryTransactions->first()->category;
             return [
-                'category_id' => $categoryId,
-                'category_name' => $category ? $category->name : 'Uncategorized',
-                'category_color' => $category ? $category->color : null,
-                'total_base_amount' => $categoryTransactions->sum('amount'),
-                'total_vat_amount' => $categoryTransactions->sum('vat_amount'),
+                'category_id'           => $categoryId,
+                'category_name'         => $category ? $category->name : 'Uncategorized',
+                'category_color'        => $category ? $category->color : null,
+                'total_base_amount'     => $categoryTransactions->sum('amount'),
+                'total_vat_amount'      => $categoryTransactions->sum('vat_amount'),
                 'total_amount_with_vat' => $categoryTransactions->sum('total_amount'),
-                'transaction_count' => $categoryTransactions->count(),
+                'transaction_count'     => $categoryTransactions->count(),
             ];
         })->values()->sortByDesc('total_vat_amount')->values();
 
@@ -207,12 +205,12 @@ class VatReportController extends Controller
             return \Carbon\Carbon::parse($date)->format('Y-m-d');
         })->map(function ($dayTransactions, $date) {
             return [
-                'date' => $date,
+                'date'           => $date,
                 'formatted_date' => \Carbon\Carbon::parse($date)->format('M d'),
-                'base_amount' => $dayTransactions->sum('amount'),
-                'vat_amount' => $dayTransactions->sum('vat_amount'),
-                'total_amount' => $dayTransactions->sum('total_amount'),
-                'count' => $dayTransactions->count(),
+                'base_amount'    => $dayTransactions->sum('amount'),
+                'vat_amount'     => $dayTransactions->sum('vat_amount'),
+                'total_amount'   => $dayTransactions->sum('total_amount'),
+                'count'          => $dayTransactions->count(),
             ];
         })->sortBy('date')->values();
 
@@ -222,13 +220,13 @@ class VatReportController extends Controller
             ->map(function ($mareaTransactions, $mareaId) {
                 $marea = $mareaTransactions->first()->marea;
                 return [
-                    'marea_id' => $mareaId,
-                    'marea_number' => $marea ? $marea->marea_number : 'Unknown',
-                    'marea_name' => $marea ? $marea->name : null,
-                    'total_base_amount' => $mareaTransactions->sum('amount'),
-                    'total_vat_amount' => $mareaTransactions->sum('vat_amount'),
+                    'marea_id'              => $mareaId,
+                    'marea_number'          => $marea ? $marea->marea_number : 'Unknown',
+                    'marea_name'            => $marea ? $marea->name : null,
+                    'total_base_amount'     => $mareaTransactions->sum('amount'),
+                    'total_vat_amount'      => $mareaTransactions->sum('vat_amount'),
                     'total_amount_with_vat' => $mareaTransactions->sum('total_amount'),
-                    'transaction_count' => $mareaTransactions->count(),
+                    'transaction_count'     => $mareaTransactions->count(),
                 ];
             })->values()->sortByDesc('total_vat_amount')->values();
 
@@ -237,13 +235,13 @@ class VatReportController extends Controller
 
         // Calculate percentage changes (compare with previous month if available)
         $previousMonth = $month - 1;
-        $previousYear = $year;
+        $previousYear  = $year;
         if ($previousMonth < 1) {
             $previousMonth = 12;
-            $previousYear = $year - 1;
+            $previousYear  = $year - 1;
         }
 
-        $previousMonthTransactions = Transaction::where('vessel_id', $vesselId)
+        $previousMonthTransactions = Movimentation::where('vessel_id', $vesselId)
             ->where('transaction_month', $previousMonth)
             ->where('transaction_year', $previousYear)
             ->where('type', 'income')
@@ -251,7 +249,7 @@ class VatReportController extends Controller
             ->where('vat_amount', '>', 0)
             ->get();
 
-        $previousMonthVat = $previousMonthTransactions->sum('vat_amount');
+        $previousMonthVat  = $previousMonthTransactions->sum('vat_amount');
         $previousMonthBase = $previousMonthTransactions->sum('amount');
 
         $vatChange = $previousMonthVat > 0
@@ -263,76 +261,75 @@ class VatReportController extends Controller
 
         // Get all transactions list for detailed view
         $transactionsList = $transactions->map(function ($transaction) {
-            $date = $transaction->transaction_date;
-            $formattedDate = null;
+            $date              = $transaction->transaction_date;
+            $formattedDate     = null;
             $formattedDateLong = null;
 
             if ($date) {
                 try {
-                    if ($date instanceof \Carbon\Carbon || $date instanceof \DateTimeInterface) {
-                        $carbonDate = \Carbon\Carbon::instance($date);
-                        $formattedDate = $carbonDate->format('Y-m-d');
+                    if ($date instanceof \Carbon\Carbon  || $date instanceof \DateTimeInterface) {
+                        $carbonDate        = \Carbon\Carbon::instance($date);
+                        $formattedDate     = $carbonDate->format('Y-m-d');
                         $formattedDateLong = $carbonDate->format('M d, Y');
                     } else {
-                        $carbonDate = \Carbon\Carbon::parse((string) $date);
-                        $formattedDate = $carbonDate->format('Y-m-d');
+                        $carbonDate        = \Carbon\Carbon::parse((string) $date);
+                        $formattedDate     = $carbonDate->format('Y-m-d');
                         $formattedDateLong = $carbonDate->format('M d, Y');
                     }
                 } catch (\Exception $e) {
-                    $formattedDate = null;
+                    $formattedDate     = null;
                     $formattedDateLong = null;
                 }
             }
 
             return [
-                'id' => $transaction->id,
-                'transaction_number' => $transaction->transaction_number,
-                'transaction_date' => $formattedDate,
+                'id'                         => $transaction->id,
+                'transaction_number'         => $transaction->transaction_number,
+                'transaction_date'           => $formattedDate,
                 'formatted_transaction_date' => $formattedDateLong,
-                'description' => $transaction->description,
-                'reference' => $transaction->reference,
-                'base_amount' => $transaction->amount,
-                'vat_amount' => $transaction->vat_amount,
-                'total_amount' => $transaction->total_amount,
-                'currency' => $transaction->currency,
-                'category' => $transaction->category ? [
-                    'id' => $transaction->category->id,
-                    'name' => $transaction->category->name,
+                'description'                => $transaction->description,
+                'reference'                  => $transaction->reference,
+                'base_amount'                => $transaction->amount,
+                'vat_amount'                 => $transaction->vat_amount,
+                'total_amount'               => $transaction->total_amount,
+                'currency'                   => $transaction->currency,
+                'category'                   => $transaction->category ? [
+                    'id'    => $transaction->category->id,
+                    'name'  => $transaction->category->name,
                     'color' => $transaction->category->color,
                 ] : null,
-                'vat_profile' => $transaction->vatProfile ? [
-                    'id' => $transaction->vatProfile->id,
-                    'name' => $transaction->vatProfile->name,
+                'vat_profile'                => $transaction->vatProfile ? [
+                    'id'         => $transaction->vatProfile->id,
+                    'name'       => $transaction->vatProfile->name,
                     'percentage' => (float) $transaction->vatProfile->percentage,
-                    'code' => $transaction->vatProfile->code,
+                    'code'       => $transaction->vatProfile->code,
                 ] : null,
-                'marea' => $transaction->marea ? [
-                    'id' => $transaction->marea->id,
+                'marea'                      => $transaction->marea ? [
+                    'id'           => $transaction->marea->id,
                     'marea_number' => $transaction->marea->marea_number,
-                    'name' => $transaction->marea->name,
+                    'name'         => $transaction->marea->name,
                 ] : null,
             ];
         })->sortByDesc('transaction_date')->values();
 
         return Inertia::render('VatReports/Show', [
-            'month' => $month,
-            'year' => $year,
-            'monthLabel' => $monthLabel,
-            'defaultCurrency' => $defaultCurrency,
-            'summary' => [
-                'total_vat' => $totalVat,
-                'total_base_amount' => $totalBaseAmount,
+            'month'               => $month,
+            'year'                => $year,
+            'monthLabel'          => $monthLabel,
+            'defaultCurrency'     => $defaultCurrency,
+            'summary'             => [
+                'total_vat'             => $totalVat,
+                'total_base_amount'     => $totalBaseAmount,
                 'total_amount_with_vat' => $totalAmountWithVat,
-                'transaction_count' => $transactionCount,
-                'vat_change' => round($vatChange, 2),
-                'base_change' => round($baseChange, 2),
+                'transaction_count'     => $transactionCount,
+                'vat_change'            => round($vatChange, 2),
+                'base_change'           => round($baseChange, 2),
             ],
             'vatProfileBreakdown' => $vatProfileBreakdown,
-            'categoryBreakdown' => $categoryBreakdown,
-            'dailyBreakdown' => $dailyBreakdown,
-            'mareaBreakdown' => $mareaBreakdown,
-            'transactions' => $transactionsList,
+            'categoryBreakdown'   => $categoryBreakdown,
+            'dailyBreakdown'      => $dailyBreakdown,
+            'mareaBreakdown'      => $mareaBreakdown,
+            'transactions'        => $transactionsList,
         ]);
     }
 }
-
