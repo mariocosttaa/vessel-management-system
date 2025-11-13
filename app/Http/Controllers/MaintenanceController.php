@@ -1,12 +1,11 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Models\Maintenance;
-use App\Models\Transaction;
 use App\Actions\AuditLogAction;
-use App\Traits\HasTranslations;
 use App\Http\Controllers\Concerns\HashesIds;
+use App\Models\Maintenance;
+use App\Models\Movimentation;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -28,14 +27,14 @@ class MaintenanceController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view maintenances using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check maintenances.view permission from config
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['maintenances.view'] ?? false)) {
+        if (! ($permissions['maintenances.view'] ?? false)) {
             abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
         }
 
@@ -47,8 +46,8 @@ class MaintenanceController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('maintenance_number', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -61,19 +60,19 @@ class MaintenanceController extends Controller
         if ($request->filled('date_from')) {
             $query->where(function ($q) use ($request) {
                 $q->where('start_date', '>=', $request->date_from)
-                  ->orWhere('end_date', '>=', $request->date_from);
+                    ->orWhere('end_date', '>=', $request->date_from);
             });
         }
 
         if ($request->filled('date_to')) {
             $query->where(function ($q) use ($request) {
                 $q->where('start_date', '<=', $request->date_to)
-                  ->orWhere('end_date', '<=', $request->date_to);
+                    ->orWhere('end_date', '<=', $request->date_to);
             });
         }
 
         // Sorting - default to created_at descending (newest first)
-        $sortField = $request->get('sort', 'created_at');
+        $sortField     = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
 
         $query->orderBy($sortField, $sortDirection);
@@ -96,36 +95,36 @@ class MaintenanceController extends Controller
 
         // Status options
         $statuses = [
-            'open' => 'Open',
-            'closed' => 'Closed',
+            'open'      => 'Open',
+            'closed'    => 'Closed',
             'cancelled' => 'Cancelled',
         ];
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         return Inertia::render('Maintenances/Index', [
-            'maintenances' => $maintenances->through(function ($maintenance) {
+            'maintenances'    => $maintenances->through(function ($maintenance) {
                 // Count transactions for this maintenance
-                $transactionCount = \App\Models\Transaction::where('maintenance_id', $maintenance->id)->count();
+                $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
 
                 return [
-                    'id' => $this->hashId($maintenance->id, 'maintenance-id'),
+                    'id'                 => $this->hashId($maintenance->id, 'maintenance'),
                     'maintenance_number' => $maintenance->maintenance_number,
-                    'name' => $maintenance->name,
-                    'description' => $maintenance->description,
-                    'status' => $maintenance->status,
-                    'start_date' => $maintenance->start_date?->format('Y-m-d'),
-                    'end_date' => $maintenance->end_date?->format('Y-m-d'),
-                    'total_expenses' => $maintenance->total_expenses,
-                    'created_at' => $maintenance->created_at ? $maintenance->created_at->format('Y-m-d H:i:s') : null,
-                    'transaction_count' => $transactionCount,
+                    'name'               => $maintenance->name,
+                    'description'        => $maintenance->description,
+                    'status'             => $maintenance->status,
+                    'start_date'         => $maintenance->start_date?->format('Y-m-d'),
+                    'end_date'           => $maintenance->end_date?->format('Y-m-d'),
+                    'total_expenses'     => $maintenance->total_expenses,
+                    'created_at'         => $maintenance->created_at ? $maintenance->created_at->format('Y-m-d H:i:s') : null,
+                    'transaction_count'  => $transactionCount,
                 ];
             }),
-            'statuses' => $statuses,
-            'filters' => $filters,
+            'statuses'        => $statuses,
+            'filters'         => $filters,
             'defaultCurrency' => $defaultCurrency,
         ]);
     }
@@ -143,13 +142,13 @@ class MaintenanceController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['maintenances.create'] ?? false)) {
+        if (! ($permissions['maintenances.create'] ?? false)) {
             abort(403, 'You do not have permission to create maintenances.');
         }
 
@@ -180,22 +179,22 @@ class MaintenanceController extends Controller
                 $vesselId = (int) $vessel;
             } else {
                 // Decode hashed vessel ID
-                $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
-                if (!$vesselId) {
+                if (! $vesselId) {
                     abort(404, 'Vessel not found.');
                 }
             }
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['maintenances.create'] ?? false)) {
+            if (! ($permissions['maintenances.create'] ?? false)) {
                 abort(403, 'You do not have permission to create maintenances.');
             }
 
@@ -207,22 +206,22 @@ class MaintenanceController extends Controller
                     'max:255',
                     Rule::unique('maintenances', 'maintenance_number')->whereNull('deleted_at'),
                 ],
-                'start_date' => 'required|date',
+                'start_date'         => 'required|date',
             ]);
 
-            $vessel = \App\Models\Vessel::find($vesselId);
-            $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+            $vessel          = \App\Models\Vessel::find($vesselId);
+            $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
             $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
             $maintenance = Maintenance::create([
-                'vessel_id' => $vesselId,
+                'vessel_id'          => $vesselId,
                 'maintenance_number' => $validated['maintenance_number'],
-                'start_date' => $validated['start_date'],
-                'end_date' => null, // End date will be set when finalizing
-                'currency' => $defaultCurrency,
-                'house_of_zeros' => 2, // Default
-                'status' => 'open',
-                'created_by' => $user->id,
+                'start_date'         => $validated['start_date'],
+                'end_date'           => null, // End date will be set when finalizing
+                'currency'           => $defaultCurrency,
+                'house_of_zeros'     => 2, // Default
+                'status'             => 'open',
+                'created_by'         => $user->id,
             ]);
 
             // Log the create action
@@ -236,19 +235,19 @@ class MaintenanceController extends Controller
             return redirect()
                 ->route('panel.maintenances.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'maintenanceId' => $maintenance->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been created successfully.", [
-                    'number' => $maintenance->maintenance_number
+                    'number' => $maintenance->maintenance_number,
                 ]));
         } catch (\Exception $e) {
             Log::error('Maintenance creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
 
             return back()
                 ->withInput()
                 ->with('error', $this->transFrom('notifications', 'Failed to create maintenance: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -265,16 +264,31 @@ class MaintenanceController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        if (!$vesselId) {
+        if (! $vesselId) {
             // Fallback: try to get from route parameter
-            $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            if (is_object($vessel)) {
+                $vesselId = $vessel->id;
+            } elseif (is_numeric($vessel)) {
+                $vesselId = (int) $vessel;
+            } else {
+                // Decode hashed vessel ID
+                $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                if (! $vesselId) {
+                    abort(404, 'Vessel not found.');
+                }
+            }
         }
 
         // CRITICAL: Get maintenance ID directly from route parameter
         $maintenanceIdFromRoute = $request->route('maintenanceId');
         // Unhash maintenance ID if it's a hashed string
-        if ($maintenanceIdFromRoute && !is_numeric($maintenanceIdFromRoute)) {
-            $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance-id');
+        if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+            $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+            if (! $maintenanceId) {
+                abort(404, 'Maintenance not found.');
+            }
         } else {
             $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
         }
@@ -285,13 +299,13 @@ class MaintenanceController extends Controller
             ->firstOrFail();
 
         // Check permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['maintenances.view'] ?? false)) {
+        if (! ($permissions['maintenances.view'] ?? false)) {
             abort(403, 'You do not have permission to view maintenances.');
         }
 
@@ -309,109 +323,109 @@ class MaintenanceController extends Controller
         ]);
 
         // Get related data for transaction creation modal
-        $categories = \App\Models\TransactionCategory::orderBy('name')->get();
-        $suppliers = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
+        $categories  = \App\Models\MovimentationCategory::orderBy('name')->get();
+        $suppliers   = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = \App\Models\User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
-        $vatProfiles = \App\Models\VatProfile::active()->orderBy('name')->get();
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vatProfiles       = \App\Models\VatProfile::active()->orderBy('name')->get();
+        $vesselSetting     = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel            = \App\Models\Vessel::find($vesselId);
         $defaultVatProfile = $vesselSetting->vat_profile_id
             ? \App\Models\VatProfile::find($vesselSetting->vat_profile_id)
             : \App\Models\VatProfile::where('is_default', true)->first();
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Count transactions for deletion warning
-        $transactionCount = \App\Models\Transaction::where('maintenance_id', $maintenance->id)->count();
+        $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
 
         return Inertia::render('Maintenances/Show', [
-            'transactionCount' => $transactionCount,
-            'defaultCurrency' => $defaultCurrency,
-            'categories' => $categories->map(function ($category) {
+            'transactionCount'  => $transactionCount,
+            'defaultCurrency'   => $defaultCurrency,
+            'categories'        => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'type' => $category->type,
+                    'id'    => $category->id,
+                    'name'  => $category->name,
+                    'type'  => $category->type,
                     'color' => $category->color,
                 ];
             }),
-            'suppliers' => $suppliers->map(function ($supplier) {
+            'suppliers'         => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $this->hashId($supplier->id, 'supplier-id'),
+                    'id'           => $this->hashId($supplier->id, 'supplier-id'),
                     'company_name' => $supplier->company_name,
-                    'description' => $supplier->description ?? null,
+                    'description'  => $supplier->description ?? null,
                 ];
             }),
-            'crewMembers' => $crewMembers->map(function ($member) {
+            'crewMembers'       => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
-                    'name' => $member->name,
+                    'id'    => $member->id,
+                    'name'  => $member->name,
                     'email' => $member->email,
                 ];
             }),
-            'vatProfiles' => $vatProfiles->map(function ($profile) {
+            'vatProfiles'       => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
-                    'name' => $profile->name,
+                    'id'         => $profile->id,
+                    'name'       => $profile->name,
                     'percentage' => (float) $profile->percentage,
                     'country_id' => $profile->country_id,
                 ];
             }),
             'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
-                'name' => $defaultVatProfile->name,
+                'id'         => $defaultVatProfile->id,
+                'name'       => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
                 'country_id' => $defaultVatProfile->country_id,
             ] : null,
-            'maintenance' => [
-                'id' => $this->hashId($maintenance->id, 'maintenance-id'),
-                'maintenance_number' => $maintenance->maintenance_number,
-                'name' => $maintenance->name,
-                'description' => $maintenance->description,
-                'status' => $maintenance->status,
-                'start_date' => $maintenance->start_date ? $maintenance->start_date->format('Y-m-d') : null,
-                'end_date' => $maintenance->end_date ? $maintenance->end_date->format('Y-m-d') : null,
-                'closed_at' => $maintenance->closed_at?->format('Y-m-d H:i:s'),
-                'currency' => $maintenance->currency ?? $defaultCurrency,
-                'house_of_zeros' => $maintenance->house_of_zeros ?? 2,
-                'total_expenses' => $maintenance->total_expenses,
+            'maintenance'       => [
+                'id'                       => $this->hashId($maintenance->id, 'maintenance'),
+                'maintenance_number'       => $maintenance->maintenance_number,
+                'name'                     => $maintenance->name,
+                'description'              => $maintenance->description,
+                'status'                   => $maintenance->status,
+                'start_date'               => $maintenance->start_date ? $maintenance->start_date->format('Y-m-d') : null,
+                'end_date'                 => $maintenance->end_date ? $maintenance->end_date->format('Y-m-d') : null,
+                'closed_at'                => $maintenance->closed_at?->format('Y-m-d H:i:s'),
+                'currency'                 => $maintenance->currency ?? $defaultCurrency,
+                'house_of_zeros'           => $maintenance->house_of_zeros ?? 2,
+                'total_expenses'           => $maintenance->total_expenses,
                 'formatted_total_expenses' => $maintenance->formatted_total_expenses,
-                'transactions' => $maintenance->transactions->map(function ($transaction) {
+                'transactions'             => $maintenance->transactions->map(function ($transaction) {
                     return [
-                        'id' => $this->hashId($transaction->id, 'transaction-id'),
+                        'id'                 => $this->hashId($transaction->id, 'movimentation'),
                         'transaction_number' => $transaction->transaction_number,
-                        'type' => $transaction->type,
-                        'amount' => $transaction->amount,
-                        'amount_per_unit' => $transaction->amount_per_unit,
-                        'quantity' => $transaction->quantity,
-                        'vat_amount' => $transaction->vat_amount,
-                        'total_amount' => $transaction->total_amount,
-                        'currency' => $transaction->currency,
-                        'transaction_date' => $transaction->transaction_date?->format('Y-m-d'),
-                        'description' => $transaction->description,
-                        'category' => $transaction->category ? [
-                            'id' => $transaction->category->id,
-                            'name' => $transaction->category->name,
-                            'type' => $transaction->category->type,
+                        'type'               => $transaction->type,
+                        'amount'             => $transaction->amount,
+                        'amount_per_unit'    => $transaction->amount_per_unit,
+                        'quantity'           => $transaction->quantity,
+                        'vat_amount'         => $transaction->vat_amount,
+                        'total_amount'       => $transaction->total_amount,
+                        'currency'           => $transaction->currency,
+                        'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                        'description'        => $transaction->description,
+                        'category'           => $transaction->category ? [
+                            'id'    => $transaction->category->id,
+                            'name'  => $transaction->category->name,
+                            'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,
-                        'supplier' => $transaction->supplier ? [
-                            'id' => $transaction->supplier->id,
+                        'supplier'           => $transaction->supplier ? [
+                            'id'           => $transaction->supplier->id,
                             'company_name' => $transaction->supplier->company_name,
                         ] : null,
-                        'crew_member_id' => $transaction->crew_member_id,
-                        'crew_member' => $transaction->crewMember ? [
-                            'id' => $transaction->crewMember->id,
-                            'name' => $transaction->crewMember->name,
+                        'crew_member_id'     => $transaction->crew_member_id,
+                        'crew_member'        => $transaction->crewMember ? [
+                            'id'    => $transaction->crewMember->id,
+                            'name'  => $transaction->crewMember->name,
                             'email' => $transaction->crewMember->email,
                         ] : null,
                     ];
                 }),
-                'created_at' => $maintenance->created_at?->format('Y-m-d H:i:s'),
-                'created_by' => $maintenance->createdBy ? [
-                    'id' => $maintenance->createdBy->id,
+                'created_at'               => $maintenance->created_at?->format('Y-m-d H:i:s'),
+                'created_by'               => $maintenance->createdBy ? [
+                    'id'   => $maintenance->createdBy->id,
                     'name' => $maintenance->createdBy->name,
                 ] : null,
             ],
@@ -429,13 +443,34 @@ class MaintenanceController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
-                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            if (! $vesselId) {
+                // Fallback: try to get from route parameter
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                    if (! $vesselId) {
+                        abort(404, 'Vessel not found.');
+                    }
+                }
             }
 
             // CRITICAL: Get maintenance ID directly from route parameter
             $maintenanceIdFromRoute = $request->route('maintenanceId');
-            $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            // Unhash maintenance ID if it's a hashed string
+            if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+                $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+                if (! $maintenanceId) {
+                    abort(404, 'Maintenance not found.');
+                }
+            } else {
+                $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct maintenance
             $maintenance = Maintenance::where('vessel_id', $vesselId)
@@ -443,20 +478,20 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['maintenances.delete'] ?? false)) {
+            if (! ($permissions['maintenances.delete'] ?? false)) {
                 abort(403, 'You do not have permission to delete maintenances.');
             }
 
             $maintenanceNumber = $maintenance->maintenance_number;
 
             // Count transactions before deletion
-            $transactionCount = \App\Models\Transaction::where('maintenance_id', $maintenance->id)->count();
+            $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
 
             // Log the delete action BEFORE deletion
             AuditLogAction::logDelete(
@@ -467,7 +502,7 @@ class MaintenanceController extends Controller
             );
 
             // Soft delete all transactions associated with this maintenance (they will appear in recycle bin)
-            \App\Models\Transaction::where('maintenance_id', $maintenance->id)->delete();
+            \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->delete();
 
             // Soft delete the maintenance (will appear in recycle bin)
             $maintenance->delete();
@@ -480,7 +515,7 @@ class MaintenanceController extends Controller
             return redirect()
                 ->route('panel.maintenances.index', ['vessel' => $vesselId])
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been deleted successfully.", [
-                    'number' => $maintenance->maintenance_number
+                    'number' => $maintenance->maintenance_number,
                 ]));
         } catch (\Exception $e) {
             Log::error('Maintenance deletion failed', [
@@ -490,7 +525,7 @@ class MaintenanceController extends Controller
 
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to delete maintenance: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -506,7 +541,7 @@ class MaintenanceController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vessel = $request->route('vessel');
 
                 // Handle both route model binding (object) and hashed ID (string)
@@ -516,10 +551,10 @@ class MaintenanceController extends Controller
                     $vesselId = (int) $vessel;
                 } else {
                     // Decode hashed vessel ID
-                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
-                    if (!$vesselId) {
+                    if (! $vesselId) {
                         abort(404, 'Vessel not found.');
                     }
                 }
@@ -527,7 +562,15 @@ class MaintenanceController extends Controller
 
             // CRITICAL: Get maintenance ID directly from route parameter
             $maintenanceIdFromRoute = $request->route('maintenanceId');
-            $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            // Unhash maintenance ID if it's a hashed string
+            if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+                $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+                if (! $maintenanceId) {
+                    abort(404, 'Maintenance not found.');
+                }
+            } else {
+                $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct maintenance
             $maintenance = Maintenance::where('vessel_id', $vesselId)
@@ -535,13 +578,13 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['maintenances.edit'] ?? false)) {
+            if (! ($permissions['maintenances.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit maintenances.');
             }
 
@@ -552,8 +595,8 @@ class MaintenanceController extends Controller
 
             // Validate request
             $validated = $request->validate([
-                'end_date' => 'nullable|date|after_or_equal:start_date',
-                'name' => 'nullable|string|max:255',
+                'end_date'    => 'nullable|date|after_or_equal:start_date',
+                'name'        => 'nullable|string|max:255',
                 'description' => 'nullable|string',
             ]);
 
@@ -575,7 +618,7 @@ class MaintenanceController extends Controller
 
             return back()
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been updated successfully.", [
-                    'number' => $maintenance->maintenance_number
+                    'number' => $maintenance->maintenance_number,
                 ]));
         } catch (\Exception $e) {
             Log::error('Maintenance update failed', [
@@ -585,7 +628,7 @@ class MaintenanceController extends Controller
 
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to update maintenance: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -601,13 +644,34 @@ class MaintenanceController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
-                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            if (! $vesselId) {
+                // Fallback: try to get from route parameter
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                    if (! $vesselId) {
+                        abort(404, 'Vessel not found.');
+                    }
+                }
             }
 
             // CRITICAL: Get maintenance ID directly from route parameter
             $maintenanceIdFromRoute = $request->route('maintenanceId');
-            $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            // Unhash maintenance ID if it's a hashed string
+            if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+                $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+                if (! $maintenanceId) {
+                    abort(404, 'Maintenance not found.');
+                }
+            } else {
+                $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct maintenance
             $maintenance = Maintenance::where('vessel_id', $vesselId)
@@ -615,13 +679,13 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['maintenances.edit'] ?? false)) {
+            if (! ($permissions['maintenances.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit maintenances.');
             }
 
@@ -659,7 +723,7 @@ class MaintenanceController extends Controller
             return redirect()
                 ->route('panel.maintenances.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'maintenanceId' => $maintenance->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Maintenance ':number' has been finalized.", [
-                    'number' => $maintenance->maintenance_number
+                    'number' => $maintenance->maintenance_number,
                 ]));
         } catch (\Exception $e) {
             Log::error('Maintenance finalization failed', [
@@ -669,7 +733,7 @@ class MaintenanceController extends Controller
 
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to finalize maintenance: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -685,13 +749,34 @@ class MaintenanceController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
-                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            if (! $vesselId) {
+                // Fallback: try to get from route parameter
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+
+                    if (! $vesselId) {
+                        abort(404, 'Vessel not found.');
+                    }
+                }
             }
 
             // CRITICAL: Get maintenance ID directly from route parameter
             $maintenanceIdFromRoute = $request->route('maintenanceId');
-            $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            // Unhash maintenance ID if it's a hashed string
+            if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+                $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+                if (! $maintenanceId) {
+                    abort(404, 'Maintenance not found.');
+                }
+            } else {
+                $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+            }
 
             // Force fresh query with both vessel_id and id to ensure correct maintenance
             $maintenance = Maintenance::where('vessel_id', $vesselId)
@@ -699,13 +784,13 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['maintenances.edit'] ?? false)) {
+            if (! ($permissions['maintenances.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit maintenances.');
             }
 
@@ -716,15 +801,15 @@ class MaintenanceController extends Controller
 
             // Get transaction ID from route parameter and unhash it
             $transactionParam = is_object($transaction) ? $transaction->id : $transaction;
-            if (!is_numeric($transactionParam)) {
-                $transactionId = $this->unhashId($transactionParam, 'transaction-id');
+            if (! is_numeric($transactionParam)) {
+                $transactionId = $this->unhashId($transactionParam, 'movimentation');
             } else {
                 $transactionId = (int) $transactionParam;
             }
-            if (!$transactionId) {
+            if (! $transactionId) {
                 abort(404, 'Transaction not found.');
             }
-            $transaction = Transaction::where('maintenance_id', $maintenance->id)->findOrFail($transactionId);
+            $transaction = Movimentation::where('maintenance_id', $maintenance->id)->findOrFail($transactionId);
 
             // Remove maintenance_id from transaction
             $transaction->update(['maintenance_id' => null]);
@@ -734,7 +819,7 @@ class MaintenanceController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to remove transaction from maintenance: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }

@@ -9,7 +9,7 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
-import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
+import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
 import { DateInput } from '@/components/ui/date-input';
 import { Button } from '@/components/ui/button';
 
@@ -143,7 +143,7 @@ const removeTransaction = (transaction: any) => {
 const confirmRemoveTransaction = () => {
     if (!transactionToDelete.value) return;
 
-    router.delete(maintenances.removeTransaction.url({
+    router.delete(maintenances.removeMovimentation.url({
         vessel: getCurrentVesselId(),
         maintenanceId: props.maintenance.id,
         transaction: transactionToDelete.value!.id
