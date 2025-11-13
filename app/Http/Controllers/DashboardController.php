@@ -1,14 +1,13 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HashesIds;
-use App\Models\Transaction;
 use App\Models\Marea;
+use App\Models\Movimentation;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class DashboardController extends BaseController
 {
@@ -21,24 +20,24 @@ class DashboardController extends BaseController
         /** @var \App\Models\User|null $user */
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             abort(403, 'You must be logged in to view the dashboard.');
         }
 
-        $vessel = $this->getCurrentVessel($request);
+        $vessel   = $this->getCurrentVessel($request);
         $vesselId = $this->getCurrentVesselId($request);
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get current month and year
-        $now = Carbon::now();
+        $now          = Carbon::now();
         $currentMonth = $now->month;
-        $currentYear = $now->year;
+        $currentYear  = $now->year;
 
         // Get current month financial statistics
-        $currentMonthStats = Transaction::where('vessel_id', $vesselId)
+        $currentMonthStats = Movimentation::where('vessel_id', $vesselId)
             ->where('transaction_year', $currentYear)
             ->where('transaction_month', $currentMonth)
             ->where('status', 'completed')
@@ -49,13 +48,13 @@ class DashboardController extends BaseController
             ')
             ->first();
 
-        $totalIncome = (int) ($currentMonthStats->total_income ?? 0);
-        $totalExpenses = (int) ($currentMonthStats->total_expenses ?? 0);
-        $netBalance = $totalIncome - $totalExpenses;
+        $totalIncome      = (int) ($currentMonthStats->total_income ?? 0);
+        $totalExpenses    = (int) ($currentMonthStats->total_expenses ?? 0);
+        $netBalance       = $totalIncome - $totalExpenses;
         $transactionCount = (int) ($currentMonthStats->transaction_count ?? 0);
 
         // Get current month expenses by category for donut chart
-        $currentMonthExpensesByCategory = Transaction::where('transactions.vessel_id', $vesselId)
+        $currentMonthExpensesByCategory = Movimentation::where('transactions.vessel_id', $vesselId)
             ->where('transactions.transaction_year', $currentYear)
             ->where('transactions.transaction_month', $currentMonth)
             ->where('transactions.status', 'completed')
@@ -75,8 +74,8 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($item) {
                 return [
-                    'category_id' => $item->category_id,
-                    'category_name' => $item->category_name,
+                    'category_id'    => $item->category_id,
+                    'category_name'  => $item->category_name,
                     'category_color' => $item->category_color,
                     'total_expenses' => (int) $item->total_expenses,
                 ];
@@ -86,11 +85,11 @@ class DashboardController extends BaseController
         // Get last 6 months data for chart
         $last6Months = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
+            $date  = Carbon::now()->subMonths($i);
             $month = $date->month;
-            $year = $date->year;
+            $year  = $date->year;
 
-            $monthStats = Transaction::where('vessel_id', $vesselId)
+            $monthStats = Movimentation::where('vessel_id', $vesselId)
                 ->where('transaction_year', $year)
                 ->where('transaction_month', $month)
                 ->where('status', 'completed')
@@ -101,12 +100,12 @@ class DashboardController extends BaseController
                 ->first();
 
             $last6Months[] = [
-                'month' => $month,
-                'year' => $year,
+                'month'       => $month,
+                'year'        => $year,
                 'month_label' => $date->format('M Y'),
-                'income' => (int) ($monthStats->income ?? 0),
-                'expenses' => (int) ($monthStats->expenses ?? 0),
-                'net' => (int) (($monthStats->income ?? 0) - ($monthStats->expenses ?? 0)),
+                'income'      => (int) ($monthStats->income ?? 0),
+                'expenses'    => (int) ($monthStats->expenses ?? 0),
+                'net'         => (int) (($monthStats->income ?? 0) - ($monthStats->expenses ?? 0)),
             ];
         }
 
@@ -125,10 +124,10 @@ class DashboardController extends BaseController
 
             if ($activeMarea) {
                 $activeMarea = [
-                    'id' => $this->hashId($activeMarea->id, 'marea-id'),
-                    'marea_number' => $activeMarea->marea_number,
-                    'name' => $activeMarea->name,
-                    'status' => $activeMarea->status,
+                    'id'                    => $this->hashId($activeMarea->id, 'marea-id'),
+                    'marea_number'          => $activeMarea->marea_number,
+                    'name'                  => $activeMarea->name,
+                    'status'                => $activeMarea->status,
                     'actual_departure_date' => $activeMarea->actual_departure_date ? $activeMarea->actual_departure_date->format('Y-m-d') : null,
                     'estimated_return_date' => $activeMarea->estimated_return_date ? $activeMarea->estimated_return_date->format('Y-m-d') : null,
                 ];
@@ -142,17 +141,17 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($marea) {
                 return [
-                    'id' => $this->hashId($marea->id, 'marea-id'),
-                    'marea_number' => $marea->marea_number,
-                    'name' => $marea->name,
-                    'status' => $marea->status,
+                    'id'                       => $this->hashId($marea->id, 'marea-id'),
+                    'marea_number'             => $marea->marea_number,
+                    'name'                     => $marea->name,
+                    'status'                   => $marea->status,
                     'estimated_departure_date' => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
-                    'estimated_return_date' => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
+                    'estimated_return_date'    => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
                 ];
             });
 
         // Get recent transactions (last 5)
-        $recentTransactions = Transaction::where('vessel_id', $vesselId)
+        $recentTransactions = Movimentation::where('vessel_id', $vesselId)
             ->where('status', 'completed')
             ->with(['category', 'supplier'])
             ->orderBy('transaction_date', 'desc')
@@ -161,18 +160,18 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($transaction) {
                 return [
-                    'id' => $this->hashId($transaction->id, 'transaction-id'),
-                    'transaction_number' => $transaction->transaction_number,
-                    'type' => $transaction->type,
-                    'type_label' => ucfirst($transaction->type),
-                    'amount' => $transaction->total_amount,
-                    'currency' => $transaction->currency,
-                    'transaction_date' => $transaction->transaction_date ? $transaction->transaction_date->format('Y-m-d') : null,
+                    'id'                         => $this->hashId($transaction->id, 'movimentation'),
+                    'transaction_number'         => $transaction->transaction_number,
+                    'type'                       => $transaction->type,
+                    'type_label'                 => ucfirst($transaction->type),
+                    'amount'                     => $transaction->total_amount,
+                    'currency'                   => $transaction->currency,
+                    'transaction_date'           => $transaction->transaction_date ? $transaction->transaction_date->format('Y-m-d') : null,
                     'formatted_transaction_date' => $transaction->transaction_date ? $transaction->transaction_date->format('M d, Y') : null,
-                    'description' => $transaction->description,
-                    'category' => $transaction->category ? [
-                        'id' => $this->hashId($transaction->category->id, 'transactioncategory-id'),
-                        'name' => $transaction->category->name,
+                    'description'                => $transaction->description,
+                    'category'                   => $transaction->category ? [
+                        'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                        'name'  => $transaction->category->name,
                         'color' => $transaction->category->color,
                     ] : null,
                 ];
@@ -180,10 +179,10 @@ class DashboardController extends BaseController
 
         // Get vessel statistics
         $vesselStats = [
-            'total_crew' => $vessel->crewMembers()->count(),
+            'total_crew'         => $vessel->crewMembers()->count(),
             'total_transactions' => $vessel->transactions()->where('status', 'completed')->count(),
-            'total_mareas' => $vessel->mareas()->count(),
-            'active_mareas' => $vessel->mareas()->whereIn('status', ['preparing', 'at_sea', 'returned'])->count(),
+            'total_mareas'       => $vessel->mareas()->count(),
+            'active_mareas'      => $vessel->mareas()->whereIn('status', ['preparing', 'at_sea', 'returned'])->count(),
         ];
 
         // Get last 6 crew members
@@ -195,48 +194,47 @@ class DashboardController extends BaseController
             ->get()
             ->map(function ($member) {
                 return [
-                    'id' => $this->hashId($member->id, 'user-id'),
-                    'name' => $member->name,
-                    'email' => $member->email,
-                    'position_name' => $member->position ? $member->position->name : null,
-                    'status' => $member->status,
-                    'status_label' => ucfirst($member->status ?? 'active'),
-                    'created_at' => $member->created_at ? $member->created_at->format('Y-m-d') : null,
+                    'id'                   => $this->hashId($member->id, 'user-id'),
+                    'name'                 => $member->name,
+                    'email'                => $member->email,
+                    'position_name'        => $member->position ? $member->position->translated_name : null,
+                    'status'               => $member->status,
+                    'status_label'         => ucfirst($member->status ?? 'active'),
+                    'created_at'           => $member->created_at ? $member->created_at->format('Y-m-d') : null,
                     'formatted_created_at' => $member->created_at ? $member->created_at->format('M d, Y') : null,
                 ];
             });
 
         // Get user permissions for quick links
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
         return Inertia::render('Dashboard', [
-            'vessel' => [
-                'id' => $this->hashId($vessel->id, 'vessel'),
-                'name' => $vessel->name,
+            'vessel'                         => [
+                'id'                  => $this->hashId($vessel->id, 'vessel'),
+                'name'                => $vessel->name,
                 'registration_number' => $vessel->registration_number,
-                'status' => $vessel->status,
+                'status'              => $vessel->status,
             ],
-            'currentMonth' => [
-                'month' => $currentMonth,
-                'year' => $currentYear,
-                'month_label' => $now->format('F Y'),
-                'total_income' => $totalIncome,
-                'total_expenses' => $totalExpenses,
-                'net_balance' => $netBalance,
+            'currentMonth'                   => [
+                'month'             => $currentMonth,
+                'year'              => $currentYear,
+                'month_label'       => $now->format('F Y'),
+                'total_income'      => $totalIncome,
+                'total_expenses'    => $totalExpenses,
+                'net_balance'       => $netBalance,
                 'transaction_count' => $transactionCount,
             ],
-            'last6Months' => $last6Months,
-            'vesselAtSea' => $vesselAtSea,
-            'activeMarea' => $activeMarea,
-            'preparingMareas' => $preparingMareas,
-            'recentTransactions' => $recentTransactions,
-            'vesselStats' => $vesselStats,
-            'last6CrewMembers' => $last6CrewMembers,
-            'defaultCurrency' => $defaultCurrency,
-            'permissions' => $permissions,
+            'last6Months'                    => $last6Months,
+            'vesselAtSea'                    => $vesselAtSea,
+            'activeMarea'                    => $activeMarea,
+            'preparingMareas'                => $preparingMareas,
+            'recentTransactions'             => $recentTransactions,
+            'vesselStats'                    => $vesselStats,
+            'last6CrewMembers'               => $last6CrewMembers,
+            'defaultCurrency'                => $defaultCurrency,
+            'permissions'                    => $permissions,
             'currentMonthExpensesByCategory' => $currentMonthExpensesByCategory,
         ]);
     }
 }
-
