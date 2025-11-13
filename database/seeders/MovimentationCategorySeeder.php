@@ -1,8 +1,6 @@
 <?php
-
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -60,6 +58,8 @@ class MovimentationCategorySeeder extends Seeder
             ['name' => 'Diesel', 'type' => 'expense', 'color' => '#dc2626', 'is_system' => true],
             ['name' => 'Lubricants', 'type' => 'expense', 'color' => '#b91c1c', 'is_system' => true],
             ['name' => 'Engine Oil', 'type' => 'expense', 'color' => '#991b1b', 'is_system' => true],
+            ['name' => 'Gearbox Oil', 'type' => 'expense', 'color' => '#881337', 'is_system' => true],
+            ['name' => 'Hydraulic Oil', 'type' => 'expense', 'color' => '#9f1239', 'is_system' => true],
             ['name' => 'Maintenance', 'type' => 'expense', 'color' => '#f59e0b', 'is_system' => true],
             ['name' => 'Repairs', 'type' => 'expense', 'color' => '#d97706', 'is_system' => true],
             ['name' => 'Hull Maintenance', 'type' => 'expense', 'color' => '#b45309', 'is_system' => true],
@@ -101,6 +101,7 @@ class MovimentationCategorySeeder extends Seeder
             ['name' => 'Registration Fees', 'type' => 'expense', 'color' => '#0d9488', 'is_system' => true],
             ['name' => 'License Fees', 'type' => 'expense', 'color' => '#0f766e', 'is_system' => true],
             ['name' => 'Fishing License', 'type' => 'expense', 'color' => '#115e59', 'is_system' => true],
+            ['name' => 'Fishing Inspection', 'type' => 'expense', 'color' => '#0f766e', 'is_system' => true],
             ['name' => 'Customs Fees', 'type' => 'expense', 'color' => '#134e4a', 'is_system' => true],
             ['name' => 'Import/Export Fees', 'type' => 'expense', 'color' => '#2dd4bf', 'is_system' => true],
             ['name' => 'Inspection Fees', 'type' => 'expense', 'color' => '#5eead4', 'is_system' => true],
@@ -149,12 +150,13 @@ class MovimentationCategorySeeder extends Seeder
             ['name' => 'Transaction Fees', 'type' => 'expense', 'color' => '#f3e8ff', 'is_system' => true],
 
             // Expense Categories - Other
+            ['name' => 'General', 'type' => 'expense', 'color' => '#64748b', 'is_system' => true],
             ['name' => 'Other Expenses', 'type' => 'expense', 'color' => '#64748b', 'is_system' => true],
             ['name' => 'Miscellaneous', 'type' => 'expense', 'color' => '#475569', 'is_system' => true],
         ];
 
         foreach ($categories as $category) {
-            \App\Models\TransactionCategory::updateOrCreate(
+            \App\Models\MovimentationCategory::updateOrCreate(
                 ['name' => $category['name'], 'type' => $category['type']],
                 $category
             );
