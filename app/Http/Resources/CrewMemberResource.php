@@ -77,6 +77,7 @@ class CrewMemberResource extends BaseResource
             }),
             'status' => $this->status,
             'status_label' => $this->getStatusLabel(),
+            'administrative' => $this->administrative ?? false,
             'login_permitted' => $this->login_permitted,
             'has_existing_account' => $this->hasExistingAccount(),
             'notes' => $this->notes,
