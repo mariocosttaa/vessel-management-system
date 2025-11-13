@@ -1,28 +1,24 @@
 <?php
 
-use App\Http\Controllers\{
-    VesselController,
-    CrewMemberController,
-    CrewPositionController,
-    SupplierController,
-    TransactionController,
-    VesselSelectorController,
-    AttachmentController,
-    TestDataController,
-    VesselSettingController,
-    VesselFileController,
-    AuditLogController,
-    FinancialReportController,
-    VatReportController,
-    DashboardController,
-    LandingController,
-    PrivacyPolicyController,
-    TermsOfServiceController
-};
+use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CrewMemberController;
+use App\Http\Controllers\CrewPositionController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FinancialReportController;
+use App\Http\Controllers\LandingController;
+use App\Http\Controllers\MovimentationController;
+use App\Http\Controllers\PrivacyPolicyController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TermsOfServiceController;
+use App\Http\Controllers\TestDataController;
+use App\Http\Controllers\VatReportController;
+use App\Http\Controllers\VesselController;
+use App\Http\Controllers\VesselFileController;
+use App\Http\Controllers\VesselSelectorController;
+use App\Http\Controllers\VesselSettingController;
 use App\Http\Middleware\VesselAuthPrivateFiles;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
 
 // Landing page route
 Route::get('/', [LandingController::class, 'index'])->name('landing');
@@ -84,12 +80,12 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
         Route::get('/test-permissions', [TestDataController::class, 'permissions'])->name('panel.test-permissions');
         Route::get('/email-test', function () {
             return view('emails.test', [
-                'title' => 'Email Template Test - ' . config('app.name')
+                'title' => 'Email Template Test - ' . config('app.name'),
             ]);
         })->name('panel.email-test');
         Route::get('/email-notification-test', function () {
             return view('emails.notification-example', [
-                'title' => 'Transaction Created - ' . config('app.name')
+                'title' => 'Movimentation Created - ' . config('app.name'),
             ]);
         })->name('panel.email-notification-test');
     }
@@ -146,38 +142,34 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('panel.suppliers.destroy');
     });
 
-    // Transactions (scoped to current vessel)
+    // Movimentations (scoped to current vessel)
     // IMPORTANT: More specific routes must come before general routes
-    Route::get('/transactions', [TransactionController::class, 'index'])->name('panel.transactions.index');
-    Route::get('/transactions/create', [TransactionController::class, 'create'])->name('panel.transactions.create');
-    Route::get('/transactions/history', [TransactionController::class, 'history'])->name('panel.transactions.history');
-    Route::get('/transactions/history/{year}/{month}', [TransactionController::class, 'historyMonth'])
+    Route::get('/movimentations', [MovimentationController::class, 'index'])->name('panel.movimentations.index');
+    Route::get('/movimentations/create', [MovimentationController::class, 'create'])->name('panel.movimentations.create');
+    Route::get('/movimentations/history', [MovimentationController::class, 'history'])->name('panel.movimentations.history');
+    Route::get('/movimentations/history/{year}/{month}', [MovimentationController::class, 'historyMonth'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
-        ->name('panel.transactions.history.month');
-    Route::get('/transactions/history/download-pdf', [TransactionController::class, 'downloadPdf'])
+        ->name('panel.movimentations.history.month');
+    Route::get('/movimentations/history/download-pdf', [MovimentationController::class, 'downloadPdf'])
         ->middleware('throttle:10,1')
-        ->name('panel.transactions.history.download-pdf');
-    Route::get('/transactions/history/{year}/{month}/download-pdf', [TransactionController::class, 'downloadPdfMonth'])
+        ->name('panel.movimentations.history.download-pdf');
+    Route::get('/movimentations/history/{year}/{month}/download-pdf', [MovimentationController::class, 'downloadPdfMonth'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
         ->middleware('throttle:10,1')
-        ->name('panel.transactions.history.month.download-pdf');
-    Route::get('/transactions/download-pdf', [TransactionController::class, 'downloadPdfFiltered'])
+        ->name('panel.movimentations.history.month.download-pdf');
+    Route::get('/movimentations/download-pdf', [MovimentationController::class, 'downloadPdfFiltered'])
         ->middleware('throttle:10,1')
-        ->name('panel.transactions.download-pdf');
-    Route::get('/transactions/{transactionId}', [TransactionController::class, 'show'])
-        ->where(['transactionId' => '[^/]+'])
-        ->name('panel.transactions.show');
-    Route::get('/transactions/{transactionId}/edit', [TransactionController::class, 'edit'])
-        ->where(['transactionId' => '[^/]+'])
-        ->name('panel.transactions.edit');
-    Route::get('/api/transactions/search', [TransactionController::class, 'search'])->name('panel.api.transactions.search');
-    Route::get('/api/transactions/{transactionId}/details', [TransactionController::class, 'details'])->name('panel.api.transactions.details');
+        ->name('panel.movimentations.download-pdf');
+    Route::get('/movimentations/{movimentationId}', [MovimentationController::class, 'show'])->name('panel.movimentations.show');
+    Route::get('/movimentations/{movimentationId}/edit', [MovimentationController::class, 'edit'])->name('panel.movimentations.edit');
+    Route::get('/api/movimentations/search', [MovimentationController::class, 'search'])->name('panel.api.movimentations.search');
+    Route::get('/api/movimentations/{movimentationId}/details', [MovimentationController::class, 'details'])->name('panel.api.movimentations.details');
 
     Route::middleware('role:admin,manager')->group(function () {
-        Route::post('/transactions', [TransactionController::class, 'store'])->name('panel.transactions.store');
-        Route::put('/transactions/{transactionId}', [TransactionController::class, 'update'])->name('panel.transactions.update');
-        Route::delete('/transactions/{transactionId}', [TransactionController::class, 'destroy'])->name('panel.transactions.destroy');
-        Route::delete('/transactions/{transactionId}/files/{fileId}', [TransactionController::class, 'deleteFile'])->name('panel.transactions.files.delete');
+        Route::post('/movimentations', [MovimentationController::class, 'store'])->name('panel.movimentations.store');
+        Route::put('/movimentations/{movimentationId}', [MovimentationController::class, 'update'])->name('panel.movimentations.update');
+        Route::delete('/movimentations/{movimentationId}', [MovimentationController::class, 'destroy'])->name('panel.movimentations.destroy');
+        Route::delete('/movimentations/{movimentationId}/files/{fileId}', [MovimentationController::class, 'deleteFile'])->name('panel.movimentations.files.delete');
     });
 
     // Vessel Settings (scoped to current vessel)
@@ -202,15 +194,15 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::post('/mareas/{mareaId}/cancel', [App\Http\Controllers\MareaController::class, 'cancel'])->name('panel.mareas.cancel');
 
     // Marea Management
-    Route::post('/mareas/{mareaId}/add-transaction', [App\Http\Controllers\MareaController::class, 'addTransaction'])->name('panel.mareas.add-transaction');
-    Route::delete('/mareas/{mareaId}/remove-transaction/{transaction}', [App\Http\Controllers\MareaController::class, 'removeTransaction'])->name('panel.mareas.remove-transaction');
+    Route::post('/mareas/{mareaId}/add-movimentation', [App\Http\Controllers\MareaController::class, 'addTransaction'])->name('panel.mareas.add-movimentation');
+    Route::delete('/mareas/{mareaId}/remove-movimentation/{transaction}', [App\Http\Controllers\MareaController::class, 'removeTransaction'])->name('panel.mareas.remove-movimentation');
     Route::post('/mareas/{mareaId}/add-crew', [App\Http\Controllers\MareaController::class, 'addCrew'])->name('panel.mareas.add-crew');
     Route::delete('/mareas/{mareaId}/remove-crew/{crewMember}', [App\Http\Controllers\MareaController::class, 'removeCrew'])->name('panel.mareas.remove-crew');
     Route::post('/mareas/{mareaId}/add-quantity-return', [App\Http\Controllers\MareaController::class, 'addQuantityReturn'])->name('panel.mareas.add-quantity-return');
     Route::delete('/mareas/{mareaId}/remove-quantity-return/{quantityReturn}', [App\Http\Controllers\MareaController::class, 'removeQuantityReturn'])->name('panel.mareas.remove-quantity-return');
 
     // Marea API Endpoints
-    Route::get('/mareas/{mareaId}/available-transactions', [App\Http\Controllers\MareaController::class, 'getAvailableTransactions'])->name('panel.mareas.available-transactions');
+    Route::get('/mareas/{mareaId}/available-movimentations', [App\Http\Controllers\MareaController::class, 'getAvailableTransactions'])->name('panel.mareas.available-movimentations');
     Route::get('/mareas/{mareaId}/available-crew', [App\Http\Controllers\MareaController::class, 'getAvailableCrew'])->name('panel.mareas.available-crew');
     Route::get('/mareas/{mareaId}/crew-salary-data', [App\Http\Controllers\MareaController::class, 'getCrewSalaryData'])->name('panel.mareas.crew-salary-data');
     Route::post('/mareas/{mareaId}/salary-payment', [App\Http\Controllers\MareaController::class, 'createSalaryPayment'])->name('panel.mareas.salary-payment');
@@ -226,7 +218,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::put('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'update'])->name('panel.maintenances.update');
     Route::post('/maintenances/{maintenanceId}/finalize', [App\Http\Controllers\MaintenanceController::class, 'finalize'])->name('panel.maintenances.finalize');
     Route::delete('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'destroy'])->name('panel.maintenances.destroy');
-    Route::delete('/maintenances/{maintenanceId}/remove-transaction/{transaction}', [App\Http\Controllers\MaintenanceController::class, 'removeTransaction'])->name('panel.maintenances.remove-transaction');
+    Route::delete('/maintenances/{maintenanceId}/remove-movimentation/{transaction}', [App\Http\Controllers\MaintenanceController::class, 'removeTransaction'])->name('panel.maintenances.remove-movimentation');
 
     // Marea Distribution Profiles (global, but vessel-scoped for consistency)
     Route::get('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'index'])->name('panel.marea-distribution-profiles.index');
@@ -262,5 +254,5 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     });
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';

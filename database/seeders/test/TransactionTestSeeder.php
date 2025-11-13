@@ -32,7 +32,7 @@ class TransactionTestSeeder extends Seeder
 
         $categories = TransactionCategory::all();
         if ($categories->isEmpty()) {
-            $this->command->warn('No transaction categories found. Please run TransactionCategorySeeder first.');
+            $this->command->warn('No transaction categories found. Please run MovimentationCategorySeeder first.');
             return;
         }
 
