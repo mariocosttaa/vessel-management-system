@@ -141,7 +141,7 @@ class User extends Authenticatable
      */
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transaction::class, 'created_by');
+        return $this->hasMany(Movimentation::class, 'created_by');
     }
 
     /**
@@ -449,9 +449,9 @@ class User extends Authenticatable
 
         // Check if user has any high-level permissions (transactions, mareas, reports)
         $highLevelPermissions = [
-            'transactions.view',
-            'transactions.create',
-            'transactions.edit',
+            'movimentations.view',
+            'movimentations.create',
+            'movimentations.edit',
             'mareas.view',
             'mareas.create',
             'mareas.edit',

@@ -71,7 +71,7 @@ class Supplier extends Model
      */
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transaction::class);
+        return $this->hasMany(Movimentation::class);
     }
 
     /**
@@ -79,6 +79,6 @@ class Supplier extends Model
      */
     public function recurringTransactions(): HasMany
     {
-        return $this->hasMany(RecurringTransaction::class);
+        return $this->hasMany(RecurringMovimentation::class);
     }
 }
