@@ -81,9 +81,9 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { File, Download, Trash2 } from 'lucide-vue-next'
-import Icon from '@/Components/Icon.vue'
-import FileUpload from '@/Components/FileUpload.vue'
-import { Button } from '@/Components/ui/button'
+import Icon from '@/components/Icon.vue'
+import FileUpload from '@/components/FileUpload.vue'
+import { Button } from '@/components/ui/button'
 
 interface Attachment {
   id: number

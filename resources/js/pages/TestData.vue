@@ -256,9 +256,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
-import Icon from '@/Components/Icon.vue'
-import Badge from '@/Components/ui/badge/Badge.vue'
-import Button from '@/Components/ui/button/Button.vue'
+import Icon from '@/components/Icon.vue'
+import Badge from '@/components/ui/badge/Badge.vue'
+import Button from '@/components/ui/button/Button.vue'
 
 interface TestUser {
   id: number
