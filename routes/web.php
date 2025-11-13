@@ -177,6 +177,9 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::match(['patch', 'post'], '/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');
     Route::patch('/settings/location', [VesselSettingController::class, 'updateLocation'])->name('panel.settings.update.location');
 
+    // Categories (scoped to current vessel)
+    Route::post('/categories', [App\Http\Controllers\MovimentationCategoryController::class, 'store'])->name('panel.categories.store');
+
     // Mareas (scoped to current vessel)
     Route::get('/mareas', [App\Http\Controllers\MareaController::class, 'index'])->name('panel.mareas.index');
     Route::get('/mareas/create', [App\Http\Controllers\MareaController::class, 'create'])->name('panel.mareas.create');
