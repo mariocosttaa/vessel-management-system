@@ -17,14 +17,14 @@ import { useI18n } from '@/composables/useI18n';
 import mareas from '@/routes/panel/mareas';
 import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-vue-next';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import CreateAddModal from '@/components/modals/Transaction/create-add.vue';
-import CreateRemoveModal from '@/components/modals/Transaction/create-remove.vue';
-import UpdateAddModal from '@/components/modals/Transaction/update-add.vue';
-import UpdateRemoveModal from '@/components/modals/Transaction/update-remove.vue';
+import CreateAddModal from '@/components/modals/Movimentation/create-add.vue';
+import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
+import UpdateAddModal from '@/components/modals/Movimentation/update-add.vue';
+import UpdateRemoveModal from '@/components/modals/Movimentation/update-remove.vue';
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
 import EditMareaModal from '@/components/modals/Marea/edit.vue';
-import TransactionShowModal from '@/components/modals/Transaction/show.vue';
-import transactions from '@/routes/panel/transactions';
+import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
+import transactions from '@/routes/panel/movimentations';
 import MoneyInput from '@/components/Forms/MoneyInput.vue';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
@@ -204,7 +204,7 @@ const openTransactionModal = async (transaction: any) => {
     // Fetch full transaction details from API
     try {
         const vesselId = getCurrentVesselId();
-        const response = await fetch(`/panel/${vesselId}/api/transactions/${transaction.id}/details`, {
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${transaction.id}/details`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -242,7 +242,7 @@ const openUpdateModal = async (transaction: any) => {
     // Fetch full transaction details from API
     try {
         const vesselId = getCurrentVesselId();
-        const response = await fetch(`/panel/${vesselId}/api/transactions/${transaction.id}/details`, {
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${transaction.id}/details`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -291,11 +291,9 @@ const confirmDeleteTransaction = () => {
     if (!transactionToDelete.value) return;
 
     isProcessing.value = true;
-    router.delete(mareas.removeTransaction.url({
-        vessel: getCurrentVesselId(),
-        mareaId: props.marea.id,
-        transaction: transactionToDelete.value
-    }), {
+    const vesselId = getCurrentVesselId();
+    const url = `/panel/${vesselId}/mareas/${props.marea.id}/remove-movimentation/${transactionToDelete.value}`;
+    router.delete(url, {
         onSuccess: () => {
             isProcessing.value = false;
             showDeleteTransactionDialog.value = false;
@@ -367,7 +365,7 @@ const addTransactionForm = useForm({
 const selectedTransactionId = ref<number | null>(null);
 
 const addCrewForm = useForm({
-    user_id: null as number | null,
+    user_id: null as string | null,
     notes: '' as string,
 });
 
@@ -540,19 +538,19 @@ const expenseTransactions = computed(() =>
 );
 
 // Salary transactions (expense transactions with crew_member_id)
+// Any expense with a crew_member_id is considered a salary payment
 const salaryTransactions = computed(() =>
     props.marea.transactions.filter(t =>
         t.type === 'expense' &&
-        t.crew_member_id !== null &&
-        (t.category?.name === 'Salaries' || t.category?.name === 'Crew Salaries' || t.category?.name === 'Wages')
+        t.crew_member_id !== null
     )
 );
 
-// Non-salary expense transactions
+// Non-salary expense transactions (exclude transactions with crew_member_id)
 const nonSalaryExpenseTransactions = computed(() =>
     props.marea.transactions.filter(t =>
         t.type === 'expense' &&
-        (t.crew_member_id === null || !(t.category?.name === 'Salaries' || t.category?.name === 'Crew Salaries' || t.category?.name === 'Wages'))
+        t.crew_member_id === null
     )
 );
 
@@ -600,8 +598,19 @@ const loadAvailableCrew = async () => {
     loadingCrew.value = true;
     try {
         const response = await fetch(mareas.availableCrew.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }));
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         availableCrewMembers.value = data.crew_members || [];
+        if (data.error) {
+            console.error('Error from server:', data.error);
+            addNotification({
+                type: 'error',
+                title: t('Error'),
+                message: data.error,
+            });
+        }
     } catch (error) {
         console.error('Failed to load available crew:', error);
         addNotification({
@@ -708,9 +717,19 @@ const handleAddCrew = () => {
                 title: t('Success'),
                 message: t('Crew member has been added to the marea.'),
             });
+            // Reload the page to show the updated crew list
+            router.reload();
         },
-        onError: () => {
+        onError: (errors) => {
             isProcessing.value = false;
+            console.error('Failed to add crew member:', errors);
+            if (errors.message) {
+                addNotification({
+                    type: 'error',
+                    title: t('Error'),
+                    message: errors.message,
+                });
+            }
         },
     });
 };
