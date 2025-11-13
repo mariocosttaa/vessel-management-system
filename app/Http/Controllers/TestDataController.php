@@ -1,16 +1,11 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Vessel;
-use App\Models\VesselUser;
-use App\Models\VesselUserRole;
 use App\Models\VesselRoleAccess;
-use App\Models\Transaction;
-use App\Pdf\TransactionPdf;
+use App\Models\VesselUser;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,7 +36,7 @@ class TestDataController extends Controller
         $testVessels = Vessel::whereIn('registration_number', [
             'OE-001', 'SB-002', 'DB-003', 'LY-004',
             'TCV-001', 'TPS-002', 'TFB-003', 'TLY-004', 'TRV-005',
-            'OV-001', 'OV-002', 'NO-OWNER-001'
+            'OV-001', 'OV-002', 'NO-OWNER-001',
         ])->with(['owner', 'usersThroughRoles.user'])->get();
 
         // Get all role accesses
@@ -49,70 +44,70 @@ class TestDataController extends Controller
 
         // Get statistics
         $stats = [
-            'total_users' => User::count(),
-            'test_users' => $testUsers->count(),
-            'total_vessels' => Vessel::count(),
-            'test_vessels' => $testVessels->count(),
-            'total_vessel_users' => VesselUser::count(),
-            'active_vessel_users' => VesselUser::where('is_active', true)->count(),
-            'inactive_vessel_users' => VesselUser::where('is_active', false)->count(),
-            'vessels_with_owners' => Vessel::whereNotNull('owner_id')->count(),
+            'total_users'            => User::count(),
+            'test_users'             => $testUsers->count(),
+            'total_vessels'          => Vessel::count(),
+            'test_vessels'           => $testVessels->count(),
+            'total_vessel_users'     => VesselUser::count(),
+            'active_vessel_users'    => VesselUser::where('is_active', true)->count(),
+            'inactive_vessel_users'  => VesselUser::where('is_active', false)->count(),
+            'vessels_with_owners'    => Vessel::whereNotNull('owner_id')->count(),
             'vessels_without_owners' => Vessel::whereNull('owner_id')->count(),
         ];
 
         return Inertia::render('TestData', [
-            'testUsers' => $testUsers->map(function ($user) {
+            'testUsers'    => $testUsers->map(function ($user) {
                 return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
+                    'id'        => $user->id,
+                    'name'      => $user->name,
+                    'email'     => $user->email,
                     'user_type' => $user->user_type,
-                    'roles' => $user->roles->pluck('name'),
-                    'vessels' => $user->vesselsThroughRoles->map(function ($vesselUser) {
+                    'roles'     => $user->roles->pluck('name'),
+                    'vessels'   => $user->vesselsThroughRoles->map(function ($vesselUser) {
                         return [
-                            'vessel_id' => $vesselUser->vessel_id,
+                            'vessel_id'   => $vesselUser->vessel_id,
                             'vessel_name' => $vesselUser->vessel->name ?? 'Unknown',
-                            'role' => $vesselUser->role,
-                            'is_active' => $vesselUser->is_active,
+                            'role'        => $vesselUser->role,
+                            'is_active'   => $vesselUser->is_active,
                             'permissions' => $vesselUser->vesselRoleAccess->permissions ?? [],
                         ];
                     }),
                 ];
             }),
-            'testVessels' => $testVessels->map(function ($vessel) {
+            'testVessels'  => $testVessels->map(function ($vessel) {
                 return [
-                    'id' => $vessel->id,
-                    'name' => $vessel->name,
+                    'id'                  => $vessel->id,
+                    'name'                => $vessel->name,
                     'registration_number' => $vessel->registration_number,
-                    'type' => $vessel->type,
-                    'status' => $vessel->status,
-                    'owner' => $vessel->owner ? [
-                        'id' => $vessel->owner->id,
-                        'name' => $vessel->owner->name,
+                    'type'                => $vessel->type,
+                    'status'              => $vessel->status,
+                    'owner'               => $vessel->owner ? [
+                        'id'    => $vessel->owner->id,
+                        'name'  => $vessel->owner->name,
                         'email' => $vessel->owner->email,
                     ] : null,
-                    'users' => $vessel->usersThroughRoles->map(function ($vesselUser) {
+                    'users'               => $vessel->usersThroughRoles->map(function ($vesselUser) {
                         return [
-                            'user_id' => $vesselUser->user_id,
-                            'user_name' => $vesselUser->user->name ?? 'Unknown',
+                            'user_id'    => $vesselUser->user_id,
+                            'user_name'  => $vesselUser->user->name ?? 'Unknown',
                             'user_email' => $vesselUser->user->email ?? 'Unknown',
-                            'role' => $vesselUser->role,
-                            'is_active' => $vesselUser->is_active,
+                            'role'       => $vesselUser->role,
+                            'is_active'  => $vesselUser->is_active,
                         ];
                     }),
                 ];
             }),
             'roleAccesses' => $roleAccesses->map(function ($roleAccess) {
                 return [
-                    'id' => $roleAccess->id,
-                    'name' => $roleAccess->name,
+                    'id'           => $roleAccess->id,
+                    'name'         => $roleAccess->name,
                     'display_name' => $roleAccess->display_name,
-                    'description' => $roleAccess->description,
-                    'permissions' => $roleAccess->permissions,
-                    'is_active' => $roleAccess->is_active,
+                    'description'  => $roleAccess->description,
+                    'permissions'  => $roleAccess->permissions,
+                    'is_active'    => $roleAccess->is_active,
                 ];
             }),
-            'stats' => $stats,
+            'stats'        => $stats,
         ]);
     }
 
@@ -134,10 +129,10 @@ class TestDataController extends Controller
         $permissionMatrix = [];
         foreach ($roleAccesses as $roleAccess) {
             $row = [
-                'role' => $roleAccess->name,
+                'role'         => $roleAccess->name,
                 'display_name' => $roleAccess->display_name,
-                'description' => $roleAccess->description,
-                'permissions' => [],
+                'description'  => $roleAccess->description,
+                'permissions'  => [],
             ];
 
             foreach ($allPermissions as $permission) {
@@ -149,7 +144,7 @@ class TestDataController extends Controller
 
         return Inertia::render('TestPermissions', [
             'permissionMatrix' => $permissionMatrix,
-            'allPermissions' => $allPermissions,
+            'allPermissions'   => $allPermissions,
         ]);
     }
 
