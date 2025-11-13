@@ -16,6 +16,7 @@ class MovimentationCategory extends Model
         'description',
         'color',
         'is_system',
+        'vessel_id',
     ];
 
     protected $casts = [
@@ -44,6 +45,14 @@ class MovimentationCategory extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Movimentation::class, 'category_id');
+    }
+
+    /**
+     * Get the vessel that owns this category.
+     */
+    public function vessel(): BelongsTo
+    {
+        return $this->belongsTo(Vessel::class);
     }
 
     /**
@@ -76,5 +85,18 @@ class MovimentationCategory extends Model
     public function scopeCustom($query)
     {
         return $query->where('is_system', false);
+    }
+
+    /**
+     * Scope a query to include categories for a specific vessel (or system categories).
+     * System categories (vessel_id = null) are available to all vessels.
+     * Custom categories (vessel_id = specific vessel) are only available to that vessel.
+     */
+    public function scopeForVessel($query, $vesselId)
+    {
+        return $query->where(function ($q) use ($vesselId) {
+            $q->whereNull('vessel_id')         // System categories (available to all)
+                ->orWhere('vessel_id', $vesselId); // Vessel-specific categories
+        });
     }
 }
