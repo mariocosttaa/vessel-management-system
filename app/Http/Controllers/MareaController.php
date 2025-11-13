@@ -1,21 +1,18 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Models\Marea;
-use App\Models\MareaDistributionProfile;
-use App\Models\MareaDistributionItem;
-use App\Models\MareaCrew;
-use App\Models\MareaQuantityReturn;
-use App\Models\Transaction;
-use App\Models\User;
 use App\Actions\AuditLogAction;
 use App\Actions\EmailNotificationAction;
-use App\Traits\HasTranslations;
 use App\Http\Controllers\Concerns\HashesIds;
+use App\Models\Marea;
+use App\Models\MareaDistributionProfile;
+use App\Models\MareaQuantityReturn;
+use App\Models\Movimentation;
+use App\Models\User;
+use App\Traits\HasTranslations;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -35,14 +32,14 @@ class MareaController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view mareas using config permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Check mareas.view permission from config
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['mareas.view'] ?? false)) {
+        if (! ($permissions['mareas.view'] ?? false)) {
             abort(403, 'You do not have permission to view mareas.');
         }
 
@@ -54,8 +51,8 @@ class MareaController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('marea_number', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -68,19 +65,19 @@ class MareaController extends Controller
         if ($request->filled('date_from')) {
             $query->where(function ($q) use ($request) {
                 $q->where('estimated_departure_date', '>=', $request->date_from)
-                  ->orWhere('actual_departure_date', '>=', $request->date_from);
+                    ->orWhere('actual_departure_date', '>=', $request->date_from);
             });
         }
 
         if ($request->filled('date_to')) {
             $query->where(function ($q) use ($request) {
                 $q->where('estimated_return_date', '<=', $request->date_to)
-                  ->orWhere('actual_return_date', '<=', $request->date_to);
+                    ->orWhere('actual_return_date', '<=', $request->date_to);
             });
         }
 
         // Sorting - default to created_at descending (newest first)
-        $sortField = $request->get('sort', 'created_at');
+        $sortField     = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
 
         $query->orderBy($sortField, $sortDirection);
@@ -105,41 +102,41 @@ class MareaController extends Controller
         // Status options
         $statuses = [
             'preparing' => 'Preparing',
-            'at_sea' => 'At Sea',
-            'returned' => 'Returned',
-            'closed' => 'Closed',
+            'at_sea'    => 'At Sea',
+            'returned'  => 'Returned',
+            'closed'    => 'Closed',
             'cancelled' => 'Cancelled',
         ];
 
         // Get vessel settings for default currency
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         return Inertia::render('Mareas/Index', [
-            'mareas' => $mareas->through(function ($marea) {
+            'mareas'          => $mareas->through(function ($marea) {
                 // Count transactions for this marea
-                $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+                $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
 
                 return [
-                    'id' => $this->hashId($marea->id, 'marea-id'),
-                    'marea_number' => $marea->marea_number,
-                    'name' => $marea->name,
-                    'description' => $marea->description,
-                    'status' => $marea->status,
+                    'id'                       => $this->hashId($marea->id, 'marea'),
+                    'marea_number'             => $marea->marea_number,
+                    'name'                     => $marea->name,
+                    'description'              => $marea->description,
+                    'status'                   => $marea->status,
                     'estimated_departure_date' => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
-                    'estimated_return_date' => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
-                    'actual_departure_date' => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
-                    'actual_return_date' => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
-                    'total_income' => $marea->total_income,
-                    'total_expenses' => $marea->total_expenses,
-                    'net_result' => $marea->net_result,
-                    'created_at' => $marea->created_at ? $marea->created_at->format('Y-m-d H:i:s') : null,
-                    'transaction_count' => $transactionCount,
+                    'estimated_return_date'    => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
+                    'actual_departure_date'    => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
+                    'actual_return_date'       => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
+                    'total_income'             => $marea->total_income,
+                    'total_expenses'           => $marea->total_expenses,
+                    'net_result'               => $marea->net_result,
+                    'created_at'               => $marea->created_at ? $marea->created_at->format('Y-m-d H:i:s') : null,
+                    'transaction_count'        => $transactionCount,
                 ];
             }),
-            'statuses' => $statuses,
-            'filters' => $filters,
+            'statuses'        => $statuses,
+            'filters'         => $filters,
             'defaultCurrency' => $defaultCurrency,
         ]);
     }
@@ -157,13 +154,13 @@ class MareaController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['mareas.create'] ?? false)) {
+        if (! ($permissions['mareas.create'] ?? false)) {
             abort(403, 'You do not have permission to create mareas.');
         }
 
@@ -194,52 +191,76 @@ class MareaController extends Controller
                 $vesselId = (int) $vessel;
             } else {
                 // Decode hashed vessel ID
-                $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
-                if (!$vesselId) {
+                if (! $vesselId) {
                     abort(404, 'Vessel not found.');
                 }
             }
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.create'] ?? false)) {
+            if (! ($permissions['mareas.create'] ?? false)) {
                 abort(403, 'You do not have permission to create mareas.');
+            }
+
+            // Check if marea_number already exists (including soft-deleted)
+            // This is needed because the database has a unique constraint that includes soft-deleted records
+            $existingMarea = Marea::withTrashed()->where('marea_number', $request->input('marea_number'))->first();
+            if ($existingMarea) {
+                if ($existingMarea->trashed()) {
+                    // If it's soft-deleted, suggest using the auto-generated number instead
+                    $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'marea_number' => $this->transFrom('notifications', 'This marea number is already in use (even if deleted). Please use the auto-generated number: :number', [
+                                'number' => $nextMareaNumber,
+                            ]),
+                        ]);
+                } else {
+                    // If it's not deleted, it's a duplicate
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'marea_number' => $this->transFrom('notifications', 'This marea number is already in use. Please use a different number.'),
+                        ]);
+                }
             }
 
             // Validate request - only required fields
             $validated = $request->validate([
-                'marea_number' => [
+                'marea_number'             => [
                     'required',
                     'string',
                     'max:255',
                     Rule::unique('mareas', 'marea_number')->whereNull('deleted_at'),
                 ],
                 'estimated_departure_date' => 'nullable|date',
-                'estimated_return_date' => 'nullable|date|after_or_equal:estimated_departure_date',
+                'estimated_return_date'    => 'nullable|date|after_or_equal:estimated_departure_date',
             ]);
 
-            $vessel = \App\Models\Vessel::find($vesselId);
-            $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+            $vessel          = \App\Models\Vessel::find($vesselId);
+            $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
             $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
             $marea = Marea::create([
-                'vessel_id' => $vesselId,
-                'marea_number' => $validated['marea_number'],
+                'vessel_id'                => $vesselId,
+                'marea_number'             => $validated['marea_number'],
                 'estimated_departure_date' => $validated['estimated_departure_date'] ?? null,
-                'estimated_return_date' => $validated['estimated_return_date'] ?? null,
-                'distribution_profile_id' => null, // Not set during creation
-                'use_calculation' => false, // Default to false, can be enabled later
-                'currency' => $defaultCurrency,
-                'house_of_zeros' => 2, // Default
-                'status' => 'preparing',
-                'created_by' => $user->id,
+                'estimated_return_date'    => $validated['estimated_return_date'] ?? null,
+                'distribution_profile_id'  => null,  // Not set during creation
+                'use_calculation'          => false, // Default to false, can be enabled later
+                'currency'                 => $defaultCurrency,
+                'house_of_zeros'           => 2, // Default
+                'status'                   => 'preparing',
+                'created_by'               => $user->id,
             ]);
 
             // Log the create action
@@ -257,19 +278,45 @@ class MareaController extends Controller
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been created successfully.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
+        } catch (QueryException $e) {
+            // Handle database constraint violations (like unique constraint)
+            // SQLite uses error code 23000 for integrity constraint violations
+            $errorMessage = $e->getMessage();
+            if (str_contains($errorMessage, 'UNIQUE constraint failed') ||
+                str_contains($errorMessage, 'Integrity constraint violation') ||
+                $e->getCode() === '23000' ||
+                $e->errorInfo[0] === '23000') {
+                $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
+                Log::warning('Marea creation failed - unique constraint violation', [
+                    'marea_number' => $request->input('marea_number'),
+                    'vessel_id'    => $vesselId,
+                    'error'        => $errorMessage,
+                ]);
+
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'marea_number' => $this->transFrom('notifications', 'This marea number is already in use. Please use the auto-generated number: :number', [
+                            'number' => $nextMareaNumber,
+                        ]),
+                    ]);
+            }
+
+            // Re-throw if it's not a constraint violation
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Marea creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
 
             return back()
                 ->withInput()
                 ->with('error', $this->transFrom('notifications', 'Failed to create marea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -286,7 +333,7 @@ class MareaController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        if (!$vesselId) {
+        if (! $vesselId) {
             // Fallback: try to get from route parameter
             $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
         }
@@ -295,8 +342,8 @@ class MareaController extends Controller
         // The method parameter might be getting resolved incorrectly, so we get it directly from the route
         $mareaIdFromRoute = $request->route('mareaId');
         // Unhash marea ID if it's a hashed string
-        if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-            $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+        if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+            $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
         } else {
             $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
         }
@@ -307,13 +354,13 @@ class MareaController extends Controller
             ->firstOrFail();
 
         // Check permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['mareas.view'] ?? false)) {
+        if (! ($permissions['mareas.view'] ?? false)) {
             abort(403, 'You do not have permission to view mareas.');
         }
 
@@ -323,7 +370,7 @@ class MareaController extends Controller
             'distributionProfile.items',
             'distributionItems.profileItem',
             'createdBy:id,name',
-            'crew' => function ($query) {
+            'crew'         => function ($query) {
                 $query->with('user:id,name,email');
             },
             'quantityReturns',
@@ -345,22 +392,22 @@ class MareaController extends Controller
         $distribution = $marea->calculateDistribution();
 
         // Get related data for transaction creation modal
-        $categories = \App\Models\TransactionCategory::orderBy('name')->get();
-        $suppliers = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
+        $categories  = \App\Models\MovimentationCategory::orderBy('name')->get();
+        $suppliers   = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = \App\Models\User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
-        $vatProfiles = \App\Models\VatProfile::active()->orderBy('name')->get();
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vatProfiles       = \App\Models\VatProfile::active()->orderBy('name')->get();
+        $vesselSetting     = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel            = \App\Models\Vessel::find($vesselId);
         $defaultVatProfile = $vesselSetting->vat_profile_id
             ? \App\Models\VatProfile::find($vesselSetting->vat_profile_id)
             : \App\Models\VatProfile::where('is_default', true)->first();
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         // Get salary category
-        $salaryCategory = \App\Models\TransactionCategory::where('name', 'Salários')
+        $salaryCategory = \App\Models\MovimentationCategory::where('name', 'Salários')
             ->where('type', 'expense')
             ->first();
 
@@ -378,17 +425,17 @@ class MareaController extends Controller
                     $calculatedAmount = $salaryCompensation->fixed_amount;
                 } elseif ($salaryCompensation->compensation_type === 'percentage' && $salaryCompensation->percentage) {
                     // Calculate percentage of marea total income
-                    $totalIncome = $marea->total_income;
-                    $percentage = (float) $salaryCompensation->percentage;
+                    $totalIncome      = $marea->total_income;
+                    $percentage       = (float) $salaryCompensation->percentage;
                     $calculatedAmount = (int) round(($totalIncome * $percentage) / 100);
                 }
 
                 $crewSalaryData[$crew->user_id] = [
-                    'id' => $salaryCompensation->id,
+                    'id'                => $salaryCompensation->id,
                     'compensation_type' => $salaryCompensation->compensation_type,
-                    'fixed_amount' => $salaryCompensation->fixed_amount,
-                    'percentage' => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
-                    'currency' => $salaryCompensation->currency,
+                    'fixed_amount'      => $salaryCompensation->fixed_amount,
+                    'percentage'        => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
+                    'currency'          => $salaryCompensation->currency,
                     'calculated_amount' => $calculatedAmount,
                 ];
             }
@@ -398,165 +445,165 @@ class MareaController extends Controller
         $distributionProfiles = MareaDistributionProfile::orderBy('name')->get();
 
         // Count transactions for deletion warning
-        $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+        $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
 
         return Inertia::render('Mareas/Show', [
-            'transactionCount' => $transactionCount,
-            'defaultCurrency' => $defaultCurrency,
+            'transactionCount'     => $transactionCount,
+            'defaultCurrency'      => $defaultCurrency,
             'distributionProfiles' => $distributionProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
-                    'name' => $profile->name,
+                    'id'          => $profile->id,
+                    'name'        => $profile->name,
                     'description' => $profile->description,
-                    'is_default' => $profile->is_default,
+                    'is_default'  => $profile->is_default,
                 ];
             }),
-            'categories' => $categories->map(function ($category) {
+            'categories'           => $categories->map(function ($category) {
                 return [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'type' => $category->type,
+                    'id'    => $category->id,
+                    'name'  => $category->name,
+                    'type'  => $category->type,
                     'color' => $category->color,
                 ];
             }),
-            'suppliers' => $suppliers->map(function ($supplier) {
+            'suppliers'            => $suppliers->map(function ($supplier) {
                 return [
-                    'id' => $supplier->id,
+                    'id'           => $supplier->id,
                     'company_name' => $supplier->company_name,
-                    'description' => $supplier->description ?? null,
+                    'description'  => $supplier->description ?? null,
                 ];
             }),
-            'crewMembers' => $crewMembers->map(function ($member) {
+            'crewMembers'          => $crewMembers->map(function ($member) {
                 return [
-                    'id' => $member->id,
-                    'name' => $member->name,
+                    'id'    => $member->id,
+                    'name'  => $member->name,
                     'email' => $member->email,
                 ];
             }),
-            'vatProfiles' => $vatProfiles->map(function ($profile) {
+            'vatProfiles'          => $vatProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
-                    'name' => $profile->name,
+                    'id'         => $profile->id,
+                    'name'       => $profile->name,
                     'percentage' => (float) $profile->percentage,
                     'country_id' => $profile->country_id,
                 ];
             }),
-            'defaultVatProfile' => $defaultVatProfile ? [
-                'id' => $defaultVatProfile->id,
-                'name' => $defaultVatProfile->name,
+            'defaultVatProfile'    => $defaultVatProfile ? [
+                'id'         => $defaultVatProfile->id,
+                'name'       => $defaultVatProfile->name,
                 'percentage' => (float) $defaultVatProfile->percentage,
                 'country_id' => $defaultVatProfile->country_id,
             ] : null,
-            'salaryCategory' => $salaryCategory ? [
-                'id' => $salaryCategory->id,
-                'name' => $salaryCategory->name,
-                'type' => $salaryCategory->type,
+            'salaryCategory'       => $salaryCategory ? [
+                'id'    => $salaryCategory->id,
+                'name'  => $salaryCategory->name,
+                'type'  => $salaryCategory->type,
                 'color' => $salaryCategory->color,
             ] : null,
-            'crewSalaryData' => $crewSalaryData,
-            'marea' => [
-                'id' => $this->hashId($marea->id, 'marea-id'),
-                'marea_number' => $marea->marea_number,
-                'name' => $marea->name,
-                'description' => $marea->description,
-                'status' => $marea->status,
-                'estimated_departure_date' => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
-                'estimated_return_date' => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
-                'actual_departure_date' => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
-                'actual_return_date' => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
-                'closed_at' => $marea->closed_at ? $marea->closed_at->format('Y-m-d H:i:s') : null,
-                'distribution_profile_id' => $marea->distribution_profile_id ? $this->hashId($marea->distribution_profile_id, 'mareadistributionprofile-id') : null,
-                'distribution_profile' => $marea->distributionProfile ? [
-                    'id' => $this->hashId($marea->distributionProfile->id, 'mareadistributionprofile-id'),
+            'crewSalaryData'       => $crewSalaryData,
+            'marea'                => [
+                'id'                         => $this->hashId($marea->id, 'marea'),
+                'marea_number'               => $marea->marea_number,
+                'name'                       => $marea->name,
+                'description'                => $marea->description,
+                'status'                     => $marea->status,
+                'estimated_departure_date'   => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
+                'estimated_return_date'      => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
+                'actual_departure_date'      => $marea->actual_departure_date ? $marea->actual_departure_date->format('Y-m-d') : null,
+                'actual_return_date'         => $marea->actual_return_date ? $marea->actual_return_date->format('Y-m-d') : null,
+                'closed_at'                  => $marea->closed_at ? $marea->closed_at->format('Y-m-d H:i:s') : null,
+                'distribution_profile_id'    => $marea->distribution_profile_id ? $this->hashId($marea->distribution_profile_id, 'mareadistributionprofile') : null,
+                'distribution_profile'       => $marea->distributionProfile ? [
+                    'id'   => $this->hashId($marea->distributionProfile->id, 'mareadistributionprofile'),
                     'name' => $marea->distributionProfile->name,
                 ] : null,
-                'use_calculation' => $marea->use_calculation ?? true,
-                'currency' => $marea->currency ?? $defaultCurrency,
-                'house_of_zeros' => $marea->house_of_zeros ?? 2,
-                'total_income' => $marea->total_income,
-                'total_expenses' => $marea->total_expenses,
-                'net_result' => $marea->net_result,
-                'formatted_total_income' => $marea->formatted_total_income,
-                'formatted_total_expenses' => $marea->formatted_total_expenses,
-                'formatted_net_result' => $marea->formatted_net_result,
-                'distribution' => $distribution,
-                'distribution_items' => $marea->distributionItems->map(function ($item) use ($marea) {
+                'use_calculation'            => $marea->use_calculation ?? true,
+                'currency'                   => $marea->currency ?? $defaultCurrency,
+                'house_of_zeros'             => $marea->house_of_zeros ?? 2,
+                'total_income'               => $marea->total_income,
+                'total_expenses'             => $marea->total_expenses,
+                'net_result'                 => $marea->net_result,
+                'formatted_total_income'     => $marea->formatted_total_income,
+                'formatted_total_expenses'   => $marea->formatted_total_expenses,
+                'formatted_net_result'       => $marea->formatted_net_result,
+                'distribution'               => $distribution,
+                'distribution_items'         => $marea->distributionItems->map(function ($item) use ($marea) {
                     return [
-                        'id' => $this->hashId($item->id, 'mareadistributionitem-id'),
-                        'profile_item_id' => $item->profile_item_id ? $this->hashId($item->profile_item_id, 'mareadistributionprofileitem-id') : null,
-                        'order_index' => $item->order_index,
-                        'name' => $item->name,
-                        'description' => $item->description,
-                        'value_type' => $item->value_type,
-                        'value_amount' => $item->value_amount,
-                        'reference_item_id' => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionitem-id') : null,
-                        'operation' => $item->operation,
-                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionitem-id') : null,
+                        'id'                          => $this->hashId($item->id, 'mareadistributionitem'),
+                        'profile_item_id'             => $item->profile_item_id ? $this->hashId($item->profile_item_id, 'mareadistributionprofileitem') : null,
+                        'order_index'                 => $item->order_index,
+                        'name'                        => $item->name,
+                        'description'                 => $item->description,
+                        'value_type'                  => $item->value_type,
+                        'value_amount'                => $item->value_amount,
+                        'reference_item_id'           => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionitem') : null,
+                        'operation'                   => $item->operation,
+                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionitem') : null,
                     ];
                 }),
                 'distribution_profile_items' => $marea->distributionProfile && $marea->distributionProfile->items ? $marea->distributionProfile->items->map(function ($item) {
                     return [
-                        'id' => $this->hashId($item->id, 'mareadistributionprofileitem-id'),
-                        'order_index' => $item->order_index,
-                        'name' => $item->name,
-                        'description' => $item->description,
-                        'value_type' => $item->value_type,
-                        'value_amount' => $item->value_amount,
-                        'reference_item_id' => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionprofileitem-id') : null,
-                        'operation' => $item->operation,
-                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionprofileitem-id') : null,
+                        'id'                          => $this->hashId($item->id, 'mareadistributionprofileitem'),
+                        'order_index'                 => $item->order_index,
+                        'name'                        => $item->name,
+                        'description'                 => $item->description,
+                        'value_type'                  => $item->value_type,
+                        'value_amount'                => $item->value_amount,
+                        'reference_item_id'           => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionprofileitem') : null,
+                        'operation'                   => $item->operation,
+                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionprofileitem') : null,
                     ];
                 }) : [],
-                'crew_members' => $marea->crew->map(function ($crew) {
+                'crew_members'               => $marea->crew->map(function ($crew) {
                     return [
-                        'id' => $this->hashId($crew->user->id, 'user-id'),
-                        'name' => $crew->user->name,
+                        'id'    => $this->hashId($crew->user->id, 'user'),
+                        'name'  => $crew->user->name,
                         'email' => $crew->user->email,
                         'notes' => $crew->notes ?? null,
                     ];
                 }),
-                'quantity_returns' => $marea->quantityReturns->map(function ($qr) {
+                'quantity_returns'           => $marea->quantityReturns->map(function ($qr) {
                     return [
-                        'id' => $this->hashId($qr->id, 'mareaquantityreturn-id'),
-                        'name' => $qr->name,
+                        'id'       => $this->hashId($qr->id, 'mareaquantityreturn'),
+                        'name'     => $qr->name,
                         'quantity' => $qr->quantity,
-                        'notes' => $qr->notes,
+                        'notes'    => $qr->notes,
                     ];
                 }),
-                'transactions' => $marea->transactions->map(function ($transaction) {
+                'transactions'               => $marea->transactions->map(function ($transaction) {
                     return [
-                        'id' => $this->hashId($transaction->id, 'transaction-id'),
+                        'id'                 => $this->hashId($transaction->id, 'movimentation'),
                         'transaction_number' => $transaction->transaction_number,
-                        'type' => $transaction->type,
-                        'amount' => $transaction->amount,
-                        'amount_per_unit' => $transaction->amount_per_unit,
-                        'quantity' => $transaction->quantity,
-                        'vat_amount' => $transaction->vat_amount,
-                        'total_amount' => $transaction->total_amount,
-                        'currency' => $transaction->currency,
-                        'transaction_date' => $transaction->transaction_date?->format('Y-m-d'),
-                        'description' => $transaction->description,
-                        'category' => $transaction->category ? [
-                            'id' => $this->hashId($transaction->category->id, 'transactioncategory-id'),
-                            'name' => $transaction->category->name,
-                            'type' => $transaction->category->type,
+                        'type'               => $transaction->type,
+                        'amount'             => $transaction->amount,
+                        'amount_per_unit'    => $transaction->amount_per_unit,
+                        'quantity'           => $transaction->quantity,
+                        'vat_amount'         => $transaction->vat_amount,
+                        'total_amount'       => $transaction->total_amount,
+                        'currency'           => $transaction->currency,
+                        'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                        'description'        => $transaction->description,
+                        'category'           => $transaction->category ? [
+                            'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                            'name'  => $transaction->category->name,
+                            'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,
-                        'supplier' => $transaction->supplier ? [
-                            'id' => $this->hashId($transaction->supplier->id, 'supplier-id'),
+                        'supplier'           => $transaction->supplier ? [
+                            'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
                             'company_name' => $transaction->supplier->company_name,
                         ] : null,
-                        'crew_member_id' => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user-id') : null,
-                        'crew_member' => $transaction->crewMember ? [
-                            'id' => $this->hashId($transaction->crewMember->id, 'user-id'),
-                            'name' => $transaction->crewMember->name,
+                        'crew_member_id'     => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user') : null,
+                        'crew_member'        => $transaction->crewMember ? [
+                            'id'    => $this->hashId($transaction->crewMember->id, 'user'),
+                            'name'  => $transaction->crewMember->name,
                             'email' => $transaction->crewMember->email,
                         ] : null,
                     ];
                 }),
-                'created_at' => $marea->created_at?->format('Y-m-d H:i:s'),
-                'created_by' => $marea->createdBy ? [
-                    'id' => $this->hashId($marea->createdBy->id, 'user-id'),
+                'created_at'                 => $marea->created_at?->format('Y-m-d H:i:s'),
+                'created_by'                 => $marea->createdBy ? [
+                    'id'   => $this->hashId($marea->createdBy->id, 'user'),
                     'name' => $marea->createdBy->name,
                 ] : null,
             ],
@@ -575,7 +622,7 @@ class MareaController extends Controller
         /** @var int $vesselId */
         $vesselId = $request->attributes->get('vessel_id');
 
-        if (!$vesselId) {
+        if (! $vesselId) {
             // Fallback: try to get from route parameter
             $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
         }
@@ -583,8 +630,8 @@ class MareaController extends Controller
         // CRITICAL: Get marea ID directly from route parameter
         $mareaIdFromRoute = $request->route('mareaId');
         // Unhash marea ID if it's a hashed string
-        if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-            $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+        if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+            $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
         } else {
             $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
         }
@@ -595,13 +642,13 @@ class MareaController extends Controller
             ->firstOrFail();
 
         // Check permissions
-        if (!$user || !$user->hasAccessToVessel($vesselId)) {
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
-        $userRole = $user->getRoleForVessel($vesselId);
+        $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (!($permissions['mareas.edit'] ?? false)) {
+        if (! ($permissions['mareas.edit'] ?? false)) {
             abort(403, 'You do not have permission to edit mareas.');
         }
 
@@ -614,25 +661,25 @@ class MareaController extends Controller
         $distributionProfiles = MareaDistributionProfile::orderBy('name')->get();
 
         return Inertia::render('Mareas/Edit', [
-            'marea' => [
-                'id' => $this->hashId($marea->id, 'marea-id'),
-                'marea_number' => $marea->marea_number,
-                'name' => $marea->name,
-                'description' => $marea->description,
+            'marea'                => [
+                'id'                       => $this->hashId($marea->id, 'marea'),
+                'marea_number'             => $marea->marea_number,
+                'name'                     => $marea->name,
+                'description'              => $marea->description,
                 'estimated_departure_date' => $marea->estimated_departure_date ? $marea->estimated_departure_date->format('Y-m-d') : null,
-                'estimated_return_date' => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
-                'distribution_profile_id' => $marea->distribution_profile_id ? $this->hashId($marea->distribution_profile_id, 'mareadistributionprofile-id') : null,
-                'use_calculation' => $marea->use_calculation ?? true,
-                'currency' => $marea->currency,
-                'house_of_zeros' => $marea->house_of_zeros ?? 2,
-                'status' => $marea->status,
+                'estimated_return_date'    => $marea->estimated_return_date ? $marea->estimated_return_date->format('Y-m-d') : null,
+                'distribution_profile_id'  => $marea->distribution_profile_id ? $this->hashId($marea->distribution_profile_id, 'mareadistributionprofile') : null,
+                'use_calculation'          => $marea->use_calculation ?? true,
+                'currency'                 => $marea->currency,
+                'house_of_zeros'           => $marea->house_of_zeros ?? 2,
+                'status'                   => $marea->status,
             ],
             'distributionProfiles' => $distributionProfiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
-                    'name' => $profile->name,
+                    'id'          => $profile->id,
+                    'name'        => $profile->name,
                     'description' => $profile->description,
-                    'is_default' => $profile->is_default,
+                    'is_default'  => $profile->is_default,
                 ];
             }),
         ]);
@@ -649,7 +696,7 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vessel = $request->route('vessel');
 
                 // Handle both route model binding (object) and hashed ID (string)
@@ -659,10 +706,10 @@ class MareaController extends Controller
                     $vesselId = (int) $vessel;
                 } else {
                     // Decode hashed vessel ID
-                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
-                    if (!$vesselId) {
+                    if (! $vesselId) {
                         abort(404, 'Vessel not found.');
                     }
                 }
@@ -671,8 +718,8 @@ class MareaController extends Controller
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -683,13 +730,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -703,25 +750,25 @@ class MareaController extends Controller
 
             // Validate request
             $validated = $request->validate([
-                'name' => 'nullable|string|max:255',
-                'description' => 'nullable|string',
+                'name'                     => 'nullable|string|max:255',
+                'description'              => 'nullable|string',
                 'estimated_departure_date' => 'nullable|date',
-                'estimated_return_date' => 'nullable|date|after_or_equal:estimated_departure_date',
-                'distribution_profile_id' => 'nullable|exists:marea_distribution_profiles,id',
-                'use_calculation' => 'nullable|boolean',
-                'currency' => 'nullable|string|size:3',
-                'house_of_zeros' => 'nullable|integer|min:0|max:4',
+                'estimated_return_date'    => 'nullable|date|after_or_equal:estimated_departure_date',
+                'distribution_profile_id'  => 'nullable|exists:marea_distribution_profiles,id',
+                'use_calculation'          => 'nullable|boolean',
+                'currency'                 => 'nullable|string|size:3',
+                'house_of_zeros'           => 'nullable|integer|min:0|max:4',
             ]);
 
             $marea->update([
-                'name' => $validated['name'] ?? null,
-                'description' => $validated['description'] ?? null,
+                'name'                     => $validated['name'] ?? null,
+                'description'              => $validated['description'] ?? null,
                 'estimated_departure_date' => $validated['estimated_departure_date'] ?? null,
-                'estimated_return_date' => $validated['estimated_return_date'] ?? null,
-                'distribution_profile_id' => $validated['distribution_profile_id'] ?? null,
-                'use_calculation' => $validated['use_calculation'] ?? $marea->use_calculation ?? true,
-                'currency' => $validated['currency'] ?? $marea->currency,
-                'house_of_zeros' => $validated['house_of_zeros'] ?? $marea->house_of_zeros ?? 2,
+                'estimated_return_date'    => $validated['estimated_return_date'] ?? null,
+                'distribution_profile_id'  => $validated['distribution_profile_id'] ?? null,
+                'use_calculation'          => $validated['use_calculation'] ?? $marea->use_calculation ?? true,
+                'currency'                 => $validated['currency'] ?? $marea->currency,
+                'house_of_zeros'           => $validated['house_of_zeros'] ?? $marea->house_of_zeros ?? 2,
             ]);
 
             // Get changed fields and log the update action
@@ -737,19 +784,19 @@ class MareaController extends Controller
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been updated successfully.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
         } catch (\Exception $e) {
             Log::error('Marea update failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
 
             return back()
                 ->withInput()
                 ->with('error', $this->transFrom('notifications', 'Failed to update marea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -765,15 +812,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -784,20 +831,20 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.delete'] ?? false)) {
+            if (! ($permissions['mareas.delete'] ?? false)) {
                 abort(403, 'You do not have permission to delete mareas.');
             }
 
             $mareaNumber = $marea->marea_number;
 
             // Count transactions before deletion
-            $transactionCount = \App\Models\Transaction::where('marea_id', $marea->id)->count();
+            $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
 
             // Log the delete action BEFORE deletion
             AuditLogAction::logDelete(
@@ -808,18 +855,18 @@ class MareaController extends Controller
             );
 
             // Soft delete all transactions associated with this marea (they will appear in recycle bin)
-            \App\Models\Transaction::where('marea_id', $marea->id)->delete();
+            \App\Models\Movimentation::where('marea_id', $marea->id)->delete();
 
             // Soft delete the marea (will appear in recycle bin)
             $marea->delete();
 
             $message = $this->transFrom('notifications', "Marea ':number' has been deleted successfully.", [
-                'number' => $mareaNumber
+                'number' => $mareaNumber,
             ]);
             if ($transactionCount > 0) {
                 $message = $this->transFrom('notifications', "Marea ':number' has been deleted successfully. :count transaction(s) associated with this marea have also been deleted.", [
                     'number' => $mareaNumber,
-                    'count' => $transactionCount
+                    'count'  => $transactionCount,
                 ]);
             }
 
@@ -834,7 +881,7 @@ class MareaController extends Controller
 
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to delete marea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -850,15 +897,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -869,13 +916,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.manage-status'] ?? false)) {
+            if (! ($permissions['mareas.manage-status'] ?? false)) {
                 abort(403, 'You do not have permission to manage marea status.');
             }
 
@@ -897,30 +944,30 @@ class MareaController extends Controller
                     vesselId: $vesselId,
                     actionByUserId: $user->id,
                     subjectData: [
-                        'marea_number' => $marea->marea_number,
-                        'name' => $marea->name,
-                        'started_at' => $marea->actual_departure_date?->toIso8601String(),
+                        'marea_number'         => $marea->marea_number,
+                        'name'                 => $marea->name,
+                        'started_at'           => $marea->actual_departure_date?->toIso8601String(),
                         'expected_return_date' => $marea->estimated_return_date?->toIso8601String(),
                     ]
                 );
             } catch (\Exception $e) {
                 // Log error but don't fail the status change
                 Log::warning('Failed to create email notification for marea started', [
-                    'marea_id' => $marea->id,
+                    'marea_id'  => $marea->id,
                     'vessel_id' => $vesselId,
-                    'error' => $e->getMessage(),
+                    'error'     => $e->getMessage(),
                 ]);
             }
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been marked as at sea.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to mark marea as at sea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -936,15 +983,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -955,13 +1002,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.manage-status'] ?? false)) {
+            if (! ($permissions['mareas.manage-status'] ?? false)) {
                 abort(403, 'You do not have permission to manage marea status.');
             }
 
@@ -984,29 +1031,29 @@ class MareaController extends Controller
                     actionByUserId: $user->id,
                     subjectData: [
                         'marea_number' => $marea->marea_number,
-                        'name' => $marea->name,
-                        'started_at' => $marea->actual_departure_date?->toIso8601String(),
-                        'returned_at' => $marea->actual_return_date?->toIso8601String(),
+                        'name'         => $marea->name,
+                        'started_at'   => $marea->actual_departure_date?->toIso8601String(),
+                        'returned_at'  => $marea->actual_return_date?->toIso8601String(),
                     ]
                 );
             } catch (\Exception $e) {
                 // Log error but don't fail the status change
                 Log::warning('Failed to create email notification for marea completed', [
-                    'marea_id' => $marea->id,
+                    'marea_id'  => $marea->id,
                     'vessel_id' => $vesselId,
-                    'error' => $e->getMessage(),
+                    'error'     => $e->getMessage(),
                 ]);
             }
 
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been marked as returned.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to mark marea as returned: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1022,15 +1069,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1041,13 +1088,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.manage-status'] ?? false)) {
+            if (! ($permissions['mareas.manage-status'] ?? false)) {
                 abort(403, 'You do not have permission to manage marea status.');
             }
 
@@ -1056,12 +1103,12 @@ class MareaController extends Controller
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been closed.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to close marea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1077,15 +1124,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1096,13 +1143,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.manage-status'] ?? false)) {
+            if (! ($permissions['mareas.manage-status'] ?? false)) {
                 abort(403, 'You do not have permission to manage marea status.');
             }
 
@@ -1111,12 +1158,12 @@ class MareaController extends Controller
             return redirect()
                 ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been cancelled.", [
-                    'number' => $marea->marea_number
+                    'number' => $marea->marea_number,
                 ]));
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to cancel marea: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1132,7 +1179,7 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
             $vesselId = (int) $vesselId; // Ensure integer
@@ -1140,8 +1187,8 @@ class MareaController extends Controller
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1152,13 +1199,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1169,8 +1216,8 @@ class MareaController extends Controller
 
             // Unhash transaction_id from request before validation
             $transactionIdHashed = $request->input('transaction_id');
-            $transactionId = $this->unhashId($transactionIdHashed, 'transaction-id');
-            if (!$transactionId) {
+            $transactionId       = $this->unhashId($transactionIdHashed, 'movimentation');
+            if (! $transactionId) {
                 return back()->with('error', $this->transFrom('notifications', 'Invalid transaction ID.'));
             }
 
@@ -1187,7 +1234,7 @@ class MareaController extends Controller
             $request->merge(['transaction_id' => $transactionId]);
 
             // CRITICAL: Ensure we're querying with the correct vessel_id (as integer)
-            $transaction = Transaction::where('id', $transactionId)
+            $transaction = Movimentation::where('id', $transactionId)
                 ->where('vessel_id', $vesselId)
                 ->firstOrFail();
 
@@ -1199,7 +1246,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to add transaction: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1215,15 +1262,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1234,13 +1281,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1249,17 +1296,17 @@ class MareaController extends Controller
                 abort(403, 'Cannot remove transactions from a closed or cancelled marea.');
             }
 
-            // Get transaction ID from route parameter and unhash it
+            // Get movimentation ID from route parameter and unhash it
             $transactionParam = is_object($transaction) ? $transaction->id : $transaction;
-            if (!is_numeric($transactionParam)) {
-                $transactionId = $this->unhashId($transactionParam, 'transaction-id');
+            if (! is_numeric($transactionParam)) {
+                $transactionId = $this->unhashId($transactionParam, 'movimentation');
             } else {
                 $transactionId = (int) $transactionParam;
             }
-            if (!$transactionId) {
-                abort(404, 'Transaction not found.');
+            if (! $transactionId) {
+                abort(404, 'Movimentation not found.');
             }
-            $transaction = Transaction::where('marea_id', $marea->id)->findOrFail($transactionId);
+            $transaction = Movimentation::where('marea_id', $marea->id)->findOrFail($transactionId);
 
             // Remove marea_id from transaction
             $transaction->update(['marea_id' => null]);
@@ -1269,7 +1316,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to remove transaction: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1285,15 +1332,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1304,13 +1351,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1321,30 +1368,30 @@ class MareaController extends Controller
 
             // Unhash user_id from request before validation
             $userIdHashed = $request->input('user_id');
-            $userId = $this->unhashId($userIdHashed, 'user-id');
-            if (!$userId) {
+            $userId       = $this->unhashId($userIdHashed, 'user');
+            if (! $userId) {
                 return back()->with('error', $this->transFrom('notifications', 'Invalid user ID.'));
             }
+
+            // Merge unhashed ID BEFORE validation so Rule::exists works correctly
+            $request->merge(['user_id' => $userId]);
 
             $validated = $request->validate([
                 'user_id' => [
                     'required',
                     Rule::exists('users', 'id'),
                 ],
-                'notes' => 'nullable|string',
+                'notes'   => 'nullable|string',
             ]);
-
-            // Merge unhashed ID for validation
-            $request->merge(['user_id' => $userId]);
 
             // Verify user has access to this vessel (either through vessel_id or vessel_user_roles)
             $crewUser = User::findOrFail($userId);
 
             // Check if user has access to vessel through roles OR is a direct crew member
             $hasAccessThroughRoles = $crewUser->hasAccessToVessel($vesselId);
-            $isDirectCrewMember = (int) $crewUser->vessel_id === (int) $vesselId;
+            $isDirectCrewMember    = (int) $crewUser->vessel_id === (int) $vesselId;
 
-            if (!$hasAccessThroughRoles && !$isDirectCrewMember) {
+            if (! $hasAccessThroughRoles && ! $isDirectCrewMember) {
                 abort(403, 'User does not belong to this vessel.');
             }
 
@@ -1357,8 +1404,8 @@ class MareaController extends Controller
             // Add crew member using MareaCrew model
             \App\Models\MareaCrew::create([
                 'marea_id' => $marea->id,
-                'user_id' => $userId,
-                'notes' => $validated['notes'] ?? null,
+                'user_id'  => $userId,
+                'notes'    => $validated['notes'] ?? null,
             ]);
 
             return back()
@@ -1366,7 +1413,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to add crew member: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1382,15 +1429,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1401,13 +1448,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1418,12 +1465,12 @@ class MareaController extends Controller
 
             // Get user ID from route parameter and unhash it
             $userParam = is_object($crewMember) ? $crewMember->id : $crewMember;
-            if (!is_numeric($userParam)) {
-                $userId = $this->unhashId($userParam, 'user-id');
+            if (! is_numeric($userParam)) {
+                $userId = $this->unhashId($userParam, 'user');
             } else {
                 $userId = (int) $userParam;
             }
-            if (!$userId) {
+            if (! $userId) {
                 abort(404, 'Crew member not found.');
             }
 
@@ -1435,7 +1482,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to remove crew member: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1451,15 +1498,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1470,13 +1517,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1486,17 +1533,17 @@ class MareaController extends Controller
             }
 
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
+                'name'     => 'required|string|max:255',
                 'quantity' => 'required|numeric|min:0',
-                'notes' => 'nullable|string',
+                'notes'    => 'nullable|string',
             ]);
 
             // Create quantity return
             MareaQuantityReturn::create([
                 'marea_id' => $marea->id,
-                'name' => $validated['name'],
+                'name'     => $validated['name'],
                 'quantity' => $validated['quantity'],
-                'notes' => $validated['notes'] ?? null,
+                'notes'    => $validated['notes'] ?? null,
             ]);
 
             return back()
@@ -1504,7 +1551,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to add quantity return: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1520,15 +1567,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1539,13 +1586,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1556,12 +1603,12 @@ class MareaController extends Controller
 
             // Get quantity return ID from route parameter and unhash it
             $quantityReturnParam = is_object($quantityReturn) ? $quantityReturn->id : $quantityReturn;
-            if (!is_numeric($quantityReturnParam)) {
-                $quantityReturnId = $this->unhashId($quantityReturnParam, 'mareaquantityreturn-id');
+            if (! is_numeric($quantityReturnParam)) {
+                $quantityReturnId = $this->unhashId($quantityReturnParam, 'mareaquantityreturn');
             } else {
                 $quantityReturnId = (int) $quantityReturnParam;
             }
-            if (!$quantityReturnId) {
+            if (! $quantityReturnId) {
                 abort(404, 'Quantity return not found.');
             }
             $quantityReturn = MareaQuantityReturn::where('marea_id', $marea->id)->findOrFail($quantityReturnId);
@@ -1573,7 +1620,7 @@ class MareaController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->with('error', $this->transFrom('notifications', 'Failed to remove quantity return: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1589,7 +1636,7 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
             $vesselId = (int) $vesselId; // Ensure integer
@@ -1597,8 +1644,8 @@ class MareaController extends Controller
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1609,13 +1656,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
             // Get available transactions (not linked to any marea, or linked to this marea to allow re-linking)
             // CRITICAL: Ensure we're filtering by the correct vessel_id (as integer)
-            $availableTransactions = Transaction::where('vessel_id', $vesselId)
+            $availableTransactions = Movimentation::where('vessel_id', $vesselId)
                 ->where(function ($query) use ($marea) {
                     $query->whereNull('marea_id')
                         ->orWhere('marea_id', $marea->id);
@@ -1626,18 +1673,18 @@ class MareaController extends Controller
                 ->get()
                 ->map(function ($transaction) {
                     return [
-                        'id' => $this->hashId($transaction->id, 'transaction-id'),
+                        'id'                 => $this->hashId($transaction->id, 'movimentation'),
                         'transaction_number' => $transaction->transaction_number,
-                        'type' => $transaction->type,
-                        'amount' => $transaction->amount,
-                        'total_amount' => $transaction->total_amount,
-                        'currency' => $transaction->currency,
-                        'transaction_date' => $transaction->transaction_date?->format('Y-m-d'),
-                        'description' => $transaction->description,
-                        'category' => $transaction->category ? [
-                            'id' => $this->hashId($transaction->category->id, 'transactioncategory-id'),
-                            'name' => $transaction->category->name,
-                            'type' => $transaction->category->type,
+                        'type'               => $transaction->type,
+                        'amount'             => $transaction->amount,
+                        'total_amount'       => $transaction->total_amount,
+                        'currency'           => $transaction->currency,
+                        'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                        'description'        => $transaction->description,
+                        'category'           => $transaction->category ? [
+                            'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                            'name'  => $transaction->category->name,
+                            'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,
                     ];
@@ -1664,15 +1711,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1683,7 +1730,7 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
@@ -1699,7 +1746,7 @@ class MareaController extends Controller
                 ->get(['id', 'name', 'email']);
 
             // Get users with access through vessel_user_roles
-            $vessel = \App\Models\Vessel::find($vesselId);
+            $vessel            = \App\Models\Vessel::find($vesselId);
             $usersThroughRoles = $vessel ? $vessel->usersThroughRoles()
                 ->whereNotIn('users.id', $assignedCrewIds)
                 ->get(['users.id', 'users.name', 'users.email']) : collect();
@@ -1711,8 +1758,8 @@ class MareaController extends Controller
                 ->values()
                 ->map(function ($user) {
                     return [
-                        'id' => $this->hashId($user->id, 'user-id'),
-                        'name' => $user->name,
+                        'id'    => $this->hashId($user->id, 'user'),
+                        'name'  => $user->name,
                         'email' => $user->email,
                     ];
                 });
@@ -1739,43 +1786,43 @@ class MareaController extends Controller
             // Get vessel_id from request attributes
             /** @var int $vesselId */
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // Get marea ID from route
             $mareaIdFromRoute = $request->route('mareaId');
-            $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
+            $mareaId          = (int) ($mareaIdFromRoute ?? $mareaId);
 
             $marea = Marea::where('vessel_id', $vesselId)
                 ->where('id', $mareaId)
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
             // Validate request
             $validated = $request->validate([
-                'items' => 'required|array',
-                'items.*.order_index' => 'required|integer|min:1',
-                'items.*.name' => 'required|string|max:255',
-                'items.*.description' => 'nullable|string|max:500',
-                'items.*.value_type' => 'required|in:base_total_income,base_total_expense,fixed_amount,percentage_of_income,percentage_of_expense,reference_item',
-                'items.*.value_amount' => 'nullable|numeric',
-                'items.*.reference_item_id' => 'nullable|integer',
-                'items.*.reference_item_order_index' => 'nullable|integer', // Alternative: use order_index
-                'items.*.operation' => 'required|in:set,add,subtract,multiply,divide',
-                'items.*.reference_operation_item_id' => 'nullable|integer',
+                'items'                                        => 'required|array',
+                'items.*.order_index'                          => 'required|integer|min:1',
+                'items.*.name'                                 => 'required|string|max:255',
+                'items.*.description'                          => 'nullable|string|max:500',
+                'items.*.value_type'                           => 'required|in:base_total_income,base_total_expense,fixed_amount,percentage_of_income,percentage_of_expense,reference_item',
+                'items.*.value_amount'                         => 'nullable|numeric',
+                'items.*.reference_item_id'                    => 'nullable|integer',
+                'items.*.reference_item_order_index'           => 'nullable|integer', // Alternative: use order_index
+                'items.*.operation'                            => 'required|in:set,add,subtract,multiply,divide',
+                'items.*.reference_operation_item_id'          => 'nullable|integer',
                 'items.*.reference_operation_item_order_index' => 'nullable|integer', // Alternative: use order_index
-                'items.*.profile_item_id' => 'nullable|integer|exists:marea_distribution_profile_items,id',
+                'items.*.profile_item_id'                      => 'nullable|integer|exists:marea_distribution_profile_items,id',
             ]);
 
             // Delete existing distribution items for this marea
@@ -1788,24 +1835,24 @@ class MareaController extends Controller
             // First pass: create all items
             foreach ($validated['items'] as $itemData) {
                 $item = $marea->distributionItems()->create([
-                    'order_index' => $itemData['order_index'],
-                    'name' => $itemData['name'],
-                    'description' => $itemData['description'] ?? null,
-                    'value_type' => $itemData['value_type'],
-                    'value_amount' => $itemData['value_amount'] ?? null,
-                    'reference_item_id' => null, // Will be set in second pass
-                    'operation' => $itemData['operation'],
+                    'order_index'                 => $itemData['order_index'],
+                    'name'                        => $itemData['name'],
+                    'description'                 => $itemData['description'] ?? null,
+                    'value_type'                  => $itemData['value_type'],
+                    'value_amount'                => $itemData['value_amount'] ?? null,
+                    'reference_item_id'           => null, // Will be set in second pass
+                    'operation'                   => $itemData['operation'],
                     'reference_operation_item_id' => null, // Will be set in second pass
-                    'profile_item_id' => $itemData['profile_item_id'] ?? null,
+                    'profile_item_id'             => $itemData['profile_item_id'] ?? null,
                 ]);
-                $createdItems[] = ['item' => $item, 'data' => $itemData];
+                $createdItems[]                         = ['item' => $item, 'data' => $itemData];
                 $orderToIdMap[$itemData['order_index']] = $item->id;
             }
 
             // Second pass: update references using order_index mapping
             foreach ($createdItems as $createdItemData) {
-                $item = $createdItemData['item'];
-                $data = $createdItemData['data'];
+                $item    = $createdItemData['item'];
+                $data    = $createdItemData['data'];
                 $updates = [];
 
                 // Map reference_item_id from order_index (preferred) or use direct ID
@@ -1831,7 +1878,7 @@ class MareaController extends Controller
                 }
 
                 // Update item with references if any
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $item->update($updates);
                 }
             }
@@ -1841,15 +1888,15 @@ class MareaController extends Controller
                 ->with('success', $this->transFrom('notifications', 'Distribution calculation override has been saved successfully.'));
         } catch (\Exception $e) {
             Log::error('Failed to store distribution items', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
 
             return back()
                 ->withInput()
                 ->with('error', $this->transFrom('notifications', 'Failed to save distribution items: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1865,15 +1912,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -1884,13 +1931,13 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
-            $userRole = $user->getRoleForVessel($vesselId);
+            $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (!($permissions['mareas.edit'] ?? false)) {
+            if (! ($permissions['mareas.edit'] ?? false)) {
                 abort(403, 'You do not have permission to edit mareas.');
             }
 
@@ -1901,71 +1948,78 @@ class MareaController extends Controller
 
             // Unhash crew_member_id from request before validation
             $crewMemberIdHashed = $request->input('crew_member_id');
-            $crewMemberId = $this->unhashId($crewMemberIdHashed, 'user-id');
-            if (!$crewMemberId) {
+            $crewMemberId       = $this->unhashId($crewMemberIdHashed, 'user');
+            if (! $crewMemberId) {
                 return back()->with('error', $this->transFrom('notifications', 'Invalid crew member ID.'));
             }
 
+            // Merge unhashed ID into request before validation
+            $request->merge(['crew_member_id' => $crewMemberId]);
+
             // Validate request
             $validated = $request->validate([
-                'crew_member_id' => [
+                'crew_member_id'   => [
                     'required',
                     Rule::exists('users', 'id')->where(function ($query) use ($vesselId) {
                         $query->where('vessel_id', $vesselId);
                     }),
                 ],
-                'amount' => ['required', 'integer', 'min:1'],
+                'amount'           => ['required', 'integer', 'min:1'],
                 'transaction_date' => ['required', 'date', 'before_or_equal:today'],
-                'description' => ['nullable', 'string', 'max:500'],
-                'notes' => ['nullable', 'string', 'max:1000'],
+                'description'      => ['nullable', 'string', 'max:500'],
+                'notes'            => ['nullable', 'string', 'max:1000'],
             ]);
 
-            // Merge unhashed ID for use in creation
-            $validated['crew_member_id'] = $crewMemberId;
-
-            // Get salary category
-            $salaryCategory = \App\Models\TransactionCategory::where('name', 'Salários')
-                ->where('type', 'expense')
-                ->firstOrFail();
+            // Get or create salary category
+            $salaryCategory = \App\Models\MovimentationCategory::firstOrCreate(
+                [
+                    'name'      => 'Salários',
+                    'type'      => 'expense',
+                    'vessel_id' => $vesselId,
+                ],
+                [
+                    'description' => 'Salary payments to crew members',
+                ]
+            );
 
             // Get vessel settings for currency
-            $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-            $vessel = \App\Models\Vessel::find($vesselId);
+            $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+            $vessel          = \App\Models\Vessel::find($vesselId);
             $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
             // Create salary payment transaction
-            $transaction = Transaction::create([
-                'vessel_id' => $vesselId,
-                'marea_id' => $marea->id,
-                'category_id' => $salaryCategory->id,
-                'type' => 'expense',
-                'amount' => $validated['amount'],
-                'vat_amount' => 0,
-                'total_amount' => $validated['amount'],
-                'currency' => $defaultCurrency,
-                'house_of_zeros' => $marea->house_of_zeros ?? 2,
-                'vat_profile_id' => null, // Expenses don't have VAT
+            $transaction = Movimentation::create([
+                'vessel_id'        => $vesselId,
+                'marea_id'         => $marea->id,
+                'category_id'      => $salaryCategory->id,
+                'type'             => 'expense',
+                'amount'           => $validated['amount'],
+                'vat_amount'       => 0,
+                'total_amount'     => $validated['amount'],
+                'currency'         => $defaultCurrency,
+                'house_of_zeros'   => $marea->house_of_zeros ?? 2,
+                'vat_profile_id'   => null, // Expenses don't have VAT
                 'transaction_date' => $validated['transaction_date'],
-                'description' => $validated['description'] ?? 'Salary payment',
-                'notes' => $validated['notes'] ?? null,
-                'crew_member_id' => $validated['crew_member_id'],
-                'status' => 'completed',
-                'created_by' => $user->id,
+                'description'      => $validated['description'] ?? 'Salary payment',
+                'notes'            => $validated['notes'] ?? null,
+                'crew_member_id'   => $validated['crew_member_id'],
+                'status'           => 'completed',
+                'created_by'       => $user->id,
             ]);
 
             return back()
                 ->with('success', $this->transFrom('notifications', 'Salary payment has been created successfully.'));
         } catch (\Exception $e) {
             Log::error('Salary payment creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
                 'request_data' => $request->all(),
             ]);
 
             return back()
                 ->withInput()
                 ->with('error', $this->transFrom('notifications', 'Failed to create salary payment: :message', [
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ]));
         }
     }
@@ -1981,15 +2035,15 @@ class MareaController extends Controller
 
             // Get vessel_id from route parameter or request attributes
             $vesselId = $request->attributes->get('vessel_id');
-            if (!$vesselId) {
+            if (! $vesselId) {
                 $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
             }
 
             // CRITICAL: Get marea ID directly from route parameter
             $mareaIdFromRoute = $request->route('mareaId');
             // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && !is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea-id');
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
             } else {
                 $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
             }
@@ -2000,18 +2054,18 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (!$user || !$user->hasAccessToVessel($vesselId)) {
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
                 abort(403, 'You do not have access to this vessel.');
             }
 
             $crewMemberIdHashed = $request->input('crew_member_id');
-            if (!$crewMemberIdHashed) {
+            if (! $crewMemberIdHashed) {
                 return response()->json(['error' => 'Crew member ID is required.'], 400);
             }
 
             // Unhash crew member ID from request
-            $crewMemberId = $this->unhashId($crewMemberIdHashed, 'user-id');
-            if (!$crewMemberId) {
+            $crewMemberId = $this->unhashId($crewMemberIdHashed, 'user');
+            if (! $crewMemberId) {
                 return response()->json(['error' => 'Invalid crew member ID.'], 400);
             }
 
@@ -2020,11 +2074,11 @@ class MareaController extends Controller
                 ->where('is_active', true)
                 ->first();
 
-            if (!$salaryCompensation) {
+            if (! $salaryCompensation) {
                 return response()->json([
                     'compensation_type' => null,
-                    'fixed_amount' => null,
-                    'percentage' => null,
+                    'fixed_amount'      => null,
+                    'percentage'        => null,
                 ]);
             }
 
@@ -2035,16 +2089,16 @@ class MareaController extends Controller
             } elseif ($salaryCompensation->compensation_type === 'percentage' && $salaryCompensation->percentage) {
                 // Calculate percentage of marea total income
                 $totalIncome = $marea->total_income;
-                $percentage = (float) $salaryCompensation->percentage;
-                $amount = (int) round(($totalIncome * $percentage) / 100);
+                $percentage  = (float) $salaryCompensation->percentage;
+                $amount      = (int) round(($totalIncome * $percentage) / 100);
             }
 
             return response()->json([
                 'compensation_type' => $salaryCompensation->compensation_type,
-                'fixed_amount' => $salaryCompensation->fixed_amount,
-                'percentage' => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
+                'fixed_amount'      => $salaryCompensation->fixed_amount,
+                'percentage'        => $salaryCompensation->percentage ? (float) $salaryCompensation->percentage : null,
                 'calculated_amount' => $amount,
-                'currency' => $salaryCompensation->currency,
+                'currency'          => $salaryCompensation->currency,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get crew salary data', [

@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Actions\General\EasyHashAction;
 use App\Http\Controllers\Concerns\HashesIds;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,46 +16,46 @@ class VesselSelectorController extends Controller
         $user = $request->user();
 
         $vessels = $user->vesselsThroughRoles()
-            ->with(['owner', 'crewMembers', 'transactions'])
+            ->with(['owner', 'crewMembers', 'movimentations'])
             ->get()
             ->map(function ($vessel) use ($user) {
                 // Get vessel-specific permissions
-                $canEdit = $user->canEditVessel($vessel->id);
-                $canDelete = $user->canDeleteVessel($vessel->id);
+                $canEdit        = $user->canEditVessel($vessel->id);
+                $canDelete      = $user->canDeleteVessel($vessel->id);
                 $canManageUsers = $user->canManageVesselUsers($vessel->id);
 
                 // Get role access info
                 $roleAccess = $user->getVesselRoleAccess($vessel->id);
 
                 return [
-                    'id' => $this->hashId($vessel->id, 'vessel'),
-                    'name' => $vessel->name,
+                    'id'                  => $this->hashId($vessel->id, 'vessel'),
+                    'name'                => $vessel->name,
                     'registration_number' => $vessel->registration_number,
-                    'vessel_type' => $vessel->vessel_type,
-                    'status' => $vessel->status,
-                    'status_label' => $vessel->status_label,
-                    'logo' => $vessel->logo,
-                    'logo_url' => $vessel->logo_url,
-                    'user_role' => $user->getRoleForVessel($vessel->id),
-                    'role_access' => $roleAccess ? [
-                        'name' => $roleAccess->name,
+                    'vessel_type'         => $vessel->vessel_type,
+                    'status'              => $vessel->status,
+                    'status_label'        => $vessel->status_label,
+                    'logo'                => $vessel->logo,
+                    'logo_url'            => $vessel->logo_url,
+                    'user_role'           => $user->getRoleForVessel($vessel->id),
+                    'role_access'         => $roleAccess ? [
+                        'name'         => $roleAccess->name,
                         'display_name' => $roleAccess->display_name,
                     ] : null,
-                    'permissions' => [
-                        'can_edit' => $canEdit,
-                        'can_delete' => $canDelete,
+                    'permissions'         => [
+                        'can_edit'         => $canEdit,
+                        'can_delete'       => $canDelete,
                         'can_manage_users' => $canManageUsers,
                     ],
-                    'crew_count' => $vessel->crewMembers()->count(),
-                    'transaction_count' => $vessel->transactions()->count(),
+                    'crew_count'          => $vessel->crewMembers()->count(),
+                    'transaction_count'   => $vessel->movimentations()->count(),
                 ];
             });
 
         return Inertia::render('Index', [
-            'vessels' => $vessels,
-            'user' => [
-                'id' => $this->hashId($user->id, 'user'),
-                'name' => $user->name,
+            'vessels'     => $vessels,
+            'user'        => [
+                'id'    => $this->hashId($user->id, 'user'),
+                'name'  => $user->name,
                 'email' => $user->email,
             ],
             'permissions' => [
@@ -79,12 +77,12 @@ class VesselSelectorController extends Controller
 
         // Unhash the vessel ID from frontend
         $vesselId = $this->unhashId($request->vessel_id, 'vessel');
-        if (!$vesselId) {
+        if (! $vesselId) {
             abort(404, 'Vessel not found.');
         }
 
         // Verify user has access to this vessel
-        if (!$user->hasAccessToVessel($vesselId)) {
+        if (! $user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
 
