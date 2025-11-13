@@ -128,10 +128,6 @@ const formatDate = (dateString: string) => {
                                     </span>
                                 </dd>
                             </div>
-                            <div v-if="crewPositionData.description">
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Description') }}</dt>
-                                <dd class="text-sm text-card-foreground dark:text-card-foreground whitespace-pre-line">{{ crewPositionData.description }}</dd>
-                            </div>
                             <div>
                                 <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Crew Members') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">

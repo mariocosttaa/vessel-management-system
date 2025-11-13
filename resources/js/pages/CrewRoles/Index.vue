@@ -9,7 +9,6 @@ import Pagination from '@/components/ui/Pagination.vue';
 import CrewRoleCreateModal from '@/components/modals/CrewRole/create.vue';
 import CrewRoleUpdateModal from '@/components/modals/CrewRole/update.vue';
 import CrewRoleShowModal from '@/components/modals/CrewRole/show.vue';
-import PermissionsInfoModal from '@/components/modals/CrewRole/PermissionsInfoModal.vue';
 import PermissionGate from '@/components/PermissionGate.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -26,26 +25,11 @@ const getCurrentVesselId = () => {
 interface CrewPosition {
     id: number;
     name: string;
-    description?: string;
     vessel_id?: number | null;
     is_global: boolean;
     scope_label: string;
     crew_members_count?: number;
     created_at: string;
-    vessel_role_access_id?: number | null;
-    vessel_role_access?: {
-        id: number;
-        name: string;
-        display_name: string;
-        description: string;
-    } | null;
-}
-
-interface VesselRoleAccess {
-    id: number;
-    name: string;
-    display_name: string;
-    description: string;
 }
 
 interface Props {
@@ -60,8 +44,6 @@ interface Props {
         sort?: string;
         direction?: string;
     };
-    vesselRoleAccesses?: VesselRoleAccess[];
-    permissionsConfig?: Record<string, any>;
 }
 
 const props = defineProps<Props>();
@@ -101,7 +83,6 @@ const scopeOptions = computed(() => {
 const isCreateModalOpen = ref(false);
 const isUpdateModalOpen = ref(false);
 const isShowModalOpen = ref(false);
-const isPermissionsInfoModalOpen = ref(false);
 const editingCrewPosition = ref<CrewPosition | null>(null);
 const viewingCrewPosition = ref<CrewPosition | null>(null);
 
@@ -114,9 +95,7 @@ const isDeleting = ref(false);
 const columns = computed(() => [
     { key: 'name', label: t('Role Name'), sortable: true },
     { key: 'scope_label', label: t('Scope'), sortable: false },
-    { key: 'vessel_role_access', label: t('Permission Level'), sortable: false },
     { key: 'crew_members_count', label: t('Crew Members'), sortable: false },
-    { key: 'description', label: t('Description'), sortable: false },
     { key: 'created_at', label: t('Created'), sortable: true },
 ]);
 
@@ -232,16 +211,6 @@ const cancelDelete = () => {
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
 };
-
-const getPermissionLevelBadgeClass = (roleName: string): string => {
-    const classes: Record<string, string> = {
-        'administrator': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200',
-        'supervisor': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200',
-        'moderator': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
-        'normal': 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200',
-    };
-    return classes[roleName] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200';
-};
 </script>
 
 <template>
@@ -257,13 +226,6 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage crew positions and roles') }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button
-                            @click="isPermissionsInfoModalOpen = true"
-                            class="inline-flex items-center gap-2 rounded-lg border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card px-4 py-2 text-sm font-medium text-card-foreground dark:text-card-foreground transition-colors hover:bg-sidebar-accent dark:hover:bg-sidebar-accent"
-                        >
-                            <Icon name="info" class="h-4 w-4" />
-                            {{ t('Permission Types') }}
-                        </button>
                         <PermissionGate permission="crew-roles.create">
                             <button
                                 @click="openCreateModal"
@@ -328,23 +290,8 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
                             {{ item.is_global ? t('Default') : t('Created') }}
                         </span>
                     </template>
-                    <template #cell-vessel_role_access="{ item }">
-                        <span
-                            v-if="item.vessel_role_access"
-                            :class="[
-                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                                getPermissionLevelBadgeClass(item.vessel_role_access.name),
-                            ]"
-                        >
-                            {{ item.vessel_role_access.display_name }}
-                        </span>
-                        <span v-else class="text-muted-foreground text-sm">-</span>
-                    </template>
                     <template #cell-crew_members_count="{ item }">
                         <span class="text-muted-foreground">{{ item.crew_members_count || 0 }}</span>
-                    </template>
-                    <template #cell-description="{ item }">
-                        <span class="text-muted-foreground">{{ item.description || '-' }}</span>
                     </template>
                     <template #cell-created_at="{ item }">
                         <span class="text-muted-foreground">{{ formatDate(item.created_at) }}</span>
@@ -363,28 +310,16 @@ const getPermissionLevelBadgeClass = (roleName: string): string => {
         <!-- Create Modal -->
         <CrewRoleCreateModal
             :open="isCreateModalOpen"
-            :vessel-role-accesses="props.vesselRoleAccesses || []"
             @update:open="isCreateModalOpen = $event"
             @saved="handleModalSaved"
-            @open-permissions-info="isPermissionsInfoModalOpen = true"
         />
 
         <!-- Update Modal -->
         <CrewRoleUpdateModal
             :open="isUpdateModalOpen"
             :crew-position="editingCrewPosition"
-            :vessel-role-accesses="props.vesselRoleAccesses || []"
             @update:open="isUpdateModalOpen = $event"
             @saved="handleModalSaved"
-            @open-permissions-info="isPermissionsInfoModalOpen = true"
-        />
-
-        <!-- Permissions Info Modal -->
-        <PermissionsInfoModal
-            v-if="props.permissionsConfig"
-            :open="isPermissionsInfoModalOpen"
-            :permissions-config="props.permissionsConfig"
-            @update:open="isPermissionsInfoModalOpen = $event"
         />
 
         <!-- Show Modal -->
