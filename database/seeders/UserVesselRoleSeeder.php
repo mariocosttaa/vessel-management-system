@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use App\Models\CrewPosition;
@@ -19,7 +18,7 @@ class UserVesselRoleSeeder extends Seeder
     {
         $vessel = Vessel::where('registration_number', 'SYS-ADMIN-001')->first();
 
-        if (!$vessel) {
+        if (! $vessel) {
             $this->command?->warn('UserVesselRoleSeeder: default vessel not found, skipping vessel role assignments.');
             return;
         }
@@ -29,62 +28,62 @@ class UserVesselRoleSeeder extends Seeder
             ->keyBy('name');
 
         foreach (['administrator', 'supervisor', 'normal'] as $key) {
-            if (!isset($roleAccesses[$key])) {
+            if (! isset($roleAccesses[$key])) {
                 $this->command?->warn("UserVesselRoleSeeder: missing vessel role access '{$key}', skipping assignments.");
                 return;
             }
         }
 
-        // Get or create crew positions
-        $captainPosition = CrewPosition::where('name', 'Capitão')->first();
-        $firstMatePosition = CrewPosition::where('name', 'Imediato')->first();
-        $crewPosition = CrewPosition::where('name', 'Marinheiro')->first();
+        // Get or create crew positions (use English names, translations handled by frontend)
+        $captainPosition   = CrewPosition::where('name', 'Captain')->first();
+        $firstMatePosition = CrewPosition::where('name', 'First Officer')->first();
+        $crewPosition      = CrewPosition::where('name', 'Able Seaman')->first();
 
-        // Create positions if they don't exist
-        if (!$captainPosition) {
+        // Create positions if they don't exist (should not happen if CrewPositionSeeder runs first)
+        if (! $captainPosition) {
             $captainPosition = CrewPosition::create([
-                'name' => 'Capitão',
-                'description' => 'Comandante da embarcação',
+                'name'        => 'Captain',
+                'description' => null,
             ]);
         }
-        if (!$firstMatePosition) {
+        if (! $firstMatePosition) {
             $firstMatePosition = CrewPosition::create([
-                'name' => 'Imediato',
-                'description' => 'Segundo no comando',
+                'name'        => 'First Officer',
+                'description' => null,
             ]);
         }
-        if (!$crewPosition) {
+        if (! $crewPosition) {
             $crewPosition = CrewPosition::create([
-                'name' => 'Marinheiro',
-                'description' => 'Tripulação geral',
+                'name'        => 'Able Seaman',
+                'description' => null,
             ]);
         }
 
         $assignments = [
             [
-                'email' => 'admin@example.com',
+                'email'       => 'admin@example.com',
                 'role_access' => 'administrator',
                 'legacy_role' => 'owner',
-                'position' => $captainPosition, // Captain position for vessel owner
+                'position'    => $captainPosition, // Captain position for vessel owner
             ],
             [
-                'email' => 'manager@example.com',
+                'email'       => 'manager@example.com',
                 'role_access' => 'supervisor',
                 'legacy_role' => 'manager',
-                'position' => $firstMatePosition, // First mate position for supervisor
+                'position'    => $firstMatePosition, // First mate position for supervisor
             ],
             [
-                'email' => 'viewer@example.com',
+                'email'       => 'viewer@example.com',
                 'role_access' => 'normal',
                 'legacy_role' => 'viewer',
-                'position' => $crewPosition, // Crew position for viewer
+                'position'    => $crewPosition, // Crew position for viewer
             ],
         ];
 
         foreach ($assignments as $assignment) {
             $user = User::where('email', $assignment['email'])->first();
 
-            if (!$user) {
+            if (! $user) {
                 $this->command?->warn("UserVesselRoleSeeder: user '{$assignment['email']}' not found, skipping.");
                 continue;
             }
@@ -94,12 +93,12 @@ class UserVesselRoleSeeder extends Seeder
             // Assign vessel role access
             VesselUserRole::updateOrCreate(
                 [
-                    'user_id' => $user->id,
+                    'user_id'   => $user->id,
                     'vessel_id' => $vessel->id,
                 ],
                 [
                     'vessel_role_access_id' => $roleAccess->id,
-                    'is_active' => true,
+                    'is_active'             => true,
                 ]
             );
 
@@ -107,22 +106,22 @@ class UserVesselRoleSeeder extends Seeder
             VesselUser::updateOrCreate(
                 [
                     'vessel_id' => $vessel->id,
-                    'user_id' => $user->id,
+                    'user_id'   => $user->id,
                 ],
                 [
                     'is_active' => true,
-                    'role' => $assignment['legacy_role'],
+                    'role'      => $assignment['legacy_role'],
                 ]
             );
 
             // Assign vessel_id and position_id to user so they appear in crew members list
             $user->update([
-                'vessel_id' => $vessel->id,
-                'position_id' => $assignment['position']->id,
-                'status' => 'active',
-                'hire_date' => now(),
+                'vessel_id'     => $vessel->id,
+                'position_id'   => $assignment['position']->id,
+                'status'        => 'active',
+                'hire_date'     => now(),
+                'administrative' => true, // Set all seeded users as administrative members
             ]);
         }
     }
 }
-
