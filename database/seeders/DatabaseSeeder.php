@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DefaultVesselSeeder::class,
             UserVesselRoleSeeder::class, // This now assigns positions to users
-            TransactionCategorySeeder::class,
+            MovimentationCategorySeeder::class,
             VesselSettingSeeder::class, // Run after vessels are created
         ]);
 
