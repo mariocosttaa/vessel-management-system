@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/sidebar';
 import crewMembers from '@/routes/panel/crew-members/index';
 import suppliers from '@/routes/panel/suppliers/index';
-import transactions from '@/routes/panel/transactions/index';
+import transactions from '@/routes/panel/movimentations/index';
 import mareas from '@/routes/panel/mareas/index';
 import maintenances from '@/routes/panel/maintenances/index';
 import financialReports from '@/routes/panel/financial-reports';
@@ -100,15 +100,15 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
-    // Transactions with nested Transaction History
-    if (canView('transactions')) {
-        const transactionChildren: NavItem[] = [];
+    // Movimentations with nested Movimentation History
+    if (canView('movimentations')) {
+        const movimentationChildren: NavItem[] = [];
 
-        // Transaction History nested under Transactions
+        // Movimentation History nested under Movimentations
         if (hasPermission('reports.access')) {
-            transactionChildren.push({
+            movimentationChildren.push({
                 title: t('Transaction History'),
-                href: `/panel/${vesselId}/transactions/history`,
+                href: `/panel/${vesselId}/movimentations/history`,
                 icon: Calculator,
             });
         }
@@ -118,7 +118,7 @@ const mainNavItems = computed((): NavItem[] => {
             href: transactions.index.url({ vessel: vesselId }),
             icon: Receipt,
             group: t('Core'),
-            children: transactionChildren.length > 0 ? transactionChildren : undefined,
+            children: movimentationChildren.length > 0 ? movimentationChildren : undefined,
         });
     }
 
@@ -145,7 +145,7 @@ const mainNavItems = computed((): NavItem[] => {
     }
 
     // Reports Section - Financial Reports and VAT Reports
-    if (canView('transactions') && hasPermission('reports.access')) {
+    if (canView('movimentations') && hasPermission('reports.access')) {
         items.push({
             title: t('Financial Reports'),
             href: financialReports.index.url({ vessel: vesselId }),

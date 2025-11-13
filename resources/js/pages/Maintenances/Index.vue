@@ -14,11 +14,13 @@ import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import MaintenanceCreateModal from '@/components/modals/Maintenance/create.vue';
 
-// Get current vessel ID from URL
-const getCurrentVesselId = () => {
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
+const getCurrentVesselId = (): string => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    // Should always find a match since we're on a vessel page, but fallback to empty string for TypeScript
+    return vesselMatch ? vesselMatch[1] : '';
 };
 
 interface Maintenance {
