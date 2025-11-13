@@ -323,7 +323,8 @@ class MaintenanceController extends Controller
         ]);
 
         // Get related data for transaction creation modal
-        $categories  = \App\Models\MovimentationCategory::orderBy('name')->get();
+        // Get categories: system categories (vessel_id = null) + vessel-specific categories
+        $categories  = \App\Models\MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
         $crewMembers = \App\Models\User::where('vessel_id', $vesselId)
             ->whereNotNull('position_id')
