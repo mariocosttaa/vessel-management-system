@@ -1,11 +1,9 @@
 <?php
-
 namespace App\Actions;
 
 use App\Models\EmailNotification;
 use App\Models\User;
 use App\Models\Vessel;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EmailNotificationAction
@@ -36,24 +34,24 @@ class EmailNotificationAction
                 $query->where('vessel_id', $vesselId)
                     ->where('is_active', true);
             })
-            ->where('vessel_admin_notification', true)
-            ->where('id', '!=', $actionByUserId) // Don't notify the user who made the change
-            ->get();
+                ->where('vessel_admin_notification', true)
+                ->where('id', '!=', $actionByUserId) // Don't notify the user who made the change
+                ->get();
 
             foreach ($users as $user) {
                 // Check if user has high-level access to this vessel
-                if (!$user->hasHighVesselAccess($vesselId)) {
+                if (! $user->hasHighVesselAccess($vesselId)) {
                     continue;
                 }
 
                 // Create notification record
                 EmailNotification::create([
-                    'user_id' => $user->id,
-                    'vessel_id' => $vesselId,
-                    'type' => $type,
-                    'subject_type' => $subjectType,
-                    'subject_id' => $subjectId,
-                    'subject_data' => $subjectData,
+                    'user_id'           => $user->id,
+                    'vessel_id'         => $vesselId,
+                    'type'              => $type,
+                    'subject_type'      => $subjectType,
+                    'subject_id'        => $subjectId,
+                    'subject_data'      => $subjectData,
                     'action_by_user_id' => $actionByUserId,
                 ]);
             }
@@ -66,11 +64,11 @@ class EmailNotificationAction
                 ->onQueue('emails');
         } catch (\Exception $e) {
             Log::error('Failed to create email notification', [
-                'type' => $type,
+                'type'         => $type,
                 'subject_type' => $subjectType,
-                'subject_id' => $subjectId,
-                'vessel_id' => $vesselId,
-                'error' => $e->getMessage(),
+                'subject_id'   => $subjectId,
+                'vessel_id'    => $vesselId,
+                'error'        => $e->getMessage(),
             ]);
         }
     }
@@ -85,7 +83,8 @@ class EmailNotificationAction
      */
     public static function getPendingNotificationsForGrouping(int $userId, int $vesselId, int $minutes = 5): array
     {
-        $notifications = EmailNotification::where('user_id', $userId)
+        $notifications = EmailNotification::with('actionByUser')
+            ->where('user_id', $userId)
             ->where('vessel_id', $vesselId)
             ->whereNull('sent_at')
             ->whereNull('grouped_at')
@@ -97,7 +96,7 @@ class EmailNotificationAction
         $grouped = [];
         foreach ($notifications as $notification) {
             $type = $notification->type;
-            if (!isset($grouped[$type])) {
+            if (! isset($grouped[$type])) {
                 $grouped[$type] = [];
             }
             $grouped[$type][] = $notification;
@@ -113,12 +112,12 @@ class EmailNotificationAction
      * @param string|int $groupId
      * @return void
      */
-    public static function markNotificationsAsGrouped(array $notificationIds, string|int $groupId): void
+    public static function markNotificationsAsGrouped(array $notificationIds, string | int $groupId): void
     {
         EmailNotification::whereIn('id', $notificationIds)
             ->update([
                 'is_grouped' => true,
-                'group_id' => $groupId,
+                'group_id'   => $groupId,
                 'grouped_at' => now(),
             ]);
     }
@@ -135,4 +134,3 @@ class EmailNotificationAction
             ->update(['sent_at' => now()]);
     }
 }
-

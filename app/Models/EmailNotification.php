@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -23,9 +22,9 @@ class EmailNotification extends Model
 
     protected $casts = [
         'subject_data' => 'array',
-        'sent_at' => 'datetime',
-        'grouped_at' => 'datetime',
-        'is_grouped' => 'boolean',
+        'sent_at'      => 'datetime',
+        'grouped_at'   => 'datetime',
+        'is_grouped'   => 'boolean',
     ];
 
     /**
@@ -42,6 +41,14 @@ class EmailNotification extends Model
     public function vessel(): BelongsTo
     {
         return $this->belongsTo(Vessel::class);
+    }
+
+    /**
+     * Get the user who performed the action.
+     */
+    public function actionByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'action_by_user_id');
     }
 
     /**
@@ -68,7 +75,7 @@ class EmailNotification extends Model
     /**
      * Scope to get grouped notifications.
      */
-    public function scopeGrouped($query, string|int $groupId)
+    public function scopeGrouped($query, string | int $groupId)
     {
         return $query->where('group_id', $groupId)
             ->where('is_grouped', true);
@@ -85,13 +92,12 @@ class EmailNotification extends Model
     /**
      * Mark notification as grouped.
      */
-    public function markAsGrouped(string|int $groupId): void
+    public function markAsGrouped(string | int $groupId): void
     {
         $this->update([
             'is_grouped' => true,
-            'group_id' => $groupId,
+            'group_id'   => $groupId,
             'grouped_at' => now(),
         ]);
     }
 }
-
