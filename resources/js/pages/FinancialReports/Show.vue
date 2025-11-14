@@ -343,7 +343,7 @@ const getChangeColor = (change: number) => {
                                         :style="{ backgroundColor: cat.category_color }"
                                     ></div>
                                     <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
-                                        {{ t(cat.category_name) }}
+                                        {{ cat.category_name }}
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -389,7 +389,7 @@ const getChangeColor = (change: number) => {
                                         :style="{ backgroundColor: cat.category_color }"
                                     ></div>
                                     <span class="font-medium text-card-foreground dark:text-card-foreground truncate">
-                                        {{ t(cat.category_name) }}
+                                        {{ cat.category_name }}
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0 ml-2">

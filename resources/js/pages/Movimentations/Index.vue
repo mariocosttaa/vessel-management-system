@@ -587,7 +587,7 @@ const statusOptions = computed(() => {
 const categoryOptions = computed(() => {
     const options = [{ value: '', label: t('All Categories') }];
     props.categories.forEach(category => {
-        options.push({ value: category.id, label: t(category.name) });
+        options.push({ value: category.id, label: category.name });
     });
     return options;
 });
@@ -816,7 +816,7 @@ const clearFilters = () => {
                                                         color: transaction.category.color
                                                     } : {}"
                                                 >
-                                                    {{ t(transaction.category.name) }}
+                                                    {{ transaction.category.name }}
                                                 </span>
                                                 <span
                                                     :class="[
