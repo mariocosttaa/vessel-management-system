@@ -51,7 +51,7 @@ class MovimentationCategoryController extends Controller
             return response()->json([
                 'category' => [
                     'id'          => $this->hashId($category->id, 'transactioncategory'),
-                    'name'        => $category->name,
+                    'name'        => $category->translated_name,
                     'type'        => $category->type,
                     'color'       => $category->color,
                     'description' => $category->description,

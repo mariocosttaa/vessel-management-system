@@ -171,7 +171,7 @@ class DashboardController extends BaseController
                     'description'                => $transaction->description,
                     'category'                   => $transaction->category ? [
                         'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
-                        'name'  => $transaction->category->name,
+                        'name'  => $transaction->category->translated_name,
                         'color' => $transaction->category->color,
                     ] : null,
                 ];

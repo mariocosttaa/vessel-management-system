@@ -158,7 +158,7 @@ class VatReportController extends Controller
                     'total_amount'       => $transaction->total_amount,
                     'category'           => $transaction->category ? [
                         'id'    => $transaction->category->id,
-                        'name'  => $transaction->category->name,
+                        'name'  => $transaction->category->translated_name,
                         'color' => $transaction->category->color,
                     ] : null,
                 ];
@@ -187,7 +187,7 @@ class VatReportController extends Controller
             $category = $categoryTransactions->first()->category;
             return [
                 'category_id'           => $categoryId,
-                'category_name'         => $category ? $category->name : 'Uncategorized',
+                'category_name'         => $category ? $category->translated_name : 'Uncategorized',
                 'category_color'        => $category ? $category->color : null,
                 'total_base_amount'     => $categoryTransactions->sum('amount'),
                 'total_vat_amount'      => $categoryTransactions->sum('vat_amount'),
