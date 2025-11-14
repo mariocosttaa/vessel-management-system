@@ -388,7 +388,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                             `bg-[${transaction.category.color}]/20 text-[${transaction.category.color}]`
                                         ]"
                                     >
-                                        {{ t(transaction.category.name) }}
+                                        {{ transaction.category.name }}
                                     </span>
                                 </div>
                                 <div class="mt-1 text-sm text-muted-foreground dark:text-muted-foreground">
