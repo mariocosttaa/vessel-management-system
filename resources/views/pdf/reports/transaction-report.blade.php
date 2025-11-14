@@ -30,7 +30,25 @@
 @section('content')
     @php
         use App\Actions\MoneyAction;
-        $currency = $vessel->currency_code ?? 'EUR';
+        use App\Models\VesselSetting;
+
+        // Get default currency from vessel_settings first, then vessel currency_code, then EUR
+        $vesselSetting = VesselSetting::getForVessel($vessel->id);
+        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+
+        // If transactions exist, try to determine currency from transactions
+        // Use the most common currency among transactions, or first transaction's currency
+        if (isset($transactions) && $transactions->count() > 0) {
+            $currencies = $transactions->pluck('currency')->filter()->unique();
+            if ($currencies->count() === 1) {
+                // All transactions use the same currency, use that
+                $defaultCurrency = $currencies->first();
+            } elseif ($currencies->count() > 1) {
+                // Multiple currencies - use the most common one
+                $currencyCounts = $transactions->pluck('currency')->filter()->countBy();
+                $defaultCurrency = $currencyCounts->sortDesc()->keys()->first() ?? $defaultCurrency;
+            }
+        }
     @endphp
 
     <div class="report-content">
@@ -39,15 +57,15 @@
             <div class="period-section">
                 <p class="period-text">
                     @if(isset($startDate) && isset($endDate))
-                        <strong>Period:</strong> {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                        <strong>{{ trans('pdfs.Period:') }}</strong> {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
                     @elseif(isset($transactions) && $transactions->count() > 0)
                         @php
                             $firstDate = $transactions->min('transaction_date');
                             $lastDate = $transactions->max('transaction_date');
                         @endphp
-                        <strong>Period:</strong> {{ \Carbon\Carbon::parse($firstDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($lastDate)->format('d/m/Y') }}
+                        <strong>{{ trans('pdfs.Period:') }}</strong> {{ \Carbon\Carbon::parse($firstDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($lastDate)->format('d/m/Y') }}
                     @else
-                        <strong>Period:</strong> {{ $period }}
+                        <strong>{{ trans('pdfs.Period:') }}</strong> {{ $period }}
                     @endif
                 </p>
             </div>
@@ -56,29 +74,29 @@
         {{-- Summary Section - Horizontal Layout (Only on first page) --}}
         @if(isset($summary))
             <div class="summary-section">
-                <h3 class="section-title">Summary</h3>
+                <h3 class="section-title">{{ trans('pdfs.Summary') }}</h3>
                 <table class="summary-table">
                     <tr>
                         <td class="summary-cell">
-                            <div class="summary-label">Total Income</div>
+                            <div class="summary-label">{{ trans('pdfs.Total Income') }}</div>
                             <div class="summary-value">
-                                {{ MoneyAction::format($summary['total_income'] ?? 0, 2, $currency, true) }}
+                                {{ MoneyAction::format($summary['total_income'] ?? 0, 2, $defaultCurrency, true) }}
                             </div>
                         </td>
                         <td class="summary-cell">
-                            <div class="summary-label">Total Expenses</div>
+                            <div class="summary-label">{{ trans('pdfs.Total Expenses') }}</div>
                             <div class="summary-value">
-                                {{ MoneyAction::format($summary['total_expenses'] ?? 0, 2, $currency, true) }}
+                                {{ MoneyAction::format($summary['total_expenses'] ?? 0, 2, $defaultCurrency, true) }}
                             </div>
                         </td>
                         <td class="summary-cell">
-                            <div class="summary-label">Net Balance</div>
+                            <div class="summary-label">{{ trans('pdfs.Net Balance') }}</div>
                             <div class="summary-value">
-                                {{ MoneyAction::format($summary['net_balance'] ?? 0, 2, $currency, true) }}
+                                {{ MoneyAction::format($summary['net_balance'] ?? 0, 2, $defaultCurrency, true) }}
                             </div>
                         </td>
                         <td class="summary-cell">
-                            <div class="summary-label">Total Transactions</div>
+                            <div class="summary-label">{{ trans('pdfs.Total Transactions') }}</div>
                             <div class="summary-value">
                                 {{ $summary['total_count'] ?? 0 }}
                             </div>
@@ -91,16 +109,16 @@
         {{-- Transactions Table --}}
         @if(isset($transactions) && $transactions->count() > 0)
             <div class="transactions-header">
-                <h3 class="section-title">Transactions</h3>
+                <h3 class="section-title">{{ trans('pdfs.Transactions') }}</h3>
             </div>
             <table class="transactions-table">
                 <thead>
                     <tr>
-                        <th class="col-date">Date</th>
-                        <th class="col-description">Description</th>
-                        <th class="col-category">Category</th>
-                        <th class="col-amount">Amount</th>
-                        <th class="col-type">Type</th>
+                        <th class="col-date">{{ trans('pdfs.Date') }}</th>
+                        <th class="col-description">{{ trans('pdfs.Description') }}</th>
+                        <th class="col-category">{{ trans('pdfs.Category') }}</th>
+                        <th class="col-amount">{{ trans('pdfs.Amount') }}</th>
+                        <th class="col-type">{{ trans('pdfs.Type') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,7 +126,9 @@
                         @php
                             $amountValue = $transaction->total_amount ?? $transaction->amount;
                             $houseOfZeros = $transaction->house_of_zeros ?? 2;
-                            $amount = MoneyAction::format($amountValue, $houseOfZeros, $currency, true);
+                            // Use transaction's own currency, fallback to default currency
+                            $transactionCurrency = $transaction->currency ?? $defaultCurrency;
+                            $amount = MoneyAction::format($amountValue, $houseOfZeros, $transactionCurrency, true);
 
                             // Use the enableColors variable set at the top of the template
 
@@ -129,18 +149,18 @@
                         <tr>
                             <td class="col-date">{{ $transaction->transaction_date->format('d/m/Y') }}</td>
                             <td class="col-description">{{ $transaction->description ?? '-' }}</td>
-                            <td class="col-category">{{ $transaction->category->name ?? '-' }}</td>
+                            <td class="col-category">{{ $transaction->category->translated_name ?? '-' }}</td>
                             <td class="col-amount {{ $amountClass }}">
                                 {{ $formattedAmount }}
                             </td>
-                            <td class="col-type">{{ $transaction->type }}</td>
+                            <td class="col-type">{{ trans('pdfs.' . ucfirst($transaction->type)) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
             <div class="empty-state">
-                <p>No transactions found for the selected period.</p>
+                <p>{{ trans('pdfs.No transactions found for the selected period.') }}</p>
             </div>
         @endif
     </div>

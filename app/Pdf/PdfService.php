@@ -1,8 +1,8 @@
 <?php
-
 namespace App\Pdf;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -19,13 +19,30 @@ class PdfService
     public static function generate(string $view, array $data = [], array $options = [])
     {
         $defaultOptions = [
-            'paper' => 'a4',
+            'paper'       => 'a4',
             'orientation' => 'portrait',
         ];
 
         $options = array_merge($defaultOptions, $options);
 
-        $pdf = Pdf::loadView($view, $data)
+        // Determine locale from user or data
+        $user   = $data['user'] ?? Auth::user();
+        $locale = $data['locale'] ?? ($user && $user->language ? $user->language : App::getLocale());
+
+        // Set locale for translations
+        $originalLocale = App::getLocale();
+        if ($locale) {
+            App::setLocale($locale);
+        }
+
+        // Get translations for header/footer
+        $translations = self::getTranslations($locale);
+
+        // Pass locale to view so trans() helper uses correct locale
+        $pdf = Pdf::loadView($view, array_merge($data, [
+            'translations' => $translations,
+            'locale'       => $locale,
+        ]))
             ->setPaper($options['paper'], $options['orientation']);
 
         // Set options for better rendering
@@ -42,14 +59,13 @@ class PdfService
         $canvas = $dompdf->getCanvas();
 
         // Add header and footer to each page using page_script
-        $systemName = config('app.name', 'Vessel Management System');
+        $systemName  = config('app.name', 'Vessel Management System');
         $generatedAt = now()->format('d/m/Y H:i');
 
         // Extract header data
-        $vessel = $data['vessel'] ?? null;
-        $title = $data['title'] ?? 'Transaction Report';
+        $vessel   = $data['vessel'] ?? null;
+        $title    = $data['title'] ?? $translations['Transaction Report'];
         $subtitle = $data['subtitle'] ?? null;
-        $user = Auth::user();
 
         // Get company logo path
         $companyLogoPath = public_path('bindamy-marea-logo-light.png');
@@ -65,36 +81,36 @@ class PdfService
                 // Logo is stored in storage, get full path
                 $vesselLogoPath = storage_path('app/public/' . $vessel->logo);
                 // If file doesn't exist, set to null
-                if (!file_exists($vesselLogoPath)) {
+                if (! file_exists($vesselLogoPath)) {
                     $vesselLogoPath = null;
                 }
             }
         }
 
-        $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($systemName, $generatedAt, $vessel, $title, $subtitle, $user, $companyLogoPath, $vesselLogoPath) {
+        $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($systemName, $generatedAt, $vessel, $title, $subtitle, $user, $companyLogoPath, $vesselLogoPath, $translations) {
             try {
-                $font = $fontMetrics->get_font("DejaVu Sans", "normal");
-                $fontBold = $fontMetrics->get_font("DejaVu Sans", "bold");
-                $size = 8;
+                $font      = $fontMetrics->get_font("DejaVu Sans", "normal");
+                $fontBold  = $fontMetrics->get_font("DejaVu Sans", "bold");
+                $size      = 8;
                 $sizeSmall = 7;
 
                 // Get page dimensions
                 $pageHeight = $canvas->get_height();
-                $pageWidth = $canvas->get_width();
-                $leftX = 14; // 5mm = ~14pt (matches @page margin-left: 5mm)
-                $rightX = $pageWidth - 14;
+                $pageWidth  = $canvas->get_width();
+                $leftX      = 14; // 5mm = ~14pt (matches @page margin-left: 5mm)
+                $rightX     = $pageWidth - 14;
 
                 // Header Y positions (starting from top of page, fixed position)
                 // Total header height should be ~38mm to match @page margin-top
                 // Header is drawn in the margin area, so start at top of page
                 $headerStartY = 10;
-                $currentY = $headerStartY;
+                $currentY     = $headerStartY;
 
-                // Colors - CPDF expects numeric array [r, g, b] with values 0-1
+                                                             // Colors - CPDF expects numeric array [r, g, b] with values 0-1
                 $blackColor = array_values([0.0, 0.0, 0.0]); // Black - ensure numeric indices
 
-                // Line 1: Draw company logo image - ALWAYS on every page
-                $companyLogoWidth = 140; // ~49mm
+                                                                     // Line 1: Draw company logo image - ALWAYS on every page
+                $companyLogoWidth  = 140;                            // ~49mm
                 $companyLogoHeight = ($companyLogoWidth / 238) * 44; // Maintain aspect ratio (~26pt)
 
                 if (file_exists($companyLogoPath)) {
@@ -103,7 +119,7 @@ class PdfService
                 } else {
                     // Fallback to text if logo not found
                     $systemNameSize = 14;
-                    $blueColor = array_values([37/255, 99/255, 235/255]);
+                    $blueColor      = array_values([37 / 255, 99 / 255, 235 / 255]);
                     $canvas->text($leftX, $currentY, $systemName, $fontBold, $systemNameSize, $blueColor);
                 }
 
@@ -112,39 +128,39 @@ class PdfService
                 // Line 2-4: Draw vessel info on separate lines if available
                 if ($vessel) {
                     // Vessel name
-                    $canvas->text($leftX, $currentY, "Vessel: " . $vessel->name, $font, $sizeSmall, $blackColor);
+                    $canvas->text($leftX, $currentY, $translations['Vessel:'] . " " . $vessel->name, $font, $sizeSmall, $blackColor);
                     $currentY += 12; // Consistent spacing after vessel name
 
                     // Registration number
                     if ($vessel->registration_number) {
-                        $canvas->text($leftX, $currentY, "Registration: " . $vessel->registration_number, $font, $sizeSmall, $blackColor);
+                        $canvas->text($leftX, $currentY, $translations['Registration:'] . " " . $vessel->registration_number, $font, $sizeSmall, $blackColor);
                         $currentY += 12; // Consistent spacing after registration
                     }
 
                     // Vessel type
                     if ($vessel->vessel_type) {
-                        $canvas->text($leftX, $currentY, "Type: " . $vessel->vessel_type, $font, $sizeSmall, $blackColor);
+                        $canvas->text($leftX, $currentY, $translations['Type:'] . " " . $vessel->vessel_type, $font, $sizeSmall, $blackColor);
                         $currentY += 16; // More space after type before Transaction Report title
                     }
                 }
 
                 // Line 5: Draw "Transaction Report" title in BLACK (not blue)
                 // Add a gap before the title for better organization
-                if (!empty($title)) {
+                if (! empty($title)) {
                     $canvas->text($leftX, $currentY, $title, $fontBold, 12, $blackColor);
                     $currentY += 16; // More space after title
                 }
 
                 // Line 6: Draw subtitle if available
-                if (!empty($subtitle)) {
+                if (! empty($subtitle)) {
                     $canvas->text($leftX, $currentY, $subtitle, $font, $size, $blackColor);
                     $currentY += 14; // Consistent space after subtitle
                 }
 
                 // Calculate generation info position and text width for centering
-                $genText = "Generated: " . $generatedAt;
+                $genText = $translations['Generated:'] . " " . $generatedAt;
                 if ($user) {
-                    $genText .= "\nGenerated by: " . $user->name . "\nEmail: " . $user->email;
+                    $genText .= "\n" . $translations['Generated by:'] . " " . $user->name . "\n" . $translations['Email:'] . " " . $user->email;
                 }
                 $genLines = explode("\n", $genText);
 
@@ -157,22 +173,22 @@ class PdfService
                     }
                 }
 
-                // Position generation info - centered on right side
+                                                 // Position generation info - centered on right side
                 $genX = $rightX - $maxLineWidth; // Align to right but not at edge
                 $genY = $headerStartY;
 
                 // Draw vessel logo centered above generation info if available
                 if ($vesselLogoPath && file_exists($vesselLogoPath)) {
-                    // Vessel logo size (smaller than company logo)
-                    $vesselLogoWidth = 50; // ~18mm
+                                                          // Vessel logo size (smaller than company logo)
+                    $vesselLogoWidth  = 50;               // ~18mm
                     $vesselLogoHeight = $vesselLogoWidth; // Square or maintain aspect ratio
 
-                    // Center vessel logo above generation text
+                                                                                         // Center vessel logo above generation text
                     $vesselLogoX = $genX + ($maxLineWidth / 2) - ($vesselLogoWidth / 2); // Center above text
-                    $vesselLogoY = $headerStartY; // At the top
+                    $vesselLogoY = $headerStartY;                                        // At the top
                     $canvas->image($vesselLogoPath, $vesselLogoX, $vesselLogoY, $vesselLogoWidth, $vesselLogoHeight);
 
-                    // Start generation info below vessel logo
+                                                                   // Start generation info below vessel logo
                     $genY = $headerStartY + $vesselLogoHeight + 8; // 8pt gap below logo
                 }
 
@@ -186,11 +202,12 @@ class PdfService
                 $footerY = $pageHeight - 28;
 
                 // Left side footer text
-                $leftText = $systemName . " © " . date('Y') . " All rights reserved";
+                $leftText = $systemName . " © " . date('Y') . " " . $translations['All rights reserved'];
                 $canvas->text($leftX, $footerY, $leftText, $font, $size, $blackColor);
 
                 // Right side footer text with page numbers
-                $rightText = "Page {$pageNumber} of {$pageCount} | Generated on " . $generatedAt;
+                $pageText  = str_replace([':pageNumber', ':pageCount'], [$pageNumber, $pageCount], $translations['Page :pageNumber of :pageCount']);
+                $rightText = $pageText . " | " . $translations['Generated on'] . " " . $generatedAt;
                 $textWidth = $fontMetrics->get_text_width($rightText, $font, $size);
                 $canvas->text($rightX - $textWidth, $footerY, $rightText, $font, $size, $blackColor);
             } catch (\Exception $e) {
@@ -201,7 +218,42 @@ class PdfService
             }
         });
 
+        // Restore original locale
+        App::setLocale($originalLocale);
+
         return $pdf;
+    }
+
+    /**
+     * Get translations for PDF header/footer.
+     *
+     * @param string|null $locale
+     * @return array
+     */
+    protected static function getTranslations(?string $locale = null): array
+    {
+        $originalLocale = App::getLocale();
+        if ($locale) {
+            App::setLocale($locale);
+        }
+
+        $translations = [
+            'Vessel:'                        => trans('pdfs.Vessel:'),
+            'Registration:'                  => trans('pdfs.Registration:'),
+            'Type:'                          => trans('pdfs.Type:'),
+            'Generated:'                     => trans('pdfs.Generated:'),
+            'Generated by:'                  => trans('pdfs.Generated by:'),
+            'Email:'                         => trans('pdfs.Email:'),
+            'Page :pageNumber of :pageCount' => trans('pdfs.Page :pageNumber of :pageCount'),
+            'Generated on'                   => trans('pdfs.Generated on'),
+            'All rights reserved'            => trans('pdfs.All rights reserved'),
+            'Transaction Report'             => trans('pdfs.Transaction Report'),
+        ];
+
+        // Restore original locale
+        App::setLocale($originalLocale);
+
+        return $translations;
     }
 
     /**
@@ -245,10 +297,9 @@ class PdfService
      */
     public static function save(string $view, array $data = [], string $path = 'pdfs/document.pdf', array $options = [])
     {
-        $pdf = self::generate($view, $data, $options);
+        $pdf      = self::generate($view, $data, $options);
         $fullPath = storage_path('app/' . $path);
         $pdf->save($fullPath);
         return $fullPath;
     }
 }
-
