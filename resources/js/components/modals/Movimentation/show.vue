@@ -249,7 +249,7 @@ const openFile = (src: string) => {
                                 <div>
                                     <label class="text-sm font-medium text-muted-foreground">{{ t('Category') }}</label>
                                     <p class="text-lg text-card-foreground">
-                                        {{ detailedTransaction.category ? t(detailedTransaction.category.name) : t('N/A') }}
+                                        {{ detailedTransaction.category ? detailedTransaction.category.name : t('N/A') }}
                                     </p>
                                 </div>
                             </div>
@@ -462,7 +462,7 @@ const openFile = (src: string) => {
                                 <div>
                                     <label class="text-sm font-medium text-muted-foreground">{{ t('Category') }}</label>
                                     <p class="text-lg text-card-foreground">
-                                        {{ props.transaction.category ? t(props.transaction.category.name) : t('N/A') }}
+                                        {{ props.transaction.category ? props.transaction.category.name : t('N/A') }}
                                     </p>
                                 </div>
                             </div>
