@@ -528,10 +528,23 @@ const handleDelete = () => {
 // Get default currency (assuming EUR for now)
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 
-// Group transactions by type
-const incomeTransactions = computed(() =>
-    props.marea.transactions.filter(t => t.type === 'income')
-);
+// Group transactions by type and sort by date/time (newest first)
+const incomeTransactions = computed(() => {
+    return props.marea.transactions
+        .filter(t => t.type === 'income')
+        .sort((a, b) => {
+            // Sort by transaction_date first, then by created_at
+            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+            if (dateB !== dateA) {
+                return dateB - dateA; // DESC
+            }
+            // If dates are equal, sort by created_at
+            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return createdB - createdA; // DESC
+        });
+});
 
 const expenseTransactions = computed(() =>
     props.marea.transactions.filter(t => t.type === 'expense')
@@ -539,20 +552,46 @@ const expenseTransactions = computed(() =>
 
 // Salary transactions (expense transactions with crew_member_id)
 // Any expense with a crew_member_id is considered a salary payment
-const salaryTransactions = computed(() =>
-    props.marea.transactions.filter(t =>
-        t.type === 'expense' &&
-        t.crew_member_id !== null
-    )
-);
+const salaryTransactions = computed(() => {
+    return props.marea.transactions
+        .filter(t =>
+            t.type === 'expense' &&
+            t.crew_member_id !== null
+        )
+        .sort((a, b) => {
+            // Sort by transaction_date first, then by created_at
+            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+            if (dateB !== dateA) {
+                return dateB - dateA; // DESC
+            }
+            // If dates are equal, sort by created_at
+            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return createdB - createdA; // DESC
+        });
+});
 
 // Non-salary expense transactions (exclude transactions with crew_member_id)
-const nonSalaryExpenseTransactions = computed(() =>
-    props.marea.transactions.filter(t =>
-        t.type === 'expense' &&
-        t.crew_member_id === null
-    )
-);
+const nonSalaryExpenseTransactions = computed(() => {
+    return props.marea.transactions
+        .filter(t =>
+            t.type === 'expense' &&
+            t.crew_member_id === null
+        )
+        .sort((a, b) => {
+            // Sort by transaction_date first, then by created_at
+            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+            if (dateB !== dateA) {
+                return dateB - dateA; // DESC
+            }
+            // If dates are equal, sort by created_at
+            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return createdB - createdA; // DESC
+        });
+});
 
 // Filter categories by type
 const incomeCategories = computed(() => {
@@ -1688,7 +1727,7 @@ const cancelDeleteMarea = () => {
                                             color: transaction.category.color
                                         } : {}"
                                     >
-                                        {{ t(transaction.category.name) }}
+                                        {{ transaction.category.name }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
                                         {{ transaction.description || t('No description') }}
@@ -1829,7 +1868,7 @@ const cancelDeleteMarea = () => {
                                             color: transaction.category.color
                                         } : {}"
                                     >
-                                        {{ t(transaction.category.name) }}
+                                        {{ transaction.category.name }}
                                     </span>
                                     <span class="text-sm text-muted-foreground dark:text-muted-foreground">
                                         {{ transaction.description || t('No description') }}
