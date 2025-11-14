@@ -68,7 +68,7 @@ class MovimentationResource extends BaseResource
             'category'                   => $this->whenLoaded('category', function () {
                 return [
                     'id'    => $this->hashIdForModel($this->category->id, 'transactioncategory'),
-                    'name'  => $this->category->name,
+                    'name'  => $this->category->translated_name,
                     'type'  => $this->category->type,
                     'color' => $this->category->color,
                 ];

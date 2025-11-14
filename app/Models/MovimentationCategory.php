@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\App;
 
 class MovimentationCategory extends Model
 {
@@ -98,5 +99,40 @@ class MovimentationCategory extends Model
             $q->whereNull('vessel_id')         // System categories (available to all)
                 ->orWhere('vessel_id', $vesselId); // Vessel-specific categories
         });
+    }
+
+    /**
+     * Get the translated name of the category.
+     * Falls back to original name if translation is missing.
+     *
+     * @return string
+     */
+    public function getTranslatedNameAttribute(): string
+    {
+        // Get user's language preference if available
+        $locale = null;
+        if (auth()->check() && auth()->user()->language) {
+            $locale = auth()->user()->language;
+        } else {
+            $locale = App::getLocale();
+        }
+
+        // Get translation
+        $originalLocale = App::getLocale();
+        if ($locale) {
+            App::setLocale($locale);
+        }
+
+        $translated = trans("categories.{$this->name}", [], $locale);
+
+        // Restore original locale
+        App::setLocale($originalLocale);
+
+        // If translation not found (returns the full key), return original name
+        if ($translated === "categories.{$this->name}") {
+            return $this->name;
+        }
+
+        return $translated;
     }
 }

@@ -164,7 +164,7 @@ class TransactionController extends Controller
             'categories'        => $categories->map(function ($category) {
                 return [
                     'id'    => $this->hashId($category->id, 'transactioncategory'),
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -265,7 +265,7 @@ class TransactionController extends Controller
             'categories'        => $categories->map(function ($category) {
                 return [
                     'id'    => $this->hashId($category->id, 'transactioncategory'),
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -495,7 +495,7 @@ class TransactionController extends Controller
                         'amount'             => $transaction->total_amount,
                         'currency_symbol'    => $currencySymbol,
                         'description'        => $transaction->description,
-                        'category_name'      => $transaction->category->name ?? null,
+                        'category_name'      => $transaction->category->translated_name ?? null,
                         'created_at'         => $transaction->created_at->toIso8601String(),
                     ]
                 );
@@ -743,7 +743,7 @@ class TransactionController extends Controller
             'categories'        => $categories->map(function ($category) {
                 return [
                     'id'    => $this->hashId($category->id, 'transactioncategory'),
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -1063,7 +1063,7 @@ class TransactionController extends Controller
                         'amount'             => $transaction->total_amount,
                         'currency_symbol'    => $currencySymbol,
                         'description'        => $transaction->description,
-                        'category_name'      => $transaction->category->name ?? null,
+                        'category_name'      => $transaction->category->translated_name ?? null,
                         'deleted_at'         => now()->toIso8601String(),
                     ]
                 );
@@ -1369,7 +1369,7 @@ class TransactionController extends Controller
             'categories'        => $categories->map(function ($category) {
                 return [
                     'id'    => $this->hashId($category->id, 'transactioncategory'),
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -1537,7 +1537,8 @@ class TransactionController extends Controller
             $endDate,
             'Transaction Report',
             'Movements and Transactions Overview',
-            $enableColors
+            $enableColors,
+            $user
         );
 
         return $pdf->download($filename);
@@ -1633,7 +1634,8 @@ class TransactionController extends Controller
             $endDate,
             'Transaction Report',
             'Movements and Transactions Overview',
-            $enableColors
+            $enableColors,
+            $user
         );
 
         return $pdf->download($filename);
@@ -1730,7 +1732,8 @@ class TransactionController extends Controller
             $endDate,
             'Transaction Report',
             'Movements and Transactions Overview',
-            $enableColors
+            $enableColors,
+            $user
         );
 
         return $pdf->download($filename);
