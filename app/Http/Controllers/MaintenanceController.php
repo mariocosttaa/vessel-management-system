@@ -347,7 +347,7 @@ class MaintenanceController extends Controller
             'categories'        => $categories->map(function ($category) {
                 return [
                     'id'    => $category->id,
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -408,7 +408,7 @@ class MaintenanceController extends Controller
                         'description'        => $transaction->description,
                         'category'           => $transaction->category ? [
                             'id'    => $transaction->category->id,
-                            'name'  => $transaction->category->name,
+                            'name'  => $transaction->category->translated_name,
                             'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,

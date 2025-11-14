@@ -137,7 +137,7 @@ class FinancialReportController extends Controller
             $category = $categoryTransactions->first()->category;
             return [
                 'category_id'    => $categoryId,
-                'category_name'  => $category ? $category->name : 'Uncategorized',
+                'category_name'  => $category ? $category->translated_name : 'Uncategorized',
                 'category_type'  => $category ? $category->type : null,
                 'category_color' => $category ? $category->color : null,
                 'income'         => $categoryTransactions->where('type', 'income')->sum('total_amount'),
