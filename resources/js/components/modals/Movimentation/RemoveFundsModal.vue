@@ -149,7 +149,7 @@ const bankAccountOptions = computed(() => {
 const categoryOptions = computed(() => {
     const options = [{ value: null, label: t('Select a category') }];
     expenseCategories.value.forEach(category => {
-        options.push({ value: category.id, label: t(category.name) });
+        options.push({ value: category.id, label: category.name });
     });
     return options;
 });
