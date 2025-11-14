@@ -2,11 +2,13 @@
 namespace App\Pdf;
 
 use App\Models\Movimentation;
+use App\Models\User;
 use App\Models\Vessel;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 
-class MovimentationPdf
+class TransactionPdf
 {
     /**
      * Generate transaction report PDF.
@@ -30,10 +32,26 @@ class MovimentationPdf
         ?string $endDate = null,
         string $title = 'Transaction Report',
         ?string $subtitle = 'Movements and Transactions Overview',
-        bool $enableColors = false
+        bool $enableColors = false,
+        ?User $user = null
     ) {
         // Load relationships for transactions
         $transactions->load('category');
+
+        // Translate title and subtitle if user is provided
+        if ($user && $user->language) {
+            $originalLocale = App::getLocale();
+            App::setLocale($user->language);
+
+            if ($title === 'Transaction Report') {
+                $title = trans('pdfs.Transaction Report');
+            }
+            if ($subtitle === 'Movements and Transactions Overview') {
+                $subtitle = trans('pdfs.Movements and Transactions Overview');
+            }
+
+            App::setLocale($originalLocale);
+        }
 
         return PdfService::generate('pdf.reports.transaction-report', [
             'vessel'       => $vessel,
@@ -45,6 +63,7 @@ class MovimentationPdf
             'title'        => $title,
             'subtitle'     => $subtitle,
             'enableColors' => $enableColors,
+            'user'         => $user,
         ]);
     }
 
@@ -55,8 +74,22 @@ class MovimentationPdf
      * @param Vessel $vessel
      * @return \Barryvdh\DomPDF\PDF
      */
-    public static function generateFromRequest(Request $request, Vessel $vessel)
+    public static function generateFromRequest(Request $request, Vessel $vessel, ?User $user = null)
     {
+        // Get user from request if not provided
+        if (! $user) {
+            $user = $request->user();
+        }
+
+        // Translate period text if user is provided
+        $allTransactionsText = 'All Transactions';
+        if ($user && $user->language) {
+            $originalLocale = App::getLocale();
+            App::setLocale($user->language);
+            $allTransactionsText = trans('pdfs.All Transactions');
+            App::setLocale($originalLocale);
+        }
+
         // If 'all' parameter is set, get ALL transactions for testing pagination
         if ($request->get('all') === 'true') {
             $transactions = Movimentation::query()
@@ -64,7 +97,7 @@ class MovimentationPdf
                 ->with(['category'])
                 ->orderBy('transaction_date', 'desc')
                 ->get();
-            $period = 'All Transactions';
+            $period = $allTransactionsText;
         } else {
             // Get filter parameters
             $month     = $request->get('month', now()->month);
@@ -115,6 +148,17 @@ class MovimentationPdf
             $endDate   = $transactions->max('transaction_date')->format('Y-m-d');
         }
 
+        // Translate title and subtitle if user is provided
+        $title    = 'Transaction Report';
+        $subtitle = 'Movements and Transactions Overview';
+        if ($user && $user->language) {
+            $originalLocale = App::getLocale();
+            App::setLocale($user->language);
+            $title    = trans('pdfs.Transaction Report');
+            $subtitle = trans('pdfs.Movements and Transactions Overview');
+            App::setLocale($originalLocale);
+        }
+
         return PdfService::generate('pdf.reports.transaction-report', [
             'vessel'       => $vessel,
             'transactions' => $transactions,
@@ -122,8 +166,9 @@ class MovimentationPdf
             'period'       => $period,
             'startDate'    => $startDate ?? null,
             'endDate'      => $endDate ?? null,
-            'title'        => 'Transaction Report',
-            'subtitle'     => 'Movements and Transactions Overview',
+            'title'        => $title,
+            'subtitle'     => $subtitle,
+            'user'         => $user,
         ]);
     }
 
@@ -142,14 +187,15 @@ class MovimentationPdf
         Collection $transactions,
         array $summary,
         ?string $period = null,
-        ?string $filename = null
+        ?string $filename = null,
+        ?User $user = null
     ) {
         if (! $filename) {
             $periodSlug = $period ? str_replace(' ', '_', strtolower($period)) : 'report';
             $filename   = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
         }
 
-        $pdf = self::generate($vessel, $transactions, $summary, $period, null, null);
+        $pdf = self::generate($vessel, $transactions, $summary, $period, null, null, 'Transaction Report', 'Movements and Transactions Overview', false, $user);
         return $pdf->download($filename);
     }
 
@@ -168,14 +214,15 @@ class MovimentationPdf
         Collection $transactions,
         array $summary,
         ?string $period = null,
-        ?string $filename = null
+        ?string $filename = null,
+        ?User $user = null
     ) {
         if (! $filename) {
             $periodSlug = $period ? str_replace(' ', '_', strtolower($period)) : 'report';
             $filename   = "transaction_report_{$vessel->id}_{$periodSlug}.pdf";
         }
 
-        $pdf = self::generate($vessel, $transactions, $summary, $period, null, null);
+        $pdf = self::generate($vessel, $transactions, $summary, $period, null, null, 'Transaction Report', 'Movements and Transactions Overview', false, $user);
         return $pdf->stream($filename);
     }
 }
