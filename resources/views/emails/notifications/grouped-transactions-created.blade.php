@@ -86,9 +86,18 @@
                                             @endif
                                             @if(isset($notification->subject_data['description']))
                                             <tr>
-                                                <td>
+                                                <td style="padding-bottom: 8px;">
                                                     <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
                                                         <strong>{{ trans('emails.Description', [], $locale ?? 'en') }}:</strong> {{ Str::limit($notification->subject_data['description'], 50) }}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                            @endif
+                                            @if($notification->actionByUser)
+                                            <tr>
+                                                <td>
+                                                    <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
+                                                        <strong>{{ trans('emails.Created by', [], $locale ?? 'en') }}:</strong> {{ $notification->actionByUser->name }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -112,7 +121,7 @@
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                     <tr>
                         <td style="background-color: #111827; border-radius: 8px;">
-                            <a href="{{ route('panel.transactions.index', ['vessel' => $vessel->id]) }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
+                            <a href="{{ route('panel.movimentations.index', ['vessel' => $vessel->id]) }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
                                 {{ trans('emails.View Transactions', [], $locale ?? 'en') }}
                             </a>
                         </td>

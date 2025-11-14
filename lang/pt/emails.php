@@ -30,6 +30,7 @@ return [
     'Description'                                                                                                                                                                        => 'Descrição',
     'Income'                                                                                                                                                                             => 'Receita',
     'Expense'                                                                                                                                                                            => 'Despesa',
+    'Created by'                                                                                                                                                                         => 'Criado por',
     'View Transactions'                                                                                                                                                                  => 'Ver Movimentos',
     'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.'                                                                         => 'Estas notificações foram agrupadas para evitar spam. Os últimos :count movimentos criados são mostrados acima.',
 
