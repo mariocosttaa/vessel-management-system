@@ -379,7 +379,8 @@ class MareaController extends Controller
                     'category:id,name,type,color',
                     'supplier:id,company_name',
                     'crewMember:id,name,email',
-                ])->orderBy('transaction_date', 'desc');
+                ])->orderBy('transaction_date', 'desc')
+                    ->orderBy('created_at', 'desc');
             },
         ]);
 
@@ -462,7 +463,7 @@ class MareaController extends Controller
             'categories'           => $categories->map(function ($category) {
                 return [
                     'id'    => $category->id,
-                    'name'  => $category->name,
+                    'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,
                 ];
@@ -497,7 +498,7 @@ class MareaController extends Controller
             ] : null,
             'salaryCategory'       => $salaryCategory ? [
                 'id'    => $salaryCategory->id,
-                'name'  => $salaryCategory->name,
+                'name'  => $salaryCategory->translated_name,
                 'type'  => $salaryCategory->type,
                 'color' => $salaryCategory->color,
             ] : null,
@@ -583,10 +584,11 @@ class MareaController extends Controller
                         'total_amount'       => $transaction->total_amount,
                         'currency'           => $transaction->currency,
                         'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                        'created_at'         => $transaction->created_at?->format('Y-m-d H:i:s'),
                         'description'        => $transaction->description,
                         'category'           => $transaction->category ? [
                             'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
-                            'name'  => $transaction->category->name,
+                            'name'  => $transaction->category->translated_name,
                             'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,
@@ -1684,7 +1686,7 @@ class MareaController extends Controller
                         'description'        => $transaction->description,
                         'category'           => $transaction->category ? [
                             'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
-                            'name'  => $transaction->category->name,
+                            'name'  => $transaction->category->translated_name,
                             'type'  => $transaction->category->type,
                             'color' => $transaction->category->color,
                         ] : null,
