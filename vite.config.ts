@@ -2,20 +2,14 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
-import * as nodeCrypto from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { defineConfig } from 'vite';
 
-type ExtendedNodeCrypto = typeof nodeCrypto & {
-    hash?: (algorithm: string, data: nodeCrypto.BinaryLike, encoding: nodeCrypto.BinaryToTextEncoding) => string;
+const generateComponentId = (filepath: string, source: string, isProduction?: boolean) => {
+    const token = filepath + (isProduction ? source : '');
+
+    return createHash('sha256').update(token).digest('hex').substring(0, 8);
 };
-
-const cryptoModule = nodeCrypto as ExtendedNodeCrypto;
-
-if (typeof cryptoModule.hash !== 'function') {
-    cryptoModule.hash = (algorithm, data, encoding) => {
-        return cryptoModule.createHash(algorithm).update(data).digest(encoding);
-    };
-}
 
 export default defineConfig({
     plugins: [
@@ -34,6 +28,10 @@ export default defineConfig({
                     base: null,
                     includeAbsolute: false,
                 },
+            },
+            features: {
+                componentIdGenerator: (filepath, source, isProduction) =>
+                    generateComponentId(filepath, source, isProduction),
             },
         }),
     ],
