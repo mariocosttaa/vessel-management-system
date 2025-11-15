@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('capital_city')->nullable();
-            $table->string('code');
+            $table->string('code')->unique(); // Required for foreign key reference from vessels table
             $table->string('calling_code')->nullable();
             $table->timestamps();
         });

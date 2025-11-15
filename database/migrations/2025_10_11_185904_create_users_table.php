@@ -58,20 +58,9 @@ return new class extends Migration
             $table->index(['user_type', 'login_permitted']);
         });
 
-        // Add foreign keys after vessels and crew_positions tables exist
-        // This is done here to keep everything in one migration file per the migration patterns
-        // Note: This migration must run after vessels and crew_positions migrations
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreign('vessel_id')
-                ->references('id')
-                ->on('vessels')
-                ->onDelete('set null');
-
-            $table->foreign('position_id')
-                ->references('id')
-                ->on('crew_positions')
-                ->onDelete('restrict');
-        });
+        // Note: Foreign keys to vessels and crew_positions are not added here because
+        // this migration runs before those tables exist. The columns are defined above
+        // as unsignedBigInteger and can be used for relationships at the application level.
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
