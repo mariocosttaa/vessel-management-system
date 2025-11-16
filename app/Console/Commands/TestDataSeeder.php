@@ -1,12 +1,11 @@
 <?php
-
 namespace App\Console\Commands;
 
 use Database\Seeders\Test\ComprehensiveTestSeeder;
+use Database\Seeders\Test\MovementTestSeeder;
+use Database\Seeders\Test\PermissionTestSeeder;
 use Database\Seeders\Test\UserTestSeeder;
 use Database\Seeders\Test\VesselTestSeeder;
-use Database\Seeders\Test\PermissionTestSeeder;
-use Database\Seeders\Test\TransactionTestSeeder;
 use Illuminate\Console\Command;
 
 class TestDataSeeder extends Command
@@ -87,7 +86,7 @@ class TestDataSeeder extends Command
     private function runTransactionSeeding(): void
     {
         $this->info('💰 Seeding test transactions...');
-        $this->call('db:seed', ['--class' => TransactionTestSeeder::class]);
+        $this->call('db:seed', ['--class' => MovementTestSeeder::class]);
     }
 
     private function runAllSeeding(): void
@@ -151,4 +150,3 @@ class TestDataSeeder extends Command
         $this->info('🔑 Password for all test users: password');
     }
 }
-

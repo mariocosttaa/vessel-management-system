@@ -2,9 +2,9 @@
 
 namespace Database\Seeders\Test;
 
-use App\Models\Transaction;
+use App\Models\Movimentation;
 use App\Models\Vessel;
-use App\Models\TransactionCategory;
+use App\Models\MovimentationCategory;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
@@ -14,14 +14,14 @@ use Illuminate\Database\Seeder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
-class TransactionTestSeeder extends Seeder
+class MovementTestSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        $this->command->info('💰 Creating test transactions with historical data...');
+        $this->command->info('💰 Creating test movements with historical data...');
 
         // Get available data
         $vessels = Vessel::where('status', 'active')->get();
@@ -30,9 +30,9 @@ class TransactionTestSeeder extends Seeder
             return;
         }
 
-        $categories = TransactionCategory::all();
+        $categories = MovimentationCategory::all();
         if ($categories->isEmpty()) {
-            $this->command->warn('No transaction categories found. Please run MovimentationCategorySeeder first.');
+            $this->command->warn('No movement categories found. Please run MovimentationCategorySeeder first.');
             return;
         }
 
@@ -51,10 +51,10 @@ class TransactionTestSeeder extends Seeder
         $incomeCategories = $categories->where('type', 'income');
         $expenseCategories = $categories->where('type', 'expense');
 
-        $transactionTypes = ['income', 'expense'];
+        $movementTypes = ['income', 'expense'];
         $statuses = ['completed', 'pending', 'cancelled'];
 
-        // Transaction descriptions
+        // Movement descriptions
         $incomeDescriptions = [
             'Cargo delivery payment',
             'Passenger ticket sales',
@@ -82,9 +82,9 @@ class TransactionTestSeeder extends Seeder
         $createdCount = 0;
         $now = Carbon::now();
 
-        // Create transactions for current month
-        $this->command->info('Creating transactions for current month...');
-        $createdCount += $this->createTransactionsForMonth(
+        // Create movements for current month
+        $this->command->info('Creating movements for current month...');
+        $createdCount += $this->createMovementsForMonth(
             $now->year,
             $now->month,
             $vessels,
@@ -94,18 +94,18 @@ class TransactionTestSeeder extends Seeder
             $users,
             $vatProfiles,
             $defaultVatProfile,
-            $transactionTypes,
+            $movementTypes,
             $statuses,
             $incomeDescriptions,
             $expenseDescriptions,
-            15 // 15 transactions for current month
+            15 // 15 movements for current month
         );
 
-        // Create transactions for previous months (last 4 months)
+        // Create movements for previous months (last 4 months)
         for ($i = 1; $i <= 4; $i++) {
             $date = $now->copy()->subMonths($i);
-            $this->command->info("Creating transactions for {$date->format('F Y')}...");
-            $createdCount += $this->createTransactionsForMonth(
+            $this->command->info("Creating movements for {$date->format('F Y')}...");
+            $createdCount += $this->createMovementsForMonth(
                 $date->year,
                 $date->month,
                 $vessels,
@@ -115,22 +115,22 @@ class TransactionTestSeeder extends Seeder
                 $users,
                 $vatProfiles,
                 $defaultVatProfile,
-                $transactionTypes,
+                $movementTypes,
                 $statuses,
                 $incomeDescriptions,
                 $expenseDescriptions,
-                rand(10, 20) // Random number of transactions per month
+                rand(10, 20) // Random number of movements per month
             );
         }
 
-        // Create transactions for previous years (last 2 years)
+        // Create movements for previous years (last 2 years)
         for ($year = $now->year - 1; $year >= $now->year - 2; $year--) {
-            // Create transactions for 3 random months in each year
+            // Create movements for 3 random months in each year
             $months = collect(range(1, 12))->shuffle()->take(3);
             foreach ($months as $month) {
                 $date = Carbon::create($year, $month, 1);
-                $this->command->info("Creating transactions for {$date->format('F Y')}...");
-                $createdCount += $this->createTransactionsForMonth(
+                $this->command->info("Creating movements for {$date->format('F Y')}...");
+                $createdCount += $this->createMovementsForMonth(
                     $year,
                     $month,
                     $vessels,
@@ -140,23 +140,23 @@ class TransactionTestSeeder extends Seeder
                     $users,
                     $vatProfiles,
                     $defaultVatProfile,
-                    $transactionTypes,
+                    $movementTypes,
                     $statuses,
                     $incomeDescriptions,
                     $expenseDescriptions,
-                    rand(8, 15) // Random number of transactions per month
+                    rand(8, 15) // Random number of movements per month
                 );
             }
         }
 
-        $this->command->info("✅ Created {$createdCount} test transactions successfully!");
-        $this->command->info('Transaction history is now available for testing.');
+        $this->command->info("✅ Created {$createdCount} test movements successfully!");
+        $this->command->info('Movement history is now available for testing.');
     }
 
     /**
-     * Create transactions for a specific month and year.
+     * Create movements for a specific month and year.
      */
-    private function createTransactionsForMonth(
+    private function createMovementsForMonth(
         int $year,
         int $month,
         $vessels,
@@ -166,7 +166,7 @@ class TransactionTestSeeder extends Seeder
         $users,
         $vatProfiles,
         $defaultVatProfile,
-        array $transactionTypes,
+        array $movementTypes,
         array $statuses,
         array $incomeDescriptions,
         array $expenseDescriptions,
@@ -178,7 +178,7 @@ class TransactionTestSeeder extends Seeder
         for ($i = 0; $i < $count; $i++) {
             $vessel = $vessels->random();
             $user = $users->random();
-            $type = $transactionTypes[array_rand($transactionTypes)];
+            $type = $movementTypes[array_rand($movementTypes)];
             $status = $statuses[array_rand($statuses)];
 
             // Select category based on type
@@ -199,12 +199,12 @@ class TransactionTestSeeder extends Seeder
 
             // Random date within the month
             $day = rand(1, $daysInMonth);
-            $transactionDate = Carbon::create($year, $month, $day);
+            $movementDate = Carbon::create($year, $month, $day);
 
             // Random amount (in cents)
             $amount = MoneyAction::toInteger(rand(100, 10000) + (rand(0, 99) / 100)); // 1.00 to 10000.99
 
-            // Calculate VAT for income transactions
+            // Calculate VAT for income movements
             $vatAmount = 0;
             if ($type === 'income' && $vatProfile) {
                 $vatAmount = MoneyAction::calculateVat($amount, (float) $vatProfile->percentage);
@@ -212,13 +212,13 @@ class TransactionTestSeeder extends Seeder
 
             $totalAmount = $amount + $vatAmount;
 
-            // Random supplier for expense transactions
+            // Random supplier for expense movements
             $supplierId = null;
             if ($type === 'expense' && $suppliers->isNotEmpty() && rand(0, 1)) {
                 $supplierId = $suppliers->random()->id;
             }
 
-            // Random crew member for expense transactions (optional)
+            // Random crew member for expense movements (optional)
             $crewMemberId = null;
             if ($type === 'expense' && rand(0, 3) === 0) {
                 $crewMembers = User::where('vessel_id', $vessel->id)
@@ -237,9 +237,9 @@ class TransactionTestSeeder extends Seeder
                 $amountPerUnit = (int) ($amount / $quantity);
             }
 
-            // Create transaction
+            // Create movement
             try {
-                $transaction = Transaction::create([
+                $movement = Movimentation::create([
                     'vessel_id' => $vessel->id,
                     'category_id' => $category->id,
                     'supplier_id' => $supplierId,
@@ -253,16 +253,16 @@ class TransactionTestSeeder extends Seeder
                     'vat_profile_id' => $vatProfile ? $vatProfile->id : null,
                     'vat_amount' => $vatAmount,
                     'total_amount' => $totalAmount,
-                    'transaction_date' => $transactionDate->format('Y-m-d'),
-                    'description' => $description . ' - ' . $transactionDate->format('d/m/Y'),
+                    'transaction_date' => $movementDate->format('Y-m-d'),
+                    'description' => $description . ' - ' . $movementDate->format('d/m/Y'),
                     'status' => $status,
                     'created_by' => $user->id,
-                    'notes' => rand(0, 1) ? 'Test transaction for ' . $transactionDate->format('F Y') : null,
+                    'notes' => rand(0, 1) ? 'Test movement for ' . $movementDate->format('F Y') : null,
                 ]);
 
                 $created++;
             } catch (\Exception $e) {
-                $this->command->warn("Failed to create transaction: {$e->getMessage()}");
+                $this->command->warn("Failed to create movement: {$e->getMessage()}");
             }
         }
 
