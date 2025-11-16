@@ -13,7 +13,12 @@ class VesselResource extends BaseResource
      */
     public function toArray(Request $request): array
     {
-        if (!$this->resource || !isset($this->id)) {
+        if (!$this->resource) {
+            return [];
+        }
+
+        // Check if the resource has an id property
+        if (!isset($this->resource->id) && !property_exists($this->resource, 'id')) {
             return [];
         }
 
