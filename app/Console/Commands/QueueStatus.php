@@ -91,8 +91,18 @@ class QueueStatus extends Command
             return;
         }
 
-        // Fallback: Check process list
+        // Check via supervisor log file
+        $logStatus = $this->checkSupervisorLog();
+
+        if ($logStatus) {
+            return;
+        }
+
+        // Fallback: Check process list (if ps is available)
         $this->checkProcessStatus();
+
+        // Final check: Try to see if jobs are being processed
+        $this->checkJobProcessing();
     }
 
     /**
@@ -116,8 +126,81 @@ class QueueStatus extends Command
                 $this->line("  Status: <fg=red>✗ NOT RUNNING</> (via Supervisor)");
                 $this->line("  <fg=gray>{$status}</>");
                 $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
                 $this->newLine();
                 return true;
+            }
+        }
+
+        // Try checking all supervisor processes
+        @exec('supervisorctl status 2>&1', $output, $returnVar);
+        if ($returnVar === 0 && !empty($output)) {
+            $allStatus = implode("\n", $output);
+            if (str_contains($allStatus, 'queue-worker')) {
+                // Found queue-worker in status, parse it
+                foreach ($output as $line) {
+                    if (str_contains($line, 'queue-worker')) {
+                        if (str_contains($line, 'RUNNING')) {
+                            $this->line("  Status: <fg=green>✓ RUNNING</> (via Supervisor)");
+                            $this->line("  <fg=gray>{$line}</>");
+                            $this->newLine();
+                            return true;
+                        } elseif (str_contains($line, 'STOPPED') || str_contains($line, 'FATAL')) {
+                            $this->line("  Status: <fg=red>✗ NOT RUNNING</> (via Supervisor)");
+                            $this->line("  <fg=gray>{$line}</>");
+                            $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                            $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
+                            $this->newLine();
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check supervisor log for queue worker activity.
+     */
+    private function checkSupervisorLog(): bool
+    {
+        $supervisorLog = '/var/log/supervisor/supervisord.log';
+        $queueWorkerLog = storage_path('logs/queue-worker.log');
+
+        // Check supervisor log
+        if (File::exists($supervisorLog)) {
+            $logContent = @file_get_contents($supervisorLog);
+            if ($logContent && str_contains($logContent, 'queue-worker') && str_contains($logContent, 'RUNNING')) {
+                $this->line("  Status: <fg=green>✓ RUNNING</> (via Supervisor log)");
+                $this->newLine();
+                return true;
+            }
+        }
+
+        // Check queue worker log for recent activity
+        if (File::exists($queueWorkerLog)) {
+            $logContent = @file_get_contents($queueWorkerLog);
+            if ($logContent) {
+                $lines = explode("\n", $logContent);
+                $recentLines = array_slice($lines, -10);
+                $hasActivity = false;
+
+                foreach ($recentLines as $line) {
+                    if (str_contains($line, 'Processing') ||
+                        str_contains($line, 'Processed') ||
+                        str_contains($line, 'queue:work')) {
+                        $hasActivity = true;
+                        break;
+                    }
+                }
+
+                if ($hasActivity) {
+                    $this->line("  Status: <fg=green>✓ RUNNING</> (log shows activity)");
+                    $this->newLine();
+                    return true;
+                }
             }
         }
 
@@ -129,21 +212,65 @@ class QueueStatus extends Command
      */
     private function checkProcessStatus(): void
     {
-        // Check if queue:work process is running
+        // Check if queue:work process is running (only if ps is available)
         $output = [];
-        @exec("ps aux | grep 'queue:work' | grep -v grep", $output);
+        $returnVar = 0;
+        @exec("ps aux 2>/dev/null | grep 'queue:work' | grep -v grep", $output, $returnVar);
 
-        if (!empty($output)) {
+        if ($returnVar === 0 && !empty($output)) {
             $this->line("  Status: <fg=green>✓ RUNNING</> (process found)");
             $processCount = count($output);
             $this->line("  Processes: <fg=cyan>{$processCount}</>");
-        } else {
-            $this->line("  Status: <fg=red>✗ NOT RUNNING</> (no process found)");
-            $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
-            $this->line('  💡 Start with: <fg=yellow>php artisan queue:work --queue=emails</>');
+            $this->newLine();
+        } elseif ($returnVar !== 0) {
+            // ps command not available, skip this check
+            // Don't show error, just continue
         }
+    }
 
-        $this->newLine();
+    /**
+     * Check if jobs are being processed by looking at job timestamps.
+     */
+    private function checkJobProcessing(): void
+    {
+        try {
+            // Check if there are any jobs that were recently processed
+            // This is a heuristic - if jobs table is empty and no failed jobs,
+            // the worker might be running
+            $pendingCount = DB::table('jobs')->count();
+            $failedCount = DB::table('failed_jobs')->count();
+
+            // If we have pending jobs but they're not being processed,
+            // that's a sign the worker isn't running
+            if ($pendingCount > 0) {
+                // Check the oldest pending job
+                $oldestJob = DB::table('jobs')
+                    ->orderBy('id', 'asc')
+                    ->first(['id', 'created_at']);
+
+                if ($oldestJob) {
+                    $createdAt = strtotime($oldestJob->created_at);
+                    $ageInMinutes = (time() - $createdAt) / 60;
+
+                    if ($ageInMinutes > 5) {
+                        $this->line("  Status: <fg=red>✗ NOT RUNNING</> (jobs pending for {$ageInMinutes} minutes)");
+                        $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                        $this->line('  💡 Check supervisor: <fg=yellow>supervisorctl status</>');
+                        $this->line('  💡 Or start manually: <fg=yellow>php artisan queue:work --queue=emails</>');
+                        $this->newLine();
+                        return;
+                    }
+                }
+            }
+
+            // If we can't determine, show a warning
+            $this->line("  Status: <fg=yellow>⚠ UNKNOWN</> (could not verify)");
+            $this->line('  💡 Check manually: <fg=yellow>supervisorctl status queue-worker</>');
+            $this->line('  💡 Or check logs: <fg=yellow>tail -f storage/logs/queue-worker.log</>');
+            $this->newLine();
+        } catch (\Exception $e) {
+            // Silently fail
+        }
     }
 
     /**
