@@ -15,7 +15,9 @@ class QueueStatus extends Command
      */
     protected $signature = 'queue:status
                             {--retry-failed : Retry all failed jobs}
-                            {--show-logs : Show recent queue worker logs}';
+                            {--process-pending : Restart queue worker to process pending jobs}
+                            {--show-logs : Show recent queue worker logs}
+                            {--diagnose : Run diagnostics to identify queue worker issues}';
 
     /**
      * The console command description.
@@ -52,6 +54,16 @@ class QueueStatus extends Command
         // Retry failed jobs if requested
         if ($this->option('retry-failed')) {
             $this->retryFailedJobs();
+        }
+
+        // Process pending jobs if requested
+        if ($this->option('process-pending')) {
+            $this->processPendingJobs();
+        }
+
+        // Run diagnostics if requested
+        if ($this->option('diagnose')) {
+            $this->runDiagnostics();
         }
 
         return Command::SUCCESS;
@@ -123,10 +135,20 @@ class QueueStatus extends Command
                 $this->newLine();
                 return true;
             } elseif (str_contains($status, 'STOPPED') || str_contains($status, 'FATAL')) {
-                $this->line("  Status: <fg=red>✗ NOT RUNNING</> (via Supervisor)");
+                $isFatal = str_contains($status, 'FATAL');
+                $statusLabel = $isFatal ? '✗ FATAL (CRASHING)' : '✗ NOT RUNNING';
+                $this->line("  Status: <fg=red>{$statusLabel}</> (via Supervisor)");
                 $this->line("  <fg=gray>{$status}</>");
-                $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                
+                if ($isFatal) {
+                    $this->error('  🚨 Queue worker is in FATAL state - it keeps crashing!');
+                    $this->showQueueWorkerErrors();
+                } else {
+                    $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                }
+                
                 $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
+                $this->line('  💡 Check errors: <fg=yellow>php artisan queue:status --show-logs</>');
                 $this->newLine();
                 return true;
             }
@@ -146,10 +168,20 @@ class QueueStatus extends Command
                             $this->newLine();
                             return true;
                         } elseif (str_contains($line, 'STOPPED') || str_contains($line, 'FATAL')) {
-                            $this->line("  Status: <fg=red>✗ NOT RUNNING</> (via Supervisor)");
+                            $isFatal = str_contains($line, 'FATAL');
+                            $statusLabel = $isFatal ? '✗ FATAL (CRASHING)' : '✗ NOT RUNNING';
+                            $this->line("  Status: <fg=red>{$statusLabel}</> (via Supervisor)");
                             $this->line("  <fg=gray>{$line}</>");
-                            $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                            
+                            if ($isFatal) {
+                                $this->error('  🚨 Queue worker is in FATAL state - it keeps crashing!');
+                                $this->showQueueWorkerErrors();
+                            } else {
+                                $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
+                            }
+                            
                             $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
+                            $this->line('  💡 Check errors: <fg=yellow>php artisan queue:status --show-logs</>');
                             $this->newLine();
                             return true;
                         }
@@ -172,6 +204,18 @@ class QueueStatus extends Command
         // Check supervisor log
         if (File::exists($supervisorLog)) {
             $logContent = @file_get_contents($supervisorLog);
+            
+            // Check for FATAL state first
+            if ($logContent && str_contains($logContent, 'queue-worker') && str_contains($logContent, 'FATAL')) {
+                $this->line("  Status: <fg=red>✗ FATAL (CRASHING)</> (via Supervisor log)");
+                $this->error('  🚨 Queue worker is in FATAL state - it keeps crashing!');
+                $this->showQueueWorkerErrors();
+                $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
+                $this->line('  💡 Check errors: <fg=yellow>php artisan queue:status --show-logs</>');
+                $this->newLine();
+                return true;
+            }
+            
             if ($logContent && str_contains($logContent, 'queue-worker') && str_contains($logContent, 'RUNNING')) {
                 $this->line("  Status: <fg=green>✓ RUNNING</> (via Supervisor log)");
                 $this->newLine();
@@ -302,6 +346,7 @@ class QueueStatus extends Command
                 }
 
                 $this->line('  💡 If queue worker is running, these will be processed automatically.');
+                $this->line('  💡 To force processing: <fg=yellow>php artisan queue:status --process-pending</>');
             } else {
                 $this->line("  Count: <fg=green>0</> (no pending jobs)");
             }
@@ -376,11 +421,87 @@ class QueueStatus extends Command
         } else {
             $lines = array_slice($allLines, -20);
             foreach ($lines as $line) {
-                $this->line("  <fg=gray>{$line}</>");
+                // Highlight errors
+                if (str_contains($line, 'error') || str_contains($line, 'Error') || str_contains($line, 'ERROR') || 
+                    str_contains($line, 'exception') || str_contains($line, 'Exception') ||
+                    str_contains($line, 'failed') || str_contains($line, 'Failed')) {
+                    $this->line("  <fg=red>{$line}</>");
+                } else {
+                    $this->line("  <fg=gray>{$line}</>");
+                }
             }
         }
 
         $this->newLine();
+    }
+
+    /**
+     * Show queue worker errors from logs.
+     */
+    private function showQueueWorkerErrors(): void
+    {
+        $logPath = storage_path('logs/queue-worker.log');
+        $supervisorLog = '/var/log/supervisor/supervisord.log';
+
+        $hasErrors = false;
+
+        // Check queue worker log for errors
+        if (File::exists($logPath)) {
+            $logContent = @file_get_contents($logPath);
+            if ($logContent) {
+                $lines = explode("\n", $logContent);
+                $errorLines = [];
+                
+                // Get last 30 lines and look for errors
+                $recentLines = array_slice($lines, -30);
+                foreach ($recentLines as $line) {
+                    if (str_contains(strtolower($line), 'error') || 
+                        str_contains(strtolower($line), 'exception') ||
+                        str_contains(strtolower($line), 'fatal') ||
+                        str_contains(strtolower($line), 'failed')) {
+                        $errorLines[] = $line;
+                        $hasErrors = true;
+                    }
+                }
+                
+                if (!empty($errorLines)) {
+                    $this->line('  <fg=yellow>Recent errors from queue-worker.log:</>');
+                    foreach (array_slice($errorLines, -5) as $errorLine) {
+                        $this->line("    <fg=red>{$errorLine}</>");
+                    }
+                }
+            }
+        }
+
+        // Check supervisor log for crash information
+        if (File::exists($supervisorLog)) {
+            $logContent = @file_get_contents($supervisorLog);
+            if ($logContent) {
+                $lines = explode("\n", $logContent);
+                $crashLines = [];
+                
+                // Get lines related to queue-worker crashes
+                foreach ($lines as $line) {
+                    if (str_contains($line, 'queue-worker') && 
+                        (str_contains($line, 'exited') || str_contains($line, 'FATAL') || str_contains($line, 'WARN'))) {
+                        $crashLines[] = $line;
+                        $hasErrors = true;
+                    }
+                }
+                
+                if (!empty($crashLines)) {
+                    $this->line('  <fg=yellow>Supervisor crash logs:</>');
+                    foreach (array_slice($crashLines, -3) as $crashLine) {
+                        $this->line("    <fg=red>{$crashLine}</>");
+                    }
+                }
+            }
+        }
+
+        if (!$hasErrors) {
+            $this->line('  <fg=yellow>No specific errors found in logs. Check application logs:</>');
+            $this->line('    <fg=gray>tail -f storage/logs/laravel.log</>');
+        }
     }
 
     /**
@@ -411,6 +532,251 @@ class QueueStatus extends Command
             $this->line('  💡 Check queue status again to see if they were processed successfully.');
         } catch (\Exception $e) {
             $this->error("  ✗ Error retrying failed jobs: {$e->getMessage()}");
+        }
+
+        $this->newLine();
+    }
+
+    /**
+     * Process pending jobs by restarting queue worker or running queue:work.
+     */
+    private function processPendingJobs(): void
+    {
+        $this->info('🔄 Processing Pending Jobs:');
+
+        try {
+            $pendingCount = DB::table('jobs')->count();
+
+            if ($pendingCount === 0) {
+                $this->line('  No pending jobs to process.');
+                $this->newLine();
+                return;
+            }
+
+            // Get queue breakdown
+            $queues = DB::table('jobs')
+                ->select('queue', DB::raw('count(*) as count'))
+                ->groupBy('queue')
+                ->get();
+
+            $queueNames = $queues->pluck('queue')->filter()->unique()->values()->all();
+            $queueList = !empty($queueNames) ? implode(',', $queueNames) : 'default';
+
+            $this->line("  Found {$pendingCount} pending job(s) in queue(s): {$queueList}");
+
+            // Try to restart queue worker via supervisor
+            $restarted = $this->restartQueueWorker();
+
+            if ($restarted) {
+                $this->info('  ✓ Queue worker restarted via Supervisor.');
+                $this->line('  💡 Jobs should be processed shortly. Check status again in a few seconds.');
+            } else {
+                // Fallback: Run queue:work once to process jobs
+                $this->line('  Running queue:work to process pending jobs...');
+
+                if (!$this->confirm("  Process all {$pendingCount} pending job(s) now?", true)) {
+                    $this->line('  Cancelled.');
+                    $this->newLine();
+                    return;
+                }
+
+                // Run queue:work with --once flag to process jobs and exit
+                $queueArg = !empty($queueNames) ? '--queue=' . implode(',', $queueNames) : '';
+                $command = "php artisan queue:work {$queueArg} --once --tries=3 --timeout=300";
+
+                $this->line("  Executing: <fg=gray>{$command}</>");
+
+                // Execute the command
+                $output = [];
+                $returnVar = 0;
+                exec($command . ' 2>&1', $output, $returnVar);
+
+                if ($returnVar === 0) {
+                    $this->info('  ✓ Queue worker executed successfully.');
+                    if (!empty($output)) {
+                        $this->line('  Output:');
+                        foreach (array_slice($output, -5) as $line) {
+                            $this->line("    <fg=gray>{$line}</>");
+                        }
+                    }
+                } else {
+                    $this->warn('  ⚠️  Queue worker execution completed with warnings.');
+                    if (!empty($output)) {
+                        $this->line('  Output:');
+                        foreach (array_slice($output, -10) as $line) {
+                            $this->line("    <fg=gray>{$line}</>");
+                        }
+                    }
+                }
+
+                // Check if jobs were processed
+                $remainingCount = DB::table('jobs')->count();
+                $processedCount = $pendingCount - $remainingCount;
+
+                if ($processedCount > 0) {
+                    $this->info("  ✓ Processed {$processedCount} job(s). {$remainingCount} remaining.");
+                } else {
+                    $this->warn("  ⚠️  No jobs were processed. {$remainingCount} still pending.");
+                    $this->line('  💡 Check queue worker logs for errors: <fg=yellow>php artisan queue:status --show-logs</>');
+                }
+            }
+        } catch (\Exception $e) {
+            $this->error("  ✗ Error processing pending jobs: {$e->getMessage()}");
+        }
+
+        $this->newLine();
+    }
+
+    /**
+     * Attempt to restart queue worker via supervisor.
+     */
+    private function restartQueueWorker(): bool
+    {
+        // Try to restart via supervisorctl
+        $output = [];
+        $returnVar = 0;
+        @exec('supervisorctl restart queue-worker 2>&1', $output, $returnVar);
+
+        if ($returnVar === 0) {
+            return true;
+        }
+
+        // Try without specific name (restart all)
+        @exec('supervisorctl restart all 2>&1', $output, $returnVar);
+
+        if ($returnVar === 0) {
+            // Check if queue-worker is in the output
+            $outputStr = implode("\n", $output);
+            if (str_contains($outputStr, 'queue-worker')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Run diagnostics to identify queue worker issues.
+     */
+    private function runDiagnostics(): void
+    {
+        $this->info('🔍 Running Queue Worker Diagnostics:');
+        $this->newLine();
+
+        $issues = [];
+
+        // Check database connection
+        $this->line('  Checking database connection...');
+        try {
+            DB::connection()->getPdo();
+            $this->line('    <fg=green>✓ Database connection OK</>');
+        } catch (\Exception $e) {
+            $this->line('    <fg=red>✗ Database connection failed</>');
+            $this->line("    <fg=red>Error: {$e->getMessage()}</>");
+            $issues[] = 'Database connection issue: ' . $e->getMessage();
+        }
+
+        // Check queue configuration
+        $this->line('  Checking queue configuration...');
+        $connection = config('queue.default');
+        $driver = config("queue.connections.{$connection}.driver");
+        
+        if ($driver === 'database') {
+            $table = config("queue.connections.{$connection}.table", 'jobs');
+            $this->line("    <fg=green>✓ Queue driver: database (table: {$table})</>");
+            
+            // Check if table exists
+            try {
+                DB::table($table)->limit(1)->get();
+                $this->line('    <fg=green>✓ Jobs table exists</>');
+            } catch (\Exception $e) {
+                $this->line('    <fg=red>✗ Jobs table does not exist or is not accessible</>');
+                $issues[] = 'Jobs table issue: ' . $e->getMessage();
+            }
+        } else {
+            $this->line("    <fg=yellow>⚠ Queue driver: {$driver}</>");
+        }
+
+        // Check environment variables
+        $this->line('  Checking environment variables...');
+        $requiredEnvVars = ['DB_CONNECTION', 'DB_HOST', 'DB_DATABASE', 'DB_USERNAME'];
+        foreach ($requiredEnvVars as $var) {
+            if (empty(env($var))) {
+                $this->line("    <fg=red>✗ Missing: {$var}</>");
+                $issues[] = "Missing environment variable: {$var}";
+            } else {
+                $this->line("    <fg=green>✓ {$var} is set</>");
+            }
+        }
+
+        // Check storage permissions
+        $this->line('  Checking storage permissions...');
+        $storagePath = storage_path('logs');
+        if (!is_writable($storagePath)) {
+            $this->line('    <fg=red>✗ Storage/logs is not writable</>');
+            $issues[] = 'Storage/logs directory is not writable';
+        } else {
+            $this->line('    <fg=green>✓ Storage/logs is writable</>');
+        }
+
+        // Check if we can run queue:work command
+        $this->line('  Testing queue:work command...');
+        $output = [];
+        $returnVar = 0;
+        @exec('php artisan queue:work --help 2>&1', $output, $returnVar);
+        
+        if ($returnVar === 0) {
+            $this->line('    <fg=green>✓ queue:work command is available</>');
+        } else {
+            $this->line('    <fg=red>✗ queue:work command failed</>');
+            $this->line('    <fg=red>Output: ' . implode("\n", array_slice($output, -3)) . '</>');
+            $issues[] = 'queue:work command is not working properly';
+        }
+
+        // Check pending jobs for potential issues
+        $this->line('  Checking pending jobs...');
+        try {
+            $pendingJobs = DB::table('jobs')->count();
+            if ($pendingJobs > 0) {
+                $this->line("    <fg=yellow>⚠ Found {$pendingJobs} pending job(s)</>");
+                
+                // Try to peek at the first job to see if it's valid
+                $firstJob = DB::table('jobs')->orderBy('id', 'asc')->first();
+                if ($firstJob) {
+                    try {
+                        $payload = json_decode($firstJob->payload, true);
+                        if (isset($payload['displayName'])) {
+                            $this->line("    <fg=green>✓ First job class: {$payload['displayName']}</>");
+                        }
+                    } catch (\Exception $e) {
+                        $this->line('    <fg=red>✗ First job payload is invalid JSON</>');
+                        $issues[] = 'Invalid job payload in queue';
+                    }
+                }
+            } else {
+                $this->line('    <fg=green>✓ No pending jobs</>');
+            }
+        } catch (\Exception $e) {
+            $this->line('    <fg=red>✗ Error checking pending jobs</>');
+            $issues[] = 'Cannot access jobs table: ' . $e->getMessage();
+        }
+
+        // Summary
+        $this->newLine();
+        if (empty($issues)) {
+            $this->info('  ✓ All diagnostics passed!');
+            $this->line('  💡 If queue worker is still crashing, check:');
+            $this->line('     - Application logs: <fg=yellow>tail -f storage/logs/laravel.log</>');
+            $this->line('     - Queue worker logs: <fg=yellow>php artisan queue:status --show-logs</>');
+            $this->line('     - Supervisor logs: <fg=yellow>tail -f /var/log/supervisor/supervisord.log</>');
+        } else {
+            $this->error('  ✗ Found ' . count($issues) . ' issue(s):');
+            foreach ($issues as $issue) {
+                $this->line("    - <fg=red>{$issue}</>");
+            }
+            $this->newLine();
+            $this->line('  💡 Fix the issues above and try restarting the queue worker:');
+            $this->line('     <fg=yellow>supervisorctl restart queue-worker</>');
         }
 
         $this->newLine();
