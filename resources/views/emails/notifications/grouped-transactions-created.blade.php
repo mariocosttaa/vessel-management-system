@@ -28,7 +28,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    {{ trans('emails.New transactions have been created for vessel :vessel', [
+                    {{ trans('emails.New movements have been created for vessel :vessel', [
                         'vessel' => $vessel->name ?? 'N/A'
                     ], $locale ?? 'en') }}
                 </p>
@@ -43,7 +43,7 @@
         </tr>
     </table>
 
-    <!-- Transactions List -->
+    <!-- Movements List -->
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 32px 0;">
         <tr>
             <td align="center">
@@ -122,7 +122,7 @@
                     <tr>
                         <td style="background-color: #111827; border-radius: 8px;">
                             <a href="{{ route('panel.movimentations.index', ['vessel' => $vessel->id]) }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
-                                {{ trans('emails.View Transactions', [], $locale ?? 'en') }}
+                                {{ trans('emails.View Movements', [], $locale ?? 'en') }}
                             </a>
                         </td>
                     </tr>
@@ -137,7 +137,7 @@
             <td align="center" style="padding-top: 8px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.5; text-align: center; max-width: 500px;">
                     @if($count > 1)
-                        {{ trans('emails.These notifications have been grouped to avoid spam. The last :count transactions created are shown above.', ['count' => $count], $locale ?? 'en') }}
+                        {{ trans('emails.These notifications have been grouped to avoid spam. The last :count movements created are shown above.', ['count' => $count], $locale ?? 'en') }}
                     @endif
                 </p>
             </td>

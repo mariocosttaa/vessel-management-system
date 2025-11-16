@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Mail;
 
-use App\Models\EmailNotification;
 use App\Models\User;
 use App\Models\Vessel;
 use App\Traits\HasTranslations;
@@ -43,12 +41,12 @@ class GroupedVesselNotificationMail extends Mailable
         $typeLabels = [
             'transaction_created' => $this->transFrom('emails', 'Transactions Created'),
             'transaction_deleted' => $this->transFrom('emails', 'Transactions Deleted'),
-            'marea_started' => $this->transFrom('emails', 'Mareas Started'),
-            'marea_completed' => $this->transFrom('emails', 'Mareas Completed'),
+            'marea_started'       => $this->transFrom('emails', 'Mareas Started'),
+            'marea_completed'     => $this->transFrom('emails', 'Mareas Completed'),
         ];
 
         $subject = $typeLabels[$this->type] ?? $this->transFrom('emails', 'System Notifications');
-        $count = count($this->notifications);
+        $count   = count($this->notifications);
 
         if ($count > 1) {
             $itemLabel = $this->transFrom('emails', 'items');
@@ -69,10 +67,10 @@ class GroupedVesselNotificationMail extends Mailable
     public function content(): Content
     {
         $viewMap = [
-            'transaction_created' => 'emails.notifications.grouped-transactions-created',
-            'transaction_deleted' => 'emails.notifications.grouped-transactions-deleted',
-            'marea_started' => 'emails.notifications.grouped-mareas-started',
-            'marea_completed' => 'emails.notifications.grouped-mareas-completed',
+            'transaction_created' => 'emails.notifications.grouped-movements-created',
+            'transaction_deleted' => 'emails.notifications.grouped-movements-deleted',
+            'marea_started'       => 'emails.notifications.grouped-mareas-started',
+            'marea_completed'     => 'emails.notifications.grouped-mareas-completed',
         ];
 
         $view = $viewMap[$this->type] ?? 'emails.notifications.grouped-default';
@@ -86,12 +84,12 @@ class GroupedVesselNotificationMail extends Mailable
         $content = new Content(
             view: $view,
             with: [
-                'user' => $this->user,
-                'vessel' => $this->vessel,
+                'user'          => $this->user,
+                'vessel'        => $this->vessel,
                 'notifications' => $this->notifications,
-                'count' => count($this->notifications),
-                'type' => $this->type,
-                'locale' => $this->user->language ?? 'en',
+                'count'         => count($this->notifications),
+                'type'          => $this->type,
+                'locale'        => $this->user->language ?? 'en',
             ],
         );
 
@@ -111,4 +109,3 @@ class GroupedVesselNotificationMail extends Mailable
         return [];
     }
 }
-
