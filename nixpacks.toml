@@ -22,14 +22,10 @@ cmd = '/assets/start.sh'
 mkdir -p /var/log/supervisor
 mkdir -p /var/run
 
-# Transform the nginx configuration
+# Transform the nginx configuration (nixpacks default)
 node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
 
-# Find nginx and php-fpm paths
-NGINX_CMD=$(which nginx 2>/dev/null || find /usr -name nginx 2>/dev/null | head -1 || echo "nginx")
-PHP_FPM_CMD=$(which php-fpm 2>/dev/null || find /usr -name php-fpm 2>/dev/null | head -1 || echo "php-fpm")
-
-# Create supervisor config dynamically
+# Start queue worker in background using supervisor
 cat > /etc/supervisord.conf <<EOF
 [unix_http_server]
 file=/assets/supervisor.sock
@@ -38,7 +34,7 @@ file=/assets/supervisor.sock
 logfile=/var/log/supervisord.log
 pidfile=/var/run/supervisord.pid
 childlogdir=/var/log/supervisor
-nodaemon=true
+nodaemon=false
 user=root
 
 [rpcinterface:supervisor]
@@ -46,20 +42,6 @@ supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 
 [supervisorctl]
 serverurl=unix:///assets/supervisor.sock
-
-[program:nginx]
-command=$NGINX_CMD -g "daemon off;"
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/nginx.log
-stderr_logfile=/var/log/nginx.log
-
-[program:php-fpm]
-command=$PHP_FPM_CMD -F
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/php-fpm.log
-stderr_logfile=/var/log/php-fpm.log
 
 [program:worker-laravel]
 process_name=%(program_name)s_%(process_num)02d
@@ -75,8 +57,34 @@ stdout_logfile=/var/log/worker-laravel.log
 stderr_logfile=/var/log/worker-laravel.log
 EOF
 
-# Start supervisor (which will start nginx, php-fpm, and queue worker)
-supervisord -c /etc/supervisord.conf -n
+# Start supervisor for queue worker in background
+supervisord -c /etc/supervisord.conf &
+
+# Try to find nixpacks default start script
+START_SCRIPT=$(find /nix/store -name "start-server" -type f 2>/dev/null | head -1)
+if [ -n "$START_SCRIPT" ] && [ -f "$START_SCRIPT" ]; then
+    # Use nixpacks default start script if available
+    exec "$START_SCRIPT"
+else
+    # Fallback: start PHP-FPM and nginx manually
+    # Try common PHP-FPM config locations
+    PHP_FPM_STARTED=false
+    for conf in /etc/php*/fpm/php-fpm.conf /etc/php-fpm.conf /usr/etc/php-fpm.conf; do
+        if [ -f "$conf" ]; then
+            php-fpm -F -y "$conf" &
+            PHP_FPM_STARTED=true
+            break
+        fi
+    done
+    
+    # If no config found, try without config (may use defaults)
+    if [ "$PHP_FPM_STARTED" = false ]; then
+        php-fpm -F &
+    fi
+    
+    # Start nginx in foreground (keeps container alive)
+    exec nginx -g "daemon off;"
+fi
 '''
 
 
