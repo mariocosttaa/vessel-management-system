@@ -987,6 +987,7 @@
     "All Transactions": "Toutes les Transactions",
     "Enable Colors": "Activer les Couleurs",
     "Use green for income and red for expenses": "Utiliser le vert pour les revenus et le rouge pour les dépenses",
+    "Generate maintenance report PDF": "Générer le rapport de maintenance en PDF",
     "PDF Download Options": "Options de Téléchargement PDF",
     "Choose your PDF download preferences": "Choisissez vos préférences de téléchargement PDF",
     "_comment_transaction_categories": "Catégories de Transactions",
