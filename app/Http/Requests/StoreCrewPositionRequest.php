@@ -28,8 +28,6 @@ class StoreCrewPositionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter for authorization check only
-        $vessel = $this->route('vessel');
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
@@ -37,8 +35,12 @@ class StoreCrewPositionRequest extends FormRequest
             return false;
         }
 
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = (int) $this->attributes->get('vessel_id', 0);
+
+        if (! $vesselId) {
+            return false;
+        }
 
         // Check if user can manage crew (for crew roles management)
         // This allows administrators and supervisors to create crew roles
@@ -52,9 +54,8 @@ class StoreCrewPositionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $vessel = $this->route('vessel');
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = (int) $this->attributes->get('vessel_id', 0);
         $isGlobal = $this->boolean('is_global');
 
         return [
@@ -72,7 +73,12 @@ class StoreCrewPositionRequest extends FormRequest
                         }
                     }),
             ],
-            'is_global' => ['nullable', 'boolean'],
+            'is_global'            => ['nullable', 'boolean'],
+            'vessel_role_access_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
+            ],
         ];
     }
 

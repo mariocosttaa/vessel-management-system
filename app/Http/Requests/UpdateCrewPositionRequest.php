@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use App\Models\CrewPosition;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,9 +30,6 @@ class UpdateCrewPositionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter for authorization check only
-        $vessel         = $this->route('vessel');
-        $crewPositionId = $this->route('crewPosition');
         /** @var \App\Models\User|null $user */
         $user = $this->user();
 
@@ -39,11 +37,41 @@ class UpdateCrewPositionRequest extends FormRequest
             return false;
         }
 
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = (int) $this->attributes->get('vessel_id', 0);
 
-        // Resolve crew position manually (handle both model instance and ID)
-        $crewPosition = is_object($crewPositionId) ? $crewPositionId : CrewPosition::findOrFail($crewPositionId);
+        if (! $vesselId) {
+            return false;
+        }
+
+        // Get crew position from route parameter
+        $crewPositionId = $this->route('crewPosition');
+
+        // Debug logging
+        \Log::info('UpdateCrewPositionRequest authorize', [
+            'crewPositionId_type' => gettype($crewPositionId),
+            'crewPositionId_value' => is_object($crewPositionId) ? get_class($crewPositionId) : $crewPositionId,
+            'is_object' => is_object($crewPositionId),
+            'is_instanceof' => is_object($crewPositionId) && $crewPositionId instanceof CrewPosition,
+        ]);
+
+        // Resolve crew position manually (handle both model instance, numeric ID, and hashed ID)
+        if (is_object($crewPositionId) && $crewPositionId instanceof CrewPosition) {
+            $crewPosition = $crewPositionId;
+        } elseif (is_numeric($crewPositionId)) {
+            $crewPosition = CrewPosition::findOrFail((int) $crewPositionId);
+        } else {
+            // Handle hashed ID
+            $decoded = EasyHashAction::decode($crewPositionId, 'crewposition-id');
+            if (! $decoded || ! is_numeric($decoded)) {
+                \Log::warning('UpdateCrewPositionRequest authorize - Failed to decode hashed ID', [
+                    'crewPositionId' => $crewPositionId,
+                    'decoded' => $decoded,
+                ]);
+                return false;
+            }
+            $crewPosition = CrewPosition::findOrFail((int) $decoded);
+        }
 
         // Check if user can manage crew (for crew roles management)
         // This allows administrators and supervisors to edit crew roles
@@ -66,17 +94,29 @@ class UpdateCrewPositionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $vessel         = $this->route('vessel');
-        $crewPositionId = $this->route('crewPosition');
-        // Extract vessel ID (handle both model instance and ID)
-        $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+        // Get vessel ID from request attributes (set by EnsureVesselAccess middleware)
+        $vesselId = (int) $this->attributes->get('vessel_id', 0);
 
-        // Resolve crew position manually (handle both model instance and ID)
-        $crewPosition = is_object($crewPositionId) ? $crewPositionId : CrewPosition::findOrFail($crewPositionId);
+        // Get crew position from route parameter
+        $crewPositionId = $this->route('crewPosition');
+
+        // Resolve crew position manually (handle both model instance, numeric ID, and hashed ID)
+        if (is_object($crewPositionId) && $crewPositionId instanceof CrewPosition) {
+            $crewPosition = $crewPositionId;
+        } elseif (is_numeric($crewPositionId)) {
+            $crewPosition = CrewPosition::findOrFail((int) $crewPositionId);
+        } else {
+            // Handle hashed ID
+            $decoded = EasyHashAction::decode($crewPositionId, 'crewposition-id');
+            if (! $decoded || ! is_numeric($decoded)) {
+                abort(404, 'Crew position not found.');
+            }
+            $crewPosition = CrewPosition::findOrFail((int) $decoded);
+        }
         $isGlobal     = $crewPosition->vessel_id === null;
 
         return [
-            'name' => [
+            'name'                  => [
                 'required',
                 'string',
                 'max:255',
@@ -90,6 +130,11 @@ class UpdateCrewPositionRequest extends FormRequest
                             $query->where('vessel_id', $vesselId);
                         }
                     }),
+            ],
+            'vessel_role_access_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
             ],
         ];
     }

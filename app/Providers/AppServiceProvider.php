@@ -2,7 +2,9 @@
 namespace App\Providers;
 
 use App\Actions\General\EasyHashAction;
+use App\Models\CrewPosition;
 use App\Models\User;
+use App\Observers\CrewPositionObserver;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -28,6 +30,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register observers
+        CrewPosition::observe(CrewPositionObserver::class);
+
         // Customize redirect for authenticated users to panel
         RedirectIfAuthenticated::redirectUsing(function () {
             return route('panel.index');
@@ -43,6 +48,81 @@ class AppServiceProvider extends ServiceProvider
             $user = $request->user();
             $key  = $user ? 'excel-export-user-' . $user->id : 'excel-export-ip-' . $request->ip();
             return Limit::perMinute(5)->by($key);
+        });
+
+        // Route model binding for crewPosition parameter (handles hashed IDs)
+        Route::bind('crewPosition', function ($value) {
+            Log::info('Route Model Binding: crewPosition', [
+                'value' => $value,
+                'type'  => gettype($value),
+            ]);
+
+            if (empty($value)) {
+                Log::warning('Route Model Binding: crewPosition - Empty value');
+                abort(404, 'Crew position not found.');
+            }
+
+            // Try to decode as hashed ID - use 'crewposition-id'
+            $hashType = 'crewposition-id';
+            $decoded  = null;
+
+            try {
+                $decoded = EasyHashAction::decode($value, $hashType);
+                Log::info('Route Model Binding: crewPosition - Decoded', [
+                    'original' => $value,
+                    'decoded'  => $decoded,
+                    'type'     => $hashType,
+                ]);
+
+                if ($decoded && is_numeric($decoded)) {
+                    $position = CrewPosition::find((int) $decoded);
+                    if ($position) {
+                        Log::info('Route Model Binding: crewPosition - Found position by hashed ID', [
+                            'position_id'   => $position->id,
+                            'position_name' => $position->name,
+                            'hash_type'      => $hashType,
+                        ]);
+                        return $position;
+                    } else {
+                        Log::warning('Route Model Binding: crewPosition - Position not found by hashed ID', [
+                            'decoded_id' => $decoded,
+                            'hash_type'  => $hashType,
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Route Model Binding: crewPosition - Decode failed', [
+                    'value'     => $value,
+                    'hash_type' => $hashType,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+
+            // Fallback to numeric ID for backward compatibility
+            if (is_numeric($value)) {
+                $position = CrewPosition::find((int) $value);
+                if ($position) {
+                    Log::info('Route Model Binding: crewPosition - Found position by numeric ID', [
+                        'position_id'   => $position->id,
+                        'position_name' => $position->name,
+                    ]);
+                    return $position;
+                } else {
+                    Log::warning('Route Model Binding: crewPosition - Position not found by numeric ID', [
+                        'numeric_id' => $value,
+                    ]);
+                }
+            }
+
+            // If we get here, we couldn't find the position
+            Log::error('Route Model Binding: crewPosition - Position not found', [
+                'value'                => $value,
+                'decoded'              => $decoded,
+                'attempted_hash_type'  => $hashType,
+            ]);
+
+            // Always abort with 404 if position not found - this prevents passing raw string to controller
+            abort(404, 'Crew position not found.');
         });
 
         // Route model binding for crewMember parameter (handles hashed IDs)

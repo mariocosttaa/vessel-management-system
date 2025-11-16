@@ -18,6 +18,15 @@ class CrewPositionResource extends BaseResource
             'vessel_id'          => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'is_global'          => $this->vessel_id === null,
             'scope_label'        => $this->vessel_id === null ? 'Default' : 'Created',
+            'vessel_role_access_id' => $this->vessel_role_access_id,
+            'vessel_role'        => $this->whenLoaded('vesselRoleAccess', function () {
+                return [
+                    'id'           => $this->vesselRoleAccess->id,
+                    'name'         => $this->vesselRoleAccess->name,
+                    'display_name' => $this->vesselRoleAccess->display_name,
+                    'description'  => $this->vesselRoleAccess->description,
+                ];
+            }),
 
             // Relationships
             'vessel'             => new VesselResource($this->whenLoaded('vessel')),

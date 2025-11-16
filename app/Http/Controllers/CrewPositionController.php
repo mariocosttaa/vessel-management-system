@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateCrewPositionRequest;
 use App\Http\Resources\CrewPositionResource;
 use App\Models\CrewPosition;
 use App\Models\User;
+use App\Models\VesselRoleAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -37,7 +38,7 @@ class CrewPositionController extends Controller
                 $q->where('vessel_id', $vesselId)
                     ->orWhereNull('vessel_id'); // Include global positions (NULL vessel_id)
             })
-            ->with(['vessel', 'crewMembers']);
+            ->with(['vessel', 'crewMembers', 'vesselRoleAccess']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -66,9 +67,22 @@ class CrewPositionController extends Controller
             return (new CrewPositionResource($position))->resolve();
         });
 
+        // Get all available vessel roles for the form
+        $vesselRoles = VesselRoleAccess::where('is_active', true)
+            ->orderBy('id')
+            ->get(['id', 'name', 'display_name', 'description']);
+
         return Inertia::render('CrewRoles/Index', [
             'crewPositions' => $crewPositions,
             'filters'       => $request->only(['search', 'scope', 'sort', 'direction']),
+            'vesselRoles'   => $vesselRoles->map(function ($role) {
+                return [
+                    'id'          => $role->id,
+                    'name'        => $role->name,
+                    'display_name' => $role->display_name,
+                    'description' => $role->description,
+                ];
+            }),
         ]);
     }
 
@@ -83,12 +97,24 @@ class CrewPositionController extends Controller
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id', 0);
 
+            // Decode vessel_role_access_id if it's hashed, or convert string to int
+            $vesselRoleAccessId = $request->vessel_role_access_id;
+            if ($vesselRoleAccessId) {
+                if (is_numeric($vesselRoleAccessId)) {
+                    $vesselRoleAccessId = (int) $vesselRoleAccessId;
+                } else {
+                    $vesselRoleAccessId = $this->unhashId($vesselRoleAccessId, 'vesselroleaccess');
+                }
+            } else {
+                $vesselRoleAccessId = null;
+            }
+
             // Access validated values directly as properties (never use validated())
             $crewPosition = CrewPosition::create([
                 'name'                  => $request->name,
                 'description'           => null,
                 'vessel_id'             => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
-                'vessel_role_access_id' => null,
+                'vessel_role_access_id' => $vesselRoleAccessId,
             ]);
 
             $crewPosition->load(['vessel', 'crewMembers']);
@@ -102,7 +128,7 @@ class CrewPositionController extends Controller
             );
 
             return redirect()
-                ->route('panel.crew-roles.index', ['vessel' => $vesselId])
+                ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', "Crew role '{$crewPosition->name}' has been created successfully.")
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {
@@ -128,18 +154,11 @@ class CrewPositionController extends Controller
     /**
      * Update the specified crew position.
      */
-    public function update(UpdateCrewPositionRequest $request, $crewPosition)
+    public function update(UpdateCrewPositionRequest $request, string $vessel, CrewPosition $crewPosition)
     {
         try {
-            // Get the ID from the route parameter and unhash it
-            $hashedId = $request->route('crewPosition');
-            $id       = $this->unhashId($hashedId, 'crewposition');
-            if (! $id) {
-                abort(404, 'Crew position not found.');
-            }
-
-            // Resolve crew position manually to avoid route model binding issues
-            $crewPosition = CrewPosition::findOrFail($id);
+            // Route model binding ensures $crewPosition is always a CrewPosition instance
+            // $vessel parameter is the hashed vessel ID from the route, but we use vessel_id from request attributes
 
             // Verify crew position belongs to current vessel
             /** @var \Illuminate\Http\Request $request */
@@ -159,11 +178,23 @@ class CrewPositionController extends Controller
             // Store original state for change detection
             $originalCrewPosition = $crewPosition->replicate();
 
+            // Decode vessel_role_access_id if it's hashed, or convert string to int
+            $vesselRoleAccessId = $request->vessel_role_access_id;
+            if ($vesselRoleAccessId) {
+                if (is_numeric($vesselRoleAccessId)) {
+                    $vesselRoleAccessId = (int) $vesselRoleAccessId;
+                } else {
+                    $vesselRoleAccessId = $this->unhashId($vesselRoleAccessId, 'vesselroleaccess');
+                }
+            } else {
+                $vesselRoleAccessId = null;
+            }
+
             // Access validated values directly as properties (never use validated())
             $crewPosition->update([
                 'name'                  => $request->name,
                 'description'           => null,
-                'vessel_role_access_id' => null,
+                'vessel_role_access_id' => $vesselRoleAccessId,
                 // Note: vessel_id cannot be changed after creation (global vs vessel-specific)
             ]);
 
@@ -180,7 +211,7 @@ class CrewPositionController extends Controller
             );
 
             return redirect()
-                ->route('panel.crew-roles.index', ['vessel' => $vesselId])
+                ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', "Crew role '{$crewPosition->name}' has been updated successfully.")
                 ->with('notification_delay', 4);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
@@ -197,18 +228,11 @@ class CrewPositionController extends Controller
     /**
      * Remove the specified crew position from storage.
      */
-    public function destroy(Request $request, $crewPosition)
+    public function destroy(Request $request, string $vessel, CrewPosition $crewPosition)
     {
         try {
-            // Get the ID from the route parameter and unhash it
-            $hashedId = $request->route('crewPosition');
-            $id       = $this->unhashId($hashedId, 'crewposition');
-            if (! $id) {
-                abort(404, 'Crew position not found.');
-            }
-
-            // Resolve crew position manually to avoid route model binding issues
-            $crewPosition = CrewPosition::findOrFail($id);
+            // Route model binding ensures $crewPosition is always a CrewPosition instance
+            // $vessel parameter is the hashed vessel ID from the route, but we use vessel_id from request attributes
 
             // Verify crew position belongs to current vessel
             /** @var int $vesselId */
@@ -252,7 +276,7 @@ class CrewPositionController extends Controller
             $crewPosition->delete();
 
             return redirect()
-                ->route('panel.crew-roles.index', ['vessel' => $vesselId])
+                ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
                 ->with('success', "Crew role '{$crewPositionName}' has been deleted successfully.")
                 ->with('notification_delay', 5);
         } catch (\Exception $e) {
@@ -275,7 +299,7 @@ class CrewPositionController extends Controller
             $crewPositionIdFromRoute = $request->route('crewPositionId');
             // Unhash crew position ID if it's a hashed string
             if ($crewPositionIdFromRoute && ! is_numeric($crewPositionIdFromRoute)) {
-                $id = $this->unhashId($crewPositionIdFromRoute, 'crewposition-id');
+                $id = $this->unhashId($crewPositionIdFromRoute, 'crewposition');
             } else {
                 $id = (int) $crewPositionIdFromRoute;
             }
@@ -302,9 +326,23 @@ class CrewPositionController extends Controller
 
             // Load relationships for edit modal
             $crewPosition->loadCount('crewMembers');
+            $crewPosition->load('vesselRoleAccess');
+
+            // Get all available vessel roles
+            $vesselRoles = VesselRoleAccess::where('is_active', true)
+                ->orderBy('id')
+                ->get(['id', 'name', 'display_name', 'description']);
 
             return response()->json([
                 'crewPosition' => new CrewPositionResource($crewPosition),
+                'vesselRoles'  => $vesselRoles->map(function ($role) {
+                    return [
+                        'id'           => $role->id,
+                        'name'         => $role->name,
+                        'display_name' => $role->display_name,
+                        'description' => $role->description,
+                    ];
+                }),
             ]);
         } catch (\Exception $e) {
             return response()->json([
