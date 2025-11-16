@@ -323,44 +323,4 @@ class FinancialReportController extends Controller
 
         return FinancialReportPdf::download($vessel, $year, $month, null, $user, $enableColors);
     }
-
-    /**
-     * Test PDF generation (for preview).
-     */
-    public function testPdf(Request $request)
-    {
-        /** @var \App\Models\User|null $user */
-        $user = $request->user();
-
-        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
-        /** @var int $vesselId */
-        $vesselId = $request->attributes->get('vessel_id');
-
-        // Check if user has permission
-        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
-        }
-
-        // Check reports.access permission from config
-        $userRole    = $user->getRoleForVessel($vesselId);
-        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['reports.access'] ?? false)) {
-            abort(403, 'You do not have permission to view financial reports.');
-        }
-
-        // Get vessel
-        $vessel = \App\Models\Vessel::find($vesselId);
-        if (! $vessel) {
-            abort(404, 'Vessel not found.');
-        }
-
-        // Use current month and year for test
-        $year  = (int) date('Y');
-        $month = (int) date('m');
-
-        // Get enable_colors from request (default to false)
-        $enableColors = $request->boolean('enable_colors', false);
-
-        return FinancialReportPdf::stream($vessel, $year, $month, 'financial_report_test.pdf', $user, $enableColors);
-    }
 }
