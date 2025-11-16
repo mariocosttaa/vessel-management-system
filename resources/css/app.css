@@ -194,10 +194,47 @@
     *:focus-visible {
         outline-offset: 2px;
     }
-    /* Better selection */
+    /* Better selection - visible highlight */
      ::selection {
-        background-color: hsl(var(--primary) / 0.2);
-        color: hsl(var(--primary-foreground));
+        background-color: hsl(217 91% 60% / 0.3);
+        color: hsl(0 0% 98%);
+        -webkit-text-fill-color: hsl(0 0% 98%);
+    }
+    /* Dark mode selection */
+    .dark ::selection {
+        background-color: hsl(217 91% 70% / 0.4);
+        color: hsl(0 0% 9%);
+        -webkit-text-fill-color: hsl(0 0% 9%);
+    }
+    /* Allow text selection globally by default */
+    * {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+    }
+    /* But allow select-none to override when needed */
+    .select-none,
+    [class*="select-none"],
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"] {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+    }
+    /* Re-enable text selection on button text content if needed */
+    button span,
+    button p,
+    [role="button"] span,
+    [role="button"] p {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
     /* Sidebar styling with blue gradient - override Tailwind bg-sidebar */
     [data-sidebar="sidebar"],
