@@ -143,6 +143,14 @@ interface Props {
         total: number;
         links: Array<any>;
     };
+    salaryTransactions?: {
+        data: Array<any>;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        links: Array<any>;
+    };
     transactionCount?: number;
     defaultCurrency?: string;
     categories?: Array<{
@@ -552,9 +560,14 @@ const handleDelete = () => {
 // Get default currency (assuming EUR for now)
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 
-// Get transactions from paginated data or fallback to marea.transactions (for backward compatibility)
+// Get transactions from paginated data (backend already excludes salary payments)
 const allTransactions = computed(() => {
-    return props.transactions?.data || props.marea.transactions || [];
+    return props.transactions?.data || [];
+});
+
+// Get salary transactions from backend (paginated, max 20 per page)
+const salaryTransactions = computed(() => {
+    return props.salaryTransactions?.data || [];
 });
 
 // Search functionality - use server-side search
@@ -574,28 +587,31 @@ const handleSearch = () => {
     });
 };
 
+// Salary search functionality - use server-side search
+const salarySearchQuery = ref(urlParams.get('salary_search') || '');
+const handleSalarySearch = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (salarySearchQuery.value.trim()) {
+        params.set('salary_search', salarySearchQuery.value.trim());
+    } else {
+        params.delete('salary_search');
+    }
+    params.delete('salary_page'); // Reset to first page when searching
+    router.get(window.location.pathname + (params.toString() ? '?' + params.toString() : ''), {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
 // Group transactions by type (use allTransactions directly since search is server-side)
 const incomeTransactions = computed(() => {
     return allTransactions.value.filter(t => t.type === 'income');
 });
 
+// Expense transactions (already excludes salary payments from backend)
 const expenseTransactions = computed(() =>
     allTransactions.value.filter(t => t.type === 'expense')
 );
-
-// Salary transactions (expense transactions with crew_member_id)
-const salaryTransactions = computed(() => {
-    return allTransactions.value.filter(t =>
-        t.type === 'expense' && t.crew_member_id !== null
-    );
-});
-
-// Non-salary expense transactions
-const nonSalaryExpenseTransactions = computed(() => {
-    return allTransactions.value.filter(t =>
-        t.type === 'expense' && t.crew_member_id === null
-    );
-});
 
 // Filter categories by type
 const incomeCategories = computed(() => {
@@ -1608,6 +1624,21 @@ const cancelDeleteMarea = () => {
                         {{ t('Pay Salary') }}
                     </button>
                 </div>
+
+                <!-- Salary Search Bar -->
+                <div class="mb-4">
+                    <div class="relative">
+                        <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <input
+                            v-model="salarySearchQuery"
+                            type="text"
+                            :placeholder="t('Search salary payments...')"
+                            @keyup.enter="handleSalarySearch"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                        />
+                    </div>
+                </div>
+
                 <div v-if="salaryTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
                         {{ t('No salary payments recorded for this marea') }}
@@ -1717,6 +1748,14 @@ const cancelDeleteMarea = () => {
                         </div>
                     </div>
                 </div>
+
+                <!-- Salary Pagination -->
+                <div v-if="props.salaryTransactions && props.salaryTransactions.links && props.salaryTransactions.links.length > 3" class="mt-6">
+                    <Pagination
+                        :links="props.salaryTransactions.links"
+                        :meta="props.salaryTransactions"
+                    />
+                </div>
             </div>
 
             <!-- Transactions Card -->
@@ -1796,7 +1835,7 @@ const cancelDeleteMarea = () => {
                     </div>
                 </div>
 
-                <div v-if="incomeTransactions.length === 0 && nonSalaryExpenseTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
+                <div v-if="incomeTransactions.length === 0 && expenseTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
                         {{ t('No transactions linked to this marea') }}
                     </p>
@@ -1940,18 +1979,18 @@ const cancelDeleteMarea = () => {
                     </div>
 
                     <!-- Divider between income and expenses -->
-                    <div v-if="incomeTransactions.length > 0 && nonSalaryExpenseTransactions.length > 0" class="flex items-center my-4">
+                    <div v-if="incomeTransactions.length > 0 && expenseTransactions.length > 0" class="flex items-center my-4">
                         <div class="flex-1 border-t border-border dark:border-border"></div>
                         <span class="px-4 text-xs font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Expenses') }}</span>
                         <div class="flex-1 border-t border-border dark:border-border"></div>
                     </div>
 
                     <!-- Expense Transactions (non-salary) -->
-                    <div v-if="nonSalaryExpenseTransactions.length > 0">
+                    <div v-if="expenseTransactions.length > 0">
                         <h3 v-if="incomeTransactions.length === 0" class="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">{{ t('Expenses') }}</h3>
                         <div class="space-y-3">
                             <div
-                                v-for="transaction in nonSalaryExpenseTransactions"
+                                v-for="transaction in expenseTransactions"
                                 :key="transaction.id"
                                 class="flex items-center justify-between p-3 rounded-lg border border-border dark:border-border hover:bg-muted/30 dark:hover:bg-muted/20 group"
                             >

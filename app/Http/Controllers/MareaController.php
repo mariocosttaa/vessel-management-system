@@ -442,8 +442,9 @@ class MareaController extends Controller
         // Count transactions for deletion warning
         $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
 
-        // Load transactions with pagination and search
+        // Load transactions with pagination and search (EXCLUDE salary payments)
         $transactionsQuery = \App\Models\Movimentation::where('marea_id', $marea->id)
+            ->whereNull('crew_member_id') // Exclude salary payments
             ->with([
                 'category:id,name,type,color',
                 'supplier:id,company_name',
@@ -489,6 +490,63 @@ class MareaController extends Controller
                 'supplier'           => $transaction->supplier ? [
                     'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
                     'company_name' => $transaction->supplier->company_name,
+                ] : null,
+                'crew_member_id'     => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user') : null,
+                'crew_member'        => $transaction->crewMember ? [
+                    'id'    => $this->hashId($transaction->crewMember->id, 'user'),
+                    'name'  => $transaction->crewMember->name,
+                    'email' => $transaction->crewMember->email,
+                ] : null,
+            ];
+        });
+
+        // Load salary payments separately with pagination and search (max 20 per page)
+        $salaryTransactionsQuery = \App\Models\Movimentation::where('marea_id', $marea->id)
+            ->whereNotNull('crew_member_id') // Only salary payments
+            ->with([
+                'category:id,name,type,color',
+                'crewMember:id,name,email',
+            ]);
+
+        // Search functionality for salary payments
+        if ($request->filled('salary_search')) {
+            $salarySearch = $request->salary_search;
+            $salaryTransactionsQuery->where(function ($q) use ($salarySearch) {
+                $q->where('transaction_number', 'like', "%{$salarySearch}%")
+                    ->orWhere('description', 'like', "%{$salarySearch}%")
+                    ->orWhere('notes', 'like', "%{$salarySearch}%")
+                    ->orWhereHas('crewMember', function ($query) use ($salarySearch) {
+                        $query->where('name', 'like', "%{$salarySearch}%")
+                            ->orWhere('email', 'like', "%{$salarySearch}%");
+                    });
+            });
+        }
+
+        $salaryTransactions = $salaryTransactionsQuery->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20, ['*'], 'salary_page')
+            ->withQueryString();
+
+        // Map salary transactions for frontend
+        $salaryTransactionsData = $salaryTransactions->through(function ($transaction) {
+            return [
+                'id'                 => $this->hashId($transaction->id, 'movimentation'),
+                'transaction_number' => $transaction->transaction_number,
+                'type'               => $transaction->type,
+                'amount'             => $transaction->amount,
+                'amount_per_unit'    => $transaction->amount_per_unit,
+                'quantity'           => $transaction->quantity,
+                'vat_amount'         => $transaction->vat_amount,
+                'total_amount'       => $transaction->total_amount,
+                'currency'           => $transaction->currency,
+                'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                'created_at'         => $transaction->created_at?->format('Y-m-d H:i:s'),
+                'description'        => $transaction->description,
+                'category'           => $transaction->category ? [
+                    'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                    'name'  => $transaction->category->translated_name,
+                    'type'  => $transaction->category->type,
+                    'color' => $transaction->category->color,
                 ] : null,
                 'crew_member_id'     => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user') : null,
                 'crew_member'        => $transaction->crewMember ? [
@@ -629,7 +687,8 @@ class MareaController extends Controller
                     'name' => $marea->createdBy->name,
                 ] : null,
             ],
-            'transactions'         => $transactionsData, // Paginated transactions
+            'transactions'         => $transactionsData,       // Paginated transactions (excluding salary payments)
+            'salaryTransactions'   => $salaryTransactionsData, // Paginated salary payments (max 20 per page)
         ]);
     }
 
