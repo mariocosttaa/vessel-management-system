@@ -43,7 +43,7 @@ class VesselFileController
 
         $disk = 'public';
         $path = "vessels/{$vesselId}/" . ltrim($filePath, '/');
-        
+
         // Try to get full path from Storage
         $fullPath = null;
         try {
@@ -58,7 +58,7 @@ class VesselFileController
             // Fallback: construct path directly
             $fullPath = storage_path('app/public/' . $path);
         }
-        
+
         // Check if file exists (try Storage first, then filesystem)
         $fileExists = false;
         try {
@@ -70,7 +70,7 @@ class VesselFileController
             ]);
             $fileExists = file_exists($fullPath);
         }
-        
+
         if (!$fileExists || !file_exists($fullPath)) {
             Log::warning('VesselFileController: File not found', [
                 'vesselId' => $vesselId,
@@ -87,7 +87,7 @@ class VesselFileController
 
         try {
             $mime = mime_content_type($fullPath) ?: 'application/octet-stream';
-            
+
             return response()->file($fullPath, [
                 'Content-Type' => $mime,
                 'Cache-Control' => 'public, max-age=86400',
