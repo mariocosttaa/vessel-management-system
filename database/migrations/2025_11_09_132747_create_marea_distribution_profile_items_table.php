@@ -56,8 +56,8 @@ return new class extends Migration
 
             $table->index('distribution_profile_id');
             $table->index(['distribution_profile_id', 'order_index'], 'idx_order');
-            $table->index('reference_item_id');
-            $table->index('reference_operation_item_id');
+            $table->index('reference_item_id', 'idx_ref_item_id');
+            $table->index('reference_operation_item_id', 'idx_ref_op_item_id');
         });
 
         // Add foreign keys after referenced tables exist

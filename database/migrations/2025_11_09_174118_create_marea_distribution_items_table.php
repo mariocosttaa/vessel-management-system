@@ -53,9 +53,9 @@ return new class extends Migration
 
             $table->index('marea_id');
             $table->index(['marea_id', 'order_index'], 'idx_marea_order');
-            $table->index('profile_item_id');
-            $table->index('reference_item_id');
-            $table->index('reference_operation_item_id');
+            $table->index('profile_item_id', 'idx_profile_item_id');
+            $table->index('reference_item_id', 'idx_ref_item_id');
+            $table->index('reference_operation_item_id', 'idx_ref_op_item_id');
         });
 
         // Add foreign keys after referenced tables exist
