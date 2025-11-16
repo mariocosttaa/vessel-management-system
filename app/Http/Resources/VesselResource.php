@@ -13,8 +13,12 @@ class VesselResource extends BaseResource
      */
     public function toArray(Request $request): array
     {
+        if (!$this->resource || !isset($this->id)) {
+            return [];
+        }
+
         return [
-            'id' => $this->hashId($this->id),
+            'id' => $this->hashId($this->id ?? null),
             'name' => $this->name,
             'registration_number' => $this->registration_number,
             'vessel_type' => $this->vessel_type,
@@ -25,7 +29,7 @@ class VesselResource extends BaseResource
             'notes' => $this->notes,
             'logo' => $this->logo,
             'logo_url' => $this->logo_url,
-            'owner_id' => $this->hashIdForModel($this->owner_id, 'user'),
+            'owner_id' => $this->owner_id ? $this->hashIdForModel($this->owner_id, 'user') : null,
             'country_code' => $this->country_code,
             'currency_code' => $this->currency_code,
             'created_at' => $this->created_at?->toISOString(),

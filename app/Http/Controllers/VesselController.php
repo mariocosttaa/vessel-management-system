@@ -130,18 +130,27 @@ class VesselController extends BaseController
             // Assign the vessel to the current user as administrator (owner)
             $user = auth()->user();
 
-            // Get the administrator role access
+            // Get or create the administrator role access
             $adminRoleAccess = \App\Models\VesselRoleAccess::where('name', 'administrator')->first();
 
-            if ($adminRoleAccess) {
-                // Create vessel user role with administrator access
-                \App\Models\VesselUserRole::create([
-                    'vessel_id'             => $vessel->id,
-                    'user_id'               => $user->id,
-                    'vessel_role_access_id' => $adminRoleAccess->id,
-                    'is_active'             => true,
+            // If administrator role doesn't exist, create it
+            if (! $adminRoleAccess) {
+                $adminRoleAccess = \App\Models\VesselRoleAccess::create([
+                    'name'         => 'administrator',
+                    'display_name' => 'Administrator',
+                    'description'  => 'Full access to vessel including deletion and user management',
+                    'permissions' => ['view_vessel', 'edit_vessel_basic', 'edit_vessel_advanced', 'manage_crew', 'delete_vessel', 'manage_vessel_users'],
+                    'is_active'    => true,
                 ]);
             }
+
+            // Create vessel user role with administrator access
+            \App\Models\VesselUserRole::create([
+                'vessel_id'             => $vessel->id,
+                'user_id'               => $user->id,
+                'vessel_role_access_id' => $adminRoleAccess->id,
+                'is_active'             => true,
+            ]);
 
             // Also maintain the old vessel_users table for backward compatibility
             VesselUser::create([
