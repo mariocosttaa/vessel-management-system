@@ -47,10 +47,19 @@ const canShowQuantity = computed(() => {
     return props.mareaStatus === 'returned' || props.mareaStatus === 'closed';
 });
 
+// Disable salary switch when expenses with salary is selected (salary is included)
+const isSalaryDisabled = computed(() => {
+    return expensesWithSalary.value;
+});
+
 // Make expense selection mutually exclusive
 watch(expensesWithSalary, (newValue) => {
     if (newValue) {
         expenses.value = false;
+        // Disable salary when expenses with salary is selected
+        if (includeSalary.value) {
+            includeSalary.value = false;
+        }
     }
 });
 
@@ -88,17 +97,17 @@ const handleClose = () => {
 // Reset form when modal opens and handle pre-selection
 watch(() => props.open, (isOpen) => {
     if (isOpen) {
-        // Reset all to default
-        expensesWithSalary.value = false;
-        expenses.value = false;
-        includeIncomes.value = false;
-        includeCrew.value = false;
-        includeQuantity.value = false;
-        includeSalary.value = false;
-        enableColors.value = false; // Reset colors to unchecked
-
         // Pre-select section if provided
         if (props.preSelectSection) {
+            // Reset all to default first
+            expensesWithSalary.value = false;
+            expenses.value = false;
+            includeIncomes.value = false;
+            includeCrew.value = false;
+            includeQuantity.value = false;
+            includeSalary.value = false;
+            enableColors.value = false; // Reset colors to unchecked
+
             switch (props.preSelectSection) {
                 case 'expensesWithSalary':
                     expensesWithSalary.value = true;
@@ -134,8 +143,17 @@ watch(() => props.open, (isOpen) => {
                     break;
             }
         } else {
-            // Default: if no pre-selection, default to expenses with salary
-            expensesWithSalary.value = true;
+            // Default behavior when clicking PDF button: activate all switches except "Expenses"
+            // Choose "Expenses with Salary" (not regular "Expenses")
+            // Disable "Salary Payments" because it's included in "Expenses with Salary"
+            // Colors should NOT be enabled by default
+            expensesWithSalary.value = true; // Choose expenses with salary
+            expenses.value = false; // NOT regular expenses
+            includeIncomes.value = true; // Activate incomes
+            includeCrew.value = true; // Activate crew
+            includeQuantity.value = canShowQuantity.value; // Activate quantity if available
+            includeSalary.value = false; // Disable salary (included in expenses with salary)
+            enableColors.value = false; // Colors NOT enabled by default
         }
     }
 });
@@ -222,12 +240,13 @@ watch(() => props.open, (isOpen) => {
                     </div>
 
                     <div class="flex items-center justify-between p-3 border rounded-md bg-card">
-                        <Label :for="'salary'" class="text-sm font-medium cursor-pointer">
+                        <Label :for="'salary'" class="text-sm font-medium" :class="{ 'cursor-pointer': !isSalaryDisabled, 'cursor-not-allowed opacity-50': isSalaryDisabled }">
                             {{ t('Salary Payments') }}
                         </Label>
                         <Switch
                             :id="'salary'"
                             v-model:checked="includeSalary"
+                            :disabled="isSalaryDisabled"
                         />
                     </div>
                 </div>

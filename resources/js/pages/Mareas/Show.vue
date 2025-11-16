@@ -14,13 +14,15 @@ import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
+import InputError from '@/components/InputError.vue';
 import mareas from '@/routes/panel/mareas';
-import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { Ship, Calendar, Users, Package, DollarSign, TrendingUp, TrendingDown, Plus, X, Trash2, Wallet, ChevronDown, ChevronUp, MoreVertical, Edit, FileText } from 'lucide-vue-next';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CreateAddModal from '@/components/modals/Movimentation/create-add.vue';
 import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
 import UpdateAddModal from '@/components/modals/Movimentation/update-add.vue';
 import UpdateRemoveModal from '@/components/modals/Movimentation/update-remove.vue';
+import UpdateSalaryModal from '@/components/modals/Movimentation/update-salary.vue';
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
 import EditMareaModal from '@/components/modals/Marea/edit.vue';
 import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
@@ -156,7 +158,7 @@ interface Props {
     transactionCount?: number;
     defaultCurrency?: string;
     categories?: Array<{
-        id: number;
+        id: string | number; // Can be hashed string or number
         name: string;
         type: string;
         color: string;
@@ -297,10 +299,15 @@ const openUpdateModal = async (transaction: any) => {
     // Wait a bit to ensure transaction data is set before opening modal
     await nextTick();
 
-    // Determine which update modal to show based on transaction type
+    // Determine which update modal to show based on transaction type and crew_member_id
     // Use the transaction type from the loaded data or fallback to original
     const transactionType = transactionToEdit.value?.type || transaction.type;
-    if (transactionType === 'income') {
+    const hasCrewMember = transactionToEdit.value?.crew_member_id || transaction.crew_member_id;
+
+    // If it's an expense with a crew_member_id, it's a salary payment - use salary modal
+    if (transactionType === 'expense' && hasCrewMember) {
+        showUpdateSalaryModal.value = true;
+    } else if (transactionType === 'income') {
         showUpdateAddModal.value = true;
     } else if (transactionType === 'expense') {
         showUpdateRemoveModal.value = true;
@@ -311,15 +318,17 @@ const openUpdateModal = async (transaction: any) => {
 const closeUpdateModals = () => {
     showUpdateAddModal.value = false;
     showUpdateRemoveModal.value = false;
+    showUpdateSalaryModal.value = false;
     transactionToEdit.value = null;
 };
 
 // Handle update success
 const handleUpdateSuccess = () => {
     closeUpdateModals();
-    // Reload the page to show updated values
+    // Reload the page to show updated values with scroll preservation
     router.reload({
-        only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile']
+        only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile'],
+        preserveScroll: true,
     });
 };
 
@@ -336,6 +345,7 @@ const confirmDeleteTransaction = () => {
     const vesselId = getCurrentVesselId();
     const url = `/panel/${vesselId}/mareas/${props.marea.id}/remove-movimentation/${transactionToDelete.value}`;
     router.delete(url, {
+        preserveScroll: true,
         onSuccess: () => {
             isProcessing.value = false;
             showDeleteTransactionDialog.value = false;
@@ -379,6 +389,7 @@ const selectedTransaction = ref<any>(null);
 const loadingTransaction = ref(false);
 const showUpdateAddModal = ref(false);
 const showUpdateRemoveModal = ref(false);
+const showUpdateSalaryModal = ref(false);
 const transactionToEdit = ref<any>(null);
 const showDeleteTransactionDialog = ref(false);
 const transactionToDelete = ref<number | null>(null);
@@ -502,13 +513,21 @@ const formatDateTime = (dateString: string | null) => {
 const handleMarkAtSea = () => {
     isProcessing.value = true;
     markAtSeaForm.post(mareas.markAtSea.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        preserveScroll: true,
         onSuccess: () => {
             showMarkAtSeaDialog.value = false;
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Marea has been marked as at sea.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Marea has been marked as at sea.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -520,13 +539,21 @@ const handleMarkAtSea = () => {
 const handleMarkReturned = () => {
     isProcessing.value = true;
     markReturnedForm.post(mareas.markReturned.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        preserveScroll: true,
         onSuccess: () => {
             showMarkReturnedDialog.value = false;
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Marea has been marked as returned.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Marea has been marked as returned.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -538,13 +565,21 @@ const handleMarkReturned = () => {
 const handleClose = () => {
     isProcessing.value = true;
     router.post(mareas.close.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {}, {
+        preserveScroll: true,
         onSuccess: () => {
             showCloseDialog.value = false;
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Marea has been closed.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Marea has been closed.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -556,13 +591,21 @@ const handleClose = () => {
 const handleCancel = () => {
     isProcessing.value = true;
     router.post(mareas.cancel.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {}, {
+        preserveScroll: true,
         onSuccess: () => {
             showCancelDialog.value = false;
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Marea has been cancelled.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Marea has been cancelled.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -574,6 +617,7 @@ const handleCancel = () => {
 const handleDelete = () => {
     isProcessing.value = true;
     router.delete(mareas.destroy.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        preserveScroll: true,
         onSuccess: () => {
             showDeleteDialog.value = false;
             isProcessing.value = false;
@@ -772,13 +816,19 @@ const handleAddTransaction = () => {
 };
 
 const handleEditCalculationSuccess = () => {
-    router.reload();
+    router.reload({
+        only: ['marea'],
+        preserveScroll: true,
+    });
 };
 
 // Handle edit marea success
 const handleEditMareaSuccess = () => {
     showEditMareaDialog.value = false;
-    router.reload();
+    router.reload({
+        only: ['marea'],
+        preserveScroll: true,
+    });
 };
 
 // Handle remove transaction (deprecated - use openDeleteTransactionDialog instead)
@@ -834,12 +884,20 @@ const handleRemoveCrew = (userId: number) => {
         mareaId: props.marea.id,
         crewMember: userId
     }), {
+        preserveScroll: true,
         onSuccess: () => {
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Crew member has been removed from the marea.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile', 'crewSalaryData'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Crew member has been removed from the marea.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -882,12 +940,17 @@ const handleAddQuantityReturn = () => {
 const handleCreateTransactionSuccess = () => {
     showCreateIncomeDialog.value = false;
     showCreateExpenseDialog.value = false;
-    // Reload the page to show the new transaction
-    router.reload();
-    addNotification({
-        type: 'success',
-        title: t('Success'),
-        message: t('Transaction has been created and linked to the marea.'),
+    // Reload the page to show the new transaction with scroll preservation
+    router.reload({
+        only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile'],
+        preserveScroll: true,
+        onFinish: () => {
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Transaction has been created and linked to the marea.'),
+            });
+        },
     });
 };
 
@@ -899,12 +962,20 @@ const handleRemoveQuantityReturn = (quantityReturnId: number) => {
         mareaId: props.marea.id,
         quantityReturn: quantityReturnId
     }), {
+        preserveScroll: true,
         onSuccess: () => {
             isProcessing.value = false;
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Product return has been removed from the marea.'),
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Product return has been removed from the marea.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -1109,15 +1180,24 @@ const handleSalaryPayment = () => {
 
     isProcessing.value = true;
     salaryPaymentForm.post(`/panel/${getCurrentVesselId()}/mareas/${props.marea.id}/salary-payment`, {
+        preserveScroll: true,
         onSuccess: () => {
             showSalaryPaymentDialog.value = false;
             isProcessing.value = false;
             salaryPaymentForm.reset();
             salaryPaymentForm.transaction_date = new Date().toISOString().split('T')[0];
-            addNotification({
-                type: 'success',
-                title: t('Success'),
-                message: t('Salary payment has been created successfully.'),
+            selectedCrewSalaryInfo.value = null;
+            // Reload data with scroll preservation
+            router.reload({
+                only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile', 'crewSalaryData'],
+                preserveScroll: true,
+                onFinish: () => {
+                    addNotification({
+                        type: 'success',
+                        title: t('Success'),
+                        message: t('Salary payment has been created successfully.'),
+                    });
+                },
             });
         },
         onError: () => {
@@ -1407,11 +1487,12 @@ const cancelDeleteMarea = () => {
                             {{ marea.description }}
                         </p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-2">
+                        <!-- Status Change Buttons (Visible) -->
                         <button
                             v-if="marea.status === 'preparing' && canEdit('mareas')"
                             @click="showMarkAtSeaDialog = true"
-                            class="inline-flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
+                            class="inline-flex items-center px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Ship class="w-4 h-4 mr-2" />
                             {{ t('Mark At Sea') }}
@@ -1419,7 +1500,7 @@ const cancelDeleteMarea = () => {
                         <button
                             v-if="marea.status === 'at_sea' && canEdit('mareas')"
                             @click="showMarkReturnedDialog = true"
-                            class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+                            class="inline-flex items-center px-3 py-1.5 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Ship class="w-4 h-4 mr-2" />
                             {{ t('Mark Returned') }}
@@ -1427,42 +1508,87 @@ const cancelDeleteMarea = () => {
                         <button
                             v-if="(marea.status === 'returned' || marea.status === 'at_sea') && canEdit('mareas')"
                             @click="showCloseDialog = true"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                            class="inline-flex items-center px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Icon name="check" class="w-4 h-4 mr-2" />
                             {{ t('Close Marea') }}
                         </button>
-                        <button
-                            v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && canEdit('mareas')"
-                            @click="showCancelDialog = true"
-                            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <Icon name="x" class="w-4 h-4 mr-2" />
-                            {{ t('Cancel') }}
-                        </button>
-                        <button
-                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                            @click="showEditMareaDialog = true"
-                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
-                        >
-                            <Icon name="edit" class="w-4 h-4 mr-2" />
-                            {{ t('Edit') }}
-                        </button>
-                        <button
-                            v-if="canDelete('mareas')"
-                            @click="handleDeleteMarea"
-                            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            <Icon name="trash-2" class="w-4 h-4 mr-2" />
-                            {{ t('Delete') }}
-                        </button>
+
+                        <!-- Generate PDF Button -->
                         <button
                             @click="openDownloadPdfModal()"
-                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                            class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                            :title="t('Generate PDF')"
                         >
-                            <Icon name="file-text" class="w-4 h-4 mr-2" />
+                            <FileText class="w-4 h-4 mr-2" />
                             {{ t('Generate PDF') }}
                         </button>
+
+                        <!-- Hamburger Menu -->
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <button
+                                    class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-border dark:border-border bg-secondary hover:bg-secondary/80 text-secondary-foreground hover:bg-accent transition-colors"
+                                    :title="t('Actions')"
+                                >
+                                    <MoreVertical class="w-4 h-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-56">
+                                <!-- Current Status Display -->
+                                <div class="px-2 py-1.5 border-b border-border dark:border-border">
+                                    <div class="text-xs font-medium text-muted-foreground mb-1">{{ t('Current Status') }}</div>
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            :class="[
+                                                'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                                                getStatusColor(marea.status)
+                                            ]"
+                                        >
+                                            {{ marea.status === 'preparing' ? t('Preparing') :
+                                               marea.status === 'at_sea' ? t('At Sea') :
+                                               marea.status === 'returned' ? t('Returned') :
+                                               marea.status === 'closed' ? t('Closed') :
+                                               marea.status === 'cancelled' ? t('Cancelled') : marea.status }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Cancel Action -->
+                                <DropdownMenuItem
+                                    v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && canEdit('mareas')"
+                                    @click="showCancelDialog = true"
+                                    class="cursor-pointer"
+                                >
+                                    <Icon name="x" class="w-4 h-4 mr-2" />
+                                    {{ t('Cancel') }}
+                                </DropdownMenuItem>
+
+                                <!-- Divider before edit/delete -->
+                                <div v-if="(canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled') || canDelete('mareas')" class="my-1 border-t border-border dark:border-border"></div>
+
+                                <!-- Edit Action -->
+                                <DropdownMenuItem
+                                    v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                    @click="showEditMareaDialog = true"
+                                    class="cursor-pointer"
+                                >
+                                    <Edit class="w-4 h-4 mr-2" />
+                                    {{ t('Edit') }}
+                                </DropdownMenuItem>
+
+                                <!-- Delete Action -->
+                                <DropdownMenuItem
+                                    v-if="canDelete('mareas')"
+                                    @click="handleDeleteMarea"
+                                    variant="destructive"
+                                    class="cursor-pointer"
+                                >
+                                    <Trash2 class="w-4 h-4 mr-2" />
+                                    {{ t('Delete') }}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </div>
@@ -1524,51 +1650,40 @@ const cancelDeleteMarea = () => {
                     <Calendar class="w-5 h-5 mr-2" />
                     {{ t('Timeline') }}
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Departure -->
                     <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Estimated Departure') }}
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.estimated_departure_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="marea.actual_departure_date" class="flex items-start gap-3">
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-cyan-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Actual Departure') }}
+                                {{ marea.actual_departure_date ? t('Departure') : t('Estimated Departure') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.actual_departure_date) }}
+                                {{ marea.actual_departure_date ? formatDate(marea.actual_departure_date) : formatDate(marea.estimated_departure_date) }}
+                            </div>
+                            <div v-if="marea.actual_departure_date && marea.estimated_departure_date" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                {{ t('Est.') }}: {{ formatDate(marea.estimated_departure_date) }}
                             </div>
                         </div>
                     </div>
+
+                    <!-- Return -->
                     <div class="flex items-start gap-3">
-                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500 mt-2"></div>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Estimated Return') }}
-                            </div>
-                            <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.estimated_return_date) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="marea.actual_return_date" class="flex items-start gap-3">
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
                         <div class="flex-1">
                             <div class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Actual Return') }}
+                                {{ marea.actual_return_date ? t('Return') : t('Estimated Return') }}
                             </div>
                             <div class="text-sm text-muted-foreground dark:text-muted-foreground">
-                                {{ formatDate(marea.actual_return_date) }}
+                                {{ marea.actual_return_date ? formatDate(marea.actual_return_date) : formatDate(marea.estimated_return_date) }}
+                            </div>
+                            <div v-if="marea.actual_return_date && marea.estimated_return_date" class="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+                                {{ t('Est.') }}: {{ formatDate(marea.estimated_return_date) }}
                             </div>
                         </div>
                     </div>
+
+                    <!-- Closed At -->
                     <div v-if="marea.closed_at" class="flex items-start gap-3">
                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-500 mt-2"></div>
                         <div class="flex-1">
@@ -3052,8 +3167,18 @@ const cancelDeleteMarea = () => {
             @success="handleUpdateSuccess"
         />
 
+        <UpdateSalaryModal
+            v-if="transactionToEdit && transactionToEdit.type === 'expense' && transactionToEdit.crew_member_id"
+            :open="showUpdateSalaryModal"
+            :transaction="transactionToEdit"
+            :crew-members="crewMembers"
+            :default-currency="props.defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
+
         <UpdateRemoveModal
-            v-if="transactionToEdit && transactionToEdit.type === 'expense'"
+            v-if="transactionToEdit && transactionToEdit.type === 'expense' && !transactionToEdit.crew_member_id"
             :open="showUpdateRemoveModal"
             :transaction="transactionToEdit"
             :categories="expenseCategories"
