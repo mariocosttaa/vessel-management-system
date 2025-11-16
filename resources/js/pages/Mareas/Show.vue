@@ -208,7 +208,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { canEdit, canDelete } = usePermissions();
+const { canEdit, canDelete, hasPermission } = usePermissions();
 const { addNotification } = useNotifications();
 const { t } = useI18n();
 const page = usePage();
@@ -1490,7 +1490,7 @@ const cancelDeleteMarea = () => {
                     <div class="flex items-center gap-2">
                         <!-- Status Change Buttons (Visible) -->
                         <button
-                            v-if="marea.status === 'preparing' && canEdit('mareas')"
+                            v-if="marea.status === 'preparing' && hasPermission('mareas.manage-status')"
                             @click="showMarkAtSeaDialog = true"
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
                         >
@@ -1498,7 +1498,7 @@ const cancelDeleteMarea = () => {
                             {{ t('Mark At Sea') }}
                         </button>
                         <button
-                            v-if="marea.status === 'at_sea' && canEdit('mareas')"
+                            v-if="marea.status === 'at_sea' && hasPermission('mareas.manage-status')"
                             @click="showMarkReturnedDialog = true"
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
                         >
@@ -1506,7 +1506,7 @@ const cancelDeleteMarea = () => {
                             {{ t('Mark Returned') }}
                         </button>
                         <button
-                            v-if="(marea.status === 'returned' || marea.status === 'at_sea') && canEdit('mareas')"
+                            v-if="(marea.status === 'returned' || marea.status === 'at_sea') && hasPermission('mareas.manage-status')"
                             @click="showCloseDialog = true"
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                         >
@@ -1564,11 +1564,11 @@ const cancelDeleteMarea = () => {
                                 </DropdownMenuItem>
 
                                 <!-- Status Actions -->
-                                <div v-if="canEdit('mareas')" class="my-1 border-t border-border dark:border-border"></div>
+                                <div v-if="hasPermission('mareas.manage-status')" class="my-1 border-t border-border dark:border-border"></div>
 
                                 <!-- Mark At Sea Action -->
                                 <DropdownMenuItem
-                                    v-if="marea.status === 'preparing' && canEdit('mareas')"
+                                    v-if="marea.status === 'preparing' && hasPermission('mareas.manage-status')"
                                     @click="showMarkAtSeaDialog = true"
                                     class="cursor-pointer"
                                 >
@@ -1578,7 +1578,7 @@ const cancelDeleteMarea = () => {
 
                                 <!-- Mark Returned Action -->
                                 <DropdownMenuItem
-                                    v-if="marea.status === 'at_sea' && canEdit('mareas')"
+                                    v-if="marea.status === 'at_sea' && hasPermission('mareas.manage-status')"
                                     @click="showMarkReturnedDialog = true"
                                     class="cursor-pointer"
                                 >
@@ -1588,7 +1588,7 @@ const cancelDeleteMarea = () => {
 
                                 <!-- Close Marea Action -->
                                 <DropdownMenuItem
-                                    v-if="(marea.status === 'returned' || marea.status === 'at_sea') && canEdit('mareas')"
+                                    v-if="(marea.status === 'returned' || marea.status === 'at_sea') && hasPermission('mareas.manage-status')"
                                     @click="showCloseDialog = true"
                                     class="cursor-pointer"
                                 >
@@ -1598,7 +1598,7 @@ const cancelDeleteMarea = () => {
 
                                 <!-- Cancel Action -->
                                 <DropdownMenuItem
-                                    v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && canEdit('mareas')"
+                                    v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && hasPermission('mareas.manage-status')"
                                     @click="showCancelDialog = true"
                                     class="cursor-pointer"
                                 >

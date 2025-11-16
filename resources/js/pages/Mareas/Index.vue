@@ -61,7 +61,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { canCreate, canEdit, canDelete } = usePermissions();
+const { canCreate, canEdit, canDelete, hasPermission } = usePermissions();
 const { addNotification } = useNotifications();
 const { t } = useI18n();
 
@@ -727,11 +727,11 @@ const translatedStatuses = computed(() => {
                         </button>
 
                         <!-- Divider -->
-                        <div v-if="openDropdownId !== null && canEdit('mareas')" class="my-1 border-t border-border dark:border-border"></div>
+                        <div v-if="openDropdownId !== null && hasPermission('mareas.manage-status')" class="my-1 border-t border-border dark:border-border"></div>
 
                         <!-- Mark At Sea -->
                         <button
-                            v-if="openDropdownId !== null && canEdit('mareas') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'preparing'"
+                            v-if="openDropdownId !== null && hasPermission('mareas.manage-status') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'preparing'"
                             @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleMarkAtSea(marea)"
                             class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                         >
@@ -741,7 +741,7 @@ const translatedStatuses = computed(() => {
 
                         <!-- Mark Returned -->
                         <button
-                            v-if="openDropdownId !== null && canEdit('mareas') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'at_sea'"
+                            v-if="openDropdownId !== null && hasPermission('mareas.manage-status') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'at_sea'"
                             @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleMarkReturned(marea)"
                             class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                         >
@@ -751,7 +751,7 @@ const translatedStatuses = computed(() => {
 
                         <!-- Close Marea -->
                         <button
-                            v-if="openDropdownId !== null && canEdit('mareas') && ['returned', 'at_sea'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
+                            v-if="openDropdownId !== null && hasPermission('mareas.manage-status') && ['returned', 'at_sea'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
                             @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleClose(marea)"
                             class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                         >
@@ -761,7 +761,7 @@ const translatedStatuses = computed(() => {
 
                         <!-- Cancel -->
                         <button
-                            v-if="openDropdownId !== null && canEdit('mareas') && !['closed', 'cancelled'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
+                            v-if="openDropdownId !== null && hasPermission('mareas.manage-status') && !['closed', 'cancelled'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
                             @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleCancel(marea)"
                             class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                         >
