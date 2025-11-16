@@ -39,15 +39,38 @@ RUN npm ci && npm run build
 # Remove dev dependencies for production (optional - keeps image smaller)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || true
 
-# Ensure storage/app directories exist (will be overridden by volume mount if configured)
+# Ensure all storage directories exist (will be overridden by volume mount if configured)
+# Create storage directory structure
 RUN mkdir -p /var/www/html/storage/app/private \
     && mkdir -p /var/www/html/storage/app/public \
-    && chown -R www-data:www-data /var/www/html/storage/app
+    && mkdir -p /var/www/html/storage/framework/cache/data \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && mkdir -p /var/www/html/storage/framework/testing \
+    && mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/logs
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage \
-    && chmod -R 775 /var/www/html/bootstrap/cache
+# Set ownership for all storage directories
+RUN chown -R www-data:www-data /var/www/html/storage
+
+# Set permissions: 755 for directories (as requested), but ensure they're writable
+# Note: 755 allows owner (www-data) to write, group and others can read/execute
+RUN chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
+
+# Ensure storage/app subdirectories have correct permissions (755 = rwxr-xr-x)
+RUN chmod 755 /var/www/html/storage/app \
+    && chmod 755 /var/www/html/storage/app/private \
+    && chmod 755 /var/www/html/storage/app/public \
+    && chmod 755 /var/www/html/storage/framework \
+    && chmod 755 /var/www/html/storage/framework/cache \
+    && chmod 755 /var/www/html/storage/framework/cache/data \
+    && chmod 755 /var/www/html/storage/framework/sessions \
+    && chmod 755 /var/www/html/storage/framework/testing \
+    && chmod 755 /var/www/html/storage/framework/views \
+    && chmod 755 /var/www/html/storage/logs
+
+# Set ownership for entire application (needed for file operations)
+RUN chown -R www-data:www-data /var/www/html
 
 # Create supervisor configuration directories
 RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor
@@ -132,8 +155,15 @@ RUN rm -f /etc/nginx/sites-enabled/default \
     && ln -s /etc/nginx/sites-available/laravel /etc/nginx/sites-enabled/laravel \
     && rm -f /etc/nginx/sites-enabled/default
 
+# Copy and set up entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
+
+# Use entrypoint to ensure permissions are set at startup
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start supervisor (which manages nginx, php-fpm, queue worker, and scheduler)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

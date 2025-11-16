@@ -237,45 +237,61 @@ class TenantFileAction
         try {
             $storagePath = storage_path('app');
 
-            // Ensure base storage/app directory exists
+            // Check if base storage/app directory exists
             if (!is_dir($storagePath)) {
-                if (!mkdir($storagePath, 0775, true) && !is_dir($storagePath)) {
-                    throw new \RuntimeException("Failed to create storage directory: {$storagePath}. Check volume mount permissions.");
+                // Try to create it
+                if (!@mkdir($storagePath, 0775, true) && !is_dir($storagePath)) {
+                    throw new \RuntimeException(
+                        "Storage directory does not exist and cannot be created: {$storagePath}. " .
+                        "If using a volume mount in Coolify, ensure the volume has correct permissions (775) and ownership (www-data:www-data). " .
+                        "You may need to fix permissions on the host volume directory."
+                    );
                 }
-                // Try to set ownership to www-data:www-data (matches Dockerfile)
-                @chown($storagePath, 'www-data');
-                @chgrp($storagePath, 'www-data');
+            }
+
+            // Check if storage/app is writable (critical for volume mounts)
+            if (!is_writable($storagePath)) {
+                throw new \RuntimeException(
+                    "Storage directory is not writable: {$storagePath}. " .
+                    "If using a volume mount in Coolify, ensure the volume has write permissions (775) for the www-data user. " .
+                    "Check volume mount permissions on the host."
+                );
             }
 
             // For public disk, ensure storage/app/public exists
             if ($disk === 'public') {
                 $publicPath = storage_path('app/public');
                 if (!is_dir($publicPath)) {
-                    if (!mkdir($publicPath, 0775, true) && !is_dir($publicPath)) {
-                        throw new \RuntimeException("Failed to create public storage directory: {$publicPath}. Check volume mount permissions.");
+                    // Parent directory is writable (checked above), so we should be able to create subdirectory
+                    if (!@mkdir($publicPath, 0775, true) && !is_dir($publicPath)) {
+                        throw new \RuntimeException(
+                            "Failed to create public storage directory: {$publicPath}. " .
+                            "Parent directory exists and is writable, but subdirectory creation failed. " .
+                            "This may indicate a volume mount permission issue. " .
+                            "Ensure the volume mount has permissions 775 and ownership www-data:www-data."
+                        );
                     }
                 }
-                // Ensure permissions match Dockerfile (775) - fix even if directory already exists
-                @chmod($publicPath, 0775);
-                // Try to set ownership to www-data:www-data (matches Dockerfile)
-                @chown($publicPath, 'www-data');
-                @chgrp($publicPath, 'www-data');
             }
 
             // For local disk, ensure storage/app/private exists
             if ($disk === 'local') {
                 $privatePath = storage_path('app/private');
                 if (!is_dir($privatePath)) {
-                    if (!mkdir($privatePath, 0775, true) && !is_dir($privatePath)) {
-                        throw new \RuntimeException("Failed to create private storage directory: {$privatePath}. Check volume mount permissions.");
+                    // Parent directory is writable (checked above), so we should be able to create subdirectory
+                    if (!@mkdir($privatePath, 0775, true) && !is_dir($privatePath)) {
+                        throw new \RuntimeException(
+                            "Failed to create private storage directory: {$privatePath}. " .
+                            "Parent directory exists and is writable, but subdirectory creation failed. " .
+                            "This may indicate a volume mount permission issue. " .
+                            "Ensure the volume mount has permissions 775 and ownership www-data:www-data."
+                        );
                     }
                 }
-                // Ensure permissions match Dockerfile (775) - fix even if directory already exists
-                @chmod($privatePath, 0775);
-                // Try to set ownership to www-data:www-data (matches Dockerfile)
-                @chown($privatePath, 'www-data');
-                @chgrp($privatePath, 'www-data');
             }
+        } catch (\RuntimeException $e) {
+            // Re-throw RuntimeExceptions as-is (they already have helpful messages)
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to ensure storage directory exists', [
                 'disk' => $disk,
