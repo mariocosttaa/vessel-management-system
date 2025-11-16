@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
+import Icon from '@/components/Icon.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import vatReports from '@/routes/panel/vat-reports';
+import ColorSelectionModal from '@/components/modals/Movimentation/ColorSelectionModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 
 // Get current vessel ID from URL
 const getCurrentVesselId = () => {
@@ -74,6 +77,87 @@ const viewMonthYear = (month: number, year: number) => {
     });
 };
 
+// PDF download state
+const showColorModal = ref(false);
+const showPdfModal = ref(false);
+const isDownloading = ref(false);
+const selectedMonth = ref<number | null>(null);
+const selectedYear = ref<number | null>(null);
+let colorPreference = false;
+
+// Open color selection modal before download
+const openColorModal = (month: number, year: number) => {
+    selectedMonth.value = month;
+    selectedYear.value = year;
+    showColorModal.value = true;
+};
+
+// Handle color selection confirmation
+const handleColorConfirm = (enableColors: boolean) => {
+    colorPreference = enableColors;
+    showColorModal.value = false;
+    startDownload();
+};
+
+// Start download after color selection
+const startDownload = () => {
+    showPdfModal.value = true;
+    isDownloading.value = true;
+};
+
+// Download PDF for specific month/year
+const downloadPdfMonth = (month: number, year: number, event?: Event) => {
+    if (event) {
+        event.stopPropagation();
+    }
+    openColorModal(month, year);
+};
+
+const closePdfModal = () => {
+    if (!isDownloading.value) {
+        showPdfModal.value = false;
+    }
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfModal.value = false;
+    isDownloading.value = false;
+    selectedMonth.value = null;
+    selectedYear.value = null;
+};
+
+const handlePdfReady = () => {
+    if (!isDownloading.value || selectedMonth.value === null || selectedYear.value === null) return;
+
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+    if (colorPreference) {
+        params.append('enable_colors', '1');
+    }
+    const queryString = params.toString();
+    const url = vatReports.pdf.url({
+        vessel: vesselId,
+        year: selectedYear.value,
+        month: selectedMonth.value
+    }) + (queryString ? '?' + queryString : '');
+
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close modal after a short delay
+    setTimeout(() => {
+        showPdfModal.value = false;
+        isDownloading.value = false;
+        selectedMonth.value = null;
+        selectedYear.value = null;
+    }, 500);
+};
+
 // Group month/year combinations by year
 const groupedByYear = computed(() => {
     const groups: Record<number, MonthYearCombination[]> = {};
@@ -126,30 +210,42 @@ const groupedByYear = computed(() => {
 
                     <!-- Month Cards Grid -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                        <button
+                        <div
                             v-for="item in yearGroup.months"
                             :key="`${item.year}-${item.month}`"
-                            @click="viewMonthYear(item.month, item.year)"
-                            class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6 text-left transition-all hover:shadow-lg hover:border-primary/50 cursor-pointer"
+                            class="relative rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card transition-all hover:shadow-lg hover:border-primary/50"
                         >
-                            <div class="flex flex-col items-center justify-center text-center">
-                                <div class="text-2xl text-card-foreground dark:text-card-foreground mb-2">
-                                    {{ item.month_label }}
+                            <button
+                                @click="viewMonthYear(item.month, item.year)"
+                                class="w-full p-6 text-left cursor-pointer"
+                            >
+                                <div class="flex flex-col items-center justify-center text-center">
+                                    <div class="text-2xl text-card-foreground dark:text-card-foreground mb-2">
+                                        {{ item.month_label }}
+                                    </div>
+                                    <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-2">
+                                        {{ item.count }} {{ item.count === 1 ? t('transaction') : t('transactions') }}
+                                    </div>
+                                    <div class="text-lg font-semibold text-primary dark:text-primary">
+                                        <MoneyDisplay
+                                            :value="item.total_vat"
+                                            :currency="defaultCurrency"
+                                            :decimals="currencyData.decimal_separator"
+                                            variant="positive"
+                                            size="sm"
+                                        />
+                                    </div>
                                 </div>
-                                <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-2">
-                                    {{ item.count }} {{ item.count === 1 ? t('transaction') : t('transactions') }}
-                                </div>
-                                <div class="text-lg font-semibold text-primary dark:text-primary">
-                                    <MoneyDisplay
-                                        :value="item.total_vat"
-                                        :currency="defaultCurrency"
-                                        :decimals="currencyData.decimal_separator"
-                                        variant="positive"
-                                        size="sm"
-                                    />
-                                </div>
-                            </div>
-                        </button>
+                            </button>
+                            <!-- Download PDF Button -->
+                            <button
+                                @click="downloadPdfMonth(item.month, item.year, $event)"
+                                class="absolute top-2 right-2 p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                                :title="t('Download PDF')"
+                            >
+                                <Icon name="download" class="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -160,6 +256,22 @@ const groupedByYear = computed(() => {
                 <p class="text-sm text-muted-foreground dark:text-muted-foreground mt-2">{{ t('VAT is only calculated for income transactions') }}</p>
             </div>
         </div>
+
+        <!-- Color Selection Modal -->
+        <ColorSelectionModal
+            :open="showColorModal"
+            @close="showColorModal = false"
+            @confirm="handleColorConfirm"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfModal"
+            :countdown="5"
+            @close="closePdfModal"
+            @cancel="handlePdfDownloadCancel"
+            @ready="handlePdfReady"
+        />
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
