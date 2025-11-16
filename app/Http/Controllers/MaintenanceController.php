@@ -390,7 +390,7 @@ class MaintenanceController extends Controller
             'defaultCurrency'   => $defaultCurrency,
             'categories'        => $categories->map(function ($category) {
                 return [
-                    'id'    => $category->id,
+                    'id'    => $this->hashId($category->id, 'transactioncategory'),
                     'name'  => $category->translated_name,
                     'type'  => $category->type,
                     'color' => $category->color,

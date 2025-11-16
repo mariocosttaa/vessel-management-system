@@ -102,13 +102,13 @@ import { ChevronDownIcon } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
 
 interface Option {
-  value: string | number
+  value: string | number | null
   label: string
 }
 
 interface Props {
   modelValue?: string | number | null
-  options: Option[] | string[] | number[]
+  options: Array<Option | string | number>
   placeholder?: string
   searchable?: boolean
   valueKey?: string
@@ -161,9 +161,13 @@ const filteredOptions = computed(() => {
 })
 
 const selectedOption = computed(() => {
-  return props.options.find((option: any) =>
-    getOptionValue(option) === props.modelValue
-  )
+  if (props.modelValue == null) return null
+  return props.options.find((option: any) => {
+    const optionValue = getOptionValue(option)
+    if (optionValue == null) return false
+    // Convert both to same type for comparison (handle number/string mismatch)
+    return String(optionValue) === String(props.modelValue) || Number(optionValue) === Number(props.modelValue)
+  })
 })
 
 const displayValue = computed(() => {
@@ -185,7 +189,15 @@ const getOptionLabel = (option: any): string => {
 }
 
 const isSelected = (option: any): boolean => {
-  return getOptionValue(option) === props.modelValue
+  const optionValue = getOptionValue(option)
+  const modelValue = props.modelValue
+  // Handle null/undefined cases
+  if (optionValue == null && modelValue == null) return true
+  if (optionValue == null || modelValue == null) return false
+  // Convert both to same type for comparison (handle number/string mismatch)
+  // Use strict equality first, then try type coercion
+  if (optionValue === modelValue) return true
+  return String(optionValue) === String(modelValue) || Number(optionValue) === Number(modelValue)
 }
 
 const handleInputClick = () => {
