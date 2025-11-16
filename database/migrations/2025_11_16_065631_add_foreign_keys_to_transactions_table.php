@@ -40,6 +40,19 @@ return new class extends Migration
             } catch (\Exception $e) {
                 // Foreign key might already exist, ignore
             }
+
+            try {
+                if (Schema::hasTable('recurring_transactions')) {
+                    Schema::table('transactions', function (Blueprint $table) {
+                        $table->foreign('recurring_transaction_id')
+                            ->references('id')
+                            ->on('recurring_transactions')
+                            ->onDelete('set null');
+                    });
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist, ignore
+            }
         }
     }
 
@@ -53,6 +66,7 @@ return new class extends Migration
             Schema::table('transactions', function (Blueprint $table) {
                 $table->dropForeign(['marea_id']);
                 $table->dropForeign(['vat_profile_id']);
+                $table->dropForeign(['recurring_transaction_id']);
             });
         }
     }

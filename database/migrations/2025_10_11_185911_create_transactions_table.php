@@ -48,7 +48,8 @@ return new class extends Migration
 
             // Despesas recorrentes
             $table->boolean('is_recurring')->default(false);
-            $table->foreignId('recurring_transaction_id')->nullable()->constrained('recurring_transactions')->onDelete('set null');
+            // Note: Foreign key to recurring_transactions added after recurring_transactions table exists (see migration order)
+            $table->unsignedBigInteger('recurring_transaction_id')->nullable();
 
             $table->enum('status', ['pending', 'completed', 'cancelled'])->default('completed');
 
