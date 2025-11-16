@@ -2,9 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\InvitationEmail;
 use App\Models\User;
 use App\Models\Vessel;
+use App\Models\VesselUser;
+use App\Models\VesselUserRole;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class UserManage extends Command
 {
@@ -62,6 +66,9 @@ class UserManage extends Command
         $this->line('  6. View User Information');
         $this->line('  7. List Users');
         $this->line('  8. Check Limits & Usage');
+        $this->line('  9. Delete Users');
+        $this->line(' 10. Delete Vessels');
+        $this->line(' 11. Manage Invitation Limits');
         $this->line('  0. Exit');
         $this->newLine();
     }
@@ -80,6 +87,9 @@ class UserManage extends Command
             '6' => $this->viewUserInformation(),
             '7' => $this->listUsers(),
             '8' => $this->checkLimits(),
+            '9' => $this->deleteUsers(),
+            '10' => $this->deleteVessels(),
+            '11' => $this->manageInvitationLimits(),
             default => $this->error('Invalid option. Please try again.'),
         };
     }
@@ -739,6 +749,627 @@ class UserManage extends Command
         }
 
         $this->info('═══════════════════════════════════════════════════════════');
+    }
+
+    /**
+     * Delete users.
+     */
+    private function deleteUsers(): void
+    {
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           Delete Users');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
+
+        $this->line('Options:');
+        $this->line('  1. Delete a specific user');
+        $this->line('  2. Delete multiple users by email (comma-separated)');
+        $this->line('  3. Delete users with no vessels and no transactions');
+        $this->line('  0. Back to main menu');
+        $this->newLine();
+
+        $choice = $this->ask('Select an option', '0');
+
+        if ($choice === '0') {
+            return;
+        }
+
+        match ($choice) {
+            '1' => $this->deleteSingleUser(),
+            '2' => $this->deleteMultipleUsers(),
+            '3' => $this->deleteOrphanedUsers(),
+            default => $this->error('Invalid option.'),
+        };
+    }
+
+    /**
+     * Delete a single user.
+     */
+    private function deleteSingleUser(): void
+    {
+        $user = $this->selectUser();
+        if (! $user) {
+            return;
+        }
+
+        $this->displayUserInfo($user);
+        $this->newLine();
+
+        // Check relationships
+        $ownedVessels = $user->ownedVessels()->count();
+        $vesselRoles = VesselUserRole::where('user_id', $user->id)->count();
+        $vesselUsers = VesselUser::where('user_id', $user->id)->count();
+        $transactions = $user->transactions()->count();
+        $crewMember = $user->vessel_id ? 'Yes' : 'No';
+
+        $this->warn('⚠ Relationship Summary:');
+        $this->line("  - Owned Vessels: {$ownedVessels}");
+        $this->line("  - Vessel Roles: {$vesselRoles}");
+        $this->line("  - Vessel Users: {$vesselUsers}");
+        $this->line("  - Transactions: {$transactions}");
+        $this->line("  - Crew Member: {$crewMember}");
+        $this->newLine();
+
+        if ($ownedVessels > 0 || $transactions > 0) {
+            $this->error('⚠ WARNING: This user has vessels or transactions. Deletion may cause data loss!');
+            $this->newLine();
+        }
+
+        if (! $this->confirm('Are you sure you want to DELETE this user? This action cannot be undone!', false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Remove vessel ownership
+            if ($ownedVessels > 0) {
+                Vessel::where('owner_id', $user->id)->update(['owner_id' => null]);
+                $this->line("✓ Removed ownership from {$ownedVessels} vessel(s)");
+            }
+
+            // Remove vessel roles
+            if ($vesselRoles > 0) {
+                VesselUserRole::where('user_id', $user->id)->delete();
+                $this->line("✓ Removed {$vesselRoles} vessel role(s)");
+            }
+
+            // Remove vessel users
+            if ($vesselUsers > 0) {
+                VesselUser::where('user_id', $user->id)->delete();
+                $this->line("✓ Removed {$vesselUsers} vessel user relationship(s)");
+            }
+
+            // Delete invitation emails
+            InvitationEmail::where('user_id', $user->id)->delete();
+
+            // Delete the user
+            $userEmail = $user->email;
+            $user->delete();
+
+            DB::commit();
+            $this->info("✓ User {$userEmail} has been deleted successfully.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error("✗ Error deleting user: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Delete multiple users.
+     */
+    private function deleteMultipleUsers(): void
+    {
+        $emailsInput = $this->ask('Enter user emails (comma-separated)');
+        if (empty($emailsInput)) {
+            $this->error('No emails provided.');
+            return;
+        }
+
+        $emails = array_map('trim', explode(',', $emailsInput));
+        $users = User::whereIn('email', $emails)->get();
+
+        if ($users->isEmpty()) {
+            $this->error('No users found with the provided emails.');
+            return;
+        }
+
+        $this->newLine();
+        $this->info('Found ' . $users->count() . ' user(s):');
+        foreach ($users as $user) {
+            $this->line("  - {$user->email} (ID: {$user->id})");
+        }
+        $this->newLine();
+
+        if (! $this->confirm('Are you sure you want to DELETE these users? This action cannot be undone!', false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        $deleted = 0;
+        $errors = 0;
+
+        foreach ($users as $user) {
+            try {
+                DB::beginTransaction();
+
+                // Remove relationships
+                Vessel::where('owner_id', $user->id)->update(['owner_id' => null]);
+                VesselUserRole::where('user_id', $user->id)->delete();
+                VesselUser::where('user_id', $user->id)->delete();
+                InvitationEmail::where('user_id', $user->id)->delete();
+
+                $user->delete();
+                DB::commit();
+                $deleted++;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->error("✗ Error deleting {$user->email}: {$e->getMessage()}");
+                $errors++;
+            }
+        }
+
+        $this->info("✓ Deleted {$deleted} user(s) successfully.");
+        if ($errors > 0) {
+            $this->warn("⚠ {$errors} user(s) could not be deleted.");
+        }
+    }
+
+    /**
+     * Delete orphaned users (no vessels, no transactions).
+     */
+    private function deleteOrphanedUsers(): void
+    {
+        $users = User::whereDoesntHave('ownedVessels')
+            ->whereDoesntHave('transactions')
+            ->where('user_type', 'employee_of_vessel')
+            ->get();
+
+        if ($users->isEmpty()) {
+            $this->info('No orphaned users found.');
+            return;
+        }
+
+        $this->info("Found {$users->count()} orphaned user(s):");
+        foreach ($users->take(10) as $user) {
+            $this->line("  - {$user->email} (ID: {$user->id})");
+        }
+        if ($users->count() > 10) {
+            $this->line("  ... and " . ($users->count() - 10) . " more");
+        }
+        $this->newLine();
+
+        if (! $this->confirm("Delete all {$users->count()} orphaned user(s)?", false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        $deleted = 0;
+        foreach ($users as $user) {
+            try {
+                DB::beginTransaction();
+                VesselUserRole::where('user_id', $user->id)->delete();
+                VesselUser::where('user_id', $user->id)->delete();
+                InvitationEmail::where('user_id', $user->id)->delete();
+                $user->delete();
+                DB::commit();
+                $deleted++;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->error("✗ Error deleting {$user->email}: {$e->getMessage()}");
+            }
+        }
+
+        $this->info("✓ Deleted {$deleted} orphaned user(s) successfully.");
+    }
+
+    /**
+     * Delete vessels.
+     */
+    private function deleteVessels(): void
+    {
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           Delete Vessels');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
+
+        $this->line('Options:');
+        $this->line('  1. Delete a specific vessel');
+        $this->line('  2. Delete multiple vessels by registration (comma-separated)');
+        $this->line('  3. Delete vessels with no crew and no transactions');
+        $this->line('  0. Back to main menu');
+        $this->newLine();
+
+        $choice = $this->ask('Select an option', '0');
+
+        if ($choice === '0') {
+            return;
+        }
+
+        match ($choice) {
+            '1' => $this->deleteSingleVessel(),
+            '2' => $this->deleteMultipleVessels(),
+            '3' => $this->deleteEmptyVessels(),
+            default => $this->error('Invalid option.'),
+        };
+    }
+
+    /**
+     * Select a vessel interactively.
+     */
+    private function selectVessel(): ?Vessel
+    {
+        $identifier = $this->ask('Enter vessel ID or registration number');
+
+        if (empty($identifier)) {
+            $this->error('Vessel identifier is required.');
+            return null;
+        }
+
+        $vessel = is_numeric($identifier)
+            ? Vessel::find($identifier)
+            : Vessel::where('registration_number', $identifier)->first();
+
+        if (! $vessel) {
+            $this->error("Vessel not found: {$identifier}");
+            return null;
+        }
+
+        return $vessel;
+    }
+
+    /**
+     * Delete a single vessel.
+     */
+    private function deleteSingleVessel(): void
+    {
+        $vessel = $this->selectVessel();
+        if (! $vessel) {
+            return;
+        }
+
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info("Vessel Information: {$vessel->name}");
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->line("ID: {$vessel->id}");
+        $this->line("Name: {$vessel->name}");
+        $this->line("Registration: {$vessel->registration_number}");
+        $this->line("Status: {$vessel->status}");
+        $this->line("Owner: " . ($vessel->owner ? $vessel->owner->email : 'None'));
+        $this->newLine();
+
+        // Check relationships
+        $crewMembers = $vessel->crewMembers()->count();
+        $transactions = $vessel->movimentations()->count();
+        $vesselRoles = VesselUserRole::where('vessel_id', $vessel->id)->count();
+        $vesselUsers = VesselUser::where('vessel_id', $vessel->id)->count();
+
+        $this->warn('⚠ Relationship Summary:');
+        $this->line("  - Crew Members: {$crewMembers}");
+        $this->line("  - Transactions: {$transactions}");
+        $this->line("  - Vessel Roles: {$vesselRoles}");
+        $this->line("  - Vessel Users: {$vesselUsers}");
+        $this->newLine();
+
+        if ($crewMembers > 0 || $transactions > 0) {
+            $this->error('⚠ WARNING: This vessel has crew members or transactions. Deletion may cause data loss!');
+            $this->newLine();
+        }
+
+        if (! $this->confirm('Are you sure you want to DELETE this vessel? This action cannot be undone!', false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Remove relationships
+            if ($vesselRoles > 0) {
+                VesselUserRole::where('vessel_id', $vessel->id)->delete();
+                $this->line("✓ Removed {$vesselRoles} vessel role(s)");
+            }
+
+            if ($vesselUsers > 0) {
+                VesselUser::where('vessel_id', $vessel->id)->delete();
+                $this->line("✓ Removed {$vesselUsers} vessel user relationship(s)");
+            }
+
+            // Clear owner
+            $vessel->update(['owner_id' => null]);
+
+            $vesselName = $vessel->name;
+            $vessel->delete();
+
+            DB::commit();
+            $this->info("✓ Vessel {$vesselName} has been deleted successfully.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error("✗ Error deleting vessel: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Delete multiple vessels.
+     */
+    private function deleteMultipleVessels(): void
+    {
+        $registrationsInput = $this->ask('Enter vessel registration numbers (comma-separated)');
+        if (empty($registrationsInput)) {
+            $this->error('No registration numbers provided.');
+            return;
+        }
+
+        $registrations = array_map('trim', explode(',', $registrationsInput));
+        $vessels = Vessel::whereIn('registration_number', $registrations)->get();
+
+        if ($vessels->isEmpty()) {
+            $this->error('No vessels found with the provided registration numbers.');
+            return;
+        }
+
+        $this->newLine();
+        $this->info('Found ' . $vessels->count() . ' vessel(s):');
+        foreach ($vessels as $vessel) {
+            $this->line("  - {$vessel->name} ({$vessel->registration_number})");
+        }
+        $this->newLine();
+
+        if (! $this->confirm('Are you sure you want to DELETE these vessels? This action cannot be undone!', false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        $deleted = 0;
+        $errors = 0;
+
+        foreach ($vessels as $vessel) {
+            try {
+                DB::beginTransaction();
+                VesselUserRole::where('vessel_id', $vessel->id)->delete();
+                VesselUser::where('vessel_id', $vessel->id)->delete();
+                $vessel->update(['owner_id' => null]);
+                $vessel->delete();
+                DB::commit();
+                $deleted++;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->error("✗ Error deleting {$vessel->name}: {$e->getMessage()}");
+                $errors++;
+            }
+        }
+
+        $this->info("✓ Deleted {$deleted} vessel(s) successfully.");
+        if ($errors > 0) {
+            $this->warn("⚠ {$errors} vessel(s) could not be deleted.");
+        }
+    }
+
+    /**
+     * Delete empty vessels (no crew, no transactions).
+     */
+    private function deleteEmptyVessels(): void
+    {
+        $vessels = Vessel::whereDoesntHave('crewMembers')
+            ->whereDoesntHave('movimentations')
+            ->get();
+
+        if ($vessels->isEmpty()) {
+            $this->info('No empty vessels found.');
+            return;
+        }
+
+        $this->info("Found {$vessels->count()} empty vessel(s):");
+        foreach ($vessels->take(10) as $vessel) {
+            $this->line("  - {$vessel->name} ({$vessel->registration_number})");
+        }
+        if ($vessels->count() > 10) {
+            $this->line("  ... and " . ($vessels->count() - 10) . " more");
+        }
+        $this->newLine();
+
+        if (! $this->confirm("Delete all {$vessels->count()} empty vessel(s)?", false)) {
+            $this->info('Deletion cancelled.');
+            return;
+        }
+
+        $deleted = 0;
+        foreach ($vessels as $vessel) {
+            try {
+                DB::beginTransaction();
+                VesselUserRole::where('vessel_id', $vessel->id)->delete();
+                VesselUser::where('vessel_id', $vessel->id)->delete();
+                $vessel->update(['owner_id' => null]);
+                $vessel->delete();
+                DB::commit();
+                $deleted++;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->error("✗ Error deleting {$vessel->name}: {$e->getMessage()}");
+            }
+        }
+
+        $this->info("✓ Deleted {$deleted} empty vessel(s) successfully.");
+    }
+
+    /**
+     * Manage invitation limits.
+     */
+    private function manageInvitationLimits(): void
+    {
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           Manage Invitation Limits');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
+
+        $this->line('Options:');
+        $this->line('  1. Reset invitation count for a user (allows 3 more resends)');
+        $this->line('  2. Reset invitation count for a user on specific vessel');
+        $this->line('  3. View invitation count for a user');
+        $this->line('  4. Delete all invitation emails for a user');
+        $this->line('  0. Back to main menu');
+        $this->newLine();
+
+        $choice = $this->ask('Select an option', '0');
+
+        if ($choice === '0') {
+            return;
+        }
+
+        match ($choice) {
+            '1' => $this->resetInvitationCount(),
+            '2' => $this->resetInvitationCountForVessel(),
+            '3' => $this->viewInvitationCount(),
+            '4' => $this->deleteInvitationEmails(),
+            default => $this->error('Invalid option.'),
+        };
+    }
+
+    /**
+     * Reset invitation count for a user (all vessels).
+     */
+    private function resetInvitationCount(): void
+    {
+        $user = $this->selectUser();
+        if (! $user) {
+            return;
+        }
+
+        $count = InvitationEmail::where('user_id', $user->id)
+            ->where('email_type', 'invitation')
+            ->count();
+
+        $this->line("Current invitation email count: {$count}");
+        $this->newLine();
+
+        if ($count === 0) {
+            $this->info('No invitation emails found for this user.');
+            return;
+        }
+
+        if (! $this->confirm("Delete all {$count} invitation email(s) for {$user->email}? This will allow 3 more resends.", false)) {
+            return;
+        }
+
+        $deleted = InvitationEmail::where('user_id', $user->id)
+            ->where('email_type', 'invitation')
+            ->delete();
+
+        $this->info("✓ Deleted {$deleted} invitation email(s). User can now resend invitations (up to 3 times).");
+    }
+
+    /**
+     * Reset invitation count for a user on a specific vessel.
+     */
+    private function resetInvitationCountForVessel(): void
+    {
+        $user = $this->selectUser();
+        if (! $user) {
+            return;
+        }
+
+        $vessel = $this->selectVessel();
+        if (! $vessel) {
+            return;
+        }
+
+        $count = InvitationEmail::where('user_id', $user->id)
+            ->where('vessel_id', $vessel->id)
+            ->where('email_type', 'invitation')
+            ->count();
+
+        $this->line("Current invitation email count for {$vessel->name}: {$count}");
+        $this->newLine();
+
+        if ($count === 0) {
+            $this->info("No invitation emails found for {$user->email} on {$vessel->name}.");
+            return;
+        }
+
+        if (! $this->confirm("Delete all {$count} invitation email(s) for {$user->email} on {$vessel->name}? This will allow 3 more resends.", false)) {
+            return;
+        }
+
+        $deleted = InvitationEmail::where('user_id', $user->id)
+            ->where('vessel_id', $vessel->id)
+            ->where('email_type', 'invitation')
+            ->delete();
+
+        $this->info("✓ Deleted {$deleted} invitation email(s). User can now resend invitations for this vessel (up to 3 times).");
+    }
+
+    /**
+     * View invitation count for a user.
+     */
+    private function viewInvitationCount(): void
+    {
+        $user = $this->selectUser();
+        if (! $user) {
+            return;
+        }
+
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info("Invitation Counts: {$user->email}");
+        $this->info('═══════════════════════════════════════════════════════════');
+
+        // Get all invitation emails grouped by vessel
+        $invitations = InvitationEmail::where('user_id', $user->id)
+            ->where('email_type', 'invitation')
+            ->with('vessel')
+            ->get()
+            ->groupBy('vessel_id');
+
+        $totalCount = InvitationEmail::where('user_id', $user->id)
+            ->where('email_type', 'invitation')
+            ->count();
+
+        $this->line("Total invitation emails sent: {$totalCount}");
+        $this->newLine();
+
+        if ($invitations->isEmpty()) {
+            $this->info('No invitation emails found.');
+            return;
+        }
+
+        $this->line('By Vessel:');
+        foreach ($invitations as $vesselId => $emails) {
+            $vessel = $emails->first()->vessel;
+            $vesselName = $vessel ? $vessel->name : "Vessel ID: {$vesselId}";
+            $count = $emails->count();
+            $canResend = $count < 3 ? 'Yes (can resend ' . (3 - $count) . ' more)' : 'No (limit reached)';
+            $this->line("  - {$vesselName}: {$count}/3 - {$canResend}");
+        }
+
+        $this->info('═══════════════════════════════════════════════════════════');
+    }
+
+    /**
+     * Delete all invitation emails for a user.
+     */
+    private function deleteInvitationEmails(): void
+    {
+        $user = $this->selectUser();
+        if (! $user) {
+            return;
+        }
+
+        $count = InvitationEmail::where('user_id', $user->id)->count();
+
+        $this->line("Total invitation emails (all types): {$count}");
+        $this->newLine();
+
+        if ($count === 0) {
+            $this->info('No invitation emails found for this user.');
+            return;
+        }
+
+        if (! $this->confirm("Delete ALL {$count} invitation email(s) for {$user->email}? This includes all email types.", false)) {
+            return;
+        }
+
+        $deleted = InvitationEmail::where('user_id', $user->id)->delete();
+        $this->info("✓ Deleted {$deleted} invitation email(s).");
     }
 }
 
