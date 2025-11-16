@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Marea;
 use App\Models\Movimentation;
+use App\Pdf\FinancialReportPdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -272,5 +273,94 @@ class FinancialReportController extends Controller
             'dailyBreakdown'    => $dailyBreakdown,
             'mareas'            => $mareas,
         ]);
+    }
+
+    /**
+     * Download financial report PDF.
+     */
+    public function downloadPdf(Request $request, $year, $month)
+    {
+        // Get parameters from route
+        $year  = (int) $request->route('year');
+        $month = (int) $request->route('month');
+
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check reports.access permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['reports.access'] ?? false)) {
+            abort(403, 'You do not have permission to view financial reports.');
+        }
+
+        // Validate month and year
+        if ($month < 1 || $month > 12) {
+            abort(404, 'Invalid month.');
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            abort(404, 'Invalid year.');
+        }
+
+        // Get vessel
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (! $vessel) {
+            abort(404, 'Vessel not found.');
+        }
+
+        // Get enable_colors from request (default to false)
+        $enableColors = $request->boolean('enable_colors', false);
+
+        return FinancialReportPdf::download($vessel, $year, $month, null, $user, $enableColors);
+    }
+
+    /**
+     * Test PDF generation (for preview).
+     */
+    public function testPdf(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check reports.access permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['reports.access'] ?? false)) {
+            abort(403, 'You do not have permission to view financial reports.');
+        }
+
+        // Get vessel
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (! $vessel) {
+            abort(404, 'Vessel not found.');
+        }
+
+        // Use current month and year for test
+        $year  = (int) date('Y');
+        $month = (int) date('m');
+
+        // Get enable_colors from request (default to false)
+        $enableColors = $request->boolean('enable_colors', false);
+
+        return FinancialReportPdf::stream($vessel, $year, $month, 'financial_report_test.pdf', $user, $enableColors);
     }
 }
