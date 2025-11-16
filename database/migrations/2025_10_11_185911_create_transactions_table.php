@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -15,7 +16,8 @@ return new class extends Migration
             $table->id();
             $table->string('transaction_number', 50)->unique(); // gerado automaticamente
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
-            $table->foreignId('marea_id')->nullable()->constrained('mareas')->onDelete('set null');
+            // Note: Foreign key to mareas added after mareas table exists (see migration order)
+            $table->unsignedBigInteger('marea_id')->nullable();
             $table->foreignId('category_id')->constrained('transaction_categories')->onDelete('restrict');
             $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('crew_member_id')->nullable()->constrained('users')->onDelete('set null'); // se for pagamento de salário
@@ -30,7 +32,8 @@ return new class extends Migration
             $table->tinyInteger('house_of_zeros')->default(2);
 
             // VAT (vat_rate_id was removed, using vat_profile_id instead)
-            $table->foreignId('vat_profile_id')->nullable()->constrained('vat_profiles')->onDelete('set null');
+            // Note: Foreign key to vat_profiles added after vat_profiles table exists (see migration order)
+            $table->unsignedBigInteger('vat_profile_id')->nullable();
             $table->bigInteger('vat_amount')->default(0); // IVA em centavos
             $table->bigInteger('total_amount');           // amount + vat_amount
 
