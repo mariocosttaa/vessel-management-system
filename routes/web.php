@@ -18,6 +18,7 @@ use App\Http\Controllers\VesselFileController;
 use App\Http\Controllers\VesselSelectorController;
 use App\Http\Controllers\VesselSettingController;
 use App\Http\Middleware\VesselAuthPrivateFiles;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Landing page route
@@ -89,6 +90,19 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
             ]);
         })->name('panel.email-notification-test');
     }
+
+    // Test PDF route for marea report
+    Route::get('/test-pdf', function () {
+        /** @var \App\Models\User|null $user */
+        $user  = Auth::user();
+        $marea = \App\Models\Marea::with('vessel')->first();
+
+        if (! $marea) {
+            return response('No marea found. Please create a marea first.', 404);
+        }
+
+        return \App\Pdf\MareaPdf::stream($marea, "marea_report_{$marea->marea_number}.pdf", $user);
+    })->name('panel.test-pdf');
 });
 
 // All panel routes require vessel access
@@ -203,6 +217,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     // Marea Actions
     Route::post('/mareas/{mareaId}/mark-at-sea', [App\Http\Controllers\MareaController::class, 'markAtSea'])->name('panel.mareas.mark-at-sea');
     Route::post('/mareas/{mareaId}/mark-returned', [App\Http\Controllers\MareaController::class, 'markReturned'])->name('panel.mareas.mark-returned');
+    Route::get('/mareas/{mareaId}/download-pdf', [App\Http\Controllers\MareaController::class, 'downloadPdf'])->name('panel.mareas.download-pdf');
     Route::post('/mareas/{mareaId}/close', [App\Http\Controllers\MareaController::class, 'close'])->name('panel.mareas.close');
     Route::post('/mareas/{mareaId}/cancel', [App\Http\Controllers\MareaController::class, 'cancel'])->name('panel.mareas.cancel');
 

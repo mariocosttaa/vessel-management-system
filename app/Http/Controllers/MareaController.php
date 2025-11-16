@@ -2193,4 +2193,66 @@ class MareaController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Download PDF for a specific marea with selected sections.
+     */
+    public function downloadPdf(Request $request, $vessel, $mareaId)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view mareas for this vessel
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check mareas.view permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['mareas.view'] ?? false)) {
+            abort(403, 'You do not have permission to view mareas.');
+        }
+
+        // Get marea ID directly from route parameter
+        $mareaIdFromRoute = $request->route('mareaId');
+        // Unhash marea ID if it's a hashed string
+        if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+            $mareaIdInt = $this->unhashId($mareaIdFromRoute, 'marea');
+        } else {
+            $mareaIdInt = (int) ($mareaIdFromRoute ?? $mareaId);
+        }
+
+        // Force fresh query with both vessel_id and id to ensure correct marea
+        $marea = Marea::where('vessel_id', $vesselId)
+            ->where('id', $mareaIdInt)
+            ->firstOrFail();
+
+        // Get sections from request
+        $sections = [
+            'expensesWithSalary' => $request->boolean('expenses_with_salary', false),
+            'expenses'           => $request->boolean('expenses', false),
+            'incomes'            => $request->boolean('incomes', false),
+            'crew'               => $request->boolean('crew', false),
+            'quantity'           => $request->boolean('quantity', false),
+            'salary'             => $request->boolean('salary', false),
+        ];
+
+        // If no sections selected, default to expenses with salary
+        if (! array_filter($sections)) {
+            $sections['expensesWithSalary'] = true;
+        }
+
+        // Get enable_colors from request (default to false)
+        $enableColors = $request->boolean('enable_colors', false);
+
+        // Debug: Log the enableColors value (remove after testing)
+        // \Log::info('Marea PDF enableColors', ['enableColors' => $enableColors, 'request_param' => $request->input('enable_colors')]);
+
+        return \App\Pdf\MareaPdf::downloadPartial($marea, $sections, null, $user, $enableColors);
+    }
 }
