@@ -1179,5 +1179,6 @@
     "but {count} row(s) had errors": "mais {count} ligne(s) avaient des erreurs",
     "All {count} row(s) were skipped (transactions already exist). No new transactions were imported.": "Toutes les {count} ligne(s) ont été ignorées (les movimentations existent déjà). Aucune nouvelle movimentation n'a été importée.",
     "Import completed with {count} error(s). Please check the details below.": "Importation terminée avec {count} erreur(s). Veuillez vérifier les détails ci-dessous.",
-    "Import completed, but no transactions were imported.": "Importation terminée, mais aucune movimentation n'a été importée."
+    "Import completed, but no transactions were imported.": "Importation terminée, mais aucune movimentation n'a été importée.",
+    "No salary payments to download.": "Aucun paiement de salaire à télécharger."
 }
