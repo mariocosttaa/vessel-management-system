@@ -13,6 +13,9 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import mareas from '@/routes/panel/mareas';
 import MareaCreateModal from '@/components/modals/Marea/create.vue';
+import DownloadPdfModal from '@/components/modals/Marea/DownloadPdfModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import { Ship } from 'lucide-vue-next';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -69,6 +72,21 @@ const isDeleting = ref(false);
 
 // Create modal state
 const showCreateModal = ref(false);
+
+// PDF download state
+const showDownloadPdfModal = ref(false);
+const showPdfLoadingModal = ref(false);
+const isPdfDownloading = ref(false);
+const selectedMareaForPdf = ref<Marea | null>(null);
+const pendingPdfSections = ref<{
+    expensesWithSalary: boolean;
+    expenses: boolean;
+    incomes: boolean;
+    crew: boolean;
+    quantity: boolean;
+    salary: boolean;
+    enableColors: boolean;
+} | null>(null);
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
@@ -238,6 +256,166 @@ const cancelDelete = () => {
     showDeleteDialog.value = false;
     mareaToDelete.value = null;
     isDeleting.value = false;
+};
+
+// Status actions
+const handleMarkAtSea = (marea: Marea) => {
+    router.post(mareas.markAtSea.url({ vessel: getCurrentVesselId(), mareaId: marea.id }), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeActionsDropdown();
+            router.reload({ only: ['mareas'], preserveScroll: true });
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Marea has been marked as at sea.'),
+            });
+        },
+    });
+};
+
+const handleMarkReturned = (marea: Marea) => {
+    router.post(mareas.markReturned.url({ vessel: getCurrentVesselId(), mareaId: marea.id }), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeActionsDropdown();
+            router.reload({ only: ['mareas'], preserveScroll: true });
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Marea has been marked as returned.'),
+            });
+        },
+    });
+};
+
+const handleClose = (marea: Marea) => {
+    router.post(mareas.close.url({ vessel: getCurrentVesselId(), mareaId: marea.id }), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeActionsDropdown();
+            router.reload({ only: ['mareas'], preserveScroll: true });
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Marea has been closed.'),
+            });
+        },
+    });
+};
+
+const handleCancel = (marea: Marea) => {
+    router.post(mareas.cancel.url({ vessel: getCurrentVesselId(), mareaId: marea.id }), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeActionsDropdown();
+            router.reload({ only: ['mareas'], preserveScroll: true });
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Marea has been cancelled.'),
+            });
+        },
+    });
+};
+
+// PDF download functions
+const handleGeneratePdfClick = () => {
+    if (openDropdownId.value === null) return;
+    const marea = props.mareas.data.find(m => m.id === openDropdownId.value);
+    if (marea) {
+        selectedMareaForPdf.value = marea;
+        showDownloadPdfModal.value = true;
+        closeActionsDropdown();
+    }
+};
+
+const openDownloadPdfModal = (marea: Marea) => {
+    selectedMareaForPdf.value = marea;
+    showDownloadPdfModal.value = true;
+    closeActionsDropdown();
+};
+
+const handlePdfDownload = (sections: {
+    expensesWithSalary: boolean;
+    expenses: boolean;
+    incomes: boolean;
+    crew: boolean;
+    quantity: boolean;
+    salary: boolean;
+    enableColors: boolean;
+}) => {
+    // Close the selection modal
+    showDownloadPdfModal.value = false;
+
+    // Store sections for later download
+    pendingPdfSections.value = sections;
+
+    // Show loading modal with countdown
+    showPdfLoadingModal.value = true;
+    isPdfDownloading.value = true;
+};
+
+// Handle PDF ready (when countdown reaches 0)
+const handlePdfReady = () => {
+    if (!isPdfDownloading.value || !pendingPdfSections.value || !selectedMareaForPdf.value) return;
+
+    const sections = pendingPdfSections.value;
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+
+    if (sections.expensesWithSalary) {
+        params.append('expenses_with_salary', '1');
+    }
+    if (sections.expenses) {
+        params.append('expenses', '1');
+    }
+    if (sections.incomes) {
+        params.append('incomes', '1');
+    }
+    if (sections.crew) {
+        params.append('crew', '1');
+    }
+    if (sections.quantity) {
+        params.append('quantity', '1');
+    }
+    if (sections.salary) {
+        params.append('salary', '1');
+    }
+    if (sections.enableColors) {
+        params.append('enable_colors', '1');
+    }
+
+    const url = `/panel/${vesselId}/mareas/${selectedMareaForPdf.value.id}/download-pdf?${params.toString()}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close loading modal after a short delay
+    setTimeout(() => {
+        showPdfLoadingModal.value = false;
+        isPdfDownloading.value = false;
+        pendingPdfSections.value = null;
+        selectedMareaForPdf.value = null;
+    }, 1000);
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfLoadingModal.value = false;
+    isPdfDownloading.value = false;
+    pendingPdfSections.value = null;
+    selectedMareaForPdf.value = null;
+};
+
+const closePdfLoadingModal = () => {
+    if (!isPdfDownloading.value) {
+        showPdfLoadingModal.value = false;
+    }
 };
 
 // Get status badge color
@@ -473,6 +651,25 @@ const translatedStatuses = computed(() => {
             </div>
         </div>
 
+        <!-- PDF Download Modal -->
+        <DownloadPdfModal
+            v-if="selectedMareaForPdf !== null"
+            :open="showDownloadPdfModal"
+            :marea-status="selectedMareaForPdf?.status || 'preparing'"
+            @update:open="showDownloadPdfModal = $event"
+            @close="showDownloadPdfModal = false; selectedMareaForPdf = null"
+            @download="handlePdfDownload"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfLoadingModal"
+            :countdown="5"
+            @close="closePdfLoadingModal"
+            @cancel="handlePdfDownloadCancel"
+            @ready="handlePdfReady"
+        />
+
         <!-- Confirmation Dialog -->
         <ConfirmationDialog
             v-model:open="showDeleteDialog"
@@ -518,6 +715,63 @@ const translatedStatuses = computed(() => {
                             <Icon name="eye" class="w-4 h-4 mr-3" />
                             {{ t('View Details') }}
                         </button>
+
+                        <!-- Generate PDF -->
+                        <button
+                            v-if="openDropdownId !== null"
+                            @click.stop="handleGeneratePdfClick()"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="download" class="w-4 h-4 mr-3" />
+                            {{ t('Generate PDF') }}
+                        </button>
+
+                        <!-- Divider -->
+                        <div v-if="openDropdownId !== null && canEdit('mareas')" class="my-1 border-t border-border dark:border-border"></div>
+
+                        <!-- Mark At Sea -->
+                        <button
+                            v-if="openDropdownId !== null && canEdit('mareas') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'preparing'"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleMarkAtSea(marea)"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Ship class="w-4 h-4 mr-3" />
+                            {{ t('Mark At Sea') }}
+                        </button>
+
+                        <!-- Mark Returned -->
+                        <button
+                            v-if="openDropdownId !== null && canEdit('mareas') && props.mareas.data.find(m => m.id === openDropdownId)?.status === 'at_sea'"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleMarkReturned(marea)"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Ship class="w-4 h-4 mr-3" />
+                            {{ t('Mark Returned') }}
+                        </button>
+
+                        <!-- Close Marea -->
+                        <button
+                            v-if="openDropdownId !== null && canEdit('mareas') && ['returned', 'at_sea'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleClose(marea)"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="check" class="w-4 h-4 mr-3" />
+                            {{ t('Close Marea') }}
+                        </button>
+
+                        <!-- Cancel -->
+                        <button
+                            v-if="openDropdownId !== null && canEdit('mareas') && !['closed', 'cancelled'].includes(props.mareas.data.find(m => m.id === openDropdownId)?.status || '')"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) handleCancel(marea)"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="x" class="w-4 h-4 mr-3" />
+                            {{ t('Cancel') }}
+                        </button>
+
+                        <!-- Divider before edit/delete -->
+                        <div v-if="(openDropdownId !== null && canEdit('mareas') && props.mareas.data.find(m => m.id === openDropdownId)?.status !== 'closed' && props.mareas.data.find(m => m.id === openDropdownId)?.status !== 'cancelled') || (openDropdownId !== null && canDelete('mareas'))" class="my-1 border-t border-border dark:border-border"></div>
+
                         <button
                             v-if="openDropdownId !== null && canEdit('mareas')"
                             @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea && marea.status !== 'closed' && marea.status !== 'cancelled') router.visit(mareas.edit.url({ vessel: getCurrentVesselId(), mareaId: openDropdownId })); closeActionsDropdown()"
