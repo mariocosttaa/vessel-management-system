@@ -8,11 +8,13 @@ use App\Observers\CrewPositionObserver;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 
@@ -129,6 +131,14 @@ class AppServiceProvider extends ServiceProvider
 
             // Always abort with 404 if position not found - this prevents passing raw string to controller
             abort(404, 'Crew position not found.');
+        });
+
+        // View composer for email views to set locale for translations
+        View::composer('emails.*', function ($view) {
+            $data = $view->getData();
+            if (isset($data['locale'])) {
+                App::setLocale($data['locale']);
+            }
         });
 
         // Route model binding for crewMember parameter (handles hashed IDs)

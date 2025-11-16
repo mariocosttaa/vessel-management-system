@@ -28,6 +28,14 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
         public ?User $inviter = null
     ) {
         $this->onQueue('emails');
+
+        // Set locale for the entire email based on invitation language
+        // Fallback to inviter's language, then default
+        $localeToUse = $this->user->invitation_language
+            ?? $this->inviter?->language
+            ?? App::getLocale()
+            ?? 'en';
+        $this->locale($localeToUse);
     }
 
     /**
@@ -35,8 +43,8 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
-        // Set locale based on invitation language (stored when invitation was created)
-        // Fallback to inviter's language, then default
+        // Locale is already set in constructor via $this->locale()
+        // Set locale temporarily for subject translation
         $originalLocale = App::getLocale();
         $localeToUse = $this->user->invitation_language
             ?? $this->inviter?->language
@@ -59,20 +67,18 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
-        // Set locale for email content based on invitation language (stored when invitation was created)
-        // Fallback to inviter's language, then default
-        $originalLocale = App::getLocale();
-        $localeToUse = $this->user->invitation_language
-            ?? $this->inviter?->language
-            ?? $originalLocale
-            ?? 'en';
-        App::setLocale($localeToUse);
-
+        // Locale is already set in constructor via $this->locale()
         $acceptUrl = route('invitation.accept', [
             'token' => $this->invitationToken,
         ]);
 
-        $content = new Content(
+        // Get locale for passing to view (for view composer if needed)
+        $localeToUse = $this->user->invitation_language
+            ?? $this->inviter?->language
+            ?? App::getLocale()
+            ?? 'en';
+
+        return new Content(
             view: 'emails.notifications.crew-member-invitation',
             with: [
                 'user' => $this->user,
@@ -82,11 +88,6 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
                 'locale' => $localeToUse,
             ],
         );
-
-        // Restore original locale
-        App::setLocale($originalLocale);
-
-        return $content;
     }
 
     /**

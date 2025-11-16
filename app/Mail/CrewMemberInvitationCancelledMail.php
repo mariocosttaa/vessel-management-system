@@ -26,6 +26,14 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
         public ?User $inviter = null
     ) {
         $this->onQueue('emails');
+
+        // Set locale for the entire email
+        // Use user's language if available (they're receiving the email), otherwise inviter's language
+        $localeToUse = $this->user->language
+            ?? $this->inviter?->language
+            ?? App::getLocale()
+            ?? 'en';
+        $this->locale($localeToUse);
     }
 
     /**
@@ -33,10 +41,13 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
-        // Set locale based on inviter's preference (the logged-in user who cancelled the invitation)
-        // Use inviter's language if available, otherwise fallback to default
+        // Locale is already set in constructor via $this->locale()
+        // Set locale temporarily for subject translation
         $originalLocale = App::getLocale();
-        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        $localeToUse = $this->user->language
+            ?? $this->inviter?->language
+            ?? $originalLocale
+            ?? 'en';
         App::setLocale($localeToUse);
 
         $subject = $this->transFrom('emails', 'Crew Member Invitation Cancelled') . ' - ' . config('app.name', 'Bindamy Mareas');
@@ -54,13 +65,14 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
-        // Set locale for email content based on inviter's preference (the logged-in user who cancelled the invitation)
-        // Use inviter's language if available, otherwise fallback to default
-        $originalLocale = App::getLocale();
-        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
-        App::setLocale($localeToUse);
+        // Locale is already set in constructor via $this->locale()
+        // Get locale for passing to view (for view composer if needed)
+        $localeToUse = $this->user->language
+            ?? $this->inviter?->language
+            ?? App::getLocale()
+            ?? 'en';
 
-        $content = new Content(
+        return new Content(
             view: 'emails.notifications.crew-member-invitation-cancelled',
             with: [
                 'user' => $this->user,
@@ -68,11 +80,6 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
                 'locale' => $localeToUse,
             ],
         );
-
-        // Restore original locale
-        App::setLocale($originalLocale);
-
-        return $content;
     }
 
     /**
