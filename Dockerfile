@@ -39,6 +39,11 @@ RUN npm ci && npm run build
 # Remove dev dependencies for production (optional - keeps image smaller)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || true
 
+# Ensure storage/app directories exist (will be overridden by volume mount if configured)
+RUN mkdir -p /var/www/html/storage/app/private \
+    && mkdir -p /var/www/html/storage/app/public \
+    && chown -R www-data:www-data /var/www/html/storage/app
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage \

@@ -25,4 +25,9 @@ storage/framework/sessions/*
 !storage/framework/sessions/.gitkeep
 storage/framework/views/*
 !storage/framework/views/.gitkeep
+# Exclude storage/app contents to preserve uploaded files between deployments
+storage/app/*
+!storage/app/.gitkeep
+!storage/app/private/.gitkeep
+!storage/app/public/.gitkeep
 
