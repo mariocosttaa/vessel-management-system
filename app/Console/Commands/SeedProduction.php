@@ -40,7 +40,7 @@ class SeedProduction extends Command
         foreach ($seeders as $seeder) {
             $seederName = class_basename($seeder);
             $this->info("📦 Seeding {$seederName}...");
-            
+
             try {
                 $this->call('db:seed', ['--class' => $seeder]);
                 $this->info("✅ {$seederName} completed");
@@ -52,7 +52,7 @@ class SeedProduction extends Command
 
         $this->info('');
         $this->info('✅ Production data seeding completed successfully!');
-        
+
         return Command::SUCCESS;
     }
 }
