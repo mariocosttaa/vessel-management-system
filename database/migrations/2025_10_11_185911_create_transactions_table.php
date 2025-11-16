@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('transactions', function (Blueprint $table) {
+        Schema::create('movimentations', function (Blueprint $table) {
             $table->id();
             $table->string('transaction_number', 50)->unique(); // gerado automaticamente
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
@@ -22,7 +22,7 @@ return new class extends Migration
 
             $table->enum('type', ['income', 'expense', 'transfer']);
 
-            // Valores monetários
+                                          // Valores monetários
             $table->bigInteger('amount'); // valor em inteiro (centavos)
             $table->bigInteger('amount_per_unit')->nullable()->comment('Price per unit in cents');
             $table->integer('quantity')->nullable()->comment('Quantity of items');
@@ -32,7 +32,7 @@ return new class extends Migration
             // VAT (vat_rate_id was removed, using vat_profile_id instead)
             $table->foreignId('vat_profile_id')->nullable()->constrained('vat_profiles')->onDelete('set null');
             $table->bigInteger('vat_amount')->default(0); // IVA em centavos
-            $table->bigInteger('total_amount'); // amount + vat_amount
+            $table->bigInteger('total_amount');           // amount + vat_amount
 
             // Organização temporal
             $table->date('transaction_date');
@@ -70,6 +70,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transactions');
+        Schema::dropIfExists('movimentations');
     }
 };
