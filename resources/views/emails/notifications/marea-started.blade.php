@@ -6,7 +6,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.5px; line-height: 1.2; text-align: center;">
-                    Embarcação em Marea
+                    {{ trans('emails.Vessel in Marea', [], $locale ?? 'en') }}
                 </h1>
             </td>
         </tr>
@@ -17,14 +17,14 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Olá,
+                    {{ trans('emails.Hello', [], $locale ?? 'en') }},
                 </p>
             </td>
         </tr>
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    A embarcação partiu para marea. Abaixo estão os detalhes:
+                    {{ trans('emails.The vessel has departed for marea. Details are below:', [], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>
@@ -45,7 +45,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Nome da Marea
+                                                        {{ trans('emails.Marea Name', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -67,7 +67,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Embarcação
+                                                        {{ trans('emails.Vessel', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -89,7 +89,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Data de Partida
+                                                        {{ trans('emails.Departure Date', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -110,7 +110,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Data de Partida
+                                                        {{ trans('emails.Departure Date', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -132,7 +132,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Data Prevista de Retorno
+                                                        {{ trans('emails.Expected Return Date', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -154,14 +154,14 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Tripulação
+                                                        {{ trans('emails.Crew', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td>
                                                     <p style="margin: 0; padding: 0; font-size: 15px; color: #111827; line-height: 1.5;">
-                                                        {{ $marea->crew->count() }} membro(s)
+                                                        {{ $marea->crew->count() }} {{ trans('emails.member(s)', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -175,14 +175,14 @@
                                             <tr>
                                                 <td style="padding-bottom: 6px;">
                                                     <p style="margin: 0; padding: 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                        Iniciado Por
+                                                        {{ trans('emails.Started by', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td>
                                                     <p style="margin: 0; padding: 0; font-size: 15px; color: #111827; line-height: 1.5;">
-                                                        {{ $user->name ?? $user ?? 'Sistema' }}
+                                                        {{ $user->name ?? $user ?? trans('emails.System', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -206,7 +206,7 @@
                     <tr>
                         <td style="background-color: #111827; border-radius: 8px;">
                             <a href="{{ $actionUrl }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
-                                {{ $actionText ?? 'Ver Marea' }}
+                                {{ $actionText ?? trans('emails.View Marea', [], $locale ?? 'en') }}
                             </a>
                         </td>
                     </tr>
@@ -221,10 +221,9 @@
         <tr>
             <td align="center" style="padding-top: 8px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.5; text-align: center; max-width: 500px;">
-                    A embarcação está agora em marea. Receberá uma notificação quando retornar.
+                    {{ trans('emails.The vessel is now in marea. You will receive a notification when it returns.', [], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>
     </table>
 @endsection
-
