@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -8,9 +8,16 @@ import { useI18n } from '@/composables/useI18n';
 
 interface Props {
     open: boolean;
+    initialMonth?: number;
+    initialYear?: number;
+    lockMonthYear?: boolean; // If true, disable month/year selection (for history month page)
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    initialMonth: undefined,
+    initialYear: undefined,
+    lockMonthYear: false,
+});
 const emit = defineEmits<{
     close: [];
     download: (options: { type: 'month' | 'range'; month?: number; year?: number; startDate?: string; endDate?: string; transactionType?: string }) => void;
@@ -24,9 +31,36 @@ const downloadType = ref<'month' | 'range'>('month');
 // Transaction type filter (income, expense, or all)
 const transactionType = ref<string>('all');
 
-// Month/Year selection
-const selectedMonth = ref<number>(new Date().getMonth() + 1);
-const selectedYear = ref<number>(new Date().getFullYear());
+// Month/Year selection - use initial values if provided, otherwise default to current month/year
+const selectedMonth = ref<number>(props.initialMonth ?? new Date().getMonth() + 1);
+const selectedYear = ref<number>(props.initialYear ?? new Date().getFullYear());
+
+// Watch for prop changes to update values when modal opens
+watch(() => props.open, (isOpen) => {
+    if (isOpen) {
+        if (props.initialMonth && props.initialYear) {
+            selectedMonth.value = props.initialMonth;
+            selectedYear.value = props.initialYear;
+        }
+        if (props.lockMonthYear) {
+            downloadType.value = 'month';
+        }
+    }
+});
+
+watch(() => [props.initialMonth, props.initialYear], ([newMonth, newYear]) => {
+    if (newMonth && newYear) {
+        selectedMonth.value = newMonth;
+        selectedYear.value = newYear;
+    }
+});
+
+// Force download type to 'month' when month/year is locked
+watch(() => props.lockMonthYear, (isLocked) => {
+    if (isLocked) {
+        downloadType.value = 'month';
+    }
+});
 
 // Date range selection
 const startDate = ref<string>('');
@@ -108,7 +142,7 @@ const handleClose = () => {
 
             <div class="space-y-6 py-4">
                 <!-- Download Type Selection -->
-                <div class="space-y-2">
+                <div v-if="!lockMonthYear" class="space-y-2">
                     <label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                         {{ t('Export Type') }}
                     </label>
@@ -136,26 +170,37 @@ const handleClose = () => {
 
                 <!-- Month/Year Selection -->
                 <div v-if="downloadType === 'month'" class="space-y-4">
-                    <div class="space-y-2">
+                    <div v-if="lockMonthYear" class="space-y-2">
                         <label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                             {{ t('Month') }}
                         </label>
-                        <Select
-                            v-model="selectedMonth"
-                            :options="monthOptions"
-                            :placeholder="t('Select month')"
-                        />
+                        <div class="px-3 py-2 bg-muted/50 dark:bg-muted/30 rounded-md text-sm text-muted-foreground">
+                            {{ monthOptions.find(m => m.value === selectedMonth)?.label }} {{ selectedYear }}
+                        </div>
+                        <p class="text-xs text-muted-foreground">{{ t('Exporting transactions for the current month being viewed') }}</p>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                            {{ t('Year') }}
-                        </label>
-                        <Select
-                            v-model="selectedYear"
-                            :options="yearOptions"
-                            :placeholder="t('Select year')"
-                        />
-                    </div>
+                    <template v-else>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                {{ t('Month') }}
+                            </label>
+                            <Select
+                                v-model="selectedMonth"
+                                :options="monthOptions"
+                                :placeholder="t('Select month')"
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                {{ t('Year') }}
+                            </label>
+                            <Select
+                                v-model="selectedYear"
+                                :options="yearOptions"
+                                :placeholder="t('Select year')"
+                            />
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Date Range Selection -->

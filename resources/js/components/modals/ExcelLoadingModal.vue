@@ -78,7 +78,7 @@ const handleCancel = () => {
 
 <template>
     <Dialog :open="open" @update:open="(val) => !val && handleClose()">
-        <DialogContent :closeable="true" class="sm:max-w-md">
+        <DialogContent class="sm:max-w-md">
             <div class="p-6">
                 <div class="text-center">
                     <!-- Loading Spinner -->

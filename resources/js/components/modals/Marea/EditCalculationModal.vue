@@ -27,7 +27,7 @@ interface DistributionItem {
 
 interface Props {
     open: boolean;
-    mareaId: number;
+    mareaId: string | number; // Can be hashed string or number
     distributionItems: DistributionItem[];
     distributionProfileItems: DistributionItem[];
     vesselId: string;
