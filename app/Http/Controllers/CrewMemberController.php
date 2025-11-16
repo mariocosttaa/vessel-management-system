@@ -527,7 +527,7 @@ class CrewMemberController extends Controller
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
-            
+
             // Check if user has access to this vessel (through vessel_id, VesselUserRole, or VesselUser)
             // This allows updating crew members even if they were unlinked from vessel but still have access
             $hasVesselRoleAccess = VesselUserRole::where('user_id', $crewMember->id)
