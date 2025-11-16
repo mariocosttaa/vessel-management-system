@@ -21,21 +21,21 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer files
-COPY composer.json composer.lock ./
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Copy application files
-COPY . .
-
 # Install Node.js and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
+# Copy application files (needed for composer post-install scripts)
+COPY . .
+
+# Install PHP dependencies
+RUN composer install --optimize-autoloader --no-interaction --prefer-dist
+
 # Install npm dependencies and build assets
 RUN npm ci && npm run build
+
+# Remove dev dependencies for production (optional - keeps image smaller)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || true
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
