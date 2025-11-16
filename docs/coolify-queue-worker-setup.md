@@ -7,13 +7,13 @@ Simple guide to set up Laravel queue worker in Coolify using the database driver
 **What you need to do:**
 1. Set `QUEUE_CONNECTION=database` in environment variables
 2. Create jobs table (run migration)
-3. **Create `nixpacks.toml` file** in your project root (runs worker in same container)
-4. **Commit and redeploy** - worker starts automatically
+3. **Use Coolify's Scheduled Tasks** (recommended) OR create a separate worker application
+4. Configure the worker to run continuously
 
-**Benefits:**
-- ✅ No duplication - worker runs in same container as web server
-- ✅ Efficient - no extra resources needed
-- ✅ Automatic restarts if worker crashes
+**Recommended Approach:**
+- ✅ Use Coolify's **Scheduled Tasks** feature (simplest)
+- ✅ OR create a separate application in Resources (more reliable)
+- ❌ Avoid nixpacks.toml override (causes PHP-FPM config issues)
 
 ## Prerequisites
 
@@ -41,15 +41,36 @@ php artisan migrate
 
 This creates the `jobs` table in your database where Laravel stores queued jobs.
 
-## Step 3: Add Queue Worker to Your Existing Application
+## Step 3: Add Queue Worker in Coolify
 
-**Best Approach: Run worker in the same container using supervisord**
+**Recommended Approach: Use Coolify's Scheduled Tasks (Simplest & Most Reliable)**
 
-This is the recommended way - it runs the queue worker alongside your web server in the same container, avoiding duplication and saving resources.
+Since overriding nixpacks can cause issues, the best approach is to use Coolify's built-in **Scheduled Tasks** feature to run the queue worker as a continuous process.
 
-### Create `nixpacks.toml` File
+### Method 1: Using Coolify Scheduled Tasks (Recommended)
 
-In your Laravel project root, create a file named `nixpacks.toml`:
+1. **In Coolify Dashboard:**
+   - Go to your application
+   - Navigate to **"Scheduled Tasks"** in the left sidebar
+   - Click **"Add Scheduled Task"** or **"+"**
+
+2. **Configure the Task:**
+   - **Name**: `queue-worker`
+   - **Command**: `php artisan queue:work --queue=emails --tries=3 --timeout=90`
+   - **Schedule**: Select **"Every minute"** or **"@reboot"** (runs continuously)
+   - **Enabled**: ✅ Check this box
+
+3. **Save and Deploy:**
+   - Click **"Save"**
+   - The task will start automatically
+
+**Note**: If "Every minute" runs too often, you can use a custom cron expression, but for a queue worker that should run continuously, "@reboot" or a simple background process is better.
+
+### Method 2: Using nixpacks.toml (Alternative - More Complex)
+
+⚠️ **Note**: This method can be problematic and may interfere with nixpacks' default behavior. Use Method 1 if possible.
+
+If you want to try the nixpacks approach, create a file named `nixpacks.toml` in your project root:
 
 ```toml
 [phases.setup]
@@ -130,12 +151,14 @@ stderr_logfile=/var/log/worker-laravel.log
 - `--tries=3`: Retry failed jobs 3 times
 - `--max-time=3600`: Restart worker after 1 hour (prevents memory leaks)
 
-### Deploy to Coolify
+### Deploy to Coolify (Method 2 only)
 
 1. **Commit and push the `nixpacks.toml` file** to your repository
 2. **In Coolify**, go to your application
 3. **Redeploy** the application (Coolify will automatically detect and use the `nixpacks.toml` file)
 4. The queue worker will start automatically alongside your web server
+
+**⚠️ Warning**: This method has been problematic in practice. If you encounter PHP-FPM config errors or container startup issues, use Method 1 (Scheduled Tasks) instead.
 
 ### Verify It's Working
 
