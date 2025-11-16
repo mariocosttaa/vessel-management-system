@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
+import { useI18n } from '@/composables/useI18n';
 import { login } from '@/routes';
 import { Form, Head, usePage } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
 
+const { t } = useI18n();
 const page = usePage();
-const errorMessage = computed(() => page.props.flash?.error);
+const errorMessage = computed(() => (page.props.flash as any)?.error);
 
 const handleGoogleSignup = () => {
     window.location.href = '/auth/google?source=register';
@@ -21,10 +23,10 @@ const handleGoogleSignup = () => {
 
 <template>
     <AuthBase
-        title="Create an account"
-        description="Enter your details below to create your account"
+        :title="t('Create an account')"
+        :description="t('Enter your details below to create your account')"
     >
-        <Head title="Register" />
+        <Head :title="t('Register')" />
 
         <div
             v-if="errorMessage"
@@ -41,7 +43,7 @@ const handleGoogleSignup = () => {
         >
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="name">Name</Label>
+                    <Label for="name">{{ t('Name') }}</Label>
                     <Input
                         id="name"
                         type="text"
@@ -50,13 +52,13 @@ const handleGoogleSignup = () => {
                         :tabindex="1"
                         autocomplete="name"
                         name="name"
-                        placeholder="Full name"
+                        :placeholder="t('Full name')"
                     />
                     <InputError :message="errors.name" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="email">Email address</Label>
+                    <Label for="email">{{ t('Email address') }}</Label>
                     <Input
                         id="email"
                         type="email"
@@ -70,7 +72,7 @@ const handleGoogleSignup = () => {
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">Password</Label>
+                    <Label for="password">{{ t('Password') }}</Label>
                     <Input
                         id="password"
                         type="password"
@@ -78,13 +80,13 @@ const handleGoogleSignup = () => {
                         :tabindex="3"
                         autocomplete="new-password"
                         name="password"
-                        placeholder="Password"
+                        :placeholder="t('Password')"
                     />
                     <InputError :message="errors.password" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirm password</Label>
+                    <Label for="password_confirmation">{{ t('Confirm password') }}</Label>
                     <Input
                         id="password_confirmation"
                         type="password"
@@ -92,7 +94,7 @@ const handleGoogleSignup = () => {
                         :tabindex="4"
                         autocomplete="new-password"
                         name="password_confirmation"
-                        placeholder="Confirm password"
+                        :placeholder="t('Confirm password')"
                     />
                     <InputError :message="errors.password_confirmation" />
                 </div>
@@ -108,7 +110,7 @@ const handleGoogleSignup = () => {
                         v-if="processing"
                         class="h-4 w-4 animate-spin"
                     />
-                    Create account
+                    {{ t('Create account') }}
                 </Button>
             </div>
 
@@ -118,7 +120,7 @@ const handleGoogleSignup = () => {
                 </div>
                 <div class="relative flex justify-center text-xs uppercase">
                     <span class="bg-background px-2 text-muted-foreground">
-                        Or continue with
+                        {{ t('Or continue with') }}
                     </span>
                 </div>
             </div>
@@ -152,14 +154,14 @@ const handleGoogleSignup = () => {
                             fill="#EA4335"
                         />
                     </svg>
-                    Google
+                    {{ t('Google') }}
                 </Button>
                 <Button
                     type="button"
                     variant="outline"
                     class="w-full"
                     disabled
-                    title="Microsoft signup will be available soon"
+                    :title="t('Microsoft signup will be available soon')"
                 >
                     <svg
                         class="mr-2 h-4 w-4 opacity-50"
@@ -183,17 +185,17 @@ const handleGoogleSignup = () => {
                             d="M12 12h10v10H12z"
                         />
                     </svg>
-                    Microsoft
+                    {{ t('Microsoft') }}
                 </Button>
             </div>
 
             <div class="text-center text-sm text-muted-foreground">
-                Already have an account?
+                {{ t("Already have an account?") }}
                 <TextLink
                     :href="login()"
                     class="underline underline-offset-4"
                     :tabindex="6"
-                    >Log in</TextLink
+                    >{{ t('Log in') }}</TextLink
                 >
             </div>
         </Form>
