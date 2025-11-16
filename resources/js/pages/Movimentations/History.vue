@@ -5,9 +5,17 @@ import { computed, onMounted, ref } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
 import ColorSelectionModal from '@/components/modals/Movimentation/ColorSelectionModal.vue';
 import Icon from '@/components/Icon.vue';
 import transactions from '@/routes/panel/movimentations';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreVertical } from 'lucide-vue-next';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -39,6 +47,11 @@ const showPdfModal = ref(false);
 const showColorModal = ref(false);
 const isDownloading = ref(false);
 let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Excel download state
+const showExcelLoadingModal = ref(false);
+const isExcelDownloading = ref(false);
+let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Color preference (set by color selection modal)
 let colorPreference = false;
@@ -114,15 +127,66 @@ const currentDownloadMonth = ref<number | null>(null);
 const currentDownloadYear = ref<number | null>(null);
 
 // Download PDF for specific month/year
-const downloadPdfMonth = (month: number, year: number, event: Event) => {
+const downloadPdfMonth = (month: number, year: number, event?: Event) => {
     // Prevent navigation when clicking download button
-    event.stopPropagation();
+    if (event) {
+        event.stopPropagation();
+    }
 
     // Store month/year for later use
     currentDownloadMonth.value = month;
     currentDownloadYear.value = year;
 
     openColorModal();
+};
+
+// Download Excel for specific month/year
+const downloadExcelMonth = (month: number, year: number, event?: Event) => {
+    // Prevent navigation when clicking download button
+    if (event) {
+        event.stopPropagation();
+    }
+
+    showExcelLoadingModal.value = true;
+    isExcelDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    excelDownloadTimeout = setTimeout(() => {
+        if (!isExcelDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        const url = `/panel/${vesselId}/movimentations/history/${year}/${month}/export-excel`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showExcelLoadingModal.value = false;
+            isExcelDownloading.value = false;
+            excelDownloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+const handleExcelDownloadCancel = () => {
+    if (excelDownloadTimeout) {
+        clearTimeout(excelDownloadTimeout);
+        excelDownloadTimeout = null;
+    }
+    showExcelLoadingModal.value = false;
+    isExcelDownloading.value = false;
+};
+
+const closeExcelLoadingModal = () => {
+    if (!isExcelDownloading.value) {
+        showExcelLoadingModal.value = false;
+    }
 };
 
 // Start download for specific month after color selection
@@ -276,14 +340,30 @@ const groupedByYear = computed(() => {
                                     </div>
                                 </div>
                             </button>
-                            <!-- Download Button -->
-                            <button
-                                @click="downloadPdfMonth(item.month, item.year, $event)"
-                                class="absolute top-2 right-2 p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                                :title="t('Download PDF')"
-                            >
-                                <Icon name="download" class="w-4 h-4" />
-                            </button>
+                            <!-- Hamburger Menu -->
+                            <div class="absolute top-2 right-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
+                                        <button
+                                            @click.stop
+                                            class="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                                            :title="t('Actions')"
+                                        >
+                                            <MoreVertical class="w-4 h-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-48">
+                                        <DropdownMenuItem @click="downloadPdfMonth(item.month, item.year, $event)" class="cursor-pointer">
+                                            <Icon name="download" class="w-4 h-4 mr-2" />
+                                            {{ t('Download PDF') }}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem @click="downloadExcelMonth(item.month, item.year, $event)" class="cursor-pointer">
+                                            <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
+                                            {{ t('Export Excel') }}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -308,6 +388,14 @@ const groupedByYear = computed(() => {
             :countdown="5"
             @close="closePdfModal"
             @cancel="handlePdfDownloadCancel"
+        />
+
+        <!-- Excel Loading Modal -->
+        <ExcelLoadingModal
+            :open="showExcelLoadingModal"
+            :countdown="5"
+            @close="closeExcelLoadingModal"
+            @cancel="handleExcelDownloadCancel"
         />
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">

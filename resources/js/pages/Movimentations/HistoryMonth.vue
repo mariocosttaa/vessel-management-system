@@ -6,7 +6,9 @@ import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
 import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
 import ColorSelectionModal from '@/components/modals/Movimentation/ColorSelectionModal.vue';
+import DownloadExcelModal from '@/components/modals/Movimentation/DownloadExcelModal.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
@@ -110,6 +112,12 @@ const showPdfModal = ref(false);
 const showColorModal = ref(false);
 const isDownloading = ref(false);
 let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Excel download state
+const showDownloadExcelModal = ref(false);
+const showExcelLoadingModal = ref(false);
+const isExcelDownloading = ref(false);
+let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Color preference (set by color selection modal)
 let colorPreference = false;
@@ -322,6 +330,68 @@ const handlePdfDownloadCancel = () => {
     isDownloading.value = false;
 };
 
+// Excel export handlers
+const openDownloadExcelModal = () => {
+    showDownloadExcelModal.value = true;
+};
+
+const closeDownloadExcelModal = () => {
+    showDownloadExcelModal.value = false;
+};
+
+const handleExcelDownload = (options: { type: 'month' | 'range'; month?: number; year?: number; startDate?: string; endDate?: string; transactionType?: string }) => {
+    showDownloadExcelModal.value = false;
+    showExcelLoadingModal.value = true;
+    isExcelDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    excelDownloadTimeout = setTimeout(() => {
+        if (!isExcelDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        let url = '';
+
+        // For history month page, we always export the current month being viewed
+        // But we respect the transaction type filter if provided
+        const params = new URLSearchParams();
+        if (options.transactionType && options.transactionType !== 'all') {
+            params.append('transaction_type', options.transactionType);
+        }
+        const queryString = params.toString();
+        url = `/panel/${vesselId}/movimentations/history/${props.year}/${props.month}/export-excel${queryString ? '?' + queryString : ''}`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showExcelLoadingModal.value = false;
+            isExcelDownloading.value = false;
+            excelDownloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+const handleExcelDownloadCancel = () => {
+    if (excelDownloadTimeout) {
+        clearTimeout(excelDownloadTimeout);
+        excelDownloadTimeout = null;
+    }
+    showExcelLoadingModal.value = false;
+    isExcelDownloading.value = false;
+};
+
+const closeExcelLoadingModal = () => {
+    if (!isExcelDownloading.value) {
+        showExcelLoadingModal.value = false;
+    }
+};
+
 </script>
 
 <template>
@@ -345,7 +415,15 @@ const handlePdfDownloadCancel = () => {
                         </p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <!-- Download Button -->
+                        <!-- Export Excel Button -->
+                        <button
+                            @click="openDownloadExcelModal"
+                            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                            <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
+                            {{ t('Export Excel') }}
+                        </button>
+                        <!-- Download PDF Button -->
                         <button
                             @click="downloadPdf"
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
@@ -540,6 +618,24 @@ const handlePdfDownloadCancel = () => {
             :countdown="5"
             @close="closePdfModal"
             @cancel="handlePdfDownloadCancel"
+        />
+
+        <!-- Excel Export Modal -->
+        <DownloadExcelModal
+            :open="showDownloadExcelModal"
+            :initial-month="month"
+            :initial-year="year"
+            :lock-month-year="true"
+            @close="closeDownloadExcelModal"
+            @download="handleExcelDownload"
+        />
+
+        <!-- Excel Loading Modal -->
+        <ExcelLoadingModal
+            :open="showExcelLoadingModal"
+            :countdown="5"
+            @close="closeExcelLoadingModal"
+            @cancel="handleExcelDownloadCancel"
         />
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">
