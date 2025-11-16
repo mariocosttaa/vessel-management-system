@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -14,7 +15,8 @@ return new class extends Migration
         Schema::create('email_notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('vessel_id')->constrained()->onDelete('cascade');
+            // Note: Foreign key to vessels added after vessels table exists (see migration order)
+            $table->unsignedBigInteger('vessel_id');
             $table->string('type'); // transaction_created, transaction_deleted, marea_started, marea_completed
             $table->string('subject_type'); // Transaction, Marea
             $table->unsignedBigInteger('subject_id'); // Transaction ID or Marea ID
@@ -32,7 +34,19 @@ return new class extends Migration
             $table->index(['is_grouped', 'grouped_at']);
             $table->index('group_id');
             $table->index(['user_id', 'sent_at']);
+            $table->index('vessel_id');
         });
+
+        // Add foreign key to vessels after vessels table exists
+        // Note: SQLite has limited foreign key support, so we skip for SQLite
+        if (DB::getDriverName() !== 'sqlite' && Schema::hasTable('vessels')) {
+            Schema::table('email_notifications', function (Blueprint $table) {
+                $table->foreign('vessel_id')
+                    ->references('id')
+                    ->on('vessels')
+                    ->onDelete('cascade');
+            });
+        }
     }
 
     /**
@@ -40,6 +54,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Only drop foreign key if it exists (skip for SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('email_notifications', function (Blueprint $table) {
+                $table->dropForeign(['vessel_id']);
+            });
+        }
+
         Schema::dropIfExists('email_notifications');
     }
 };
