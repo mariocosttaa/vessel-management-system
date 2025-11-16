@@ -1,4 +1,4 @@
-# Multi-stage build for Laravel application with queue worker
+# Multi-stage build for Laravel application with queue worker and scheduler
 FROM php:8.3-fpm as base
 
 # Install system dependencies
@@ -86,6 +86,15 @@ RUN echo '[program:queue-worker]' > /etc/supervisor/conf.d/queue-worker.conf \
     && echo 'stdout_logfile=/var/www/html/storage/logs/queue-worker.log' >> /etc/supervisor/conf.d/queue-worker.conf \
     && echo 'stderr_logfile=/var/www/html/storage/logs/queue-worker.log' >> /etc/supervisor/conf.d/queue-worker.conf
 
+RUN echo '[program:scheduler]' > /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'command=php /var/www/html/artisan schedule:work' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'autostart=true' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'autorestart=true' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'stopasgroup=true' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'killasgroup=true' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'stdout_logfile=/var/www/html/storage/logs/scheduler.log' >> /etc/supervisor/conf.d/scheduler.conf \
+    && echo 'stderr_logfile=/var/www/html/storage/logs/scheduler.log' >> /etc/supervisor/conf.d/scheduler.conf
+
 # Configure nginx for Laravel with Vite support
 RUN rm -f /etc/nginx/sites-enabled/default \
     && echo 'server {' > /etc/nginx/sites-available/laravel \
@@ -126,6 +135,6 @@ RUN rm -f /etc/nginx/sites-enabled/default \
 # Expose port 80
 EXPOSE 80
 
-# Start supervisor (which manages nginx, php-fpm, and queue worker)
+# Start supervisor (which manages nginx, php-fpm, queue worker, and scheduler)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 
