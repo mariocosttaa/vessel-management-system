@@ -7,11 +7,12 @@ Simple guide to set up Laravel queue worker in Coolify using the database driver
 **What you need to do:**
 1. Set `QUEUE_CONNECTION=database` in environment variables
 2. Create jobs table (run migration)
-3. **Add Start Command in Coolify** Configuration → Build section
-4. Enter: `php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & exec /nix/store/*/bin/start-server`
+3. **Use the Dockerfile** (already created in your project)
+4. In Coolify: Change Build Pack to **"Dockerfile"** (instead of Nixpacks)
 
 **Recommended Approach:**
-- ✅ Use Coolify's **Start Command** field (simplest - no file changes needed)
+- ✅ Use **Custom Dockerfile** (best solution - no quote issues, production-ready)
+- ✅ OR use Coolify Start Command (has quote escaping issues)
 - ✅ OR use Scheduled Tasks (alternative)
 - ❌ Avoid nixpacks.toml override (causes PHP-FPM config issues)
 
@@ -43,11 +44,47 @@ This creates the `jobs` table in your database where Laravel stores queued jobs.
 
 ## Step 3: Add Queue Worker in Coolify
 
-**Recommended Approach: Use Coolify's Start Command (Simplest & Most Reliable)**
+**Recommended Approach: Use Custom Dockerfile (Best Solution - No Quote Issues!)**
 
-The easiest way is to use Coolify's **Start Command** field in the Build configuration to start the queue worker alongside your web server.
+Since Coolify's Start Command has quote escaping issues, the best approach is to create a **custom Dockerfile** that handles everything properly.
 
-### Method 1: Using Coolify Start Command (Recommended - Easiest)
+### Method 1: Using Custom Dockerfile (Recommended - Best Solution)
+
+This is the cleanest approach - no quote issues, everything works properly.
+
+1. **Create Dockerfile in your project root:**
+   - The Dockerfile is already created in your project
+   - It includes: PHP 8.2, nginx, PHP-FPM, supervisor, and queue worker
+
+2. **In Coolify Dashboard:**
+   - Go to your application
+   - Navigate to **"Configuration"** tab
+   - In **"Build Pack"** dropdown, select **"Dockerfile"** (instead of Nixpacks)
+   - Leave **"Start Command"** empty (Dockerfile handles it)
+   - Click **"Save"**
+
+3. **Deploy:**
+   - Coolify will now use your Dockerfile instead of nixpacks
+   - Everything (nginx, PHP-FPM, queue worker) will start automatically via supervisor
+
+**What the Dockerfile does:**
+- ✅ Sets up PHP 8.2 with FPM and nginx
+- ✅ Installs all dependencies (Composer, npm)
+- ✅ Builds frontend assets
+- ✅ Configures supervisor to manage:
+  - nginx (web server)
+  - PHP-FPM (PHP processor)
+  - Queue worker (background jobs)
+- ✅ All processes auto-restart if they crash
+- ✅ Queue worker logs to `storage/logs/queue-worker.log`
+
+**Benefits:**
+- ✅ No quote escaping issues
+- ✅ Production-ready setup
+- ✅ Proper process management with supervisor
+- ✅ Easy to maintain and update
+
+### Method 2: Using Coolify Start Command (Alternative - Has Quote Issues)
 
 1. **In Coolify Dashboard:**
    - Go to your application
@@ -57,20 +94,45 @@ The easiest way is to use Coolify's **Start Command** field in the Build configu
 
 2. **Configure the Start Command:**
    
-   **Use this command (tested and reliable):**
+   **⚠️ Important:** Replace your current Start Command (which uses `php artisan serve` - development server) with this production-ready command:
    ```bash
-   bash -c "php artisan queue:work --queue=emails --tries=3 --timeout=90 >> /app/storage/logs/queue-worker.log 2>&1 & php-fpm -D && nginx -g 'daemon off;'"
+   mkdir -p /app/storage/logs && php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & php-fpm -D && exec nginx -g daemon off
+   ```
+   
+   **Current command (development - replace this):**
+   ```
+   sh -c 'mkdir -p /app/storage/logs && touch /app/storage/logs/laravel.log && php artisan serve --host=0.0.0.0 --port=$PORT'
+   ```
+   
+   **New command (production with queue worker):**
+   ```
+   mkdir -p /app/storage/logs && php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & php-fpm -D && exec nginx -g daemon off
    ```
    
    **What this does:**
-   - Starts queue worker in background (logs to `/app/storage/logs/queue-worker.log`)
-   - Starts PHP-FPM in daemon mode (`-D`)
-   - Starts nginx in foreground (`daemon off`) - this keeps the container alive
+   - Creates logs directory
+   - Starts queue worker in background
+   - Starts PHP-FPM in daemon mode
+   - Starts nginx with `exec` as the last process (keeps container alive)
+   - **No quotes needed** - avoids quote escaping issues completely
    
-   **Important:** Make sure `/app/storage/logs` directory exists and is writable. If you get permission errors, you can redirect to `/dev/null` instead:
+   **If you want to see queue worker logs:**
    ```bash
-   bash -c "php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & php-fpm -D && nginx -g 'daemon off;'"
+   mkdir -p /app/storage/logs && php artisan queue:work --queue=emails --tries=3 --timeout=90 >> /app/storage/logs/queue-worker.log 2>&1 & php-fpm -D && exec nginx -g daemon off
    ```
+   
+   **If php-fpm command not found, use this (finds it automatically):**
+   ```bash
+   PHP_FPM=$(which php-fpm 2>/dev/null || find /usr -name php-fpm 2>/dev/null | head -1) && mkdir -p /app/storage/logs && php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & $PHP_FPM -D && exec nginx -g daemon off
+   ```
+   
+   **What this does:**
+   - Creates logs directory if it doesn't exist (`mkdir -p`)
+   - Starts queue worker in background (`&`)
+   - Starts PHP-FPM in daemon mode (`-D`)
+   - Starts nginx in foreground with `exec` (`daemon off`) - **this is the last process and keeps container alive**
+   
+   **Important:** The `exec` before nginx ensures nginx becomes the main process (PID 1), which is important for proper signal handling and keeping the container running.
 
 3. **Save:**
    - Click **"Save"** at the top of the Configuration page
