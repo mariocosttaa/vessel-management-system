@@ -7,12 +7,12 @@ Simple guide to set up Laravel queue worker in Coolify using the database driver
 **What you need to do:**
 1. Set `QUEUE_CONNECTION=database` in environment variables
 2. Create jobs table (run migration)
-3. **Use Coolify's Scheduled Tasks** (recommended) OR create a separate worker application
-4. Configure the worker to run continuously
+3. **Add Start Command in Coolify** Configuration → Build section
+4. Enter: `php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & exec /nix/store/*/bin/start-server`
 
 **Recommended Approach:**
-- ✅ Use Coolify's **Scheduled Tasks** feature (simplest)
-- ✅ OR create a separate application in Resources (more reliable)
+- ✅ Use Coolify's **Start Command** field (simplest - no file changes needed)
+- ✅ OR use Scheduled Tasks (alternative)
 - ❌ Avoid nixpacks.toml override (causes PHP-FPM config issues)
 
 ## Prerequisites
@@ -43,11 +43,45 @@ This creates the `jobs` table in your database where Laravel stores queued jobs.
 
 ## Step 3: Add Queue Worker in Coolify
 
-**Recommended Approach: Use Coolify's Scheduled Tasks (Simplest & Most Reliable)**
+**Recommended Approach: Use Coolify's Start Command (Simplest & Most Reliable)**
 
-Since overriding nixpacks can cause issues, the best approach is to use Coolify's built-in **Scheduled Tasks** feature to run the queue worker as a continuous process.
+The easiest way is to use Coolify's **Start Command** field in the Build configuration to start the queue worker alongside your web server.
 
-### Method 1: Using Coolify Scheduled Tasks (Recommended)
+### Method 1: Using Coolify Start Command (Recommended - Easiest)
+
+1. **In Coolify Dashboard:**
+   - Go to your application
+   - Navigate to **"Configuration"** tab
+   - Scroll down to the **"Build"** section
+   - Find the **"Start Command"** field
+
+2. **Configure the Start Command:**
+   
+   **Use this command (tested and reliable):**
+   ```bash
+   bash -c "php artisan queue:work --queue=emails --tries=3 --timeout=90 >> /app/storage/logs/queue-worker.log 2>&1 & php-fpm -D && nginx -g 'daemon off;'"
+   ```
+   
+   **What this does:**
+   - Starts queue worker in background (logs to `/app/storage/logs/queue-worker.log`)
+   - Starts PHP-FPM in daemon mode (`-D`)
+   - Starts nginx in foreground (`daemon off`) - this keeps the container alive
+   
+   **Important:** Make sure `/app/storage/logs` directory exists and is writable. If you get permission errors, you can redirect to `/dev/null` instead:
+   ```bash
+   bash -c "php artisan queue:work --queue=emails --tries=3 --timeout=90 > /dev/null 2>&1 & php-fpm -D && nginx -g 'daemon off;'"
+   ```
+
+3. **Save:**
+   - Click **"Save"** at the top of the Configuration page
+   - Redeploy your application
+
+**How it works:**
+- The queue worker starts in the background (`&`)
+- Then nginx/PHP-FPM starts normally (via nixpacks default or manual command)
+- The queue worker runs continuously alongside your web server
+
+### Method 2: Using Coolify Scheduled Tasks (Alternative)
 
 1. **In Coolify Dashboard:**
    - Go to your application
@@ -64,7 +98,7 @@ Since overriding nixpacks can cause issues, the best approach is to use Coolify'
    - Click **"Save"**
    - The task will start automatically
 
-**Note**: If "Every minute" runs too often, you can use a custom cron expression, but for a queue worker that should run continuously, "@reboot" or a simple background process is better.
+**Note**: Scheduled Tasks are better for cron jobs. For a continuous queue worker, Method 1 (Start Command) is preferred.
 
 ### Method 2: Using nixpacks.toml (Alternative - More Complex)
 
