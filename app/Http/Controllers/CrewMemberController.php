@@ -527,11 +527,29 @@ class CrewMemberController extends Controller
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
             /** @var int $vesselId */
             $vesselId = (int) $request->attributes->get('vessel_id');
-            if ($crewMember->vessel_id !== $vesselId) {
+            
+            // Check if user has access to this vessel (through vessel_id, VesselUserRole, or VesselUser)
+            // This allows updating crew members even if they were unlinked from vessel but still have access
+            $hasVesselRoleAccess = VesselUserRole::where('user_id', $crewMember->id)
+                ->where('vessel_id', $vesselId)
+                ->where('is_active', true)
+                ->exists();
+
+            $hasVesselUserAccess = VesselUser::where('user_id', $crewMember->id)
+                ->where('vessel_id', $vesselId)
+                ->where('is_active', true)
+                ->exists();
+
+            $isCrewMemberOnVessel = $crewMember->vessel_id === $vesselId;
+
+            // User must have access to this vessel (through role access, vessel user, or as crew member)
+            if (! $hasVesselRoleAccess && ! $hasVesselUserAccess && ! $isCrewMemberOnVessel) {
                 Log::warning('CrewMemberController::update - Unauthorized access', [
-                    'crew_member_id'        => $crewMember->id,
-                    'crew_member_vessel_id' => $crewMember->vessel_id,
-                    'request_vessel_id'     => $vesselId,
+                    'crew_member_id'         => $crewMember->id,
+                    'crew_member_vessel_id'   => $crewMember->vessel_id,
+                    'request_vessel_id'      => $vesselId,
+                    'has_vessel_role_access' => $hasVesselRoleAccess,
+                    'has_vessel_user_access' => $hasVesselUserAccess,
                 ]);
                 abort(403, 'Unauthorized access to crew member.');
             }
