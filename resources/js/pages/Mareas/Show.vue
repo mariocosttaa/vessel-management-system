@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -264,9 +264,7 @@ const closeTransactionModal = () => {
 
 // Open update modal for transaction
 const openUpdateModal = async (transaction: any) => {
-    transactionToEdit.value = transaction;
-
-    // Fetch full transaction details from API
+    // Fetch full transaction details from API first
     try {
         const vesselId = getCurrentVesselId();
         const response = await fetch(`/panel/${vesselId}/api/movimentations/${transaction.id}/details`, {
@@ -280,17 +278,31 @@ const openUpdateModal = async (transaction: any) => {
         if (response.ok) {
             const data = await response.json();
             if (data.transaction) {
+                // Use the full transaction data from API
                 transactionToEdit.value = data.transaction;
+            } else {
+                // Fallback to the transaction passed in
+                transactionToEdit.value = transaction;
             }
+        } else {
+            // Fallback to the transaction passed in if API fails
+            transactionToEdit.value = transaction;
         }
     } catch (error) {
         console.error('Failed to load transaction details:', error);
+        // Fallback to the transaction passed in if API fails
+        transactionToEdit.value = transaction;
     }
 
+    // Wait a bit to ensure transaction data is set before opening modal
+    await nextTick();
+
     // Determine which update modal to show based on transaction type
-    if (transaction.type === 'income') {
+    // Use the transaction type from the loaded data or fallback to original
+    const transactionType = transactionToEdit.value?.type || transaction.type;
+    if (transactionType === 'income') {
         showUpdateAddModal.value = true;
-    } else if (transaction.type === 'expense') {
+    } else if (transactionType === 'expense') {
         showUpdateRemoveModal.value = true;
     }
 };
@@ -305,7 +317,10 @@ const closeUpdateModals = () => {
 // Handle update success
 const handleUpdateSuccess = () => {
     closeUpdateModals();
-    router.reload();
+    // Reload the page to show updated values
+    router.reload({
+        only: ['marea', 'transactions', 'salaryTransactions', 'incomeCategories', 'expenseCategories', 'vatProfiles', 'suppliers', 'crewMembers', 'defaultCurrency', 'defaultVatProfile']
+    });
 };
 
 // Handle delete transaction
@@ -1782,7 +1797,7 @@ const cancelDeleteMarea = () => {
             </div>
 
             <!-- Salary Payments Card -->
-            <div v-if="marea.crew_members.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground flex items-center">
                         <Wallet class="w-5 h-5 mr-2" />
@@ -1790,6 +1805,7 @@ const cancelDeleteMarea = () => {
                     </h2>
                     <div class="flex gap-2">
                         <button
+                            v-if="salaryTransactions.length > 0"
                             @click="openSectionPdfModal('salary')"
                             class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
                             :title="t('Generate PDF')"
@@ -1798,7 +1814,7 @@ const cancelDeleteMarea = () => {
                             {{ t('Generate PDF') }}
                         </button>
                         <button
-                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled' && marea.crew_members.length > 0"
                             @click="showSalaryPaymentDialog = true"
                             class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                         >
@@ -1808,8 +1824,15 @@ const cancelDeleteMarea = () => {
                     </div>
                 </div>
 
-                <!-- Salary Search Bar -->
-                <div class="mb-4">
+                <!-- Show message when no crew members configured -->
+                <div v-if="marea.crew_members.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground border border-dashed border-border dark:border-border rounded-lg bg-muted/30 dark:bg-muted/20">
+                    <Icon name="users" class="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p class="text-sm font-medium mb-1">{{ t('Crew members are not configured') }}</p>
+                    <p class="text-xs">{{ t('Add crew members to enable salary payments') }}</p>
+                </div>
+
+                <!-- Salary Search Bar (only show if crew members exist) -->
+                <div v-else class="mb-4">
                     <div class="relative">
                         <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
@@ -1822,12 +1845,9 @@ const cancelDeleteMarea = () => {
                     </div>
                 </div>
 
-                <div v-if="salaryTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
+                <div v-if="marea.crew_members.length > 0 && salaryTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
                         {{ t('No salary payments recorded for this marea') }}
-                    </p>
-                    <p v-else-if="marea.crew_members.length === 0" class="text-sm">
-                        {{ t('Add crew members to enable salary payments') }}
                     </p>
                     <p v-else class="text-sm">
                         {{ t('No salary payments recorded for this marea') }}
@@ -1920,14 +1940,41 @@ const cancelDeleteMarea = () => {
                                     </div>
                                 </template>
                             </div>
-                            <button
-                                v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                                @click.stop="handleRemoveTransaction(transaction.id)"
-                                class="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                :disabled="isProcessing"
+                            <!-- Action Buttons (View, Edit, Delete) -->
+                            <div
+                                @click.stop
+                                class="flex items-center gap-1 flex-shrink-0 ml-2 opacity-100 group-hover:opacity-100"
                             >
-                                <X class="w-4 h-4" />
-                            </button>
+                                <!-- View Button -->
+                                <button
+                                    @click.stop="openTransactionModal(transaction)"
+                                    class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                    :title="t('View transaction details')"
+                                >
+                                    <Icon name="eye" class="w-4 h-4" />
+                                </button>
+
+                                <!-- Edit Button -->
+                                <button
+                                    v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                    @click.stop="openUpdateModal(transaction)"
+                                    class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                    :title="t('Edit transaction')"
+                                >
+                                    <Icon name="edit" class="w-4 h-4" />
+                                </button>
+
+                                <!-- Delete Button -->
+                                <button
+                                    v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                    @click.stop="openDeleteTransactionDialog(transaction.id)"
+                                    class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
+                                    :title="t('Remove transaction from marea')"
+                                    :disabled="isProcessing"
+                                >
+                                    <Icon name="x" class="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2134,7 +2181,7 @@ const cancelDeleteMarea = () => {
                                     <!-- Action Buttons (View, Edit, Delete) -->
                                     <div
                                         @click.stop
-                                        class="flex items-center gap-1 flex-shrink-0 ml-2"
+                                        class="flex items-center gap-1 flex-shrink-0 ml-2 opacity-100 group-hover:opacity-100"
                                     >
                                         <!-- View Button -->
                                         <button
@@ -2147,7 +2194,7 @@ const cancelDeleteMarea = () => {
 
                                         <!-- Edit Button -->
                                         <button
-                                            v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openUpdateModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
                                             :title="t('Edit transaction')"
@@ -2285,7 +2332,7 @@ const cancelDeleteMarea = () => {
                                     <!-- Action Buttons (View, Edit, Delete) -->
                                     <div
                                         @click.stop
-                                        class="flex items-center gap-1 flex-shrink-0 ml-2"
+                                        class="flex items-center gap-1 flex-shrink-0 ml-2 opacity-100 group-hover:opacity-100"
                                     >
                                         <!-- View Button -->
                                         <button
@@ -2298,7 +2345,7 @@ const cancelDeleteMarea = () => {
 
                                         <!-- Edit Button -->
                                         <button
-                                            v-if="canEdit('transactions') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
                                             @click.stop="openUpdateModal(transaction)"
                                             class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
                                             :title="t('Edit transaction')"

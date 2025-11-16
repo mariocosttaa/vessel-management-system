@@ -18,6 +18,7 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{
     close: [];
+    success: [];
 }>();
 
 const { t } = useI18n();
@@ -191,8 +192,9 @@ const handleImport = async () => {
                 notify.info(notificationMessage, { duration: 5000 });
             }
 
-            // Refresh transactions list if any were successfully imported
-            if (successCount > 0) {
+            // Refresh transactions list only if import was successful (no errors)
+            // Only reload if transactions were imported successfully and there are no errors
+            if (successCount > 0 && errorCount === 0) {
                 // Small delay to ensure backend has fully processed the import
                 setTimeout(() => {
                     // If importing from marea or maintenance page, reload entire page to update marea/maintenance data
@@ -203,6 +205,7 @@ const handleImport = async () => {
                             preserveScroll: true,
                             onFinish: () => {
                                 // Data has been refreshed - marea/maintenance and transactions are now updated
+                                emit('success');
                             },
                         });
                     } else {
@@ -214,6 +217,7 @@ const handleImport = async () => {
                             preserveScroll: true,
                             onFinish: () => {
                                 // Data has been refreshed - transactions list is now updated
+                                emit('success');
                             },
                         });
                     }
