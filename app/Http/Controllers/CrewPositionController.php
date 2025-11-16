@@ -9,12 +9,13 @@ use App\Http\Resources\CrewPositionResource;
 use App\Models\CrewPosition;
 use App\Models\User;
 use App\Models\VesselRoleAccess;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class CrewPositionController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
     /**
      * Display a listing of crew positions for the current vessel.
      */
@@ -129,12 +130,14 @@ class CrewPositionController extends Controller
 
             return redirect()
                 ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
-                ->with('success', "Crew role '{$crewPosition->name}' has been created successfully.")
+                ->with('success', $this->transFrom('notifications', "Crew role ':name' has been created successfully.", [
+                    'name' => $crewPosition->name,
+                ]))
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create crew role. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to create crew role. Please try again.'))
                 ->with('notification_delay', 0);
         }
     }
@@ -212,7 +215,9 @@ class CrewPositionController extends Controller
 
             return redirect()
                 ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
-                ->with('success', "Crew role '{$crewPosition->name}' has been updated successfully.")
+                ->with('success', $this->transFrom('notifications', "Crew role ':name' has been updated successfully.", [
+                    'name' => $crewPosition->name,
+                ]))
                 ->with('notification_delay', 4);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
             // Re-throw HTTP exceptions (like 403, 404) so they're handled properly
@@ -220,7 +225,7 @@ class CrewPositionController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update crew role. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update crew role. Please try again.'))
                 ->with('notification_delay', 0);
         }
     }
@@ -258,7 +263,10 @@ class CrewPositionController extends Controller
 
             if ($crewMembersCount > 0) {
                 return back()
-                    ->with('error', "Cannot delete crew role '{$crewPosition->name}' because it has {$crewMembersCount} crew member(s) assigned. Please reassign or remove crew members first.")
+                    ->with('error', $this->transFrom('notifications', "Cannot delete crew role ':name' because it has :count crew member(s) assigned. Please reassign or remove crew members first.", [
+                        'name' => $crewPosition->name,
+                        'count' => $crewMembersCount,
+                    ]))
                     ->with('notification_delay', 0);
             }
 
@@ -277,11 +285,13 @@ class CrewPositionController extends Controller
 
             return redirect()
                 ->route('panel.crew-roles.index', ['vessel' => $this->hashId($vesselId, 'vessel')])
-                ->with('success', "Crew role '{$crewPositionName}' has been deleted successfully.")
+                ->with('success', $this->transFrom('notifications', "Crew role ':name' has been deleted successfully.", [
+                    'name' => $crewPositionName,
+                ]))
                 ->with('notification_delay', 5);
         } catch (\Exception $e) {
             return back()
-                ->with('error', 'Failed to delete crew role. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to delete crew role. Please try again.'))
                 ->with('notification_delay', 0);
         }
     }

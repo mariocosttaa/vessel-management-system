@@ -17,6 +17,7 @@ use App\Models\Vessel;
 use App\Models\VesselRoleAccess;
 use App\Models\VesselUser;
 use App\Models\VesselUserRole;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -24,7 +25,7 @@ use Illuminate\Support\Str;
 
 class CrewMemberController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
     public function index(Request $request)
     {
         // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
@@ -233,7 +234,7 @@ class CrewMemberController extends Controller
             if (! $createWithoutEmail && ! $request->email) {
                 return back()
                     ->withInput()
-                    ->with('error', 'Email is required.')
+                    ->with('error', $this->transFrom('notifications', 'Email is required.'))
                     ->with('notification_delay', 0);
             }
 
@@ -401,8 +402,12 @@ class CrewMemberController extends Controller
 
             // Set appropriate success message based on whether email was provided
             $successMessage = $createWithoutEmail || ! $crewMember->email
-                ? "Crew member '{$crewMember->name}' has been created successfully. They do not have system access."
-                : "Invitation sent to '{$crewMember->email}'. They will receive an email to accept the invitation.";
+                ? $this->transFrom('notifications', "Crew member ':name' has been created successfully. They do not have system access.", [
+                    'name' => $crewMember->name,
+                ])
+                : $this->transFrom('notifications', "Invitation sent to ':email'. They will receive an email to accept the invitation.", [
+                    'email' => $crewMember->email,
+                ]);
 
             Log::info('CrewMemberController::store - Success', [
                 'crew_member_id'       => $crewMember->id,
@@ -424,7 +429,7 @@ class CrewMemberController extends Controller
             return back()
                 ->withInput()
                 ->withErrors($e->errors())
-                ->with('error', 'Validation failed. Please check your input.')
+                ->with('error', $this->transFrom('notifications', 'Validation failed. Please check your input.'))
                 ->with('notification_delay', 0);
         } catch (\Exception $e) {
             Log::error('CrewMemberController::store - Exception', [
@@ -437,7 +442,9 @@ class CrewMemberController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create crew member: ' . $e->getMessage())
+                ->with('error', $this->transFrom('notifications', 'Failed to create crew member: :message', [
+                    'message' => $e->getMessage(),
+                ]))
                 ->with('notification_delay', 0);
         }
     }
@@ -557,7 +564,7 @@ class CrewMemberController extends Controller
                 if ($emailUser) {
                     return back()
                         ->withInput()
-                        ->with('error', 'This email is already registered to another user.')
+                        ->with('error', $this->transFrom('notifications', 'This email is already registered to another user.'))
                         ->with('notification_delay', 0);
                 }
 
@@ -578,7 +585,7 @@ class CrewMemberController extends Controller
                 if (! $hasExistingAccount && ! $request->filled('email')) {
                     return back()
                         ->withInput()
-                        ->with('error', 'Email is required when enabling system access.')
+                        ->with('error', $this->transFrom('notifications', 'Email is required when enabling system access.'))
                         ->with('notification_delay', 0);
                 }
 
@@ -731,11 +738,15 @@ class CrewMemberController extends Controller
             ]);
 
             // Set appropriate success message
-            $successMessage = "Crew member '{$crewMember->name}' has been updated successfully.";
+            $successMessage = $this->transFrom('notifications', "Crew member ':name' has been updated successfully.", [
+                'name' => $crewMember->name,
+            ]);
 
             // If invitation was sent, add that to the message
             if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
-                $successMessage = "Invitation sent to '{$crewMember->email}'. They will receive an email to accept the invitation and set their password.";
+                $successMessage = $this->transFrom('notifications', "Invitation sent to ':email'. They will receive an email to accept the invitation and set their password.", [
+                    'email' => $crewMember->email,
+                ]);
             }
 
             return redirect()
@@ -752,7 +763,7 @@ class CrewMemberController extends Controller
             return back()
                 ->withInput()
                 ->withErrors($e->errors())
-                ->with('error', 'Validation failed. Please check your input.')
+                ->with('error', $this->transFrom('notifications', 'Validation failed. Please check your input.'))
                 ->with('notification_delay', 0);
         } catch (\Exception $e) {
             Log::error('CrewMemberController::update - Exception', [
@@ -766,7 +777,9 @@ class CrewMemberController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update crew member: ' . $e->getMessage())
+                ->with('error', $this->transFrom('notifications', 'Failed to update crew member: :message', [
+                    'message' => $e->getMessage(),
+                ]))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
@@ -822,7 +835,9 @@ class CrewMemberController extends Controller
 
             if ($vesselModel->owner_id === $crewMember->id) {
                 return back()
-                    ->with('error', "Cannot delete vessel owner '{$crewMember->name}'. Transfer ownership before removing this user.")
+                    ->with('error', $this->transFrom('notifications', "Cannot delete vessel owner ':name'. Transfer ownership before removing this user.", [
+                        'name' => $crewMember->name,
+                    ]))
                     ->with('notification_delay', 0);
             }
 
@@ -899,7 +914,9 @@ class CrewMemberController extends Controller
 
                 // Check if crew member has transactions - prevent full delete if they do
                 if ($hasTransactions) {
-                    return back()->with('error', "Cannot delete crew member '{$crewMemberName}' because they have transactions. They will be unlinked from this vessel instead.")
+                    return back()->with('error', $this->transFrom('notifications', "Cannot delete crew member ':name' because they have transactions. They will be unlinked from this vessel instead.", [
+                        'name' => $crewMemberName,
+                    ]))
                         ->with('notification_delay', 0); // Persistent error
                 }
 
@@ -923,7 +940,9 @@ class CrewMemberController extends Controller
                 // Delete the user completely
                 $crewMember->delete();
 
-                $successMessage = "Crew member '{$crewMemberName}' has been deleted successfully.";
+                $successMessage = $this->transFrom('notifications', "Crew member ':name' has been deleted successfully.", [
+                    'name' => $crewMemberName,
+                ]);
 
                 Log::info('CrewMemberController::destroy - Full Delete Success', [
                     'crew_member_id'   => $crewMemberId,
@@ -969,7 +988,9 @@ class CrewMemberController extends Controller
                     ]);
                 }
 
-                $successMessage = "Crew member '{$crewMemberName}' has been removed from this vessel.";
+                $successMessage = $this->transFrom('notifications', "Crew member ':name' has been removed from this vessel.", [
+                    'name' => $crewMemberName,
+                ]);
 
                 Log::info('CrewMemberController::destroy - Unlink Success', [
                     'crew_member_id'   => $crewMember->id,
@@ -991,7 +1012,7 @@ class CrewMemberController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Crew member not found. Please refresh the page and try again.')
+                ->with('error', $this->transFrom('notifications', 'Crew member not found. Please refresh the page and try again.'))
                 ->with('notification_delay', 0);
         } catch (\Exception $e) {
             Log::error('CrewMemberController::destroy - Exception', [
@@ -1004,7 +1025,9 @@ class CrewMemberController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Failed to delete crew member: ' . $e->getMessage())
+                ->with('error', $this->transFrom('notifications', 'Failed to delete crew member: :message', [
+                    'message' => $e->getMessage(),
+                ]))
                 ->with('notification_delay', 0); // Persistent error
         }
     }
@@ -1044,7 +1067,7 @@ class CrewMemberController extends Controller
 
         // Verify this is a pending invitation
         if (! $crewMember->invitation_token || $crewMember->invitation_accepted_at) {
-            return redirect()->back()->with('error', 'This invitation is not pending or has already been accepted.');
+            return redirect()->back()->with('error', $this->transFrom('notifications', 'This invitation is not pending or has already been accepted.'));
         }
 
         // Verify the crew member belongs to this vessel
@@ -1094,7 +1117,7 @@ class CrewMemberController extends Controller
             $vesselId
         );
 
-        return redirect()->back()->with('success', 'Invitation cancelled successfully. Email notification sent.');
+        return redirect()->back()->with('success', $this->transFrom('notifications', 'Invitation cancelled successfully. Email notification sent.'));
     }
 
     /**
@@ -1109,7 +1132,7 @@ class CrewMemberController extends Controller
 
         // Verify this is a pending invitation
         if (! $crewMember->invitation_token || $crewMember->invitation_accepted_at) {
-            return redirect()->back()->with('error', 'This invitation is not pending or has already been accepted.');
+            return redirect()->back()->with('error', $this->transFrom('notifications', 'This invitation is not pending or has already been accepted.'));
         }
 
         // Verify the crew member belongs to this vessel
@@ -1126,11 +1149,11 @@ class CrewMemberController extends Controller
             ->count();
 
         if ($emailCount >= 3) {
-            return redirect()->back()->with('error', 'Maximum resend limit (3) reached for this invitation.');
+            return redirect()->back()->with('error', $this->transFrom('notifications', 'Maximum resend limit (3) reached for this invitation.'));
         }
 
         if (! $user->email) {
-            return redirect()->back()->with('error', 'User does not have an email address.');
+            return redirect()->back()->with('error', $this->transFrom('notifications', 'User does not have an email address.'));
         }
 
         // Generate new invitation token
@@ -1168,7 +1191,7 @@ class CrewMemberController extends Controller
                 'error'     => $e->getMessage(),
             ]);
 
-            return redirect()->back()->with('error', 'Failed to send invitation email. Please try again.');
+            return redirect()->back()->with('error', $this->transFrom('notifications', 'Failed to send invitation email. Please try again.'));
         }
 
         // Log the action
@@ -1180,6 +1203,6 @@ class CrewMemberController extends Controller
             $vesselId
         );
 
-        return redirect()->back()->with('success', 'Invitation email resent successfully.');
+        return redirect()->back()->with('success', $this->transFrom('notifications', 'Invitation email resent successfully.'));
     }
 }

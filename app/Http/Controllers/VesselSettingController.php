@@ -13,13 +13,14 @@ use App\Models\Currency;
 use App\Models\VatProfile;
 use App\Models\Vessel;
 use App\Models\VesselSetting;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class VesselSettingController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
     /**
      * Show the form for editing vessel settings.
      */
@@ -181,7 +182,7 @@ class VesselSettingController extends Controller
             $vessel->refresh();
 
             return back()
-                ->with('success', 'Vessel information has been updated successfully.')
+                ->with('success', $this->transFrom('notifications', 'Vessel information has been updated successfully.'))
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {
             Log::error('Vessel general update failed', [
@@ -192,7 +193,7 @@ class VesselSettingController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update vessel information. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update vessel information. Please try again.'))
                 ->with('notification_delay', 0);
         }
     }
@@ -245,7 +246,7 @@ class VesselSettingController extends Controller
 
             return redirect()
                 ->route('panel.settings.edit', ['vessel' => $this->hashId($vesselId, 'vessel')])
-                ->with('success', 'Vessel location settings have been updated successfully.')
+                ->with('success', $this->transFrom('notifications', 'Vessel location settings have been updated successfully.'))
                 ->with('notification_delay', 3);
         } catch (\Exception $e) {
             Log::error('Vessel location settings update failed', [
@@ -256,7 +257,7 @@ class VesselSettingController extends Controller
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to update vessel location settings. Please try again.')
+                ->with('error', $this->transFrom('notifications', 'Failed to update vessel location settings. Please try again.'))
                 ->with('notification_delay', 0);
         }
     }

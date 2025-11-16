@@ -92,6 +92,49 @@ return [
     "Supplier ':name' has been deleted successfully."                                                                         => "Supplier ':name' has been deleted successfully.",
     'Failed to delete supplier. Please try again.'                                                                            => 'Failed to delete supplier. Please try again.',
 
+    // Crew Member
+    'Email is required.'                                                                                                      => 'Email is required.',
+    "Crew member ':name' has been created successfully. They do not have system access."                                      => "Crew member ':name' has been created successfully. They do not have system access.",
+    "Invitation sent to ':email'. They will receive an email to accept the invitation."                                     => "Invitation sent to ':email'. They will receive an email to accept the invitation.",
+    'Validation failed. Please check your input.'                                                                             => 'Validation failed. Please check your input.',
+    'Failed to create crew member: :message'                                                                                  => 'Failed to create crew member: :message',
+    'This email is already registered to another user.'                                                                      => 'This email is already registered to another user.',
+    'Email is required when enabling system access.'                                                                          => 'Email is required when enabling system access.',
+    "Crew member ':name' has been updated successfully."                                                                      => "Crew member ':name' has been updated successfully.",
+    "Invitation sent to ':email'. They will receive an email to accept the invitation and set their password."               => "Invitation sent to ':email'. They will receive an email to accept the invitation and set their password.",
+    'Failed to update crew member: :message'                                                                                 => 'Failed to update crew member: :message',
+    "Cannot delete vessel owner ':name'. Transfer ownership before removing this user."                                      => "Cannot delete vessel owner ':name'. Transfer ownership before removing this user.",
+    "Cannot delete crew member ':name' because they have transactions. They will be unlinked from this vessel instead."      => "Cannot delete crew member ':name' because they have transactions. They will be unlinked from this vessel instead.",
+    "Crew member ':name' has been deleted successfully."                                                                     => "Crew member ':name' has been deleted successfully.",
+    "Crew member ':name' has been removed from this vessel."                                                                 => "Crew member ':name' has been removed from this vessel.",
+    'Crew member not found. Please refresh the page and try again.'                                                           => 'Crew member not found. Please refresh the page and try again.',
+    'Failed to delete crew member: :message'                                                                                 => 'Failed to delete crew member: :message',
+    'This invitation is not pending or has already been accepted.'                                                           => 'This invitation is not pending or has already been accepted.',
+    'Invitation cancelled successfully. Email notification sent.'                                                           => 'Invitation cancelled successfully. Email notification sent.',
+    'Maximum resend limit (3) reached for this invitation.'                                                                 => 'Maximum resend limit (3) reached for this invitation.',
+    'User does not have an email address.'                                                                                    => 'User does not have an email address.',
+    'Failed to send invitation email. Please try again.'                                                                      => 'Failed to send invitation email. Please try again.',
+    'Invitation email resent successfully.'                                                                                  => 'Invitation email resent successfully.',
+
+    // Crew Position
+    "Crew role ':name' has been created successfully."                                                                       => "Crew role ':name' has been created successfully.",
+    'Failed to create crew role. Please try again.'                                                                          => 'Failed to create crew role. Please try again.',
+    "Crew role ':name' has been updated successfully."                                                                       => "Crew role ':name' has been updated successfully.",
+    'Failed to update crew role. Please try again.'                                                                          => 'Failed to update crew role. Please try again.',
+    "Cannot delete crew role ':name' because it has :count crew member(s) assigned. Please reassign or remove crew members first." => "Cannot delete crew role ':name' because it has :count crew member(s) assigned. Please reassign or remove crew members first.",
+    "Crew role ':name' has been deleted successfully."                                                                       => "Crew role ':name' has been deleted successfully.",
+    'Failed to delete crew role. Please try again.'                                                                          => 'Failed to delete crew role. Please try again.',
+
+    // Vessel Settings
+    'Vessel information has been updated successfully.'                                                                     => 'Vessel information has been updated successfully.',
+    'Failed to update vessel information. Please try again.'                                                                 => 'Failed to update vessel information. Please try again.',
+    'Vessel location settings have been updated successfully.'                                                                => 'Vessel location settings have been updated successfully.',
+    'Failed to update vessel location settings. Please try again.'                                                            => 'Failed to update vessel location settings. Please try again.',
+
+    // File Management
+    "File ':name' has been deleted successfully."                                                                            => "File ':name' has been deleted successfully.",
+    'Failed to delete file. Please try again.'                                                                               => 'Failed to delete file. Please try again.',
+
     // Generic
     'Operation completed successfully.'                                                                                       => 'Operation completed successfully.',
     'Failed to complete operation: :message'                                                                                  => 'Failed to complete operation: :message',
