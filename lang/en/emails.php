@@ -15,6 +15,7 @@ return [
     // Email Content
     'Hello :name'                                                                                                                                                                        => 'Hello :name',
     'New transactions have been created for vessel :vessel'                                                                                                                              => 'New movimentations have been created for vessel :vessel',
+    'New movements have been created for vessel :vessel'                                                                                                                                 => 'New movements have been created for vessel :vessel',
     'A new transaction has been created for vessel :vessel'                                                                                                                              => 'A new movimentation has been created for vessel :vessel',
     'Transactions have been deleted from vessel :vessel'                                                                                                                                 => 'Movimentations have been deleted from vessel :vessel',
     'New marea has been started for vessel :vessel'                                                                                                                                      => 'New marea has been started for vessel :vessel',
@@ -35,6 +36,7 @@ return [
     'View Movements'                                                                                                                                                                     => 'View Movements',
     'View Movement'                                                                                                                                                                      => 'View Movement',
     'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.'                                                                         => 'These notifications have been grouped to avoid spam. The last :count movimentations created are shown above.',
+    'These notifications have been grouped to avoid spam. The last :count movements created are shown above.'                                                                             => 'These notifications have been grouped to avoid spam. The last :count movements created are shown above.',
     'Movements Deleted'                                                                                                                                                                  => 'Movements Deleted',
     'Movement Deleted'                                                                                                                                                                   => 'Movement Deleted',
     'Movement Created'                                                                                                                                                                   => 'Movement Created',

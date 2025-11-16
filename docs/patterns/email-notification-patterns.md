@@ -124,8 +124,8 @@ The mailable class handles email rendering:
 
 Templates are located in `resources/views/emails/notifications/`:
 
-- `grouped-transactions-created.blade.php` - Shows created transactions with vessel name
-- `grouped-transactions-deleted.blade.php` - Shows deleted transactions with vessel name
+- `grouped-movements-created.blade.php` - Shows created transactions/movements with vessel name
+- `grouped-movements-deleted.blade.php` - Shows deleted transactions/movements with vessel name
 - `grouped-mareas-started.blade.php` - Shows started mareas with vessel name
 - `grouped-mareas-completed.blade.php` - Shows completed mareas with vessel name
 - `grouped-default.blade.php` - Fallback template with vessel name

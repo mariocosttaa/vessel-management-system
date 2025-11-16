@@ -231,7 +231,7 @@ class GroupedVesselNotificationMail extends Mailable
         }
 
         $content = new Content(
-            view: 'emails.notifications.grouped-transactions-created',
+            view: 'emails.notifications.grouped-movements-created',
             with: [
                 'user' => $this->user,
                 'vessel' => $this->vessel,
