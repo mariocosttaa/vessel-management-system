@@ -220,7 +220,7 @@ const groupedByYear = computed(() => {
 </script>
 
 <template>
-    <Head :title="t('Transaction History')" />
+    <Head :title="t('Movements History')" />
 
     <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
         { title: t('Transactions'), href: transactions.index.url({ vessel: getCurrentVesselId() }) },
@@ -231,7 +231,7 @@ const groupedByYear = computed(() => {
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Transaction History') }}</h1>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Movements History') }}</h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Select a month and year to view transactions') }}</p>
                     </div>
                     <div class="flex items-center gap-4">

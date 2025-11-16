@@ -107,7 +107,7 @@ const mainNavItems = computed((): NavItem[] => {
         // Movimentation History nested under Movimentations
         if (hasPermission('reports.access')) {
             movimentationChildren.push({
-                title: t('Transaction History'),
+                title: t('History'),
                 href: `/panel/${vesselId}/movimentations/history`,
                 icon: Calculator,
             });
@@ -129,7 +129,7 @@ const mainNavItems = computed((): NavItem[] => {
         // Crew Roles nested under Crew Members
         if (canView('crew-roles')) {
             crewChildren.push({
-                title: t('Crew Roles'),
+                title: t('Position'),
                 href: `/panel/${vesselId}/crew-roles`,
                 icon: UserCog,
             });

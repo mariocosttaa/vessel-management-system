@@ -214,15 +214,15 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-    <Head :title="t('Crew Roles')" />
+    <Head :title="t('Members Position')" />
 
-    <VesselLayout :breadcrumbs="[{ title: t('Crew Roles'), href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Members Position'), href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Crew Roles') }}</h1>
+                        <h1 class="text-2xl font-semibold text-card-foreground dark:text-card-foreground">{{ t('Members Position') }}</h1>
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage crew positions and roles') }}</p>
                     </div>
                     <div class="flex items-center gap-3">
