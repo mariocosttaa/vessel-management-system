@@ -249,6 +249,7 @@ class PdfService
             'All rights reserved'            => trans('pdfs.All rights reserved'),
             'Transaction Report'             => trans('pdfs.Transaction Report'),
             'Marea Report'                   => trans('pdfs.Marea Report'),
+            'Maintenance Report'             => trans('pdfs.Maintenance Report'),
         ];
 
         // Restore original locale

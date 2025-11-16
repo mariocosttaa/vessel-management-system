@@ -449,6 +449,50 @@ class MaintenanceController extends Controller
     }
 
     /**
+     * Download maintenance PDF report.
+     */
+    public function downloadPdf(Request $request, $vessel, $maintenanceId)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view maintenances for this vessel
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, 'You do not have access to this vessel.');
+        }
+
+        // Check maintenances.view permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['maintenances.view'] ?? false)) {
+            abort(403, 'You do not have permission to view maintenances.');
+        }
+
+        // Get maintenance ID directly from route parameter
+        $maintenanceIdFromRoute = $request->route('maintenanceId');
+        // Unhash maintenance ID if it's a hashed string
+        if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
+            $maintenanceIdInt = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
+        } else {
+            $maintenanceIdInt = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
+        }
+
+        // Force fresh query with both vessel_id and id to ensure correct maintenance
+        $maintenance = Maintenance::where('vessel_id', $vesselId)
+            ->where('id', $maintenanceIdInt)
+            ->firstOrFail();
+
+        // Get enable_colors from request (default to false)
+        $enableColors = $request->boolean('enable_colors', false);
+
+        return \App\Pdf\MaintenancePdf::download($maintenance, null, $enableColors, $user);
+    }
+
+    /**
      * Remove the specified maintenance.
      */
     public function destroy(Request $request, $vessel, $maintenanceId)

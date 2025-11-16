@@ -245,6 +245,7 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'show'])->name('panel.maintenances.show');
     Route::put('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'update'])->name('panel.maintenances.update');
     Route::post('/maintenances/{maintenanceId}/finalize', [App\Http\Controllers\MaintenanceController::class, 'finalize'])->name('panel.maintenances.finalize');
+    Route::get('/maintenances/{maintenanceId}/download-pdf', [App\Http\Controllers\MaintenanceController::class, 'downloadPdf'])->name('panel.maintenances.download-pdf');
     Route::delete('/maintenances/{maintenanceId}', [App\Http\Controllers\MaintenanceController::class, 'destroy'])->name('panel.maintenances.destroy');
     Route::delete('/maintenances/{maintenanceId}/remove-movimentation/{transaction}', [App\Http\Controllers\MaintenanceController::class, 'removeTransaction'])->name('panel.maintenances.remove-movimentation');
 
