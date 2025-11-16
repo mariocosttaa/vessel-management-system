@@ -78,8 +78,19 @@ class PdfAction
                 // For external URLs, we'd need to download first - skip for now
                 $vesselLogoPath = null;
             } else {
-                // Logo is stored in storage, get full path
-                $vesselLogoPath = storage_path('app/public/' . $vessel->logo);
+                // Handle both old and new logo path formats
+                $logoPath = $vessel->logo;
+
+                // If it's already in the old format (starts with "vessels/"), use it as-is
+                if (str_starts_with($logoPath, 'vessels/')) {
+                    // Old format: "vessels/logos/filename.png" or "vessels/{vesselId}/logos/filename.png"
+                    $fullPath = $logoPath;
+                } else {
+                    // New format: "logos/filename.png" - construct full path
+                    $fullPath = "vessels/{$vessel->id}/" . ltrim($logoPath, '/');
+                }
+
+                $vesselLogoPath = storage_path('app/public/' . $fullPath);
                 // If file doesn't exist, set to null
                 if (! file_exists($vesselLogoPath)) {
                     $vesselLogoPath = null;

@@ -114,7 +114,12 @@ class TenantFileAction
             // If filePath is provided, use it
             if (str_starts_with($filePath, 'vessels/')) {
                 // If it's a full storage path, extract the relative path
+                // Handle both formats: "vessels/{vesselId}/logos/..." and "vessels/logos/..."
                 $pathToDelete = preg_replace('/^vessels\/\d+\//', '', $filePath);
+                // Also handle old format without vessel ID: "vessels/logos/..."
+                if (str_starts_with($pathToDelete, 'vessels/logos/')) {
+                    $pathToDelete = preg_replace('/^vessels\/logos\//', 'logos/', $pathToDelete);
+                }
             } else {
                 // Use the filePath as-is
                 $pathToDelete = ltrim($filePath, '/');

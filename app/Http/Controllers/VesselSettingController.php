@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Tenant\TenantFileAction;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\UpdateVesselGeneralRequest;
 use App\Http\Requests\UpdateVesselLocationRequest;
@@ -14,7 +15,6 @@ use App\Models\Vessel;
 use App\Models\VesselSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class VesselSettingController extends Controller
@@ -156,17 +156,21 @@ class VesselSettingController extends Controller
             // Handle logo upload
             if ($request->hasFile('logo')) {
                 // Delete old logo if exists
-                if ($vessel->logo && Storage::disk('public')->exists($vessel->logo)) {
-                    Storage::disk('public')->delete($vessel->logo);
+                if ($vessel->logo) {
+                    TenantFileAction::delete($vesselId, $vessel->logo, null, true);
                 }
 
-                // Store new logo
-                $logoPath = $request->file('logo')->store('vessels/logos', 'public');
+                // Store new logo using TenantFileAction (saves to vessels/{vesselId}/logos/)
+                $fileInfo = TenantFileAction::save($vesselId, $request->file('logo'), true, 'logos');
+                // Store the relative path (e.g., "logos/filename.png") - extract from local_path
+                // local_path is "vessels/{vesselId}/logos/filename.png", we need "logos/filename.png"
+                $logoPath = $fileInfo->local_path;
+                $logoPath = preg_replace('#^vessels/\d+/#', '', $logoPath);
                 $updateData['logo'] = $logoPath;
             } elseif ($request->boolean('remove_logo')) {
                 // Delete logo if remove_logo is true
-                if ($vessel->logo && Storage::disk('public')->exists($vessel->logo)) {
-                    Storage::disk('public')->delete($vessel->logo);
+                if ($vessel->logo) {
+                    TenantFileAction::delete($vesselId, $vessel->logo, null, true);
                 }
                 $updateData['logo'] = null;
             }

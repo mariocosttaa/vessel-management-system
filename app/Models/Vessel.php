@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Actions\General\EasyHashAction;
+use App\Actions\Tenant\TenantFileAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -204,8 +205,21 @@ class Vessel extends Model
             return $this->logo;
         }
 
-        // Otherwise, return the storage URL
-        return asset('storage/' . $this->logo);
+        // Handle backward compatibility with old logo paths
+        // Old format: "vessels/logos/filename.png" or "vessels/{vesselId}/logos/filename.png"
+        // New format: "logos/filename.png"
+        $logoPath = $this->logo;
+
+        // If it's the old format, extract the relative path
+        if (str_starts_with($logoPath, 'vessels/')) {
+            // Remove "vessels/" prefix and any vessel ID
+            $logoPath = preg_replace('#^vessels/\d+/#', '', $logoPath);
+            // Also handle old format without vessel ID: "vessels/logos/..."
+            $logoPath = preg_replace('#^vessels/logos/#', 'logos/', $logoPath);
+        }
+
+        // Use TenantFileAction to generate the controller route URL
+        return TenantFileAction::show($this->id, $logoPath, true);
     }
 
     /**
