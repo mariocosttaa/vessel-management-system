@@ -154,7 +154,5 @@ class VatProfileSeeder extends Seeder
             'is_default' => !$defaultSet, // Set as default if no country default was set
             'is_active' => true,
         ]);
-
-        $this->command->info('VAT profiles seeded successfully.');
     }
 }

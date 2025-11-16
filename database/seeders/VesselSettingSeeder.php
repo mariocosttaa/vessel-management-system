@@ -53,8 +53,6 @@ class VesselSettingSeeder extends Seeder
                 ]
             );
         }
-
-        $this->command->info('Vessel settings seeded successfully with Angola, AOA, and 14% VAT.');
     }
 }
 

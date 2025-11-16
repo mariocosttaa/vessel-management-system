@@ -27,8 +27,6 @@ class CurrencySeeder extends Seeder
             return;
         }
 
-        $this->command->info('Seeding currencies from CurrencySeeder.json...');
-
         foreach ($currencies as $currencyData) {
             // Check if currency already exists
             $existing = Currency::where('code', $currencyData['code'])->first();
@@ -41,7 +39,6 @@ class CurrencySeeder extends Seeder
                     'symbol_2' => $currencyData['symbol_2'],
                     'decimal_separator' => $currencyData['decimal_separator'],
                 ]);
-                $this->command->line("Updated: {$currencyData['code']} - {$currencyData['name']}");
             } else {
                 // Create new currency
                 Currency::create([
@@ -51,10 +48,7 @@ class CurrencySeeder extends Seeder
                     'symbol_2' => $currencyData['symbol_2'],
                     'decimal_separator' => $currencyData['decimal_separator'],
                 ]);
-                $this->command->line("Created: {$currencyData['code']} - {$currencyData['name']}");
             }
         }
-
-        $this->command->info('Currency seeding completed!');
     }
 }

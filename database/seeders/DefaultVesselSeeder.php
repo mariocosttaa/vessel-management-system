@@ -16,7 +16,6 @@ class DefaultVesselSeeder extends Seeder
         $admin = User::where('email', 'admin@example.com')->first();
 
         if (!$admin) {
-            $this->command?->warn('DefaultVesselSeeder: admin user not found, skipping vessel seeding.');
             return;
         }
 
