@@ -598,10 +598,14 @@ class CrewMemberController extends Controller
                 }
             }
 
+            // Check if position changed before update
+            $positionChanged = $originalCrewMember->position_id != $request->position_id;
+
             $crewMember->update($updateData);
 
-            // Send invitation email if system access was just enabled
-            if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
+            // Update VesselUserRole if position changed OR if system access is being enabled
+            // This ensures role is always synced with position
+            if ($positionChanged || ($isEnablingAccess && ! $hasExistingAccount)) {
                 // Create VesselUserRole based on position's vessel_role_access_id
                 $vesselRoleAccessId = null;
 
@@ -621,8 +625,9 @@ class CrewMemberController extends Controller
                     }
                 }
 
-                // Create VesselUserRole if we have a role access ID
-                if ($vesselRoleAccessId) {
+                // Create or update VesselUserRole if we have a role access ID
+                // Only update if user has system access or is getting it enabled
+                if ($vesselRoleAccessId && ($crewMember->login_permitted || $isEnablingAccess)) {
                     VesselUserRole::updateOrCreate(
                         [
                             'vessel_id' => $vesselId,
@@ -633,7 +638,20 @@ class CrewMemberController extends Controller
                             'is_active'             => true,
                         ]
                     );
+
+                    Log::info('CrewMemberController::update - VesselUserRole updated', [
+                        'user_id'                => $crewMember->id,
+                        'vessel_id'              => $vesselId,
+                        'position_id'            => $crewMember->position_id,
+                        'vessel_role_access_id'  => $vesselRoleAccessId,
+                        'position_changed'       => $positionChanged,
+                        'is_enabling_access'     => $isEnablingAccess,
+                    ]);
                 }
+            }
+
+            // Send invitation email if system access was just enabled
+            if ($isEnablingAccess && ! $hasExistingAccount && $crewMember->email) {
 
                 try {
                     $invitationToken = $crewMember->invitation_token;
