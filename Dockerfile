@@ -134,7 +134,12 @@ RUN rm -f /etc/nginx/sites-enabled/default \
     && echo '        access_log off;' >> /etc/nginx/sites-available/laravel \
     && echo '    }' >> /etc/nginx/sites-available/laravel \
     && echo '' >> /etc/nginx/sites-available/laravel \
-    && echo '    # Serve static files directly' >> /etc/nginx/sites-available/laravel \
+    && echo '    # Pass /file/ routes to Laravel (must come before static files location)' >> /etc/nginx/sites-available/laravel \
+    && echo '    location /file/ {' >> /etc/nginx/sites-available/laravel \
+    && echo '        try_files $uri /index.php?$query_string;' >> /etc/nginx/sites-available/laravel \
+    && echo '    }' >> /etc/nginx/sites-available/laravel \
+    && echo '' >> /etc/nginx/sites-available/laravel \
+    && echo '    # Serve static files directly (but not /file/ routes)' >> /etc/nginx/sites-available/laravel \
     && echo '    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {' >> /etc/nginx/sites-available/laravel \
     && echo '        expires 1y;' >> /etc/nginx/sites-available/laravel \
     && echo '        add_header Cache-Control "public, immutable";' >> /etc/nginx/sites-available/laravel \
