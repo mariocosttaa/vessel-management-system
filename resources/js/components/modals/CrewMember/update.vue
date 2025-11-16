@@ -177,8 +177,7 @@ const validateStep = (step: string) => {
 
     if (step === 'crew-info') {
         if (!form.name?.trim()) errors.push('Name is required');
-        if (!form.hire_date) errors.push('Hire date is required');
-        if (!form.position_id) errors.push('Position is required');
+        // hire_date and position_id are optional when editing
         if (!form.status) errors.push('Status is required');
     } else if (step === 'salary') {
         if (!form.skip_salary) {
@@ -706,12 +705,11 @@ const handleClose = () => {
                         <!-- Hire Date -->
                         <div>
                             <Label for="hire_date" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Hire Date') }} <span class="text-destructive">*</span>
+                                {{ t('Hire Date') }}
                             </Label>
                             <DateInput
                                 id="hire_date"
                                 v-model="form.hire_date"
-                                required
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.hire_date || getStepErrors('crew-info').some(e => e.includes('Hire date')) }"
                             />
                             <InputError :message="form.errors.hire_date" class="mt-1" />
@@ -742,7 +740,7 @@ const handleClose = () => {
                         <!-- Position -->
                         <div>
                             <Label for="position_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                                {{ t('Position') }} <span class="text-destructive">*</span>
+                                {{ t('Position') }}
                             </Label>
                             <Select
                                 id="position_id"

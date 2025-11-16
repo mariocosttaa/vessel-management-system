@@ -17,12 +17,12 @@ use Illuminate\Validation\Rule;
  *
  * Input fields:
  * @property int|null $vessel_id
- * @property int $position_id
+ * @property int|null $position_id
  * @property string $name
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $date_of_birth
- * @property string $hire_date
+ * @property string|null $hire_date
  * @property int $salary_amount
  * @property string $compensation_type
  * @property int|null $fixed_amount
@@ -90,11 +90,11 @@ class UpdateCrewMemberRequest extends FormRequest
         $rules = [
             'vessel_id'       => ['nullable', 'integer', Rule::exists(Vessel::class, 'id')],
             'login_permitted' => ['boolean'],
-            'position_id'     => ['required', 'integer', Rule::exists(CrewPosition::class, 'id')],
+            'position_id'     => ['nullable', 'integer', Rule::exists(CrewPosition::class, 'id')],
             'name'            => ['required', 'string', 'max:255'],
             'phone'           => ['nullable', 'string', 'max:50'],
             'date_of_birth'   => ['nullable', 'date', 'before:today'],
-            'hire_date'       => ['required', 'date', 'before_or_equal:today'],
+            'hire_date'       => ['nullable', 'date', 'before_or_equal:today'],
             'status'          => ['required', 'in:active,inactive,on_leave'],
             'administrative'  => ['boolean'],
             'notes'           => ['nullable', 'string', 'max:1000'],
@@ -130,12 +130,10 @@ class UpdateCrewMemberRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'position_id.required'       => 'Please select a crew position.',
             'position_id.exists'         => 'The selected crew position is invalid.',
             'name.required'              => 'The crew member name is required.',
             'email.email'                => 'Please enter a valid email address.',
             'date_of_birth.before'       => 'The date of birth must be before today.',
-            'hire_date.required'         => 'The hire date is required.',
             'hire_date.before_or_equal'  => 'The hire date cannot be in the future.',
             'salary_amount.required'     => 'The salary amount is required.',
             'salary_amount.min'          => 'The salary amount must be at least 0.',
