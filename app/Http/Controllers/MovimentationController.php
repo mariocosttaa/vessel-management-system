@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 use App\Actions\AuditLogAction;
 use App\Actions\EmailNotificationAction;
 use App\Actions\MoneyAction;
+use App\Exports\TransactionsExport;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\StoreMovimentationRequest;
 use App\Http\Requests\UpdateMovimentationRequest;
 use App\Http\Resources\MovimentationResource;
+use App\Imports\TransactionsImport;
 use App\Models\Movimentation;
 use App\Models\MovimentationCategory;
 use App\Models\Supplier;
@@ -18,7 +20,9 @@ use App\Pdf\MovimentationPdf;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MovimentationController extends Controller
 {
@@ -1737,5 +1741,405 @@ class MovimentationController extends Controller
         );
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Export transactions to Excel (filtered by date range).
+     */
+    public function exportExcel(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Rate limiting check (5 requests per minute)
+        $key = $user ? 'excel-export-user-' . $user->id : 'excel-export-ip-' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            abort(429, $this->transFrom('notifications', 'Too many export requests. Please try again in :seconds seconds.', ['seconds' => $seconds]));
+        }
+
+        RateLimiter::hit($key);
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check movimentations.view permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['movimentations.view'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (! $vessel) {
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
+        }
+
+        // Get date range from request
+        $startDate = $request->get('start_date');
+        $endDate   = $request->get('end_date');
+
+        if (! $startDate || ! $endDate) {
+            abort(400, $this->transFrom('notifications', 'Start date and end date are required.'));
+        }
+
+        // Validate dates
+        try {
+            $start = \Carbon\Carbon::parse($startDate);
+            $end   = \Carbon\Carbon::parse($endDate);
+
+            if ($start->gt($end)) {
+                abort(400, $this->transFrom('notifications', 'Start date must be before or equal to end date.'));
+            }
+        } catch (\Exception $e) {
+            abort(400, $this->transFrom('notifications', 'Invalid date format.'));
+        }
+
+        // Get transactions for the date range
+        $query = Movimentation::where('vessel_id', $vesselId)
+            ->whereBetween('transaction_date', [$startDate, $endDate]);
+
+        // Filter by marea_id if provided
+        if ($request->has('marea_id')) {
+            $mareaIdValue = $request->input('marea_id');
+            if ($mareaIdValue) {
+                $mareaId = $this->unhashId($mareaIdValue, 'marea');
+                if ($mareaId) {
+                    $query->where('marea_id', $mareaId);
+                }
+            }
+        }
+
+        // Filter by maintenance_id if provided
+        if ($request->has('maintenance_id')) {
+            $maintenanceIdValue = $request->input('maintenance_id');
+            if ($maintenanceIdValue) {
+                $maintenanceId = $this->unhashId($maintenanceIdValue, 'maintenance');
+                if ($maintenanceId) {
+                    $query->where('maintenance_id', $maintenanceId);
+                }
+            }
+        }
+
+        // Filter by transaction type if provided
+        $transactionType = $request->get('transaction_type');
+        if ($transactionType && in_array($transactionType, ['income', 'expense'])) {
+            $query->where('type', $transactionType);
+        }
+
+        $transactions = $query->with([
+            'category',
+            'supplier',
+            'crewMember',
+            'vatProfile',
+            'marea',
+            'maintenance',
+            'createdBy',
+        ])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        // Determine export context (marea, maintenance, or null for general)
+        $context = null;
+        if ($request->has('marea_id')) {
+            $context = 'marea';
+        } elseif ($request->has('maintenance_id')) {
+            $context = 'maintenance';
+        }
+
+        $period   = \Carbon\Carbon::parse($startDate)->format('d-m-Y') . '_' . \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+        $filename = "transactions_{$vessel->id}_{$period}_" . date('Y-m-d') . '.xlsx';
+
+        return Excel::download(new TransactionsExport($transactions, $context), $filename);
+    }
+
+    /**
+     * Export transactions to Excel for a specific month/year.
+     */
+    public function exportExcelMonth(Request $request, $year, $month)
+    {
+        // Get parameters from route
+        $year  = (int) $request->route('year');
+        $month = (int) $request->route('month');
+
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Rate limiting check (5 requests per minute)
+        $key = $user ? 'excel-export-user-' . $user->id : 'excel-export-ip-' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            abort(429, $this->transFrom('notifications', 'Too many export requests. Please try again in :seconds seconds.', ['seconds' => $seconds]));
+        }
+
+        RateLimiter::hit($key);
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to view transactions using config permissions
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check movimentations.view permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['movimentations.view'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        // Validate month and year
+        if ($month < 1 || $month > 12) {
+            abort(404, $this->transFrom('notifications', 'Invalid month.'));
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            abort(404, $this->transFrom('notifications', 'Invalid year.'));
+        }
+
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (! $vessel) {
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
+        }
+
+        // Get transactions for the month/year
+        $query = Movimentation::where('vessel_id', $vesselId)
+            ->where('transaction_month', $month)
+            ->where('transaction_year', $year);
+
+        // Filter by marea_id if provided
+        if ($request->has('marea_id')) {
+            $mareaIdValue = $request->input('marea_id');
+            if ($mareaIdValue) {
+                $mareaId = $this->unhashId($mareaIdValue, 'marea');
+                if ($mareaId) {
+                    $query->where('marea_id', $mareaId);
+                }
+            }
+        }
+
+        // Filter by maintenance_id if provided
+        if ($request->has('maintenance_id')) {
+            $maintenanceIdValue = $request->input('maintenance_id');
+            if ($maintenanceIdValue) {
+                $maintenanceId = $this->unhashId($maintenanceIdValue, 'maintenance');
+                if ($maintenanceId) {
+                    $query->where('maintenance_id', $maintenanceId);
+                }
+            }
+        }
+
+        // Filter by transaction type if provided
+        $transactionType = $request->get('transaction_type');
+        if ($transactionType && in_array($transactionType, ['income', 'expense'])) {
+            $query->where('type', $transactionType);
+        }
+
+        $transactions = $query->with([
+            'category',
+            'supplier',
+            'crewMember',
+            'vatProfile',
+            'marea',
+            'maintenance',
+            'createdBy',
+        ])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        // Determine export context (marea, maintenance, or null for general)
+        $context = null;
+        if ($request->has('marea_id')) {
+            $context = 'marea';
+        } elseif ($request->has('maintenance_id')) {
+            $context = 'maintenance';
+        }
+
+        $monthLabel = date('F', mktime(0, 0, 0, $month, 1));
+        $filename   = "transactions_{$vessel->id}_{$year}_{$month}_" . date('Y-m-d') . '.xlsx';
+
+        return Excel::download(new TransactionsExport($transactions, $context), $filename);
+    }
+
+    /**
+     * Import transactions from Excel file.
+     */
+    public function importExcel(Request $request)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $request->user();
+
+        // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+        /** @var int $vesselId */
+        $vesselId = $request->attributes->get('vessel_id');
+
+        // Check if user has permission to create transactions using config permissions
+        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+        }
+
+        // Check movimentations.create permission from config
+        $userRole    = $user->getRoleForVessel($vesselId);
+        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+        if (! ($permissions['movimentations.create'] ?? false)) {
+            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+        }
+
+        // Validate file
+        try {
+            $request->validate([
+                'file' => 'required|mimes:xlsx,xls,xlsm|max:10240', // 10MB max
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors'  => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+
+            if (! $file || ! $file->isValid()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $this->transFrom('notifications', 'Invalid file uploaded.'),
+                ], 422);
+            }
+
+            Log::info('Starting Excel import', [
+                'vessel_id' => $vesselId,
+                'user_id'   => $user->id,
+                'filename'  => $file->getClientOriginalName(),
+                'size'      => $file->getSize(),
+            ]);
+
+            // Get skip_duplicates option from request (default: true)
+            $skipDuplicatesInput = $request->input('skip_duplicates', '1');
+            $skipDuplicates      = filter_var($skipDuplicatesInput, FILTER_VALIDATE_BOOLEAN);
+
+            // Get ignore_transaction_numbers option from request (default: false)
+            $ignoreTransactionNumbersInput = $request->input('ignore_transaction_numbers', '0');
+            $ignoreTransactionNumbers      = filter_var($ignoreTransactionNumbersInput, FILTER_VALIDATE_BOOLEAN);
+
+            // Get marea_id and maintenance_id from request (optional - for linking transactions)
+            $mareaId       = null;
+            $maintenanceId = null;
+
+            if ($request->has('marea_id')) {
+                $mareaIdValue = $request->input('marea_id');
+                if ($mareaIdValue) {
+                    $mareaId = $this->unhashId($mareaIdValue, 'marea');
+                }
+            }
+
+            if ($request->has('maintenance_id')) {
+                $maintenanceIdValue = $request->input('maintenance_id');
+                if ($maintenanceIdValue) {
+                    $maintenanceId = $this->unhashId($maintenanceIdValue, 'maintenance');
+                }
+            }
+
+            Log::info('Import settings', [
+                'skip_duplicates_raw'               => $skipDuplicatesInput,
+                'skip_duplicates_parsed'            => $skipDuplicates,
+                'ignore_transaction_numbers_raw'    => $ignoreTransactionNumbersInput,
+                'ignore_transaction_numbers_parsed' => $ignoreTransactionNumbers,
+                'marea_id'                          => $mareaId,
+                'maintenance_id'                    => $maintenanceId,
+            ]);
+
+            $import = new TransactionsImport($vesselId, $user->id, $skipDuplicates, $ignoreTransactionNumbers, $mareaId, $maintenanceId);
+            Excel::import($import, $file);
+
+            $results = $import->getResults();
+
+            Log::info('Excel import completed', [
+                'vessel_id'     => $vesselId,
+                'user_id'       => $user->id,
+                'success_count' => $results['success_count'] ?? 0,
+                'error_count'   => $results['error_count'] ?? 0,
+                'skipped_count' => $results['skipped_count'] ?? 0,
+            ]);
+
+            $successCount = $results['success_count'] ?? 0;
+            $errorCount   = $results['error_count'] ?? 0;
+            $skippedCount = $results['skipped_count'] ?? 0;
+
+            if ($successCount > 0) {
+                $message = "Import completed: {$successCount} transaction(s) imported successfully.";
+            } elseif ($skippedCount > 0 && $errorCount === 0) {
+                $message = "All {$skippedCount} row(s) were skipped (transactions already exist). No new transactions were imported.";
+            } else {
+                $message = 'No transactions were imported.';
+            }
+
+            if ($errorCount > 0) {
+                $message .= " {$errorCount} row(s) had errors.";
+            }
+
+            if ($skippedCount > 0 && $successCount > 0) {
+                $message .= " {$skippedCount} row(s) were skipped (duplicates).";
+            }
+
+            // Import is successful if we imported something OR if all rows were skipped (no errors)
+            $isSuccess = $successCount > 0 || ($skippedCount > 0 && $errorCount === 0);
+
+            return response()->json([
+                'success'       => $isSuccess,
+                'success_count' => $successCount,
+                'error_count'   => $errorCount,
+                'skipped_count' => $skippedCount,
+                'errors'        => $results['errors'] ?? [],
+                'skipped'       => $results['skipped'] ?? [],
+                'message'       => $message,
+            ]);
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errors   = [];
+
+            foreach ($failures as $failure) {
+                $errors[] = [
+                    'row'   => $failure->row(),
+                    'error' => $failure->errors()[0] ?? 'Validation error',
+                ];
+            }
+
+            Log::error('Excel import validation error', [
+                'vessel_id' => $vesselId,
+                'user_id'   => $user->id,
+                'errors'    => $errors,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $this->transFrom('notifications', 'Import validation failed.'),
+                'errors'  => $errors,
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Excel import error: ' . $e->getMessage(), [
+                'vessel_id' => $vesselId,
+                'user_id'   => $user->id,
+                'exception' => $e,
+                'trace'     => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $this->transFrom('notifications', 'Import failed: ') . $e->getMessage(),
+                'error'   => config('app.debug') ? $e->getTraceAsString() : null,
+            ], 500);
+        }
     }
 }

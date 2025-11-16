@@ -160,6 +160,16 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/movimentations/download-pdf', [MovimentationController::class, 'downloadPdfFiltered'])
         ->middleware('throttle:10,1')
         ->name('panel.movimentations.download-pdf');
+    Route::get('/movimentations/export-excel', [MovimentationController::class, 'exportExcel'])
+        ->middleware('throttle:10,1')
+        ->name('panel.movimentations.export-excel');
+    Route::get('/movimentations/history/{year}/{month}/export-excel', [MovimentationController::class, 'exportExcelMonth'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->middleware('throttle:10,1')
+        ->name('panel.movimentations.history.month.export-excel');
+    Route::post('/movimentations/import-excel', [MovimentationController::class, 'importExcel'])
+        ->middleware('throttle:10,1')
+        ->name('panel.movimentations.import-excel');
     Route::get('/movimentations/{movimentationId}', [MovimentationController::class, 'show'])->name('panel.movimentations.show');
     Route::get('/movimentations/{movimentationId}/edit', [MovimentationController::class, 'edit'])->name('panel.movimentations.edit');
     Route::get('/api/movimentations/search', [MovimentationController::class, 'search'])->name('panel.api.movimentations.search');
