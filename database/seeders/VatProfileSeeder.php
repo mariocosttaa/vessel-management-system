@@ -14,7 +14,8 @@ class VatProfileSeeder extends Seeder
     public function run(): void
     {
         // Clear existing VAT profiles
-        VatProfile::truncate();
+        // Note: Using delete() instead of truncate() because truncate() fails when foreign key constraints exist
+        VatProfile::query()->delete();
 
         // Get all countries
         $countries = Country::all()->keyBy('code');
