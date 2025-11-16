@@ -2,20 +2,20 @@
 
 return [
     // Report titles
-    'Transaction Report'                             => 'Transaction Report',
-    'Movements and Transactions Overview'            => 'Movements and Transactions Overview',
-    'All Transactions'                               => 'All Transactions',
+    'Transaction Report'                             => 'Movimentation Report',
+    'Movements and Transactions Overview'            => 'Movements and Movimentations Overview',
+    'All Transactions'                               => 'All Movimentations',
 
     // Section headers
     'Period:'                                        => 'Period:',
     'Summary'                                        => 'Summary',
-    'Transactions'                                   => 'Transactions',
+    'Transactions'                                   => 'Movimentations',
 
     // Summary labels
     'Total Income'                                   => 'Total Income',
     'Total Expenses'                                 => 'Total Expenses',
     'Net Balance'                                    => 'Net Balance',
-    'Total Transactions'                             => 'Total Transactions',
+    'Total Transactions'                             => 'Total Movimentations',
 
     // Table headers
     'Date'                                           => 'Date',
@@ -25,9 +25,9 @@ return [
     'Type'                                           => 'Type',
 
     // Empty state
-    'No transactions found for the selected period.' => 'No transactions found for the selected period.',
+    'No transactions found for the selected period.' => 'No movimentations found for the selected period.',
 
-    // Transaction types
+    // Movimentation types
     'Income'                                         => 'Income',
     'Expense'                                        => 'Expense',
     'Transfer'                                       => 'Transfer',
@@ -42,4 +42,45 @@ return [
     'Page :pageNumber of :pageCount'                 => 'Page :pageNumber of :pageCount',
     'Generated on'                                   => 'Generated on',
     'All rights reserved'                            => 'All rights reserved',
+
+    // Marea Report
+    'Marea Report'                                   => 'Marea Report',
+    'Fishing Trip Overview'                          => 'Fishing Trip Overview',
+    'Marea Information'                              => 'Marea Information',
+    'Marea Number'                                   => 'Marea Number',
+    'Status'                                         => 'Status',
+    'Name'                                           => 'Name',
+    'Dates'                                          => 'Dates',
+    'Estimated Departure'                            => 'Estimated Departure',
+    'Actual Departure'                               => 'Actual Departure',
+    'Estimated Return'                               => 'Estimated Return',
+    'Actual Return'                                  => 'Actual Return',
+    'Net Result'                                     => 'Net Result',
+    'Distribution Calculation'                       => 'Distribution Calculation',
+    'Item'                                           => 'Item',
+    'Value'                                          => 'Value',
+    'Final Result'                                   => 'Final Result',
+    'Income Transactions'                            => 'Income Movimentations',
+    'Expense Transactions'                           => 'Expense Movimentations',
+    'Expenses with Salary'                           => 'Expenses with Salary',
+    'Expenses'                                       => 'Expenses',
+    'Incomes'                                        => 'Incomes',
+    'Crew Members'                                   => 'Crew Members',
+    'Crew Member'                                    => 'Crew Member',
+    'Salary Payments'                                => 'Salary Payments',
+    'Total Salary Payments'                          => 'Total Salary Payments',
+    'Fishing Quantity Returns'                       => 'Fishing Quantity Returns',
+    'Quantity'                                       => 'Quantity',
+    'Notes'                                          => 'Notes',
+    'transactions'                                   => 'movimentations',
+    'movimentations'                                 => 'movimentations',
+    'Generate PDF'                                   => 'Generate PDF',
+    'Select sections to include in the PDF'          => 'Select sections to include in the PDF',
+    'Marea Information'                              => 'Marea Information',
+    'Always included'                                => 'Always included',
+    'Preparing'                                      => 'Preparing',
+    'At Sea'                                         => 'At Sea',
+    'Returned'                                       => 'Returned',
+    'Closed'                                         => 'Closed',
+    'Cancelled'                                      => 'Cancelled',
 ];
