@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,6 +25,7 @@ return new class extends Migration
             $table->foreignId('owner_id')->nullable()->constrained('users')->onDelete('set null');
 
             // Country and currency
+            // Note: Foreign keys added after countries and currencies tables exist (see migration order)
             $table->string('country_code', 2)->nullable();
             $table->string('currency_code', 3)->nullable();
 
@@ -39,9 +41,8 @@ return new class extends Migration
         });
 
         // Add foreign keys for country and currency after those tables exist
-        // This is done here to keep everything in one migration file per the migration patterns
-        // Note: This migration must run after countries and currencies migrations
-        if (config('database.default') !== 'sqlite') {
+        // Note: SQLite has limited foreign key support, so we skip for SQLite
+        if (DB::getDriverName() !== 'sqlite' && Schema::hasTable('countries') && Schema::hasTable('currencies')) {
             Schema::table('vessels', function (Blueprint $table) {
                 $table->foreign('country_code')
                     ->references('code')
@@ -61,6 +62,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Only drop foreign keys if they exist (skip for SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('vessels', function (Blueprint $table) {
+                $table->dropForeign(['country_code']);
+                $table->dropForeign(['currency_code']);
+            });
+        }
+
         Schema::dropIfExists('vessels');
     }
 };
