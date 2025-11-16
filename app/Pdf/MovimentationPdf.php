@@ -1,6 +1,7 @@
 <?php
 namespace App\Pdf;
 
+use App\Actions\PdfAction;
 use App\Models\Movimentation;
 use App\Models\User;
 use App\Models\Vessel;
@@ -53,7 +54,7 @@ class MovimentationPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.transaction-report', [
+        return PdfAction::generate('pdf.reports.movement-report', [
             'vessel'       => $vessel,
             'transactions' => $transactions,
             'summary'      => $summary,
@@ -159,7 +160,7 @@ class MovimentationPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.transaction-report', [
+        return PdfAction::generate('pdf.reports.movement-report', [
             'vessel'       => $vessel,
             'transactions' => $transactions,
             'summary'      => $summary,

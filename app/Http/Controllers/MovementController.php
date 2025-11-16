@@ -5,22 +5,22 @@ use App\Actions\AuditLogAction;
 use App\Actions\EmailNotificationAction;
 use App\Actions\MoneyAction;
 use App\Http\Controllers\Concerns\HashesIds;
-use App\Http\Requests\StoreTransactionRequest;
-use App\Http\Requests\UpdateTransactionRequest;
-use App\Http\Resources\TransactionResource;
+use App\Http\Requests\StoreMovementRequest;
+use App\Http\Requests\UpdateMovementRequest;
+use App\Http\Resources\MovementResource;
 use App\Models\Movimentation;
 use App\Models\MovimentationCategory;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
 use App\Models\VesselSetting;
-use App\Pdf\TransactionPdf;
+use App\Pdf\MovementPdf;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
-class TransactionController extends Controller
+class MovementController extends Controller
 {
     use HasTranslations, HashesIds;
     /**
@@ -110,7 +110,7 @@ class TransactionController extends Controller
 
         // Transform the data manually to preserve pagination metadata
         $transactions->through(function ($transaction) {
-            return (new TransactionResource($transaction))->resolve();
+            return (new MovementResource($transaction))->resolve();
         });
 
         // Related data for filters/forms
@@ -306,7 +306,7 @@ class TransactionController extends Controller
     /**
      * Store a newly created transaction.
      */
-    public function store(StoreTransactionRequest $request)
+    public function store(StoreMovementRequest $request)
     {
         try {
             // Get vessel_id from route parameter
@@ -586,7 +586,7 @@ class TransactionController extends Controller
         ]);
 
         return Inertia::render('Transactions/Show', [
-            'transaction' => new TransactionResource($transaction),
+            'transaction' => new MovementResource($transaction),
         ]);
     }
 
@@ -646,7 +646,7 @@ class TransactionController extends Controller
         ]);
 
         return response()->json([
-            'transaction' => new TransactionResource($transaction),
+            'transaction' => new MovementResource($transaction),
         ]);
     }
 
@@ -738,7 +738,7 @@ class TransactionController extends Controller
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
         return Inertia::render('Transactions/Edit', [
-            'transaction'       => new TransactionResource($transaction),
+            'transaction'       => new MovementResource($transaction),
             'defaultCurrency'   => $defaultCurrency, // Pass default currency from vessel_settings to frontend
             'categories'        => $categories->map(function ($category) {
                 return [
@@ -784,7 +784,7 @@ class TransactionController extends Controller
     /**
      * Update the specified transaction.
      */
-    public function update(UpdateTransactionRequest $request, $vessel, $transactionId)
+    public function update(UpdateMovementRequest $request, $vessel, $transactionId)
     {
         try {
             // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
@@ -1314,7 +1314,7 @@ class TransactionController extends Controller
 
         // Transform the data manually to preserve pagination metadata
         $transactions->through(function ($transaction) {
-            return (new TransactionResource($transaction))->resolve();
+            return (new MovementResource($transaction))->resolve();
         });
 
         // Related data for filters/forms
@@ -1528,7 +1528,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovementPdf::generate(
             $vessel,
             $transactions,
             $summary,
@@ -1625,7 +1625,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovementPdf::generate(
             $vessel,
             $transactions,
             $summary,
@@ -1723,7 +1723,7 @@ class TransactionController extends Controller
         // If 'enable_colors=1' is present, enable colors; otherwise disable (default)
         $enableColors = $request->get('enable_colors') === '1';
 
-        $pdf = TransactionPdf::generate(
+        $pdf = MovementPdf::generate(
             $vessel,
             $transactions,
             $summary,

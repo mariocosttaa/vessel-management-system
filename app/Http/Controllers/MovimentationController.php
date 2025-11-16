@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 use App\Actions\AuditLogAction;
 use App\Actions\EmailNotificationAction;
 use App\Actions\MoneyAction;
-use App\Exports\TransactionsExport;
+use App\Exports\MovementsExport;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\StoreMovimentationRequest;
 use App\Http\Requests\UpdateMovimentationRequest;
 use App\Http\Resources\MovimentationResource;
-use App\Imports\TransactionsImport;
+use App\Imports\MovementsImport;
 use App\Models\Movimentation;
 use App\Models\MovimentationCategory;
 use App\Models\Supplier;
@@ -1857,7 +1857,7 @@ class MovimentationController extends Controller
         $period   = \Carbon\Carbon::parse($startDate)->format('d-m-Y') . '_' . \Carbon\Carbon::parse($endDate)->format('d-m-Y');
         $filename = "transactions_{$vessel->id}_{$period}_" . date('Y-m-d') . '.xlsx';
 
-        return Excel::download(new TransactionsExport($transactions, $context), $filename);
+        return Excel::download(new MovementsExport($transactions, $context), $filename);
     }
 
     /**
@@ -1968,7 +1968,7 @@ class MovimentationController extends Controller
         $monthLabel = date('F', mktime(0, 0, 0, $month, 1));
         $filename   = "transactions_{$vessel->id}_{$year}_{$month}_" . date('Y-m-d') . '.xlsx';
 
-        return Excel::download(new TransactionsExport($transactions, $context), $filename);
+        return Excel::download(new MovementsExport($transactions, $context), $filename);
     }
 
     /**
@@ -2060,7 +2060,7 @@ class MovimentationController extends Controller
                 'maintenance_id'                    => $maintenanceId,
             ]);
 
-            $import = new TransactionsImport($vesselId, $user->id, $skipDuplicates, $ignoreTransactionNumbers, $mareaId, $maintenanceId);
+            $import = new MovementsImport($vesselId, $user->id, $skipDuplicates, $ignoreTransactionNumbers, $mareaId, $maintenanceId);
             Excel::import($import, $file);
 
             $results = $import->getResults();
