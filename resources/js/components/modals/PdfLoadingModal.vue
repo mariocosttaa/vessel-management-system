@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     close: [];
     cancel: [];
+    ready: []; // Emitted when countdown reaches 0
 }>();
 
 const { t } = useI18n();
@@ -38,6 +39,8 @@ const startCountdown = () => {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
             }
+            // Emit ready event when countdown reaches 0
+            emit('ready');
         }
     }, 1000);
 };
@@ -93,7 +96,7 @@ const handleCancel = () => {
 
                     <!-- Message -->
                     <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-4">
-                        {{ t('Please wait while we create your movimentation report...') }}
+                        {{ t('Please wait while we create your PDF report...') }}
                     </p>
 
                     <!-- Countdown -->
@@ -121,4 +124,3 @@ const handleCancel = () => {
         </DialogContent>
     </Dialog>
 </template>
-
