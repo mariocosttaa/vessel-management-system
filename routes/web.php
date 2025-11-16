@@ -91,18 +91,6 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
         })->name('panel.email-notification-test');
     }
 
-    // Test PDF route for marea report
-    Route::get('/test-pdf', function () {
-        /** @var \App\Models\User|null $user */
-        $user  = Auth::user();
-        $marea = \App\Models\Marea::with('vessel')->first();
-
-        if (! $marea) {
-            return response('No marea found. Please create a marea first.', 404);
-        }
-
-        return \App\Pdf\MareaPdf::stream($marea, "marea_report_{$marea->marea_number}.pdf", $user);
-    })->name('panel.test-pdf');
 });
 
 // All panel routes require vessel access
@@ -272,13 +260,15 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/financial-reports/{year}/{month}/pdf', [FinancialReportController::class, 'downloadPdf'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
         ->name('panel.financial-reports.pdf');
-    Route::get('/test-pdf', [FinancialReportController::class, 'testPdf'])->name('panel.test-pdf');
 
     // VAT Reports (scoped to current vessel)
     Route::get('/vat-reports', [VatReportController::class, 'index'])->name('panel.vat-reports.index');
     Route::get('/vat-reports/{year}/{month}', [VatReportController::class, 'show'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
         ->name('panel.vat-reports.show');
+    Route::get('/vat-reports/{year}/{month}/pdf', [VatReportController::class, 'downloadPdf'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->name('panel.vat-reports.pdf');
 
     // Auditory (monitoring) - Only for administrators
     Route::middleware('role:admin,administrator')->group(function () {
