@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -13,7 +14,8 @@ return new class extends Migration
     {
         Schema::create('marea_distribution_profile_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('distribution_profile_id')->constrained('marea_distribution_profiles')->onDelete('cascade');
+            // Note: Foreign key to marea_distribution_profiles added after that table exists (see migration order)
+            $table->unsignedBigInteger('distribution_profile_id');
 
             // Ordem de execução
             $table->integer('order_index'); // Ordem em que o item será calculado (1, 2, 3, ...)
@@ -38,7 +40,8 @@ return new class extends Migration
             // - Se reference_item: ID do item referenciado
             // - Se base_total_income/expense: NULL (usa valor base)
             $table->decimal('value_amount', 15, 2)->nullable(); // Valor fixo ou percentual
-            $table->foreignId('reference_item_id')->nullable()->constrained('marea_distribution_profile_items')->onDelete('set null'); // ID do item referenciado (se value_type = 'reference_item')
+            // Note: Self-referencing foreign keys added after table exists
+            $table->unsignedBigInteger('reference_item_id')->nullable(); // ID do item referenciado (se value_type = 'reference_item')
 
             // Operação matemática
             $table->enum('operation', ['set', 'add', 'subtract', 'multiply', 'divide'])->default('set');
@@ -46,7 +49,7 @@ return new class extends Migration
             // Item de referência para operação (opcional)
             // Se operation = 'set': usa value_amount ou base
             // Se operation = 'add/subtract/multiply/divide': operação será feita com o resultado do item anterior ou reference_operation_item_id
-            $table->foreignId('reference_operation_item_id')->nullable()->constrained('marea_distribution_profile_items')->onDelete('set null'); // ID do item para operação (ex: subtrair item X)
+            $table->unsignedBigInteger('reference_operation_item_id')->nullable(); // ID do item para operação (ex: subtrair item X)
 
             // Metadados
             $table->timestamps();
@@ -56,6 +59,46 @@ return new class extends Migration
             $table->index('reference_item_id');
             $table->index('reference_operation_item_id');
         });
+
+        // Add foreign keys after referenced tables exist
+        // Note: SQLite has limited foreign key support, so we skip for SQLite
+        if (DB::getDriverName() !== 'sqlite') {
+            try {
+                if (Schema::hasTable('marea_distribution_profiles')) {
+                    Schema::table('marea_distribution_profile_items', function (Blueprint $table) {
+                        $table->foreign('distribution_profile_id')
+                            ->references('id')
+                            ->on('marea_distribution_profiles')
+                            ->onDelete('cascade');
+                    });
+                }
+            } catch (\Exception $e) {
+                // Foreign key might already exist, ignore
+            }
+
+            // Add self-referencing foreign keys after table exists
+            try {
+                Schema::table('marea_distribution_profile_items', function (Blueprint $table) {
+                    $table->foreign('reference_item_id')
+                        ->references('id')
+                        ->on('marea_distribution_profile_items')
+                        ->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might already exist, ignore
+            }
+
+            try {
+                Schema::table('marea_distribution_profile_items', function (Blueprint $table) {
+                    $table->foreign('reference_operation_item_id')
+                        ->references('id')
+                        ->on('marea_distribution_profile_items')
+                        ->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might already exist, ignore
+            }
+        }
     }
 
     /**
@@ -63,6 +106,15 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Only drop foreign keys if they exist (skip for SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('marea_distribution_profile_items', function (Blueprint $table) {
+                $table->dropForeign(['distribution_profile_id']);
+                $table->dropForeign(['reference_item_id']);
+                $table->dropForeign(['reference_operation_item_id']);
+            });
+        }
+
         Schema::dropIfExists('marea_distribution_profile_items');
     }
 };
