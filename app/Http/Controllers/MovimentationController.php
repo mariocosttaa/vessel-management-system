@@ -1213,7 +1213,9 @@ class MovimentationController extends Controller
             $transactionFile->delete();
 
             // Return redirect for Inertia (not JSON)
-            return back()->with('success', "File '{$fileName}' has been deleted successfully.");
+            return back()->with('success', $this->transFrom('notifications', "File ':name' has been deleted successfully.", [
+                'name' => $fileName,
+            ]));
         } catch (\Exception $e) {
             Log::error('Failed to delete transaction file', [
                 'file_id'        => $transactionFile->id,
@@ -1221,7 +1223,7 @@ class MovimentationController extends Controller
                 'error'          => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Failed to delete file. Please try again.');
+            return back()->with('error', $this->transFrom('notifications', 'Failed to delete file. Please try again.'));
         }
     }
 
