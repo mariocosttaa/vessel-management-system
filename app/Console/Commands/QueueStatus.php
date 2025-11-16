@@ -139,14 +139,14 @@ class QueueStatus extends Command
                 $statusLabel = $isFatal ? '✗ FATAL (CRASHING)' : '✗ NOT RUNNING';
                 $this->line("  Status: <fg=red>{$statusLabel}</> (via Supervisor)");
                 $this->line("  <fg=gray>{$status}</>");
-                
+
                 if ($isFatal) {
                     $this->error('  🚨 Queue worker is in FATAL state - it keeps crashing!');
                     $this->showQueueWorkerErrors();
                 } else {
                     $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
                 }
-                
+
                 $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
                 $this->line('  💡 Check errors: <fg=yellow>php artisan queue:status --show-logs</>');
                 $this->newLine();
@@ -172,14 +172,14 @@ class QueueStatus extends Command
                             $statusLabel = $isFatal ? '✗ FATAL (CRASHING)' : '✗ NOT RUNNING';
                             $this->line("  Status: <fg=red>{$statusLabel}</> (via Supervisor)");
                             $this->line("  <fg=gray>{$line}</>");
-                            
+
                             if ($isFatal) {
                                 $this->error('  🚨 Queue worker is in FATAL state - it keeps crashing!');
                                 $this->showQueueWorkerErrors();
                             } else {
                                 $this->warn('  ⚠️  Queue worker is not running! Jobs will not be processed.');
                             }
-                            
+
                             $this->line('  💡 Try: <fg=yellow>supervisorctl start queue-worker</>');
                             $this->line('  💡 Check errors: <fg=yellow>php artisan queue:status --show-logs</>');
                             $this->newLine();
@@ -204,7 +204,7 @@ class QueueStatus extends Command
         // Check supervisor log
         if (File::exists($supervisorLog)) {
             $logContent = @file_get_contents($supervisorLog);
-            
+
             // Check for FATAL state first
             if ($logContent && str_contains($logContent, 'queue-worker') && str_contains($logContent, 'FATAL')) {
                 $this->line("  Status: <fg=red>✗ FATAL (CRASHING)</> (via Supervisor log)");
@@ -215,7 +215,7 @@ class QueueStatus extends Command
                 $this->newLine();
                 return true;
             }
-            
+
             if ($logContent && str_contains($logContent, 'queue-worker') && str_contains($logContent, 'RUNNING')) {
                 $this->line("  Status: <fg=green>✓ RUNNING</> (via Supervisor log)");
                 $this->newLine();
@@ -422,7 +422,7 @@ class QueueStatus extends Command
             $lines = array_slice($allLines, -20);
             foreach ($lines as $line) {
                 // Highlight errors
-                if (str_contains($line, 'error') || str_contains($line, 'Error') || str_contains($line, 'ERROR') || 
+                if (str_contains($line, 'error') || str_contains($line, 'Error') || str_contains($line, 'ERROR') ||
                     str_contains($line, 'exception') || str_contains($line, 'Exception') ||
                     str_contains($line, 'failed') || str_contains($line, 'Failed')) {
                     $this->line("  <fg=red>{$line}</>");
@@ -451,11 +451,11 @@ class QueueStatus extends Command
             if ($logContent) {
                 $lines = explode("\n", $logContent);
                 $errorLines = [];
-                
+
                 // Get last 30 lines and look for errors
                 $recentLines = array_slice($lines, -30);
                 foreach ($recentLines as $line) {
-                    if (str_contains(strtolower($line), 'error') || 
+                    if (str_contains(strtolower($line), 'error') ||
                         str_contains(strtolower($line), 'exception') ||
                         str_contains(strtolower($line), 'fatal') ||
                         str_contains(strtolower($line), 'failed')) {
@@ -463,7 +463,7 @@ class QueueStatus extends Command
                         $hasErrors = true;
                     }
                 }
-                
+
                 if (!empty($errorLines)) {
                     $this->line('  <fg=yellow>Recent errors from queue-worker.log:</>');
                     foreach (array_slice($errorLines, -5) as $errorLine) {
@@ -479,16 +479,16 @@ class QueueStatus extends Command
             if ($logContent) {
                 $lines = explode("\n", $logContent);
                 $crashLines = [];
-                
+
                 // Get lines related to queue-worker crashes
                 foreach ($lines as $line) {
-                    if (str_contains($line, 'queue-worker') && 
+                    if (str_contains($line, 'queue-worker') &&
                         (str_contains($line, 'exited') || str_contains($line, 'FATAL') || str_contains($line, 'WARN'))) {
                         $crashLines[] = $line;
                         $hasErrors = true;
                     }
                 }
-                
+
                 if (!empty($crashLines)) {
                     $this->line('  <fg=yellow>Supervisor crash logs:</>');
                     foreach (array_slice($crashLines, -3) as $crashLine) {
@@ -680,11 +680,11 @@ class QueueStatus extends Command
         $this->line('  Checking queue configuration...');
         $connection = config('queue.default');
         $driver = config("queue.connections.{$connection}.driver");
-        
+
         if ($driver === 'database') {
             $table = config("queue.connections.{$connection}.table", 'jobs');
             $this->line("    <fg=green>✓ Queue driver: database (table: {$table})</>");
-            
+
             // Check if table exists
             try {
                 DB::table($table)->limit(1)->get();
@@ -724,7 +724,7 @@ class QueueStatus extends Command
         $output = [];
         $returnVar = 0;
         @exec('php artisan queue:work --help 2>&1', $output, $returnVar);
-        
+
         if ($returnVar === 0) {
             $this->line('    <fg=green>✓ queue:work command is available</>');
         } else {
@@ -739,7 +739,7 @@ class QueueStatus extends Command
             $pendingJobs = DB::table('jobs')->count();
             if ($pendingJobs > 0) {
                 $this->line("    <fg=yellow>⚠ Found {$pendingJobs} pending job(s)</>");
-                
+
                 // Try to peek at the first job to see if it's valid
                 $firstJob = DB::table('jobs')->orderBy('id', 'asc')->first();
                 if ($firstJob) {
