@@ -88,12 +88,12 @@ const handleCancel = () => {
 
                     <!-- Title -->
                     <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-2">
-                        {{ t('Generating PDF') }}
+                        {{ t('Creating PDF') }}
                     </h3>
 
                     <!-- Message -->
                     <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-4">
-                        {{ t('Please wait while we generate your transaction report...') }}
+                        {{ t('Please wait while we create your movimentation report...') }}
                     </p>
 
                     <!-- Countdown -->

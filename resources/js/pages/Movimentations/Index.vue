@@ -12,7 +12,10 @@ import UpdateAddModal from '@/components/modals/Movimentation/update-add.vue';
 import UpdateRemoveModal from '@/components/modals/Movimentation/update-remove.vue';
 import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
 import DownloadPdfModal from '@/components/modals/Movimentation/DownloadPdfModal.vue';
+import DownloadExcelModal from '@/components/modals/Movimentation/DownloadExcelModal.vue';
+import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
 import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -20,6 +23,12 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-vue-next';
 import transactions from '@/routes/panel/movimentations';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -163,9 +172,14 @@ const paginatedTransactions = computed(() => props.transactions);
 const showCreateAddModal = ref(false);
 const showCreateRemoveModal = ref(false);
 const showDownloadPdfModal = ref(false);
+const showDownloadExcelModal = ref(false);
+const showImportExcelModal = ref(false);
 const showPdfLoadingModal = ref(false);
+const showExcelLoadingModal = ref(false);
 const isDownloading = ref(false);
+const isExcelDownloading = ref(false);
 let downloadTimeout: ReturnType<typeof setTimeout> | null = null;
+let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 const showUpdateAddModal = ref(false);
 const showUpdateRemoveModal = ref(false);
 const showShowModal = ref(false);
@@ -337,6 +351,22 @@ const closeDownloadPdfModal = () => {
     showDownloadPdfModal.value = false;
 };
 
+const openDownloadExcelModal = () => {
+    showDownloadExcelModal.value = true;
+};
+
+const closeDownloadExcelModal = () => {
+    showDownloadExcelModal.value = false;
+};
+
+const openImportExcelModal = () => {
+    showImportExcelModal.value = true;
+};
+
+const closeImportExcelModal = () => {
+    showImportExcelModal.value = false;
+};
+
 const handlePdfDownload = (options: { type: 'month' | 'range'; month?: number; year?: number; startDate?: string; endDate?: string; transactionType?: string; enableColors?: boolean }) => {
     showDownloadPdfModal.value = false;
     showPdfLoadingModal.value = true;
@@ -391,6 +421,54 @@ const handlePdfDownload = (options: { type: 'month' | 'range'; month?: number; y
     }, 5000);
 };
 
+const handleExcelDownload = (options: { type: 'month' | 'range'; month?: number; year?: number; startDate?: string; endDate?: string; transactionType?: string }) => {
+    showDownloadExcelModal.value = false;
+    showExcelLoadingModal.value = true;
+    isExcelDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    excelDownloadTimeout = setTimeout(() => {
+        if (!isExcelDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        let url = '';
+
+        if (options.type === 'month') {
+            const params = new URLSearchParams();
+            if (options.transactionType && options.transactionType !== 'all') {
+                params.append('transaction_type', options.transactionType);
+            }
+            const queryString = params.toString();
+            url = `/panel/${vesselId}/movimentations/history/${options.year}/${options.month}/export-excel${queryString ? '?' + queryString : ''}`;
+        } else {
+            // Build URL with date range parameters
+            const params = new URLSearchParams({
+                start_date: options.startDate || '',
+                end_date: options.endDate || '',
+            });
+            if (options.transactionType && options.transactionType !== 'all') {
+                params.append('transaction_type', options.transactionType);
+            }
+            url = `/panel/${vesselId}/movimentations/export-excel?${params.toString()}`;
+        }
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showExcelLoadingModal.value = false;
+            isExcelDownloading.value = false;
+            excelDownloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
 const handlePdfDownloadCancel = () => {
     if (downloadTimeout) {
         clearTimeout(downloadTimeout);
@@ -398,6 +476,21 @@ const handlePdfDownloadCancel = () => {
     }
     showPdfLoadingModal.value = false;
     isDownloading.value = false;
+};
+
+const handleExcelDownloadCancel = () => {
+    if (excelDownloadTimeout) {
+        clearTimeout(excelDownloadTimeout);
+        excelDownloadTimeout = null;
+    }
+    showExcelLoadingModal.value = false;
+    isExcelDownloading.value = false;
+};
+
+const closeExcelLoadingModal = () => {
+    if (!isExcelDownloading.value) {
+        showExcelLoadingModal.value = false;
+    }
 };
 
 const closePdfLoadingModal = () => {
@@ -654,20 +747,7 @@ const clearFilters = () => {
                         <p class="text-muted-foreground dark:text-muted-foreground mt-1">{{ t('Manage financial transactions for your vessel') }}</p>
                     </div>
                     <div class="flex gap-3">
-                        <button
-                            @click="openDownloadPdfModal"
-                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
-                        >
-                            <Icon name="download" class="w-4 h-4 mr-2" />
-                            {{ t('Download PDF') }}
-                        </button>
-                        <Link
-                            :href="`/panel/${getCurrentVesselId()}/movimentations/history`"
-                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
-                        >
-                            <Icon name="calendar" class="w-4 h-4 mr-2" />
-                            {{ t('History') }}
-                        </Link>
+                        <!-- Primary Actions: Add, Remove, History -->
                         <div v-if="canCreate('movimentations')" class="flex gap-3">
                             <button
                                 @click="openCreateAddModal"
@@ -684,6 +764,42 @@ const clearFilters = () => {
                                 {{ t('Remove') }}
                             </button>
                         </div>
+                        <Link
+                            :href="`/panel/${getCurrentVesselId()}/movimentations/history`"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        >
+                            <Icon name="calendar" class="w-4 h-4 mr-2" />
+                            {{ t('History') }}
+                        </Link>
+
+                        <!-- Hamburger Menu with Other Options -->
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <button
+                                    class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                >
+                                    <Icon name="more-vertical" class="w-4 h-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-48">
+                                <DropdownMenuItem @click="openDownloadPdfModal" class="cursor-pointer">
+                                    <Icon name="download" class="w-4 h-4 mr-2" />
+                                    {{ t('Download PDF') }}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem @click="openDownloadExcelModal" class="cursor-pointer">
+                                    <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
+                                    {{ t('Export Excel') }}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    v-if="canCreate('movimentations')"
+                                    @click="openImportExcelModal"
+                                    class="cursor-pointer"
+                                >
+                                    <Icon name="upload" class="w-4 h-4 mr-2" />
+                                    {{ t('Import Excel') }}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </div>
@@ -1031,12 +1147,35 @@ const clearFilters = () => {
             @download="handlePdfDownload"
         />
 
+        <!-- Excel Export Modal -->
+        <DownloadExcelModal
+            :open="showDownloadExcelModal"
+            @close="closeDownloadExcelModal"
+            @download="handleExcelDownload"
+        />
+
+        <!-- Excel Import Modal -->
+        <ImportExcelModal
+            :key="showImportExcelModal ? 'import-modal-open' : 'import-modal-closed'"
+            :open="showImportExcelModal"
+            :vessel-id="getCurrentVesselId() || ''"
+            @close="closeImportExcelModal"
+        />
+
         <!-- PDF Loading Modal -->
         <PdfLoadingModal
             :open="showPdfLoadingModal"
             :countdown="5"
             @close="closePdfLoadingModal"
             @cancel="handlePdfDownloadCancel"
+        />
+
+        <!-- Excel Loading Modal -->
+        <ExcelLoadingModal
+            :open="showExcelLoadingModal"
+            :countdown="5"
+            @close="closeExcelLoadingModal"
+            @cancel="handleExcelDownloadCancel"
         />
     </VesselLayout>
 </template>
