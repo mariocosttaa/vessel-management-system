@@ -1,5 +1,5 @@
 # Multi-stage build for Laravel application with queue worker
-FROM php:8.2-fpm as base
+FROM php:8.3-fpm as base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -8,11 +8,12 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     zip \
     unzip \
     nginx \
     supervisor \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
