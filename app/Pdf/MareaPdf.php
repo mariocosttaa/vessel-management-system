@@ -1,6 +1,7 @@
 <?php
 namespace App\Pdf;
 
+use App\Actions\PdfAction;
 use App\Models\Marea;
 use App\Models\User;
 use App\Models\Vessel;
@@ -77,7 +78,7 @@ class MareaPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.marea-report', [
+        return PdfAction::generate('pdf.reports.marea-report', [
             'vessel'              => $marea->vessel,
             'marea'               => $marea,
             'summary'             => $summary,
@@ -187,7 +188,7 @@ class MareaPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.marea-partial', [
+        return PdfAction::generate('pdf.reports.marea-partial', [
             'vessel'       => $marea->vessel,
             'marea'        => $marea,
             'sections'     => $sections,

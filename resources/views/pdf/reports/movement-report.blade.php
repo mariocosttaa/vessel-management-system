@@ -1,20 +1,20 @@
 {{--
-    Transaction Report Template
+    Movement Report Template
 
-    This template is specifically designed for displaying transaction reports.
+    This template is specifically designed for displaying movement reports.
     It extends the base PDF layout and includes:
     - Period information with start/end dates
     - Summary section (only on first page)
-    - Detailed transactions table with pagination support
+    - Detailed movements table with pagination support
 
     Required Variables:
     - $vessel: Vessel model instance
-    - $transactions: Collection of transactions
+    - $transactions: Collection of movements
     - $summary: Array with 'total_income', 'total_expenses', 'net_balance', 'total_count'
     - $period: String describing the period (optional)
     - $startDate: Start date for period (optional)
     - $endDate: End date for period (optional)
-    - $title: Report title (default: 'Transaction Report')
+    - $title: Report title (default: 'Movement Report')
     - $subtitle: Report subtitle (optional)
     - $enableColors: Boolean to enable/disable colors (default: true)
 --}}
@@ -25,7 +25,7 @@
 
 @extends('pdf.layouts.base')
 
-@section('title', $title ?? 'Transaction Report')
+@section('title', $title ?? 'Movement Report')
 
 @section('content')
     @php
@@ -36,8 +36,8 @@
         $vesselSetting = VesselSetting::getForVessel($vessel->id);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
-        // If transactions exist, try to determine currency from transactions
-        // Use the most common currency among transactions, or first transaction's currency
+        // If movements exist, try to determine currency from movements
+        // Use the most common currency among movements, or first movement's currency
         if (isset($transactions) && $transactions->count() > 0) {
             $currencies = $transactions->pluck('currency')->filter()->unique();
             if ($currencies->count() === 1) {
@@ -96,7 +96,7 @@
                             </div>
                         </td>
                         <td class="summary-cell">
-                            <div class="summary-label">{{ trans('pdfs.Total Transactions') }}</div>
+                            <div class="summary-label">{{ trans('pdfs.Total Movements') }}</div>
                             <div class="summary-value">
                                 {{ $summary['total_count'] ?? 0 }}
                             </div>
@@ -106,12 +106,12 @@
             </div>
         @endif
 
-        {{-- Transactions Table --}}
+        {{-- Movements Table --}}
         @if(isset($transactions) && $transactions->count() > 0)
-            <div class="transactions-header">
-                <h3 class="section-title">{{ trans('pdfs.Transactions') }}</h3>
+            <div class="movements-header">
+                <h3 class="section-title">{{ trans('pdfs.Movements') }}</h3>
             </div>
-            <table class="transactions-table">
+            <table class="movements-table">
                 <thead>
                     <tr>
                         <th class="col-date">{{ trans('pdfs.Date') }}</th>
@@ -122,23 +122,23 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($transactions as $transaction)
+                    @foreach($transactions as $movement)
                         @php
-                            $amountValue = $transaction->total_amount ?? $transaction->amount;
-                            $houseOfZeros = $transaction->house_of_zeros ?? 2;
-                            // Use transaction's own currency, fallback to default currency
-                            $transactionCurrency = $transaction->currency ?? $defaultCurrency;
-                            $amount = MoneyAction::format($amountValue, $houseOfZeros, $transactionCurrency, true);
+                            $amountValue = $movement->total_amount ?? $movement->amount;
+                            $houseOfZeros = $movement->house_of_zeros ?? 2;
+                            // Use movement's own currency, fallback to default currency
+                            $movementCurrency = $movement->currency ?? $defaultCurrency;
+                            $amount = MoneyAction::format($amountValue, $houseOfZeros, $movementCurrency, true);
 
                             // Use the enableColors variable set at the top of the template
 
-                            // Determine sign and color based on transaction type
+                            // Determine sign and color based on movement type
                             $sign = '';
                             $amountClass = 'amount-neutral';
-                            if ($transaction->type === 'income') {
+                            if ($movement->type === 'income') {
                                 $sign = '+';
                                 $amountClass = $enableColors ? 'amount-income' : 'amount-neutral';
-                            } elseif ($transaction->type === 'expense') {
+                            } elseif ($movement->type === 'expense') {
                                 $sign = '-';
                                 $amountClass = $enableColors ? 'amount-expense' : 'amount-neutral';
                             }
@@ -147,20 +147,20 @@
                             $formattedAmount = $sign ? $sign . ' ' . $amount : $amount;
                         @endphp
                         <tr>
-                            <td class="col-date">{{ $transaction->transaction_date->format('d/m/Y') }}</td>
-                            <td class="col-description">{{ $transaction->description ?? '-' }}</td>
-                            <td class="col-category">{{ $transaction->category->translated_name ?? '-' }}</td>
+                            <td class="col-date">{{ $movement->transaction_date->format('d/m/Y') }}</td>
+                            <td class="col-description">{{ $movement->description ?? '-' }}</td>
+                            <td class="col-category">{{ $movement->category->translated_name ?? '-' }}</td>
                             <td class="col-amount {{ $amountClass }}">
                                 {{ $formattedAmount }}
                             </td>
-                            <td class="col-type">{{ trans('pdfs.' . ucfirst($transaction->type)) }}</td>
+                            <td class="col-type">{{ trans('pdfs.' . ucfirst($movement->type)) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
             <div class="empty-state">
-                <p>{{ trans('pdfs.No transactions found for the selected period.') }}</p>
+                <p>{{ trans('pdfs.No movements found for the selected period.') }}</p>
             </div>
         @endif
     </div>
@@ -258,8 +258,8 @@
             background-color: #fff;
         }
 
-        /* Transactions Section */
-        .transactions-header {
+        /* Movements Section */
+        .movements-header {
             margin-top: 5px;
             page-break-after: avoid;
             background-color: #fff;
@@ -277,7 +277,7 @@
             text-align: left;
         }
 
-        .transactions-table {
+        .movements-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
@@ -286,23 +286,23 @@
             background-color: #fff;
         }
 
-        .transactions-table thead {
+        .movements-table thead {
             display: table-header-group;
             page-break-after: avoid;
             background-color: #fff;
         }
 
         /* Extra spacing for table header when it appears on a new page */
-        .transactions-table thead tr:first-child th {
+        .movements-table thead tr:first-child th {
             padding-top: 30px !important; /* More padding on new pages to prevent header overlap */
         }
 
-        .transactions-table thead tr {
+        .movements-table thead tr {
             background-color: #fff;
             page-break-after: avoid;
         }
 
-        .transactions-table th {
+        .movements-table th {
             padding: 20px 8px 10px 8px; /* Increased top padding to prevent header overlap */
             font-weight: bold;
             font-size: 10px;
@@ -312,16 +312,16 @@
             background-color: #fff;
         }
 
-        .transactions-table tbody {
+        .movements-table tbody {
             background-color: #fff;
         }
 
-        .transactions-table tbody tr {
+        .movements-table tbody tr {
             page-break-inside: auto;
             background-color: #fff;
         }
 
-        .transactions-table td {
+        .movements-table td {
             padding: 8px 6px;
             font-size: 10px;
             color: #000;

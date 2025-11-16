@@ -1,6 +1,7 @@
 <?php
 namespace App\Pdf;
 
+use App\Actions\PdfAction;
 use App\Models\Movimentation;
 use App\Models\User;
 use App\Models\Vessel;
@@ -8,10 +9,10 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 
-class TransactionPdf
+class MovementPdf
 {
     /**
-     * Generate transaction report PDF.
+     * Generate movement report PDF.
      *
      * @param Vessel $vessel
      * @param Collection $transactions
@@ -53,7 +54,7 @@ class TransactionPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.transaction-report', [
+        return PdfAction::generate('pdf.reports.movement-report', [
             'vessel'       => $vessel,
             'transactions' => $transactions,
             'summary'      => $summary,
@@ -68,7 +69,7 @@ class TransactionPdf
     }
 
     /**
-     * Generate transaction report PDF from request filters.
+     * Generate movement report PDF from request filters.
      *
      * @param Request $request
      * @param Vessel $vessel
@@ -159,7 +160,7 @@ class TransactionPdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.transaction-report', [
+        return PdfAction::generate('pdf.reports.movement-report', [
             'vessel'       => $vessel,
             'transactions' => $transactions,
             'summary'      => $summary,
@@ -173,7 +174,7 @@ class TransactionPdf
     }
 
     /**
-     * Download transaction report PDF.
+     * Download movement report PDF.
      *
      * @param Vessel $vessel
      * @param Collection $transactions
@@ -200,7 +201,7 @@ class TransactionPdf
     }
 
     /**
-     * Stream transaction report PDF (display in browser).
+     * Stream movement report PDF (display in browser).
      *
      * @param Vessel $vessel
      * @param Collection $transactions

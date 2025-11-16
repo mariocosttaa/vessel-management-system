@@ -1,17 +1,17 @@
 <?php
-namespace App\Pdf;
+namespace App\Actions;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-class PdfService
+class PdfAction
 {
     /**
      * Generate PDF from a Blade view.
      *
-     * @param string $view The view path (e.g., 'pdf.reports.transaction-report')
+     * @param string $view The view path (e.g., 'pdf.reports.movement-report')
      * @param array $data Data to pass to the view
      * @param array $options PDF options (paper size, orientation, etc.)
      * @return \Barryvdh\DomPDF\PDF

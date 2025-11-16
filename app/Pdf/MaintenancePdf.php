@@ -1,9 +1,9 @@
 <?php
 namespace App\Pdf;
 
+use App\Actions\PdfAction;
 use App\Models\Maintenance;
 use App\Models\User;
-use App\Pdf\PdfService;
 use Illuminate\Support\Facades\App;
 
 class MaintenancePdf
@@ -60,7 +60,7 @@ class MaintenancePdf
             App::setLocale($originalLocale);
         }
 
-        return PdfService::generate('pdf.reports.maintenance-report', [
+        return PdfAction::generate('pdf.reports.maintenance-report', [
             'vessel'       => $maintenance->vessel,
             'maintenance'  => $maintenance,
             'transactions' => $transactions,
