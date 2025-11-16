@@ -18,7 +18,6 @@ use App\Http\Controllers\VesselFileController;
 use App\Http\Controllers\VesselSelectorController;
 use App\Http\Controllers\VesselSettingController;
 use App\Http\Middleware\VesselAuthPrivateFiles;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Landing page route

@@ -1,13 +1,12 @@
 <?php
-
 namespace App\Http\Requests;
 
 use App\Actions\General\EasyHashAction;
 use App\Actions\MoneyAction;
 use App\Models\MovimentationCategory;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\VatProfile;
-use App\Models\Supplier;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -56,13 +55,13 @@ class UpdateMovimentationRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
         // Get vessel ID from route parameter
         $vessel = $this->route('vessel');
-        if (!$vessel) {
+        if (! $vessel) {
             return false;
         }
 
@@ -73,18 +72,18 @@ class UpdateMovimentationRequest extends FormRequest
             $vesselIdInt = (int) $vessel;
         } else {
             // Decode hashed vessel ID
-            $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $decoded     = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
             $vesselIdInt = $decoded && is_numeric($decoded) ? (int) $decoded : null;
-            if (!$vesselIdInt) {
+            if (! $vesselIdInt) {
                 return false;
             }
         }
-        if (!$user->hasAccessToVessel($vesselIdInt)) {
+        if (! $user->hasAccessToVessel($vesselIdInt)) {
             return false;
         }
 
         // Check movimentations.edit permission from config
-        $userRole = $user->getRoleForVessel($vesselIdInt);
+        $userRole    = $user->getRoleForVessel($vesselIdInt);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
         return $permissions['movimentations.edit'] ?? false;
@@ -98,24 +97,30 @@ class UpdateMovimentationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id' => ['required', 'integer', Rule::exists(MovimentationCategory::class, 'id')],
-            'type' => ['required', 'string', 'in:income,expense,transfer'],
-            'amount' => ['nullable', 'numeric', 'min:0'],
-            'amount_per_unit' => ['nullable', 'numeric', 'min:0', 'required_with:quantity'],
-            'quantity' => ['nullable', 'integer', 'min:1', 'required_with:amount_per_unit'],
-            'currency' => ['required', 'string', 'size:3'],
-            'house_of_zeros' => ['nullable', 'integer', 'min:0', 'max:4'],
-            'vat_profile_id' => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
+            // category_id is required unless this is a salary payment (crew_member_id present)
+            'category_id'         => [
+                'required_without:crew_member_id',
+                'nullable',
+                'integer',
+                Rule::exists(MovimentationCategory::class, 'id'),
+            ],
+            'type'                => ['required', 'string', 'in:income,expense,transfer'],
+            'amount'              => ['nullable', 'numeric', 'min:0'],
+            'amount_per_unit'     => ['nullable', 'numeric', 'min:0', 'required_with:quantity'],
+            'quantity'            => ['nullable', 'integer', 'min:1', 'required_with:amount_per_unit'],
+            'currency'            => ['required', 'string', 'size:3'],
+            'house_of_zeros'      => ['nullable', 'integer', 'min:0', 'max:4'],
+            'vat_profile_id'      => ['nullable', 'integer', Rule::exists(VatProfile::class, 'id')],
             'amount_includes_vat' => ['nullable', 'boolean'],
-            'transaction_date' => ['required', 'date'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'reference' => ['nullable', 'string', 'max:100'],
-            'supplier_id' => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
-            'crew_member_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
-            'status' => ['required', 'string', 'in:pending,completed,cancelled'],
-            'files' => ['nullable', 'array', 'max:10'],
-            'files.*' => [
+            'transaction_date'    => ['required', 'date'],
+            'description'         => ['nullable', 'string', 'max:500'],
+            'notes'               => ['nullable', 'string', 'max:1000'],
+            'reference'           => ['nullable', 'string', 'max:100'],
+            'supplier_id'         => ['nullable', 'integer', Rule::exists(Supplier::class, 'id')],
+            'crew_member_id'      => ['nullable', 'integer', Rule::exists(User::class, 'id')],
+            'status'              => ['required', 'string', 'in:pending,completed,cancelled'],
+            'files'               => ['nullable', 'array', 'max:10'],
+            'files.*'             => [
                 'file',
                 'max:10240', // 10MB max
                 'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt,csv',
@@ -133,7 +138,7 @@ class UpdateMovimentationRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             // Validate that either amount or both amount_per_unit and quantity are provided
-            if (!$this->filled('amount') && (!($this->filled('amount_per_unit') && $this->filled('quantity')))) {
+            if (! $this->filled('amount') && (! ($this->filled('amount_per_unit') && $this->filled('quantity')))) {
                 $validator->errors()->add('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
             }
 
@@ -149,11 +154,27 @@ class UpdateMovimentationRequest extends FormRequest
 
             // Validate crew member belongs to current vessel (if provided)
             if ($this->crew_member_id) {
-                $vesselId = $this->route('vessel');
-                $crewMember = User::find($this->crew_member_id);
+                // Get vessel ID from route parameter (same logic as in prepareForValidation)
+                $vessel = $this->route('vessel');
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+                }
 
-                if ($crewMember && $crewMember->vessel_id !== (int) $vesselId) {
-                    $validator->errors()->add('crew_member_id', 'The selected crew member does not belong to this vessel.');
+                if ($vesselId) {
+                    $crewMember = User::find($this->crew_member_id);
+
+                    // Check if crew member exists and belongs to vessel
+                    if (! $crewMember) {
+                        $validator->errors()->add('crew_member_id', 'The selected crew member does not exist.');
+                    } elseif ($crewMember->vessel_id !== (int) $vesselId) {
+                        $validator->errors()->add('crew_member_id', 'The selected crew member does not belong to this vessel.');
+                    }
                 }
             }
 
@@ -186,25 +207,26 @@ class UpdateMovimentationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'category_id.required' => 'Please select a category.',
-            'category_id.exists' => 'The selected category is invalid.',
-            'type.required' => 'Please select transaction type.',
-            'type.in' => 'Transaction type must be income, expense, or transfer.',
-            'amount.required' => 'Amount is required.',
-            'amount.numeric' => 'Amount must be a valid number.',
-            'amount.min' => 'Amount must be greater than zero.',
-            'currency.required' => 'Currency is required.',
-            'currency.size' => 'Currency must be a 3-character code (e.g., EUR, USD).',
-            'transaction_date.required' => 'Transaction date is required.',
-            'transaction_date.date' => 'Transaction date must be a valid date.',
-            'vat_profile_id.exists' => 'The selected VAT profile is invalid.',
-            'supplier_id.exists' => 'The selected supplier is invalid.',
-            'crew_member_id.exists' => 'The selected crew member is invalid.',
-            'status.required' => 'Status is required.',
-            'status.in' => 'Status must be pending, completed, or cancelled.',
-            'files.max' => 'You can upload a maximum of 10 files.',
-            'files.*.max' => 'Each file must not exceed 10MB.',
-            'files.*.mimes' => 'The file must be one of the following types: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV.',
+            'category_id.required_without' => 'Please select a category.',
+            'category_id.required'         => 'Please select a category.',
+            'category_id.exists'           => 'The selected category is invalid.',
+            'type.required'                => 'Please select transaction type.',
+            'type.in'                      => 'Transaction type must be income, expense, or transfer.',
+            'amount.required'              => 'Amount is required.',
+            'amount.numeric'               => 'Amount must be a valid number.',
+            'amount.min'                   => 'Amount must be greater than zero.',
+            'currency.required'            => 'Currency is required.',
+            'currency.size'                => 'Currency must be a 3-character code (e.g., EUR, USD).',
+            'transaction_date.required'    => 'Transaction date is required.',
+            'transaction_date.date'        => 'Transaction date must be a valid date.',
+            'vat_profile_id.exists'        => 'The selected VAT profile is invalid.',
+            'supplier_id.exists'           => 'The selected supplier is invalid.',
+            'crew_member_id.exists'        => 'The selected crew member is invalid.',
+            'status.required'              => 'Status is required.',
+            'status.in'                    => 'Status must be pending, completed, or cancelled.',
+            'files.max'                    => 'You can upload a maximum of 10 files.',
+            'files.*.max'                  => 'Each file must not exceed 10MB.',
+            'files.*.mimes'                => 'The file must be one of the following types: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX, XLS, XLSX, TXT, CSV.',
         ];
     }
 
@@ -226,16 +248,16 @@ class UpdateMovimentationRequest extends FormRequest
             $vesselId = (int) $vessel;
         } else {
             // Decode hashed vessel ID
-            $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+            $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
             $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
-            if (!$vesselId) {
+            if (! $vesselId) {
                 abort(404, 'Vessel not found.');
             }
         }
 
         // Get currency from vessel_settings (priority) or vessel currency_code
-        $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
-        $vessel = \App\Models\Vessel::find($vesselId);
+        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
+        $vessel          = \App\Models\Vessel::find($vesselId);
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel?->currency_code ?? 'EUR';
 
         // IMPORTANT: Preserve ALL fields from request, especially category_id, transaction_date, and amount
@@ -248,7 +270,7 @@ class UpdateMovimentationRequest extends FormRequest
             if (is_numeric($this->category_id)) {
                 $data['category_id'] = (int) $this->category_id;
             } else {
-                $decoded = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
+                $decoded             = EasyHashAction::decode($this->category_id, 'transactioncategory-id');
                 $data['category_id'] = $decoded && is_numeric($decoded) ? (int) $decoded : null;
             }
         }
@@ -262,7 +284,13 @@ class UpdateMovimentationRequest extends FormRequest
         }
 
         if ($this->filled('crew_member_id')) {
-            $data['crew_member_id'] = EasyHashAction::decode($this->crew_member_id, 'user-id');
+            // Handle both hashed and numeric crew_member_id
+            if (is_numeric($this->crew_member_id)) {
+                $data['crew_member_id'] = (int) $this->crew_member_id;
+            } else {
+                $decoded                = EasyHashAction::decode($this->crew_member_id, 'user-id');
+                $data['crew_member_id'] = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+            }
         }
 
         // Preserve transaction_date - required field, must be present
@@ -289,21 +317,21 @@ class UpdateMovimentationRequest extends FormRequest
         if ($this->has('amount_per_unit') && $this->has('quantity') &&
             $this->amount_per_unit !== null && $this->quantity !== null) {
             // Calculate amount from amount_per_unit * quantity
-            $amountPerUnit = $this->normalizeMoney($this->amount_per_unit);
-            $quantity = (int) $this->quantity;
-            $data['amount'] = (int) round($amountPerUnit * $quantity);
+            $amountPerUnit           = $this->normalizeMoney($this->amount_per_unit);
+            $quantity                = (int) $this->quantity;
+            $data['amount']          = (int) round($amountPerUnit * $quantity);
             $data['amount_per_unit'] = $amountPerUnit;
-            $data['quantity'] = $quantity;
+            $data['quantity']        = $quantity;
         } elseif ($this->has('amount') && $this->amount !== null) {
             // Use direct amount
-            $data['amount'] = $this->normalizeMoney($this->amount);
+            $data['amount']          = $this->normalizeMoney($this->amount);
             $data['amount_per_unit'] = null;
-            $data['quantity'] = null;
+            $data['quantity']        = null;
         } else {
             // No amount provided - set to null (validation will catch this)
-            $data['amount'] = null;
+            $data['amount']          = null;
             $data['amount_per_unit'] = null;
-            $data['quantity'] = null;
+            $data['quantity']        = null;
         }
 
         // Preserve currency - use from request if provided, otherwise use vessel settings
@@ -341,13 +369,8 @@ class UpdateMovimentationRequest extends FormRequest
             $data['reference'] = $this->reference ? trim($this->reference) : null;
         }
 
-        if ($this->has('supplier_id')) {
-            $data['supplier_id'] = $this->supplier_id ? (int) $this->supplier_id : null;
-        }
-
-        if ($this->has('crew_member_id')) {
-            $data['crew_member_id'] = $this->crew_member_id ? (int) $this->crew_member_id : null;
-        }
+        // Note: supplier_id and crew_member_id are already handled above in the unhashing section
+        // Don't overwrite them here - they may be hashed strings that need to stay unhashed
 
         $this->merge($data);
     }
@@ -406,4 +429,3 @@ class UpdateMovimentationRequest extends FormRequest
         }
     }
 }
-

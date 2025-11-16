@@ -399,12 +399,31 @@ class MovimentationController extends Controller
                 return $this->unhashId($value, $modelName);
             };
 
+            // For salary payments (crew_member_id present), automatically get/create salary category
+            $categoryId   = $request->category_id ? (int) $request->category_id : null;
+            $crewMemberId = $getNumericId($request->crew_member_id, 'user');
+
+            if ($crewMemberId && ! $categoryId) {
+                // Get or create salary category for this vessel
+                $salaryCategory = \App\Models\MovimentationCategory::firstOrCreate(
+                    [
+                        'name'      => 'Salários',
+                        'type'      => 'expense',
+                        'vessel_id' => $vesselId,
+                    ],
+                    [
+                        'description' => 'Salary payments to crew members',
+                    ]
+                );
+                $categoryId = $salaryCategory->id;
+            }
+
             $transaction = Movimentation::create([
                 'vessel_id'        => $vesselId,
                 'marea_id'         => $getNumericId($request->marea_id, 'marea'),
                 'maintenance_id'   => $getNumericId($request->maintenance_id, 'maintenance'),
-                // category_id is already decoded in prepareForValidation(), use it directly
-                'category_id'      => $request->category_id ? (int) $request->category_id : null,
+                // Use automatically determined category_id for salary payments, or provided category_id for others
+                'category_id'      => $categoryId,
                 'type'             => $request->type,
                 'amount'           => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit'  => $request->amount_per_unit ?? null,
@@ -894,9 +913,28 @@ class MovimentationController extends Controller
                 return $this->unhashId($value, $modelName);
             };
 
+            // For salary payments (crew_member_id present), automatically get/create salary category
+            $categoryId   = $request->category_id;
+            $crewMemberId = $getNumericId($request->crew_member_id, 'user');
+
+            if ($crewMemberId && ! $categoryId) {
+                // Get or create salary category for this vessel
+                $salaryCategory = \App\Models\MovimentationCategory::firstOrCreate(
+                    [
+                        'name'      => 'Salários',
+                        'type'      => 'expense',
+                        'vessel_id' => $vesselId,
+                    ],
+                    [
+                        'description' => 'Salary payments to crew members',
+                    ]
+                );
+                $categoryId = $salaryCategory->id;
+            }
+
             $transaction->update([
-                // category_id is already decoded in prepareForValidation(), use it directly
-                'category_id'         => $request->category_id,
+                // Use automatically determined category_id for salary payments, or provided category_id for others
+                'category_id'         => $categoryId,
                 'type'                => $request->type,
                 'amount'              => $amount, // Base amount (after VAT separation if amount includes VAT)
                 'amount_per_unit'     => $request->amount_per_unit ?? null,
