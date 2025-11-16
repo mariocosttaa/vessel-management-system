@@ -1,12 +1,14 @@
 <?php
-
 namespace App\Providers;
 
 use App\Actions\General\EasyHashAction;
 use App\Models\User;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Manager\SocialiteWasCalled;
@@ -36,11 +38,18 @@ class AppServiceProvider extends ServiceProvider
             $event->extendSocialite('microsoft', \SocialiteProviders\Microsoft\Provider::class);
         });
 
+        // Rate limiter for Excel exports (5 requests per minute per user)
+        RateLimiter::for('excel-export', function (Request $request) {
+            $user = $request->user();
+            $key  = $user ? 'excel-export-user-' . $user->id : 'excel-export-ip-' . $request->ip();
+            return Limit::perMinute(5)->by($key);
+        });
+
         // Route model binding for crewMember parameter (handles hashed IDs)
         Route::bind('crewMember', function ($value) {
             Log::info('Route Model Binding: crewMember', [
                 'value' => $value,
-                'type' => gettype($value),
+                'type'  => gettype($value),
             ]);
 
             if (empty($value)) {
@@ -50,22 +59,22 @@ class AppServiceProvider extends ServiceProvider
 
             // Try to decode as hashed ID - try both 'crewmember-id' and 'user-id'
             $hashTypes = ['crewmember-id', 'user-id'];
-            $decoded = null;
+            $decoded   = null;
 
             foreach ($hashTypes as $hashType) {
                 try {
                     $decoded = EasyHashAction::decode($value, $hashType);
                     Log::info('Route Model Binding: crewMember - Decoded', [
                         'original' => $value,
-                        'decoded' => $decoded,
-                        'type' => $hashType,
+                        'decoded'  => $decoded,
+                        'type'     => $hashType,
                     ]);
 
                     if ($decoded && is_numeric($decoded)) {
                         $user = User::find((int) $decoded);
                         if ($user) {
                             Log::info('Route Model Binding: crewMember - Found user by hashed ID', [
-                                'user_id' => $user->id,
+                                'user_id'   => $user->id,
                                 'user_name' => $user->name,
                                 'hash_type' => $hashType,
                             ]);
@@ -73,15 +82,15 @@ class AppServiceProvider extends ServiceProvider
                         } else {
                             Log::warning('Route Model Binding: crewMember - User not found by hashed ID', [
                                 'decoded_id' => $decoded,
-                                'hash_type' => $hashType,
+                                'hash_type'  => $hashType,
                             ]);
                         }
                     }
                 } catch (\Exception $e) {
                     Log::warning('Route Model Binding: crewMember - Decode exception', [
-                        'value' => $value,
+                        'value'     => $value,
                         'hash_type' => $hashType,
-                        'error' => $e->getMessage(),
+                        'error'     => $e->getMessage(),
                     ]);
                 }
             }
@@ -91,7 +100,7 @@ class AppServiceProvider extends ServiceProvider
                 $user = User::find((int) $value);
                 if ($user) {
                     Log::info('Route Model Binding: crewMember - Found user by numeric ID', [
-                        'user_id' => $user->id,
+                        'user_id'   => $user->id,
                         'user_name' => $user->name,
                     ]);
                     return $user;
@@ -104,8 +113,8 @@ class AppServiceProvider extends ServiceProvider
 
             // If we get here, we couldn't find the user
             Log::error('Route Model Binding: crewMember - User not found', [
-                'value' => $value,
-                'decoded' => $decoded,
+                'value'                => $value,
+                'decoded'              => $decoded,
                 'attempted_hash_types' => $hashTypes,
             ]);
 
