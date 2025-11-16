@@ -10,8 +10,17 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
+import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
+import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { DateInput } from '@/components/ui/date-input';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -63,6 +72,14 @@ interface Maintenance {
 
 interface Props {
     maintenance: Maintenance;
+    transactions?: {
+        data: Array<any>;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        links: Array<any>;
+    };
     transactionCount?: number;
     defaultCurrency?: string;
     categories?: Array<{
@@ -100,10 +117,39 @@ const { canEdit, canDelete } = usePermissions();
 const { addNotification } = useNotifications();
 const { t } = useI18n();
 
+// Get transactions from paginated data or fallback to maintenance.transactions (for backward compatibility)
+const allTransactions = computed(() => {
+    return props.transactions?.data || props.maintenance.transactions || [];
+});
+
+// Search functionality - use server-side search
+const urlParams = new URLSearchParams(window.location.search);
+const searchQuery = ref(urlParams.get('search') || '');
+const handleSearch = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (searchQuery.value.trim()) {
+        params.set('search', searchQuery.value.trim());
+    } else {
+        params.delete('search');
+    }
+    params.delete('page'); // Reset to first page when searching
+    router.get(window.location.pathname + (params.toString() ? '?' + params.toString() : ''), {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
 // Modal states
 const showCreateExpenseModal = ref(false);
 const showDeleteTransactionDialog = ref(false);
 const transactionToDelete = ref<any>(null);
+
+// Excel import/export modals
+const showDownloadExcelModal = ref(false);
+const showImportExcelModal = ref(false);
+const showExcelLoadingModal = ref(false);
+const isExcelDownloading = ref(false);
+let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // End date form for open maintenances
 const endDateForm = useForm({
@@ -170,6 +216,64 @@ const confirmRemoveTransaction = () => {
 const cancelRemoveTransaction = () => {
     showDeleteTransactionDialog.value = false;
     transactionToDelete.value = null;
+};
+
+// Excel export/import handlers
+const openDownloadExcelModal = () => {
+    // Simple download - no modal, just show loading and download all transactions for this maintenance
+    showExcelLoadingModal.value = true;
+    isExcelDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    excelDownloadTimeout = setTimeout(() => {
+        if (!isExcelDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        const maintenanceId = props.maintenance.id;
+
+        // Export all transactions for this maintenance (no date range needed)
+        // We'll use a wide date range to get all transactions
+        const params = new URLSearchParams({
+            start_date: '2000-01-01', // Very early date to get all
+            end_date: new Date().toISOString().split('T')[0], // Today
+            maintenance_id: maintenanceId.toString(),
+        });
+        const url = `/panel/${vesselId}/movimentations/export-excel?${params.toString()}`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showExcelLoadingModal.value = false;
+            isExcelDownloading.value = false;
+            excelDownloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+const openImportExcelModal = () => {
+    showImportExcelModal.value = true;
+};
+
+const handleExcelDownloadCancel = () => {
+    if (excelDownloadTimeout) {
+        clearTimeout(excelDownloadTimeout);
+        excelDownloadTimeout = null;
+    }
+    showExcelLoadingModal.value = false;
+    isExcelDownloading.value = false;
+};
+
+const closeExcelLoadingModal = () => {
+    if (!isExcelDownloading.value) {
+        showExcelLoadingModal.value = false;
+    }
 };
 
 // Update end date
@@ -272,15 +376,6 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             </span>
                         </div>
                     </div>
-                    <div v-if="canEdit('maintenances') && props.maintenance.status === 'open'" class="flex gap-3">
-                        <button
-                            @click="showCreateExpenseModal = true"
-                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
-                        >
-                            <Icon name="plus" class="w-4 h-4 mr-2" />
-                            {{ t('Add Expense') }}
-                        </button>
-                    </div>
                 </div>
 
                 <!-- End Date and Finalize Section (only for open maintenances) -->
@@ -348,7 +443,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                     <div class="p-4 rounded-lg bg-muted/50 dark:bg-muted/20">
                         <div class="text-sm text-muted-foreground dark:text-muted-foreground mb-1">{{ t('Transactions') }}</div>
                         <div class="text-2xl font-bold text-card-foreground dark:text-card-foreground">
-                            {{ props.maintenance.transactions.length }}
+                            {{ props.transactions?.total || props.maintenance.transactions?.length || 0 }}
                         </div>
                     </div>
                     <div class="p-4 rounded-lg bg-muted/50 dark:bg-muted/20">
@@ -363,15 +458,66 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             <!-- Transactions Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
                 <div class="p-6 border-b border-border dark:border-border">
-                    <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">{{ t('Expenses') }}</h2>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-card-foreground dark:text-card-foreground">{{ t('Expenses') }}</h2>
+                        <div class="flex gap-2">
+                            <button
+                                v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
+                                @click="showCreateExpenseModal = true"
+                                class="inline-flex items-center px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                            >
+                                <Icon name="plus" class="w-4 h-4 mr-1" />
+                                {{ t('Add Expense') }}
+                            </button>
+
+                            <!-- Hamburger Menu with Excel Export/Import -->
+                            <DropdownMenu>
+                                <DropdownMenuTrigger as-child>
+                                    <button
+                                        class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                    >
+                                        <Icon name="more-vertical" class="w-4 h-4" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" class="w-48">
+                                <DropdownMenuItem @click="openDownloadExcelModal" class="cursor-pointer">
+                                    <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
+                                    {{ t('Download Excel') }}
+                                </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
+                                        @click="openImportExcelModal"
+                                        class="cursor-pointer"
+                                    >
+                                        <Icon name="upload" class="w-4 h-4 mr-2" />
+                                        {{ t('Import Excel') }}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
                 </div>
-                <div v-if="!props.maintenance.transactions || props.maintenance.transactions.length === 0"
+                <!-- Search Bar -->
+                <div class="px-6 py-4 border-b border-border dark:border-border">
+                    <div class="relative">
+                        <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <input
+                            v-model="searchQuery"
+                            type="text"
+                            :placeholder="t('Search movimentations...')"
+                            @keyup.enter="handleSearch"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                        />
+                    </div>
+                </div>
+
+                <div v-if="!allTransactions || allTransactions.length === 0"
                      class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
                     {{ t('No expenses found. Add an expense to get started.') }}
                 </div>
                 <div v-else class="divide-y divide-border dark:divide-border">
                     <div
-                        v-for="transaction in props.maintenance.transactions"
+                        v-for="transaction in allTransactions"
                         :key="transaction.id"
                         class="px-6 py-4 hover:bg-muted/30 dark:hover:bg-muted/20 transition-colors"
                     >
@@ -420,6 +566,14 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                         </div>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <div v-if="props.transactions && props.transactions.links && props.transactions.links.length > 3" class="px-6 py-4 border-t border-border dark:border-border">
+                    <Pagination
+                        :links="props.transactions.links"
+                        :meta="props.transactions"
+                    />
+                </div>
             </div>
         </div>
 
@@ -450,6 +604,23 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             type="warning"
             @confirm="confirmRemoveTransaction"
             @cancel="cancelRemoveTransaction"
+        />
+
+        <!-- Excel Import Modal -->
+        <ImportExcelModal
+            :open="showImportExcelModal"
+            :vessel-id="getCurrentVesselId()"
+            :maintenance-id="props.maintenance.id"
+            :key="`import-excel-${showImportExcelModal}`"
+            @close="showImportExcelModal = false"
+        />
+
+        <!-- Excel Loading Modal -->
+        <ExcelLoadingModal
+            :open="showExcelLoadingModal"
+            :countdown="5"
+            @close="closeExcelLoadingModal"
+            @cancel="handleExcelDownloadCancel"
         />
     </VesselLayout>
 </template>

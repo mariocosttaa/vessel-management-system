@@ -313,13 +313,7 @@ class MaintenanceController extends Controller
         $maintenance->load([
             'vessel:id,name,currency_code',
             'createdBy:id,name',
-            'transactions' => function ($query) {
-                $query->with([
-                    'category:id,name,type,color',
-                    'supplier:id,company_name',
-                    'crewMember:id,name,email',
-                ])->orderBy('transaction_date', 'desc');
-            },
+            // Don't load transactions here - we'll load them separately with pagination
         ]);
 
         // Get related data for transaction creation modal
@@ -340,6 +334,56 @@ class MaintenanceController extends Controller
 
         // Count transactions for deletion warning
         $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
+
+        // Load transactions with pagination and search
+        $transactionsQuery = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)
+            ->with([
+                'category:id,name,type,color',
+                'supplier:id,company_name',
+                'crewMember:id,name,email',
+            ]);
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $transactionsQuery->where(function ($q) use ($search) {
+                $q->where('transaction_number', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%");
+            });
+        }
+
+        $transactions = $transactionsQuery->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Map transactions for frontend
+        $transactionsData = $transactions->through(function ($transaction) {
+            return [
+                'id'                 => $this->hashId($transaction->id, 'movimentation'),
+                'transaction_number' => $transaction->transaction_number,
+                'type'               => $transaction->type,
+                'amount'             => $transaction->amount,
+                'amount_per_unit'    => $transaction->amount_per_unit,
+                'quantity'           => $transaction->quantity,
+                'vat_amount'         => $transaction->vat_amount,
+                'total_amount'       => $transaction->total_amount,
+                'currency'           => $transaction->currency,
+                'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                'description'        => $transaction->description,
+                'category'           => $transaction->category ? [
+                    'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                    'name'  => $transaction->category->translated_name,
+                    'type'  => $transaction->category->type,
+                    'color' => $transaction->category->color,
+                ] : null,
+                'supplier'           => $transaction->supplier ? [
+                    'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
+                    'company_name' => $transaction->supplier->company_name,
+                ] : null,
+            ];
+        });
 
         return Inertia::render('Maintenances/Show', [
             'transactionCount'  => $transactionCount,
@@ -393,43 +437,14 @@ class MaintenanceController extends Controller
                 'house_of_zeros'           => $maintenance->house_of_zeros ?? 2,
                 'total_expenses'           => $maintenance->total_expenses,
                 'formatted_total_expenses' => $maintenance->formatted_total_expenses,
-                'transactions'             => $maintenance->transactions->map(function ($transaction) {
-                    return [
-                        'id'                 => $this->hashId($transaction->id, 'movimentation'),
-                        'transaction_number' => $transaction->transaction_number,
-                        'type'               => $transaction->type,
-                        'amount'             => $transaction->amount,
-                        'amount_per_unit'    => $transaction->amount_per_unit,
-                        'quantity'           => $transaction->quantity,
-                        'vat_amount'         => $transaction->vat_amount,
-                        'total_amount'       => $transaction->total_amount,
-                        'currency'           => $transaction->currency,
-                        'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
-                        'description'        => $transaction->description,
-                        'category'           => $transaction->category ? [
-                            'id'    => $transaction->category->id,
-                            'name'  => $transaction->category->translated_name,
-                            'type'  => $transaction->category->type,
-                            'color' => $transaction->category->color,
-                        ] : null,
-                        'supplier'           => $transaction->supplier ? [
-                            'id'           => $transaction->supplier->id,
-                            'company_name' => $transaction->supplier->company_name,
-                        ] : null,
-                        'crew_member_id'     => $transaction->crew_member_id,
-                        'crew_member'        => $transaction->crewMember ? [
-                            'id'    => $transaction->crewMember->id,
-                            'name'  => $transaction->crewMember->name,
-                            'email' => $transaction->crewMember->email,
-                        ] : null,
-                    ];
-                }),
+                // Transactions are loaded separately with pagination
                 'created_at'               => $maintenance->created_at?->format('Y-m-d H:i:s'),
                 'created_by'               => $maintenance->createdBy ? [
                     'id'   => $maintenance->createdBy->id,
                     'name' => $maintenance->createdBy->name,
                 ] : null,
             ],
+            'transactions'      => $transactionsData, // Paginated transactions
         ]);
     }
 

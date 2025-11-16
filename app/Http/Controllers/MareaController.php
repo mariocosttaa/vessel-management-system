@@ -370,18 +370,11 @@ class MareaController extends Controller
             'distributionProfile.items',
             'distributionItems.profileItem',
             'createdBy:id,name',
-            'crew'         => function ($query) {
+            'crew' => function ($query) {
                 $query->with('user:id,name,email');
             },
             'quantityReturns',
-            'transactions' => function ($query) {
-                $query->with([
-                    'category:id,name,type,color',
-                    'supplier:id,company_name',
-                    'crewMember:id,name,email',
-                ])->orderBy('transaction_date', 'desc')
-                    ->orderBy('created_at', 'desc');
-            },
+            // Don't load transactions here - we'll load them separately with pagination
         ]);
 
         // Also load crewMembers if it's a BelongsToMany relationship
@@ -448,6 +441,63 @@ class MareaController extends Controller
 
         // Count transactions for deletion warning
         $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
+
+        // Load transactions with pagination and search
+        $transactionsQuery = \App\Models\Movimentation::where('marea_id', $marea->id)
+            ->with([
+                'category:id,name,type,color',
+                'supplier:id,company_name',
+                'crewMember:id,name,email',
+            ]);
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $transactionsQuery->where(function ($q) use ($search) {
+                $q->where('transaction_number', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%");
+            });
+        }
+
+        $transactions = $transactionsQuery->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Map transactions for frontend
+        $transactionsData = $transactions->through(function ($transaction) {
+            return [
+                'id'                 => $this->hashId($transaction->id, 'movimentation'),
+                'transaction_number' => $transaction->transaction_number,
+                'type'               => $transaction->type,
+                'amount'             => $transaction->amount,
+                'amount_per_unit'    => $transaction->amount_per_unit,
+                'quantity'           => $transaction->quantity,
+                'vat_amount'         => $transaction->vat_amount,
+                'total_amount'       => $transaction->total_amount,
+                'currency'           => $transaction->currency,
+                'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
+                'created_at'         => $transaction->created_at?->format('Y-m-d H:i:s'),
+                'description'        => $transaction->description,
+                'category'           => $transaction->category ? [
+                    'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
+                    'name'  => $transaction->category->translated_name,
+                    'type'  => $transaction->category->type,
+                    'color' => $transaction->category->color,
+                ] : null,
+                'supplier'           => $transaction->supplier ? [
+                    'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
+                    'company_name' => $transaction->supplier->company_name,
+                ] : null,
+                'crew_member_id'     => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user') : null,
+                'crew_member'        => $transaction->crewMember ? [
+                    'id'    => $this->hashId($transaction->crewMember->id, 'user'),
+                    'name'  => $transaction->crewMember->name,
+                    'email' => $transaction->crewMember->email,
+                ] : null,
+            ];
+        });
 
         return Inertia::render('Mareas/Show', [
             'transactionCount'     => $transactionCount,
@@ -572,44 +622,14 @@ class MareaController extends Controller
                         'notes'    => $qr->notes,
                     ];
                 }),
-                'transactions'               => $marea->transactions->map(function ($transaction) {
-                    return [
-                        'id'                 => $this->hashId($transaction->id, 'movimentation'),
-                        'transaction_number' => $transaction->transaction_number,
-                        'type'               => $transaction->type,
-                        'amount'             => $transaction->amount,
-                        'amount_per_unit'    => $transaction->amount_per_unit,
-                        'quantity'           => $transaction->quantity,
-                        'vat_amount'         => $transaction->vat_amount,
-                        'total_amount'       => $transaction->total_amount,
-                        'currency'           => $transaction->currency,
-                        'transaction_date'   => $transaction->transaction_date?->format('Y-m-d'),
-                        'created_at'         => $transaction->created_at?->format('Y-m-d H:i:s'),
-                        'description'        => $transaction->description,
-                        'category'           => $transaction->category ? [
-                            'id'    => $this->hashId($transaction->category->id, 'transactioncategory'),
-                            'name'  => $transaction->category->translated_name,
-                            'type'  => $transaction->category->type,
-                            'color' => $transaction->category->color,
-                        ] : null,
-                        'supplier'           => $transaction->supplier ? [
-                            'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
-                            'company_name' => $transaction->supplier->company_name,
-                        ] : null,
-                        'crew_member_id'     => $transaction->crew_member_id ? $this->hashId($transaction->crew_member_id, 'user') : null,
-                        'crew_member'        => $transaction->crewMember ? [
-                            'id'    => $this->hashId($transaction->crewMember->id, 'user'),
-                            'name'  => $transaction->crewMember->name,
-                            'email' => $transaction->crewMember->email,
-                        ] : null,
-                    ];
-                }),
+                // Transactions are loaded separately with pagination
                 'created_at'                 => $marea->created_at?->format('Y-m-d H:i:s'),
                 'created_by'                 => $marea->createdBy ? [
                     'id'   => $this->hashId($marea->createdBy->id, 'user'),
                     'name' => $marea->createdBy->name,
                 ] : null,
             ],
+            'transactions'         => $transactionsData, // Paginated transactions
         ]);
     }
 

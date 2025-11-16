@@ -24,8 +24,17 @@ import UpdateRemoveModal from '@/components/modals/Movimentation/update-remove.v
 import EditCalculationModal from '@/components/modals/Marea/EditCalculationModal.vue';
 import EditMareaModal from '@/components/modals/Marea/edit.vue';
 import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
+import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
+import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import transactions from '@/routes/panel/movimentations';
 import MoneyInput from '@/components/Forms/MoneyInput.vue';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -126,6 +135,14 @@ interface Marea {
 
 interface Props {
     marea: Marea;
+    transactions?: {
+        data: Array<any>;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        links: Array<any>;
+    };
     transactionCount?: number;
     defaultCurrency?: string;
     categories?: Array<{
@@ -341,6 +358,13 @@ const transactionToEdit = ref<any>(null);
 const showDeleteTransactionDialog = ref(false);
 const transactionToDelete = ref<number | null>(null);
 
+// Excel import/export modals
+const showDownloadExcelModal = ref(false);
+const showImportExcelModal = ref(false);
+const showExcelLoadingModal = ref(false);
+const isExcelDownloading = ref(false);
+let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
 // Distribution section collapsed state - default to collapsed, especially when calculation is not active
 const isDistributionExpanded = ref(false);
 
@@ -528,69 +552,49 @@ const handleDelete = () => {
 // Get default currency (assuming EUR for now)
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 
-// Group transactions by type and sort by date/time (newest first)
+// Get transactions from paginated data or fallback to marea.transactions (for backward compatibility)
+const allTransactions = computed(() => {
+    return props.transactions?.data || props.marea.transactions || [];
+});
+
+// Search functionality - use server-side search
+const urlParams = new URLSearchParams(window.location.search);
+const searchQuery = ref(urlParams.get('search') || '');
+const handleSearch = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (searchQuery.value.trim()) {
+        params.set('search', searchQuery.value.trim());
+    } else {
+        params.delete('search');
+    }
+    params.delete('page'); // Reset to first page when searching
+    router.get(window.location.pathname + (params.toString() ? '?' + params.toString() : ''), {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+// Group transactions by type (use allTransactions directly since search is server-side)
 const incomeTransactions = computed(() => {
-    return props.marea.transactions
-        .filter(t => t.type === 'income')
-        .sort((a, b) => {
-            // Sort by transaction_date first, then by created_at
-            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
-            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
-            if (dateB !== dateA) {
-                return dateB - dateA; // DESC
-            }
-            // If dates are equal, sort by created_at
-            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return createdB - createdA; // DESC
-        });
+    return allTransactions.value.filter(t => t.type === 'income');
 });
 
 const expenseTransactions = computed(() =>
-    props.marea.transactions.filter(t => t.type === 'expense')
+    allTransactions.value.filter(t => t.type === 'expense')
 );
 
 // Salary transactions (expense transactions with crew_member_id)
-// Any expense with a crew_member_id is considered a salary payment
 const salaryTransactions = computed(() => {
-    return props.marea.transactions
-        .filter(t =>
-            t.type === 'expense' &&
-            t.crew_member_id !== null
-        )
-        .sort((a, b) => {
-            // Sort by transaction_date first, then by created_at
-            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
-            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
-            if (dateB !== dateA) {
-                return dateB - dateA; // DESC
-            }
-            // If dates are equal, sort by created_at
-            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return createdB - createdA; // DESC
-        });
+    return allTransactions.value.filter(t =>
+        t.type === 'expense' && t.crew_member_id !== null
+    );
 });
 
-// Non-salary expense transactions (exclude transactions with crew_member_id)
+// Non-salary expense transactions
 const nonSalaryExpenseTransactions = computed(() => {
-    return props.marea.transactions
-        .filter(t =>
-            t.type === 'expense' &&
-            t.crew_member_id === null
-        )
-        .sort((a, b) => {
-            // Sort by transaction_date first, then by created_at
-            const dateA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
-            const dateB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
-            if (dateB !== dateA) {
-                return dateB - dateA; // DESC
-            }
-            // If dates are equal, sort by created_at
-            const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return createdB - createdA; // DESC
-        });
+    return allTransactions.value.filter(t =>
+        t.type === 'expense' && t.crew_member_id === null
+    );
 });
 
 // Filter categories by type
@@ -1080,6 +1084,64 @@ watch(showSalaryPaymentDialog, (open) => {
         selectedCrewSalaryInfo.value = null;
     }
 });
+
+// Excel export/import handlers
+const openDownloadExcelModal = () => {
+    // Simple download - no modal, just show loading and download all transactions for this marea
+    showExcelLoadingModal.value = true;
+    isExcelDownloading.value = true;
+
+    // Wait 5 seconds before starting download
+    excelDownloadTimeout = setTimeout(() => {
+        if (!isExcelDownloading.value) return; // Canceled
+
+        const vesselId = getCurrentVesselId();
+        const mareaId = props.marea.id;
+
+        // Export all transactions for this marea (no date range needed)
+        // We'll use a wide date range to get all transactions
+        const params = new URLSearchParams({
+            start_date: '2000-01-01', // Very early date to get all
+            end_date: new Date().toISOString().split('T')[0], // Today
+            marea_id: mareaId.toString(),
+        });
+        const url = `/panel/${vesselId}/movimentations/export-excel?${params.toString()}`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+            showExcelLoadingModal.value = false;
+            isExcelDownloading.value = false;
+            excelDownloadTimeout = null;
+        }, 500);
+    }, 5000);
+};
+
+const openImportExcelModal = () => {
+    showImportExcelModal.value = true;
+};
+
+const handleExcelDownloadCancel = () => {
+    if (excelDownloadTimeout) {
+        clearTimeout(excelDownloadTimeout);
+        excelDownloadTimeout = null;
+    }
+    showExcelLoadingModal.value = false;
+    isExcelDownloading.value = false;
+};
+
+const closeExcelLoadingModal = () => {
+    if (!isExcelDownloading.value) {
+        showExcelLoadingModal.value = false;
+    }
+};
 
 // Delete marea functions
 const isDeleting = ref(false);
@@ -1692,8 +1754,48 @@ const cancelDeleteMarea = () => {
                         >
                             {{ t('View All →') }}
                         </button>
+
+                        <!-- Hamburger Menu with Excel Export/Import -->
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <button
+                                    class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                >
+                                    <Icon name="more-vertical" class="w-4 h-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-48">
+                                <DropdownMenuItem @click="openDownloadExcelModal" class="cursor-pointer">
+                                    <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
+                                    {{ t('Download Excel') }}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                                    @click="openImportExcelModal"
+                                    class="cursor-pointer"
+                                >
+                                    <Icon name="upload" class="w-4 h-4 mr-2" />
+                                    {{ t('Import Excel') }}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
+
+                <!-- Search Bar -->
+                <div class="mb-4">
+                    <div class="relative">
+                        <Icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <input
+                            v-model="searchQuery"
+                            type="text"
+                            :placeholder="t('Search movimentations...')"
+                            @keyup.enter="handleSearch"
+                            class="w-full pl-10 pr-4 py-2 text-sm border border-input dark:border-input rounded-lg bg-background dark:bg-background text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                        />
+                    </div>
+                </div>
+
                 <div v-if="incomeTransactions.length === 0 && nonSalaryExpenseTransactions.length === 0" class="text-center py-8 text-muted-foreground dark:text-muted-foreground">
                     <p v-if="marea.status === 'closed' || marea.status === 'cancelled'" class="text-sm">
                         {{ t('No transactions linked to this marea') }}
@@ -1977,6 +2079,14 @@ const cancelDeleteMarea = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Pagination -->
+                <div v-if="props.transactions && props.transactions.links && props.transactions.links.length > 3" class="mt-6">
+                    <Pagination
+                        :links="props.transactions.links"
+                        :meta="props.transactions"
+                    />
                 </div>
             </div>
 
@@ -2656,6 +2766,23 @@ const cancelDeleteMarea = () => {
             :loading="isProcessing"
             @confirm="confirmDeleteTransaction"
             @cancel="cancelDeleteTransaction"
+        />
+
+        <!-- Excel Import Modal -->
+        <ImportExcelModal
+            :open="showImportExcelModal"
+            :vessel-id="getCurrentVesselId()"
+            :marea-id="marea.id"
+            :key="`import-excel-${showImportExcelModal}`"
+            @close="showImportExcelModal = false"
+        />
+
+        <!-- Excel Loading Modal -->
+        <ExcelLoadingModal
+            :open="showExcelLoadingModal"
+            :countdown="5"
+            @close="closeExcelLoadingModal"
+            @cancel="handleExcelDownloadCancel"
         />
     </VesselLayout>
 </template>
