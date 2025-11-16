@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -33,7 +34,8 @@ return new class extends Migration
             $table->timestamp('closed_at')->nullable();
 
             // Perfil de Distribuição Financeira
-            $table->foreignId('distribution_profile_id')->nullable()->constrained('marea_distribution_profiles')->onDelete('set null');
+            // Note: Foreign key to marea_distribution_profiles added after marea_distribution_profiles table exists (see migration order)
+            $table->unsignedBigInteger('distribution_profile_id')->nullable();
 
             // Calculation fields
             $table->boolean('use_calculation')->default(true);
@@ -53,6 +55,21 @@ return new class extends Migration
             $table->index('use_calculation');
             $table->index('created_at');
         });
+
+        // Add foreign key to marea_distribution_profiles after marea_distribution_profiles table exists
+        // Note: SQLite has limited foreign key support, so we skip for SQLite
+        if (DB::getDriverName() !== 'sqlite' && Schema::hasTable('marea_distribution_profiles')) {
+            try {
+                Schema::table('mareas', function (Blueprint $table) {
+                    $table->foreign('distribution_profile_id')
+                        ->references('id')
+                        ->on('marea_distribution_profiles')
+                        ->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might already exist, ignore
+            }
+        }
     }
 
     /**
@@ -60,6 +77,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Only drop foreign key if it exists (skip for SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('mareas', function (Blueprint $table) {
+                $table->dropForeign(['distribution_profile_id']);
+            });
+        }
+
         Schema::dropIfExists('mareas');
     }
 };
