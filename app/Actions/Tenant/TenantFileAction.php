@@ -30,6 +30,9 @@ class TenantFileAction
             $fullPath .= '/' . trim($path, '/');
         }
 
+        // Ensure base storage directory exists before accessing disk
+        self::ensureStorageDirectoryExists($disk);
+
         // Determine file name
         $ext = $extension ?: $file->getClientOriginalExtension();
         $name = $fileName ?: Str::random(21);
@@ -88,6 +91,10 @@ class TenantFileAction
     public static function get($vesselId, string $filePath, bool $isPublic = false): ?string
     {
         $disk = $isPublic ? 'public' : 'local';
+
+        // Ensure base storage directory exists before accessing disk
+        self::ensureStorageDirectoryExists($disk);
+
         $basePath = $isPublic ? "vessels/{$vesselId}" : "vessels/{$vesselId}";
         $fullPath = $basePath . '/' . ltrim($filePath, '/');
         return Storage::disk($disk)->exists($fullPath) ? Storage::disk($disk)->get($fullPath) : null;
@@ -105,6 +112,10 @@ class TenantFileAction
     public static function delete($vesselId, ?string $filePath = null, ?string $fileUrl = null, bool $isPublic = false): bool
     {
         $disk = $isPublic ? 'public' : 'local';
+
+        // Ensure base storage directory exists before accessing disk
+        self::ensureStorageDirectoryExists($disk);
+
         $basePath = "vessels/{$vesselId}";
 
         // Determine the file path to delete
@@ -211,6 +222,68 @@ class TenantFileAction
             return route('vessel-file-show-public', ['vesselIdHashed' => $vesselIdHashed, 'filePath' => $filePath]);
         } else {
             return route('vessel-file-show-private', ['vesselIdHashed' => $vesselIdHashed, 'filePath' => $filePath]);
+        }
+    }
+
+    /**
+     * Ensure the storage directory exists for the given disk.
+     * This is necessary when using volume mounts that might not have the directory structure.
+     *
+     * @param string $disk
+     * @return void
+     */
+    private static function ensureStorageDirectoryExists(string $disk): void
+    {
+        try {
+            $storagePath = storage_path('app');
+
+            // Ensure base storage/app directory exists
+            if (!is_dir($storagePath)) {
+                if (!mkdir($storagePath, 0775, true) && !is_dir($storagePath)) {
+                    throw new \RuntimeException("Failed to create storage directory: {$storagePath}. Check volume mount permissions.");
+                }
+                // Try to set ownership to www-data:www-data (matches Dockerfile)
+                @chown($storagePath, 'www-data');
+                @chgrp($storagePath, 'www-data');
+            }
+
+            // For public disk, ensure storage/app/public exists
+            if ($disk === 'public') {
+                $publicPath = storage_path('app/public');
+                if (!is_dir($publicPath)) {
+                    if (!mkdir($publicPath, 0775, true) && !is_dir($publicPath)) {
+                        throw new \RuntimeException("Failed to create public storage directory: {$publicPath}. Check volume mount permissions.");
+                    }
+                }
+                // Ensure permissions match Dockerfile (775) - fix even if directory already exists
+                @chmod($publicPath, 0775);
+                // Try to set ownership to www-data:www-data (matches Dockerfile)
+                @chown($publicPath, 'www-data');
+                @chgrp($publicPath, 'www-data');
+            }
+
+            // For local disk, ensure storage/app/private exists
+            if ($disk === 'local') {
+                $privatePath = storage_path('app/private');
+                if (!is_dir($privatePath)) {
+                    if (!mkdir($privatePath, 0775, true) && !is_dir($privatePath)) {
+                        throw new \RuntimeException("Failed to create private storage directory: {$privatePath}. Check volume mount permissions.");
+                    }
+                }
+                // Ensure permissions match Dockerfile (775) - fix even if directory already exists
+                @chmod($privatePath, 0775);
+                // Try to set ownership to www-data:www-data (matches Dockerfile)
+                @chown($privatePath, 'www-data');
+                @chgrp($privatePath, 'www-data');
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to ensure storage directory exists', [
+                'disk' => $disk,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Re-throw to provide clear error message
+            throw new \RuntimeException("Storage directory initialization failed for disk '{$disk}': " . $e->getMessage(), 0, $e);
         }
     }
 
