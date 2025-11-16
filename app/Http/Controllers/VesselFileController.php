@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Actions\General\EasyHashAction;
+use App\Actions\Tenant\TenantFileAction;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class VesselFileController
@@ -21,20 +23,85 @@ class VesselFileController
         $vesselId = EasyHashAction::decode($vesselIdHashed, 'vessel-id');
 
         if (!$vesselId) {
+            Log::warning('VesselFileController: Invalid vessel hash', [
+                'vesselIdHashed' => $vesselIdHashed,
+                'filePath' => $filePath,
+            ]);
             abort(404, 'Vessel not found.');
+        }
+
+        // Ensure storage directory exists before accessing
+        try {
+            TenantFileAction::ensureStorageDirectoryExists('public');
+        } catch (\Exception $e) {
+            Log::error('VesselFileController: Failed to ensure storage directory', [
+                'error' => $e->getMessage(),
+                'vesselId' => $vesselId,
+                'filePath' => $filePath,
+            ]);
         }
 
         $disk = 'public';
         $path = "vessels/{$vesselId}/" . ltrim($filePath, '/');
-        if (!Storage::disk($disk)->exists($path)) {
+        
+        // Try to get full path from Storage
+        $fullPath = null;
+        try {
+            $fullPath = Storage::disk($disk)->path($path);
+        } catch (\Exception $e) {
+            Log::warning('VesselFileController: Could not get path from Storage, trying direct filesystem path', [
+                'error' => $e->getMessage(),
+                'vesselId' => $vesselId,
+                'filePath' => $filePath,
+                'path' => $path,
+            ]);
+            // Fallback: construct path directly
+            $fullPath = storage_path('app/public/' . $path);
+        }
+        
+        // Check if file exists (try Storage first, then filesystem)
+        $fileExists = false;
+        try {
+            $fileExists = Storage::disk($disk)->exists($path);
+        } catch (\Exception $e) {
+            Log::warning('VesselFileController: Storage::exists() failed, checking filesystem directly', [
+                'error' => $e->getMessage(),
+                'fullPath' => $fullPath,
+            ]);
+            $fileExists = file_exists($fullPath);
+        }
+        
+        if (!$fileExists || !file_exists($fullPath)) {
+            Log::warning('VesselFileController: File not found', [
+                'vesselId' => $vesselId,
+                'filePath' => $filePath,
+                'storagePath' => $path,
+                'fullPath' => $fullPath,
+                'disk' => $disk,
+                'storageBasePath' => storage_path('app/public'),
+                'fileExists' => $fileExists,
+                'fileExistsOnFs' => file_exists($fullPath ?? ''),
+            ]);
             abort(404, 'File not found.');
         }
-        $fullPath = Storage::disk($disk)->path($path);
-        $mime = mime_content_type($fullPath);
-        return response()->file($fullPath, [
-            'Content-Type' => $mime,
-            'Cache-Control' => 'public, max-age=86400',
-        ]);
+
+        try {
+            $mime = mime_content_type($fullPath) ?: 'application/octet-stream';
+            
+            return response()->file($fullPath, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('VesselFileController: Error serving file', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'vesselId' => $vesselId,
+                'filePath' => $filePath,
+                'fullPath' => $fullPath ?? 'unknown',
+            ]);
+            abort(500, 'Error serving file.');
+        }
     }
 
     /**

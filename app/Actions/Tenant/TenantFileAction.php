@@ -232,7 +232,7 @@ class TenantFileAction
      * @param string $disk
      * @return void
      */
-    private static function ensureStorageDirectoryExists(string $disk): void
+    public static function ensureStorageDirectoryExists(string $disk): void
     {
         try {
             $storagePath = storage_path('app');
