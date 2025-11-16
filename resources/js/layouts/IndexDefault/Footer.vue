@@ -5,16 +5,16 @@
         <!-- Center: Copyright -->
         <div class="flex items-center space-x-2 text-sm text-muted-foreground">
           <Icon name="copyright" class="h-4 w-4" />
-          <span>2025 Bindamy Mareas. All rights reserved.</span>
+          <span>{{ currentYear }} Bindamy Mareas. {{ t('All rights reserved') }}.</span>
         </div>
 
         <!-- Right: Privacy & Terms -->
         <div class="flex items-center space-x-6 text-sm text-muted-foreground">
           <Link href="/privacy-policy" class="hover:text-foreground transition-colors">
-            Privacy Policy
+            {{ t('Privacy Policy') }}
           </Link>
           <Link href="/terms-of-service" class="hover:text-foreground transition-colors">
-            Terms of Service
+            {{ t('Terms of Service') }}
           </Link>
         </div>
       </div>
@@ -26,6 +26,8 @@
 import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import Icon from '@/components/Icon.vue'
+import { useI18n } from '@/composables/useI18n'
 
+const { t } = useI18n()
 const currentYear = computed(() => new Date().getFullYear())
 </script>

@@ -30,19 +30,19 @@
                          'text-card-foreground dark:text-card-foreground bg-muted/50'
                        ]"
                      >
-                       Home
+                       {{ t('Home') }}
                      </a>
                      <a
                        href="#pricing"
                        class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
                      >
-                       Pricing
+                       {{ t('Pricing') }}
                      </a>
                      <a
                        href="#contact"
                        class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
                      >
-                       Contact
+                       {{ t('Contact') }}
                      </a>
             </template>
 
@@ -57,7 +57,7 @@
                     : 'text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30'
                 ]"
               >
-                Panel
+                {{ t('Panel') }}
               </Link>
               <Link
                 href="/panel/profile"
@@ -68,13 +68,13 @@
                     : 'text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30'
                 ]"
               >
-                Profile
+                {{ t('Profile') }}
               </Link>
               <Link
                 href="/"
                 class="px-4 py-2 rounded-md text-sm font-medium text-muted-foreground dark:text-muted-foreground hover:text-card-foreground dark:hover:text-card-foreground hover:bg-muted/30 transition-colors"
               >
-                Website
+                {{ t('Website') }}
               </Link>
             </template>
           </div>
@@ -163,7 +163,7 @@
               class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
             >
               <Icon name="grid" class="w-4 h-4 mr-2" />
-              Panel
+              {{ t('Panel') }}
             </Link>
 
             <!-- Landing Page: Login Button (when user is not logged in) -->
@@ -173,7 +173,7 @@
               class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors text-sm"
             >
               <Icon name="log-in" class="w-4 h-4 mr-2" />
-              Login
+              {{ t('Login') }}
             </Link>
 
             <!-- Mobile Menu Button -->
@@ -205,19 +205,19 @@
                   href="/"
                   class="block px-4 py-2.5 rounded-lg font-medium text-card-foreground bg-muted/60 transition-all duration-200"
                 >
-                  Home
+                  {{ t('Home') }}
                 </a>
                        <a
                          href="#pricing"
                          class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
                        >
-                         Pricing
+                         {{ t('Pricing') }}
                        </a>
                        <a
                          href="#contact"
                          class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
                        >
-                         Contact
+                         {{ t('Contact') }}
                        </a>
               </template>
 
@@ -232,7 +232,7 @@
                       : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
                   ]"
                 >
-                  Panel
+                  {{ t('Panel') }}
                 </Link>
                 <Link
                   href="/panel/profile"
@@ -243,13 +243,13 @@
                       : 'text-muted-foreground hover:text-card-foreground hover:bg-muted/40'
                   ]"
                 >
-                  Profile
+                  {{ t('Profile') }}
                 </Link>
                 <Link
                   href="/"
                   class="block px-4 py-2.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/40 transition-all duration-200"
                 >
-                  Website
+                  {{ t('Website') }}
                 </Link>
               </template>
             </nav>
