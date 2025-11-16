@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Database\Seeders\CountrySeeder;
 use Database\Seeders\CrewPositionSeeder;
 use Database\Seeders\CurrencySeeder;
+use Database\Seeders\VatProfileSeeder;
 use Illuminate\Console\Command;
 
 class SeedProduction extends Command
@@ -21,7 +22,7 @@ class SeedProduction extends Command
      *
      * @var string
      */
-    protected $description = 'Seed production data: Countries, Currencies, and Crew Positions';
+    protected $description = 'Seed production data: Countries, Currencies, Crew Positions, and VAT Profiles';
 
     /**
      * Execute the console command.
@@ -32,9 +33,10 @@ class SeedProduction extends Command
         $this->info('====================================');
 
         $seeders = [
-            CountrySeeder::class,
+            CountrySeeder::class,      // Must run first (VatProfileSeeder depends on it)
             CurrencySeeder::class,
             CrewPositionSeeder::class,
+            VatProfileSeeder::class,    // Must run after CountrySeeder
         ];
 
         foreach ($seeders as $seeder) {
