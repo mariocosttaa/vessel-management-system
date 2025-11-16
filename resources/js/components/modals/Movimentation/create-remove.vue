@@ -46,7 +46,7 @@ interface Props {
     vatProfiles?: any[]; // Keep for backward compatibility (not used)
     defaultVatProfile?: any; // Keep for backward compatibility (not used)
     defaultCurrency?: string; // Default currency from vessel_settings (passed from controller)
-    mareaId?: number | null; // Optional marea ID to link transaction to marea
+    mareaId?: string | number | null; // Optional marea ID to link transaction to marea (can be hashed string or number)
     maintenanceId?: number | null; // Optional maintenance ID to link transaction to maintenance
 }
 

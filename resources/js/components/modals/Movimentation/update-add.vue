@@ -38,7 +38,13 @@ interface Transaction {
     notes: string | null;
     reference: string | null;
     status: string;
-    category_id: number;
+    category_id: string | number; // Can be hashed string or number
+    category?: {
+        id: string | number; // Can be hashed string or number
+        name: string;
+        type: string;
+        color: string;
+    };
     vat_profile_id: number | null;
     amount_includes_vat?: boolean;
     files?: {
@@ -52,7 +58,7 @@ interface Transaction {
 }
 
 interface TransactionCategory {
-    id: number;
+    id: string | number; // Can be hashed string or number
     name: string;
     type: string;
     color: string;
@@ -149,7 +155,7 @@ const incomeCategories = computed(() => {
 
 // Convert to Select component options format
 const categoryOptions = computed(() => {
-    const options = [{ value: null, label: t('Select a category') }];
+    const options: Array<{ value: string | number | null; label: string }> = [{ value: null, label: t('Select a category') }];
     incomeCategories.value.forEach(category => {
         options.push({ value: category.id, label: category.name });
     });
@@ -257,7 +263,7 @@ const selectedVatProfile = computed(() => {
 // Initialize form - will be populated from transaction when modal opens
 // We'll initialize with empty/default values and populate from transaction in the watch
 const form = useForm({
-    category_id: null as number | null,
+    category_id: null as string | number | null,
     type: 'income' as string,
     amount: null as number | null,
     amount_per_unit: null as number | null,
@@ -274,6 +280,7 @@ const form = useForm({
 });
 
 const selectedFiles = ref<File[]>([]);
+const isFormInitialized = ref(false);
 
 // Get default VAT profile from props
 const defaultVatProfile = computed(() => props.defaultVatProfile);
@@ -304,14 +311,32 @@ const initializeFormFromTransaction = () => {
         // Clear errors first
         form.clearErrors();
 
-        // Set category_id - must be a valid positive integer
-        const categoryId = props.transaction.category_id ? Number(props.transaction.category_id) : null;
-        if (categoryId && categoryId > 0) {
-            form.category_id = categoryId;
-        } else {
-            console.error('Invalid category_id from transaction:', props.transaction.category_id);
-            form.category_id = null;
+        // Set category_id - can be hashed string or number
+        // Handle both direct category_id and nested category.id
+        let categoryId: string | number | null = null;
+        if (props.transaction.category_id !== null && props.transaction.category_id !== undefined) {
+            // Keep as string if it's a hashed ID, convert to number if it's numeric
+            const catId = props.transaction.category_id;
+            if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
+                // It's a hashed ID (string)
+                categoryId = catId;
+            } else {
+                // Try to convert to number
+                const numId = Number(catId);
+                categoryId = !isNaN(numId) && numId > 0 ? numId : catId;
+            }
+        } else if ((props.transaction.category as any)?.id !== null && (props.transaction.category as any)?.id !== undefined) {
+            const catId = (props.transaction.category as any).id;
+            if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
+                categoryId = catId;
+            } else {
+                const numId = Number(catId);
+                categoryId = !isNaN(numId) && numId > 0 ? numId : catId;
+            }
         }
+
+        form.category_id = categoryId;
+        console.log('Set category_id to:', categoryId, 'type:', typeof categoryId);
 
         form.type = 'income';
 
@@ -451,30 +476,56 @@ const initializeFormFromTransaction = () => {
             vat_profile_id: form.vat_profile_id,
             amount_includes_vat: form.amount_includes_vat
         });
+
+        // Mark form as initialized
+        isFormInitialized.value = true;
     } catch (error) {
         console.error('Error initializing form:', error);
+        isFormInitialized.value = false;
     }
 };
 
 // Watch for modal opening and transaction changes
 watch([() => props.open, () => props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        console.log('Watch triggered - initializing form', { isOpen, transactionId });
+        console.log('Watch triggered - initializing form', {
+            isOpen,
+            transactionId,
+            transactionCategoryId: props.transaction.category_id,
+            transactionCategory: props.transaction.category
+        });
         // Use nextTick to ensure DOM is ready
         nextTick(() => {
             initializeFormFromTransaction();
-            // Double-check form values after initialization
-            nextTick(() => {
-                console.log('Form values after initialization:', {
-                    category_id: form.category_id,
-                    amount: form.amount,
-                    transaction_date: form.transaction_date,
-                    description: form.description
+                // Double-check form values after initialization
+                nextTick(() => {
+                    console.log('Form values after initialization:', {
+                        category_id: form.category_id,
+                        amount: form.amount,
+                        transaction_date: form.transaction_date,
+                        description: form.description,
+                        categoryOptions: categoryOptions.value.length,
+                        categoryOptionsIds: categoryOptions.value.map(opt => opt.value)
+                    });
+                    // Log the selected option to debug
+                    const selected = categoryOptions.value.find(opt => {
+                        const optVal = opt.value;
+                        const formVal = form.category_id;
+                        if (optVal == null && formVal == null) return true;
+                        if (optVal == null || formVal == null) return false;
+                        return String(optVal) === String(formVal) || Number(optVal) === Number(formVal);
+                    });
+                    console.log('Selected option found:', selected);
                 });
-            });
         });
     }
 }, { immediate: true });
+
+// Watch form.category_id - can be string (hashed ID) or number
+// No conversion needed, just watch for changes
+watch(() => form.category_id, () => {
+    // Category ID can be string or number, no conversion needed
+});
 
 // Watch form.amount to ensure it's always a number
 watch(() => form.amount, (newAmount) => {
@@ -630,7 +681,8 @@ const submit = async () => {
 
     // Read values directly from form object properties (reactive to v-model)
     // These should be the current values from the form inputs
-    let categoryId = form.category_id ? Number(form.category_id) : null;
+    // Category ID can be string (hashed) or number, keep as is for now
+    let categoryId = form.category_id;
     let transactionDate = form.transaction_date ? String(form.transaction_date).trim() : '';
     let amountValue = form.amount ? Number(form.amount) : null;
 
@@ -663,8 +715,8 @@ const submit = async () => {
         amountIncludesVat: amountIncludesVat.value
     });
 
-    // Validate category_id
-    if (!categoryId || categoryId === 0) {
+    // Validate category_id (can be string or number)
+    if (!categoryId || categoryId === 0 || categoryId === '0' || categoryId === '') {
         console.error('Category validation failed:', categoryId, 'form.category_id:', form.category_id);
         form.setError('category_id', 'Please select a category.');
         addNotification({
@@ -721,7 +773,9 @@ const submit = async () => {
 
     // Ensure all form fields are properly set with correct types
     // Set values directly on form object - these will be sent to backend
-    form.category_id = Number(categoryId);
+    // Category ID: if it's a hashed string, keep it; if it's a number, convert to number
+    // The backend will handle un-hashing if needed
+    form.category_id = typeof categoryId === 'string' ? categoryId : Number(categoryId);
     form.type = 'income';
     form.transaction_date = normalizedDate;
     form.amount = amountValue ? Number(amountValue) : null;
@@ -749,6 +803,63 @@ const submit = async () => {
     form.description = form.description || '';
     form.notes = form.notes || '';
     form.status = form.status || 'pending';
+
+    // Ensure form is initialized before submission
+    if (!isFormInitialized.value) {
+        console.warn('Form not yet initialized, waiting...');
+        // Wait a bit and try again
+        setTimeout(() => {
+            if (isFormInitialized.value) {
+                submit();
+            } else {
+                addNotification({
+                    type: 'error',
+                    title: t('Error'),
+                    message: t('Form is not ready. Please wait a moment and try again.'),
+                });
+            }
+        }, 100);
+        return;
+    }
+
+    // Ensure category_id is set (required field)
+    if (!form.category_id) {
+        console.error('Category ID is missing:', form.category_id);
+        form.setError('category_id', t('Please select a category.'));
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Please select a category.'),
+        });
+        return;
+    }
+
+    // Ensure transaction_date is set (required field)
+    if (!form.transaction_date) {
+        console.error('Transaction date is missing:', form.transaction_date);
+        form.setError('transaction_date', t('Transaction date is required.'));
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Transaction date is required.'),
+        });
+        return;
+    }
+
+    // Ensure type is set (required field)
+    if (!form.type) {
+        form.type = 'income';
+    }
+
+    // Ensure amount is set (either direct amount or amount_per_unit * quantity)
+    if (!form.amount && (!form.amount_per_unit || !form.quantity)) {
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Amount is required.'),
+        });
+        return;
+    }
 
     console.log('Form data before submission (after setting all values):', {
         transactionId: props.transaction.id,
@@ -815,7 +926,12 @@ const submit = async () => {
         submitOptions.forceFormData = true;
     }
 
-    form.put(transactions.update.url({ vessel: getCurrentVesselId(), transactionId: props.transaction.id }), submitOptions);
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+    form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
 };
 </script>
 

@@ -41,7 +41,7 @@ interface Props {
     vatProfiles?: VatProfile[];
     defaultVatProfile?: VatProfile | null;
     defaultCurrency?: string; // Default currency from vessel_settings (passed from controller)
-    mareaId?: number | null; // Optional marea ID to link transaction to marea
+    mareaId?: string | number | null; // Optional marea ID to link transaction to marea (can be hashed string or number)
 }
 
 const props = defineProps<Props>();

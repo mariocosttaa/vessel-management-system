@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,7 +35,13 @@ interface Transaction {
     notes: string | null;
     reference: string | null;
     status: string;
-    category_id: number;
+    category_id: string | number; // Can be hashed string or number
+    category?: {
+        id: string | number; // Can be hashed string or number
+        name: string;
+        type: string;
+        color: string;
+    };
     supplier_id: number | null;
     crew_member_id: number | null;
     files?: {
@@ -49,7 +55,7 @@ interface Transaction {
 }
 
 interface TransactionCategory {
-    id: number;
+    id: string | number; // Can be hashed string or number
     name: string;
     type: string;
     color: string;
@@ -149,7 +155,7 @@ const expenseCategories = computed(() => {
 
 // Convert to Select component options format
 const categoryOptions = computed(() => {
-    const options = [{ value: null, label: t('Select a category') }];
+    const options: Array<{ value: string | number | null; label: string }> = [{ value: null, label: t('Select a category') }];
     expenseCategories.value.forEach(category => {
         options.push({ value: category.id, label: category.name });
     });
@@ -223,66 +229,209 @@ const calculatedAmount = computed(() => {
     return form.amount || 0;
 });
 
-// Initialize form with transaction data
+// Initialize form with empty/default values - will be populated by watch
 const form = useForm({
-    category_id: props.transaction.category_id,
+    category_id: null as string | number | null,
     type: 'expense' as string,
-    amount: props.transaction.amount,
-    amount_per_unit: (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit,
-    quantity: props.transaction.quantity,
-    currency: props.transaction.currency,
-    house_of_zeros: props.transaction.house_of_zeros,
+    amount: null as number | null,
+    amount_per_unit: null as number | null,
+    quantity: null as number | null,
+    currency: 'EUR' as string,
+    house_of_zeros: 2 as number,
     vat_rate_id: null as number | null,
     vat_profile_id: null as number | null,
     amount_includes_vat: false,
-    transaction_date: props.transaction.transaction_date,
-    description: props.transaction.description || '',
-    notes: props.transaction.notes || '',
-    supplier_id: props.transaction.supplier_id || null,
-    crew_member_id: props.transaction.crew_member_id || null,
-    status: props.transaction.status,
+    transaction_date: '' as string,
+    description: '' as string,
+    notes: '' as string,
+    supplier_id: null as number | null,
+    crew_member_id: null as number | null,
+    status: 'completed' as string,
     files: [] as File[],
 });
 
 const selectedFiles = ref<File[]>([]);
+const isFormInitialized = ref(false);
+
+// Helper function to initialize form from transaction
+const initializeFormFromTransaction = () => {
+    if (!props.transaction) {
+        console.warn('UpdateRemoveModal: No transaction provided');
+        return;
+    }
+
+    console.log('UpdateRemoveModal: Initializing form', {
+        transactionId: props.transaction.id,
+        category_id: props.transaction.category_id,
+        category: props.transaction.category,
+        transaction_date: props.transaction.transaction_date,
+        amount: props.transaction.amount
+    });
+
+    // Handle both direct category_id and nested category.id
+    // Category IDs can be hashed strings or numbers
+    let categoryId: string | number | null = null;
+    if (props.transaction.category_id !== null && props.transaction.category_id !== undefined) {
+        // Keep as string if it's a hashed ID, convert to number if it's numeric
+        const catId = props.transaction.category_id;
+        if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
+            // It's a hashed ID (string)
+            categoryId = catId;
+        } else {
+            // Try to convert to number
+            const numId = Number(catId);
+            categoryId = !isNaN(numId) && numId > 0 ? numId : catId;
+        }
+    } else if ((props.transaction.category as any)?.id !== null && (props.transaction.category as any)?.id !== undefined) {
+        const catId = (props.transaction.category as any).id;
+        if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
+            categoryId = catId;
+        } else {
+            const numId = Number(catId);
+            categoryId = !isNaN(numId) && numId > 0 ? numId : catId;
+        }
+    }
+
+    // Set all form fields - ensure they are not null/undefined
+    form.category_id = categoryId;
+    form.type = 'expense';
+    form.amount = props.transaction.amount ?? null;
+    form.amount_per_unit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit ?? null;
+    form.quantity = props.transaction.quantity ?? null;
+    form.currency = props.transaction.currency || vesselCurrencyData.value.code || 'EUR';
+    form.house_of_zeros = props.transaction.house_of_zeros ?? currentCurrencyDecimals.value;
+
+    // Normalize transaction_date to YYYY-MM-DD format (DateInput expects this)
+    if (props.transaction.transaction_date) {
+        try {
+            let dateStr = String(props.transaction.transaction_date).trim();
+
+            // If it's already in YYYY-MM-DD format, use it directly
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                form.transaction_date = dateStr;
+            } else {
+                // Try to parse and format it
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    // Format as YYYY-MM-DD
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    form.transaction_date = `${year}-${month}-${day}`;
+                } else {
+                    // Fallback: try to extract date parts if it's in a different format
+                    const dateMatch = dateStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                    if (dateMatch) {
+                        const [, year, month, day] = dateMatch;
+                        form.transaction_date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    } else {
+                        console.error('Could not parse transaction_date:', dateStr);
+                        form.transaction_date = '';
+                    }
+                }
+            }
+            console.log('Set transaction_date to:', form.transaction_date, 'from original:', props.transaction.transaction_date);
+        } catch (e) {
+            console.error('Error parsing transaction_date:', e, 'Original value:', props.transaction.transaction_date);
+            form.transaction_date = '';
+        }
+    } else {
+        form.transaction_date = '';
+    }
+
+    form.description = props.transaction.description || '';
+    form.notes = props.transaction.notes || '';
+    form.supplier_id = props.transaction.supplier_id || null;
+    form.crew_member_id = props.transaction.crew_member_id || null;
+    form.status = props.transaction.status || 'completed';
+    // Remove VAT completely from expenses
+    form.amount_includes_vat = false;
+    form.vat_rate_id = null;
+    form.vat_profile_id = null;
+    form.files = [];
+    selectedFiles.value = [];
+
+    // Initialize price per unit state
+    initializePricePerUnit();
+
+    form.clearErrors();
+
+    console.log('Form initialized with values:', {
+        category_id: form.category_id,
+        transaction_date: form.transaction_date,
+        amount: form.amount,
+        type: form.type,
+        status: form.status
+    });
+
+    // Mark form as initialized
+    isFormInitialized.value = true;
+};
 
 // Reset form when modal opens/closes or transaction changes
 watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        form.category_id = props.transaction.category_id;
-        form.type = 'expense';
-        form.amount = props.transaction.amount;
-        form.amount_per_unit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
-        form.quantity = props.transaction.quantity;
-        form.currency = props.transaction.currency || vesselCurrencyData.value.code || 'EUR';
-        form.house_of_zeros = props.transaction.house_of_zeros || currentCurrencyDecimals.value;
-        form.transaction_date = props.transaction.transaction_date;
-        form.description = props.transaction.description || '';
-        form.notes = props.transaction.notes || '';
-        form.supplier_id = props.transaction.supplier_id || null;
-        form.crew_member_id = props.transaction.crew_member_id || null;
-        form.status = props.transaction.status;
-        // Remove VAT completely from expenses
-        form.amount_includes_vat = false;
-        form.vat_rate_id = null;
-        form.vat_profile_id = null;
-        form.files = [];
-        selectedFiles.value = [];
+        console.log('Watch triggered - modal opening with transaction:', {
+            isOpen,
+            transactionId,
+            hasTransaction: !!props.transaction,
+            category_id: props.transaction.category_id,
+            transaction_date: props.transaction.transaction_date,
+            amount: props.transaction.amount
+        });
 
-        // Initialize price per unit state
-        initializePricePerUnit();
+        // Initialize form immediately
+        initializeFormFromTransaction();
 
+        // Double-check form values after a tick to ensure they're set
+        nextTick(() => {
+            console.log('Form values after initialization (nextTick):', {
+                category_id: form.category_id,
+                transaction_date: form.transaction_date,
+                amount: form.amount,
+                type: form.type,
+                status: form.status,
+                categoryOptions: categoryOptions.value.length,
+                categoryOptionsIds: categoryOptions.value.map(opt => opt.value)
+            });
+
+            // Verify all required fields are set
+            if (!form.category_id) {
+                console.error('WARNING: category_id is still null after initialization!');
+            }
+            if (!form.transaction_date) {
+                console.error('WARNING: transaction_date is still empty after initialization!');
+            }
+            if (!form.amount && !form.amount_per_unit) {
+                console.error('WARNING: amount is still null after initialization!');
+            }
+
+            // Log the selected option to debug
+            const selected = categoryOptions.value.find(opt => {
+                const optVal = opt.value;
+                const formVal = form.category_id;
+                if (optVal == null && formVal == null) return true;
+                if (optVal == null || formVal == null) return false;
+                return String(optVal) === String(formVal) || Number(optVal) === Number(formVal);
+            });
+            console.log('Selected option found:', selected);
+        });
+    } else if (!isOpen) {
+        // Clear form when modal closes
+        form.reset();
         form.clearErrors();
+        isFormInitialized.value = false;
     }
-});
+}, { immediate: true });
 
 // Watch selectedFiles and update form.files
 watch(selectedFiles, (files) => {
     form.files = files;
 }, { deep: true });
 
-// Watch type change to reset category
-watch(() => form.category_id, () => {
+// Watch form.category_id - can be string (hashed ID) or number
+watch(() => form.category_id, (newCategoryId) => {
+    // Reset crew member if category changes and crew member field is not shown
     if (!showCrewMemberField.value) {
         form.crew_member_id = null;
     }
@@ -383,10 +532,75 @@ const cancelDeleteFile = () => {
 };
 
 const submit = () => {
+    // Ensure form is initialized before submission
+    if (!isFormInitialized.value) {
+        console.warn('Form not yet initialized, waiting...');
+        // Wait a bit and try again
+        setTimeout(() => {
+            if (isFormInitialized.value) {
+                submit();
+            } else {
+                addNotification({
+                    type: 'error',
+                    title: t('Error'),
+                    message: t('Form is not ready. Please wait a moment and try again.'),
+                });
+            }
+        }, 100);
+        return;
+    }
+
+    // Log form state before submission
+    console.log('Submit called - Form state:', {
+        category_id: form.category_id,
+        transaction_date: form.transaction_date,
+        amount: form.amount,
+        amount_per_unit: form.amount_per_unit,
+        quantity: form.quantity,
+        type: form.type,
+        status: form.status,
+        usePricePerUnit: usePricePerUnit.value,
+        isFormInitialized: isFormInitialized.value
+    });
+
     // No VAT for expenses/removals
     form.amount_includes_vat = false;
     form.vat_profile_id = null;
     form.vat_rate_id = null;
+
+    // Ensure type is set (required field)
+    if (!form.type) {
+        form.type = 'expense';
+    }
+
+    // Ensure status is set (required field)
+    if (!form.status) {
+        form.status = props.transaction?.status || 'completed';
+    }
+
+    // Ensure category_id is set (required field)
+    if (!form.category_id) {
+        console.error('Category ID is missing:', form.category_id);
+        form.setError('category_id', t('Please select a category.'));
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Please select a category.'),
+        });
+        return;
+    }
+
+    // Ensure transaction_date is set and properly formatted (required field)
+    if (!form.transaction_date || form.transaction_date === '') {
+        console.error('Transaction date is missing:', form.transaction_date);
+        form.setError('transaction_date', t('Transaction date is required.'));
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Transaction date is required.'),
+        });
+        return;
+    }
 
     // Calculate amount from price_per_unit * quantity if using price per unit
     if (usePricePerUnit.value && pricePerUnit.value !== null && quantity.value !== null && quantity.value > 0) {
@@ -394,24 +608,50 @@ const submit = () => {
         form.quantity = Math.round(quantity.value); // Ensure quantity is integer
         form.amount = calculatedAmount.value;
     } else {
-        // If not using price per unit, ensure price_per_unit and quantity are null
+        // If not using price per unit, ensure we have a direct amount
+        if (!form.amount || form.amount === 0) {
+            addNotification({
+                type: 'error',
+                title: t('Error'),
+                message: t('Amount is required.'),
+            });
+            return;
+        }
+        // Clear price per unit fields if not using them
         form.amount_per_unit = null;
         form.quantity = null;
     }
 
-    if (!form.currency) {
-        form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
-    }
-
-    if (!form.house_of_zeros) {
-        form.house_of_zeros = currentCurrencyDecimals.value;
-    }
-
+    // Ensure currency and house_of_zeros are set
     form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
-    form.put(transactions.update.url({ vessel: getCurrentVesselId(), transaction: props.transaction.id }), {
-        forceFormData: true, // Required for file uploads
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+
+    // Log final form data before submission
+    const finalFormData = {
+        category_id: form.category_id,
+        transaction_date: form.transaction_date,
+        amount: form.amount,
+        amount_per_unit: form.amount_per_unit,
+        quantity: form.quantity,
+        type: form.type,
+        status: form.status,
+        currency: form.currency,
+        house_of_zeros: form.house_of_zeros,
+        description: form.description,
+        notes: form.notes,
+        supplier_id: form.supplier_id,
+        crew_member_id: form.crew_member_id,
+    };
+    console.log('Submitting form with data:', finalFormData);
+
+    // Only use forceFormData if we have files to upload, otherwise use regular JSON
+    const submitOptions: any = {
         preserveScroll: true,
         onSuccess: () => {
             addNotification({
@@ -424,13 +664,21 @@ const submit = () => {
         },
         onError: (errors) => {
             console.error('Form submission errors:', errors);
+            console.error('Form data that was sent:', finalFormData);
             addNotification({
                 type: 'error',
                 title: t('Error'),
                 message: t('Failed to update transaction. Please check the form for errors.'),
             });
         },
-    });
+    };
+
+    // Only use forceFormData if we have files to upload
+    if (form.files && form.files.length > 0) {
+        submitOptions.forceFormData = true;
+    }
+
+    form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
 };
 </script>
 
