@@ -295,6 +295,15 @@ class VesselController extends BaseController
             }
 
             $vesselName = $vessel->name;
+            $vesselId   = $vessel->id;
+
+            // Explicitly unlink all users from this vessel before deletion
+            // This ensures clean removal even if foreign keys don't cascade properly
+            \App\Models\VesselUserRole::where('vessel_id', $vesselId)->delete();
+            \App\Models\VesselUser::where('vessel_id', $vesselId)->delete();
+
+            // Also clear owner_id to unlink the owner relationship
+            $vessel->update(['owner_id' => null]);
 
             // Log the delete action BEFORE deletion
             AuditLogAction::logDelete(
@@ -308,7 +317,7 @@ class VesselController extends BaseController
 
             return redirect()
                 ->route('panel.index')
-                ->with('success', $this->transFrom('notifications', "Vessel ':name' has been deleted successfully.", [
+                ->with('success', $this->transFrom('notifications', "Vessel ':name' has been deleted successfully. All user access has been removed.", [
                     'name' => $vesselName,
                 ]))
                 ->with('notification_delay', 5); // 5 seconds delay

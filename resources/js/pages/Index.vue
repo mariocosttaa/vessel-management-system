@@ -304,6 +304,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Vessel Confirmation Dialog -->
+    <ConfirmationDialog
+      :open="showDeleteDialog"
+      @update:open="showDeleteDialog = $event"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+      :title="t('Delete Vessel')"
+      :description="deleteDialogDescription"
+      :message="deleteDialogMessage"
+      :confirm-text="t('Delete Vessel')"
+      :cancel-text="t('Cancel')"
+      variant="destructive"
+      type="danger"
+      :loading="isDeleting"
+      size="md"
+    />
   </IndexDefaultLayout>
 </template>
 
@@ -315,6 +332,7 @@ import Badge from '@/components/ui/badge/Badge.vue'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import VesselLoading from '@/components/VesselLoading.vue'
 import Logo from '@/components/Logo.vue'
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
 import type { BreadcrumbItemType } from '@/types'
 import { useI18n } from '@/composables/useI18n'
 
@@ -380,6 +398,9 @@ const showCoolAnimation = ref(false)
 const loadingVessel = ref<Vessel | null>(null)
 const loadingProgress = ref(0)
 const shouldRedirectRef = ref(true)
+const showDeleteDialog = ref(false)
+const vesselToDelete = ref<{ id: string; name: string } | null>(null)
+const isDeleting = ref(false)
 let intervalId: ReturnType<typeof setInterval> | null = null
 
 const getStatusVariant = (status: string) => {
@@ -511,17 +532,43 @@ const editVessel = (vesselId: string) => {
 
 const deleteVessel = (vesselId: string, vesselName: string) => {
   if (isEntering.value) return
-  if (confirm(t('Are you sure you want to delete') + ` "${vesselName}"? ` + t('This action cannot be undone.'))) {
-    router.delete(`/panel/vessel/${vesselId}`, {
-      onSuccess: () => {
-        // Vessel will be removed from the list automatically
-      },
-      onError: (errors: any) => {
-        console.error('Error deleting vessel:', errors)
-      }
-    })
-  }
+  vesselToDelete.value = { id: vesselId, name: vesselName }
+  showDeleteDialog.value = true
 }
+
+const confirmDelete = () => {
+  if (!vesselToDelete.value || isDeleting.value) return
+
+  isDeleting.value = true
+  router.delete(`/panel/vessel/${vesselToDelete.value.id}`, {
+    onSuccess: () => {
+      showDeleteDialog.value = false
+      vesselToDelete.value = null
+      isDeleting.value = false
+    },
+    onError: (errors: any) => {
+      console.error('Error deleting vessel:', errors)
+      isDeleting.value = false
+    },
+    onFinish: () => {
+      isDeleting.value = false
+    }
+  })
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  vesselToDelete.value = null
+}
+
+const deleteDialogDescription = computed(() => {
+  if (!vesselToDelete.value) return ''
+  return t('Are you sure you want to delete the vessel') + ` "${vesselToDelete.value.name}"?`
+})
+
+const deleteDialogMessage = computed(() => {
+  return t('This will permanently delete the vessel and remove all user access. This action cannot be undone.')
+})
 
 // Cleanup interval on unmount
 onBeforeUnmount(() => {
