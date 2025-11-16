@@ -12,6 +12,8 @@ import maintenances from '@/routes/panel/maintenances';
 import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
 import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
 import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
+import DownloadPdfModal from '@/components/modals/Maintenance/DownloadPdfModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import { DateInput } from '@/components/ui/date-input';
 import { Button } from '@/components/ui/button';
@@ -150,6 +152,12 @@ const showImportExcelModal = ref(false);
 const showExcelLoadingModal = ref(false);
 const isExcelDownloading = ref(false);
 let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// PDF download state
+const showDownloadPdfModal = ref(false);
+const showPdfLoadingModal = ref(false);
+const isPdfDownloading = ref(false);
+const pendingPdfEnableColors = ref<boolean | null>(null);
 
 // End date form for open maintenances
 const endDateForm = useForm({
@@ -333,6 +341,65 @@ const finalizeMaintenance = () => {
     });
 };
 
+// PDF download functions
+const openDownloadPdfModal = () => {
+    showDownloadPdfModal.value = true;
+};
+
+const handlePdfDownload = (enableColors: boolean) => {
+    // Close the selection modal
+    showDownloadPdfModal.value = false;
+
+    // Store enableColors for later download
+    pendingPdfEnableColors.value = enableColors;
+
+    // Show loading modal with countdown
+    showPdfLoadingModal.value = true;
+    isPdfDownloading.value = true;
+};
+
+// Handle PDF ready (when countdown reaches 0)
+const handlePdfReady = () => {
+    if (!isPdfDownloading.value || pendingPdfEnableColors.value === null) return;
+
+    const enableColors = pendingPdfEnableColors.value;
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+
+    if (enableColors) {
+        params.append('enable_colors', '1');
+    }
+
+    const url = `/panel/${vesselId}/maintenances/${props.maintenance.id}/download-pdf?${params.toString()}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close loading modal after a short delay
+    setTimeout(() => {
+        showPdfLoadingModal.value = false;
+        isPdfDownloading.value = false;
+        pendingPdfEnableColors.value = null;
+    }, 1000);
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfLoadingModal.value = false;
+    isPdfDownloading.value = false;
+    pendingPdfEnableColors.value = null;
+};
+
+const closePdfLoadingModal = () => {
+    if (!isPdfDownloading.value) {
+        showPdfLoadingModal.value = false;
+    }
+};
+
 // Get default currency
 const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 </script>
@@ -375,6 +442,16 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                 {{ t('End') }}: {{ formatDate(props.maintenance.end_date) }}
                             </span>
                         </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            @click="showDownloadPdfModal = true"
+                            class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                            :title="t('Generate PDF')"
+                        >
+                            <Icon name="file-text" class="w-4 h-4 mr-1" />
+                            {{ t('Generate PDF') }}
+                        </button>
                     </div>
                 </div>
 
@@ -621,6 +698,23 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             :countdown="5"
             @close="closeExcelLoadingModal"
             @cancel="handleExcelDownloadCancel"
+        />
+
+        <!-- PDF Download Modal -->
+        <DownloadPdfModal
+            :open="showDownloadPdfModal"
+            @update:open="showDownloadPdfModal = $event"
+            @close="showDownloadPdfModal = false"
+            @download="handlePdfDownload"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfLoadingModal"
+            :is-downloading="isPdfDownloading"
+            @ready="handlePdfReady"
+            @cancel="handlePdfDownloadCancel"
+            @close="closePdfLoadingModal"
         />
     </VesselLayout>
 </template>
