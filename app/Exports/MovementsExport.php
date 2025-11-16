@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class TransactionsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
+class MovementsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
 {
     protected Collection $transactions;
     protected ?string $context; // 'marea', 'maintenance', or null (general)

@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class TransactionsImport implements ToCollection, WithHeadingRow
+class MovementsImport implements ToCollection, WithHeadingRow
 {
     protected int $vesselId;
     protected ?int $userId;
