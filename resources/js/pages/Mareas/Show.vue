@@ -1554,6 +1554,48 @@ const cancelDeleteMarea = () => {
                                     </div>
                                 </div>
 
+                                <!-- Generate PDF Action -->
+                                <DropdownMenuItem
+                                    @click="openDownloadPdfModal()"
+                                    class="cursor-pointer"
+                                >
+                                    <FileText class="w-4 h-4 mr-2" />
+                                    {{ t('Generate PDF') }}
+                                </DropdownMenuItem>
+
+                                <!-- Status Actions -->
+                                <div v-if="canEdit('mareas')" class="my-1 border-t border-border dark:border-border"></div>
+
+                                <!-- Mark At Sea Action -->
+                                <DropdownMenuItem
+                                    v-if="marea.status === 'preparing' && canEdit('mareas')"
+                                    @click="showMarkAtSeaDialog = true"
+                                    class="cursor-pointer"
+                                >
+                                    <Ship class="w-4 h-4 mr-2" />
+                                    {{ t('Mark At Sea') }}
+                                </DropdownMenuItem>
+
+                                <!-- Mark Returned Action -->
+                                <DropdownMenuItem
+                                    v-if="marea.status === 'at_sea' && canEdit('mareas')"
+                                    @click="showMarkReturnedDialog = true"
+                                    class="cursor-pointer"
+                                >
+                                    <Ship class="w-4 h-4 mr-2" />
+                                    {{ t('Mark Returned') }}
+                                </DropdownMenuItem>
+
+                                <!-- Close Marea Action -->
+                                <DropdownMenuItem
+                                    v-if="(marea.status === 'returned' || marea.status === 'at_sea') && canEdit('mareas')"
+                                    @click="showCloseDialog = true"
+                                    class="cursor-pointer"
+                                >
+                                    <Icon name="check" class="w-4 h-4 mr-2" />
+                                    {{ t('Close Marea') }}
+                                </DropdownMenuItem>
+
                                 <!-- Cancel Action -->
                                 <DropdownMenuItem
                                     v-if="marea.status !== 'closed' && marea.status !== 'cancelled' && canEdit('mareas')"

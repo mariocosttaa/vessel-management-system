@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import Icon from '@/components/Icon.vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
@@ -10,6 +10,10 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import CreateRemoveModal from '@/components/modals/Movimentation/create-remove.vue';
+import UpdateAddModal from '@/components/modals/Movimentation/update-add.vue';
+import UpdateRemoveModal from '@/components/modals/Movimentation/update-remove.vue';
+import UpdateSalaryModal from '@/components/modals/Movimentation/update-salary.vue';
+import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
 import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
 import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
 import DownloadPdfModal from '@/components/modals/Maintenance/DownloadPdfModal.vue';
@@ -115,13 +119,22 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const { canEdit, canDelete } = usePermissions();
+const { canEdit } = usePermissions();
 const { addNotification } = useNotifications();
 const { t } = useI18n();
 
 // Get transactions from paginated data or fallback to maintenance.transactions (for backward compatibility)
 const allTransactions = computed(() => {
     return props.transactions?.data || props.maintenance.transactions || [];
+});
+
+// Separate categories by type
+const incomeCategories = computed(() => {
+    return (props.categories || []).filter(cat => cat.type === 'income');
+});
+
+const expenseCategories = computed(() => {
+    return (props.categories || []).filter(cat => cat.type === 'expense');
 });
 
 // Search functionality - use server-side search
@@ -145,9 +158,15 @@ const handleSearch = () => {
 const showCreateExpenseModal = ref(false);
 const showDeleteTransactionDialog = ref(false);
 const transactionToDelete = ref<any>(null);
+const showUpdateAddModal = ref(false);
+const showUpdateRemoveModal = ref(false);
+const showUpdateSalaryModal = ref(false);
+const showTransactionModal = ref(false);
+const transactionToEdit = ref<any>(null);
+const selectedTransaction = ref<any>(null);
+const loadingTransaction = ref(false);
 
 // Excel import/export modals
-const showDownloadExcelModal = ref(false);
 const showImportExcelModal = ref(false);
 const showExcelLoadingModal = ref(false);
 const isExcelDownloading = ref(false);
@@ -188,6 +207,115 @@ const formatDate = (dateString: string | null) => {
     });
 };
 
+// Open transaction modal
+const openTransactionModal = async (transaction: any) => {
+    selectedTransaction.value = transaction;
+    loadingTransaction.value = true;
+    showTransactionModal.value = true;
+
+    // Fetch full transaction details from API
+    try {
+        const vesselId = getCurrentVesselId();
+        if (!vesselId) return;
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                selectedTransaction.value = data.transaction;
+            }
+        } else {
+            console.error('Failed to load transaction details:', response.statusText);
+            // Continue with the transaction data we have
+        }
+    } catch (error) {
+        console.error('Failed to load transaction details:', error);
+        // Continue with the transaction data we have
+    } finally {
+        loadingTransaction.value = false;
+    }
+};
+
+// Close transaction modal
+const closeTransactionModal = () => {
+    showTransactionModal.value = false;
+    selectedTransaction.value = null;
+};
+
+// Open update modal for transaction
+const openUpdateModal = async (transaction: any) => {
+    // Fetch full transaction details from API first
+    try {
+        const vesselId = getCurrentVesselId();
+        if (!vesselId) return;
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                // Use the full transaction data from API
+                transactionToEdit.value = data.transaction;
+            } else {
+                // Fallback to the transaction passed in
+                transactionToEdit.value = transaction;
+            }
+        } else {
+            // Fallback to the transaction passed in if API fails
+            transactionToEdit.value = transaction;
+        }
+    } catch (error) {
+        console.error('Failed to load transaction details:', error);
+        // Fallback to the transaction passed in if API fails
+        transactionToEdit.value = transaction;
+    }
+
+    // Wait a bit to ensure transaction data is set before opening modal
+    await nextTick();
+
+    // Determine which update modal to show based on transaction type and crew_member_id
+    // Use the transaction type from the loaded data or fallback to original
+    const transactionType = transactionToEdit.value?.type || transaction.type;
+    const hasCrewMember = transactionToEdit.value?.crew_member_id || transaction.crew_member_id;
+
+    // If it's an expense with a crew_member_id, it's a salary payment - use salary modal
+    if (transactionType === 'expense' && hasCrewMember) {
+        showUpdateSalaryModal.value = true;
+    } else if (transactionType === 'income') {
+        showUpdateAddModal.value = true;
+    } else if (transactionType === 'expense') {
+        showUpdateRemoveModal.value = true;
+    }
+};
+
+// Close update modals
+const closeUpdateModals = () => {
+    showUpdateAddModal.value = false;
+    showUpdateRemoveModal.value = false;
+    showUpdateSalaryModal.value = false;
+    transactionToEdit.value = null;
+};
+
+// Handle update success
+const handleUpdateSuccess = () => {
+    closeUpdateModals();
+    // Reload the page to show updated values
+    router.reload({
+        only: ['maintenance', 'transactions', 'categories', 'suppliers', 'crewMembers', 'vatProfiles', 'defaultCurrency', 'defaultVatProfile'],
+    });
+};
+
 // Remove transaction from maintenance
 const removeTransaction = (transaction: any) => {
     transactionToDelete.value = transaction;
@@ -197,8 +325,11 @@ const removeTransaction = (transaction: any) => {
 const confirmRemoveTransaction = () => {
     if (!transactionToDelete.value) return;
 
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
+
     router.delete(maintenances.removeMovimentation.url({
-        vessel: getCurrentVesselId(),
+        vessel: vesselId,
         maintenanceId: props.maintenance.id,
         transaction: transactionToDelete.value!.id
     }), {
@@ -286,8 +417,10 @@ const closeExcelLoadingModal = () => {
 
 // Update end date
 const updateEndDate = () => {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
     endDateForm.put(maintenances.update.url({
-        vessel: getCurrentVesselId(),
+        vessel: vesselId,
         maintenanceId: props.maintenance.id
     }), {
         onSuccess: () => {
@@ -318,8 +451,10 @@ const finalizeMaintenance = () => {
         return;
     }
 
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
     router.post(maintenances.finalize.url({
-        vessel: getCurrentVesselId(),
+        vessel: vesselId,
         maintenanceId: props.maintenance.id
     }), {
         end_date: endDateForm.end_date
@@ -342,10 +477,6 @@ const finalizeMaintenance = () => {
 };
 
 // PDF download functions
-const openDownloadPdfModal = () => {
-    showDownloadPdfModal.value = true;
-};
-
 const handlePdfDownload = (enableColors: boolean) => {
     // Close the selection modal
     showDownloadPdfModal.value = false;
@@ -408,8 +539,8 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
     <Head :title="`Maintenance ${props.maintenance.maintenance_number}`" />
 
     <VesselLayout :breadcrumbs="[
-        { title: t('Maintenances'), href: maintenances.index.url({ vessel: getCurrentVesselId() }) },
-        { title: props.maintenance.maintenance_number, href: maintenances.show.url({ vessel: getCurrentVesselId(), maintenanceId: props.maintenance.id }) }
+        { title: t('Maintenances'), href: maintenances.index.url({ vessel: getCurrentVesselId() || '' }) },
+        { title: props.maintenance.maintenance_number, href: maintenances.show.url({ vessel: getCurrentVesselId() || '', maintenanceId: props.maintenance.id }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
@@ -557,6 +688,10 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" class="w-48">
+                                <DropdownMenuItem @click="showDownloadPdfModal = true" class="cursor-pointer">
+                                    <Icon name="download" class="w-4 h-4 mr-2" />
+                                    {{ t('Generate PDF') }}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem @click="openDownloadExcelModal" class="cursor-pointer">
                                     <Icon name="file-spreadsheet" class="w-4 h-4 mr-2" />
                                     {{ t('Download Excel') }}
@@ -596,10 +731,13 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                     <div
                         v-for="transaction in allTransactions"
                         :key="transaction.id"
-                        class="px-6 py-4 hover:bg-muted/30 dark:hover:bg-muted/20 transition-colors"
+                        class="px-6 py-4 hover:bg-muted/30 dark:hover:bg-muted/20 transition-colors group"
                     >
                         <div class="flex items-center justify-between">
-                            <div class="flex-1">
+                            <div
+                                class="flex-1 cursor-pointer"
+                                @click="openTransactionModal(transaction)"
+                            >
                                 <div class="flex items-center gap-3">
                                     <span class="text-sm font-medium text-card-foreground dark:text-card-foreground">
                                         {{ transaction.transaction_number }}
@@ -632,13 +770,40 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                     size="sm"
                                     class="font-semibold"
                                 />
-                                <button
-                                    v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
-                                    @click="removeTransaction(transaction)"
-                                    class="p-2 text-destructive hover:bg-muted rounded-lg transition-colors"
+                                <!-- Action Buttons (View, Edit, Delete) -->
+                                <div
+                                    @click.stop
+                                    class="flex items-center gap-1 flex-shrink-0 ml-2 opacity-100 group-hover:opacity-100"
                                 >
-                                    <Icon name="trash-2" class="w-4 h-4" />
-                                </button>
+                                    <!-- View Button -->
+                                    <button
+                                        @click.stop="openTransactionModal(transaction)"
+                                        class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                        :title="t('View transaction details')"
+                                    >
+                                        <Icon name="eye" class="w-4 h-4" />
+                                    </button>
+
+                                    <!-- Edit Button -->
+                                    <button
+                                        v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
+                                        @click.stop="openUpdateModal(transaction)"
+                                        class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary dark:text-muted-foreground dark:hover:text-primary"
+                                        :title="t('Edit transaction')"
+                                    >
+                                        <Icon name="edit" class="w-4 h-4" />
+                                    </button>
+
+                                    <!-- Delete Button -->
+                                    <button
+                                        v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
+                                        @click.stop="removeTransaction(transaction)"
+                                        class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive dark:text-muted-foreground dark:hover:text-destructive"
+                                        :title="t('Remove transaction from maintenance')"
+                                    >
+                                        <Icon name="trash-2" class="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -648,11 +813,54 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                 <div v-if="props.transactions && props.transactions.links && props.transactions.links.length > 3" class="px-6 py-4 border-t border-border dark:border-border">
                     <Pagination
                         :links="props.transactions.links"
-                        :meta="props.transactions"
+                        :meta="props.transactions as any"
                     />
                 </div>
             </div>
         </div>
+
+        <!-- Transaction Show Modal -->
+        <TransactionShowModal
+            v-if="selectedTransaction"
+            :open="showTransactionModal"
+            :transaction="selectedTransaction"
+            @close="closeTransactionModal"
+        />
+
+        <!-- Update Transaction Modals -->
+        <UpdateAddModal
+            v-if="transactionToEdit && transactionToEdit.type === 'income'"
+            :open="showUpdateAddModal"
+            :transaction="transactionToEdit"
+            :categories="incomeCategories"
+            :vat-profiles="props.vatProfiles || []"
+            :default-vat-profile="props.defaultVatProfile"
+            :default-currency="defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
+
+        <UpdateSalaryModal
+            v-if="transactionToEdit && transactionToEdit.type === 'expense' && transactionToEdit.crew_member_id"
+            :open="showUpdateSalaryModal"
+            :transaction="transactionToEdit"
+            :crew-members="props.crewMembers || []"
+            :default-currency="defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
+
+        <UpdateRemoveModal
+            v-if="transactionToEdit && transactionToEdit.type === 'expense' && !transactionToEdit.crew_member_id"
+            :open="showUpdateRemoveModal"
+            :transaction="transactionToEdit"
+            :categories="expenseCategories"
+            :suppliers="props.suppliers || []"
+            :crew-members="props.crewMembers || []"
+            :default-currency="defaultCurrency"
+            @close="closeUpdateModals"
+            @success="handleUpdateSuccess"
+        />
 
         <!-- Create Expense Modal -->
         <CreateRemoveModal
@@ -685,8 +893,9 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
 
         <!-- Excel Import Modal -->
         <ImportExcelModal
+            v-if="getCurrentVesselId()"
             :open="showImportExcelModal"
-            :vessel-id="getCurrentVesselId()"
+            :vessel-id="getCurrentVesselId()!"
             :maintenance-id="props.maintenance.id"
             :key="`import-excel-${showImportExcelModal}`"
             @close="showImportExcelModal = false"
@@ -705,7 +914,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             :open="showDownloadPdfModal"
             @update:open="showDownloadPdfModal = $event"
             @close="showDownloadPdfModal = false"
-            @download="handlePdfDownload"
+            @download="handlePdfDownload as any"
         />
 
         <!-- PDF Loading Modal -->
