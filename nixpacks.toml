@@ -5,6 +5,7 @@ nixPkgs = ["..."]
 cmds = [
     "mkdir -p /app/storage/logs",
     "chmod +x /assets/queue-worker.sh",
+    "chmod +x /assets/start-with-worker.sh",
     "..."
 ]
 
