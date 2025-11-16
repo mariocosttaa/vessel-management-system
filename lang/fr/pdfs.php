@@ -14,6 +14,7 @@ return [
     // Summary labels
     'Total Income'                                   => 'Total des Revenus',
     'Total Expenses'                                 => 'Total des Dépenses',
+    'Expense'                                        => 'Dépense',
     'Net Balance'                                    => 'Solde Net',
     'Total Transactions'                             => 'Total des Transactions',
 
@@ -67,6 +68,19 @@ return [
     'Salary Payments'                                => 'Paiements de Salaire',
     'Total Salary Payments'                          => 'Total des Paiements de Salaire',
     'Fishing Quantity Returns'                       => 'Retours de Quantité de Pêche',
+
+    // Maintenance Report
+    'Maintenance Report'                             => 'Rapport de Maintenance',
+    'Maintenance Overview'                           => 'Aperçu de la Maintenance',
+    'Maintenance Information'                        => 'Informations de Maintenance',
+    'Maintenance Number'                             => 'Numéro de Maintenance',
+    'Start Date'                                     => 'Date de Début',
+    'End Date'                                       => 'Date de Fin',
+    'Closed At'                                      => 'Fermé Le',
+    'Open'                                           => 'Ouvert',
+    'Closed'                                         => 'Fermé',
+    'Cancelled'                                      => 'Annulé',
+    'No transactions found for this maintenance.'    => 'Aucune transaction trouvée pour cette maintenance.',
     'Quantity'                                       => 'Quantité',
     'Notes'                                          => 'Notes',
     'transactions'                                   => 'transactions',

@@ -14,6 +14,7 @@ return [
     // Summary labels
     'Total Income'                                   => 'Total Income',
     'Total Expenses'                                 => 'Total Expenses',
+    'Expense'                                        => 'Expense',
     'Net Balance'                                    => 'Net Balance',
     'Total Transactions'                             => 'Total Movimentations',
 
@@ -46,6 +47,19 @@ return [
     // Marea Report
     'Marea Report'                                   => 'Marea Report',
     'Fishing Trip Overview'                          => 'Fishing Trip Overview',
+
+    // Maintenance Report
+    'Maintenance Report'                             => 'Maintenance Report',
+    'Maintenance Overview'                           => 'Maintenance Overview',
+    'Maintenance Information'                        => 'Maintenance Information',
+    'Maintenance Number'                             => 'Maintenance Number',
+    'Start Date'                                     => 'Start Date',
+    'End Date'                                       => 'End Date',
+    'Closed At'                                      => 'Closed At',
+    'Open'                                           => 'Open',
+    'Closed'                                         => 'Closed',
+    'Cancelled'                                      => 'Cancelled',
+    'No transactions found for this maintenance.'    => 'No transactions found for this maintenance.',
     'Marea Information'                              => 'Marea Information',
     'Marea Number'                                   => 'Marea Number',
     'Status'                                         => 'Status',
