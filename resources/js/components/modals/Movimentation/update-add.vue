@@ -178,6 +178,14 @@ const usePricePerUnit = ref(false);
 const pricePerUnit = ref<number | null>(null);
 const quantity = ref<number | null>(null);
 
+// Computed property for quantity input (converts null to undefined for v-model)
+const quantityInput = computed({
+    get: () => quantity.value ?? undefined,
+    set: (value: number | undefined) => {
+        quantity.value = value ?? null;
+    }
+});
+
 // Initialize price per unit state from transaction
 const initializePricePerUnit = () => {
     if (!props.transaction) return;
@@ -291,21 +299,12 @@ const vatProfiles = computed(() => props.vatProfiles || []);
 // Function to initialize form from transaction
 const initializeFormFromTransaction = () => {
     if (!props.transaction) {
-        console.warn('Cannot initialize form: transaction is not available');
         return;
     }
 
     if (!props.open) {
         return;
     }
-
-    console.log('Initializing form from transaction:', {
-        id: props.transaction.id,
-        category_id: props.transaction.category_id,
-        amount: props.transaction.amount,
-        transaction_date: props.transaction.transaction_date,
-        description: props.transaction.description
-    });
 
     try {
         // Clear errors first
@@ -336,7 +335,6 @@ const initializeFormFromTransaction = () => {
         }
 
         form.category_id = categoryId;
-        console.log('Set category_id to:', categoryId, 'type:', typeof categoryId);
 
         form.type = 'income';
 
@@ -346,7 +344,6 @@ const initializeFormFromTransaction = () => {
             if (!isNaN(amount) && amount > 0) {
                 form.amount = amount;
             } else {
-                console.warn('Invalid amount from transaction:', props.transaction.amount);
                 form.amount = null;
             }
         } else {
@@ -429,9 +426,7 @@ const initializeFormFromTransaction = () => {
                         }
                     }
                 }
-                console.log('Set transaction_date to:', form.transaction_date, 'from original:', props.transaction.transaction_date);
             } catch (e) {
-                console.error('Error parsing transaction_date:', e, 'Original value:', props.transaction.transaction_date);
                 // Fallback to today's date
                 const today = new Date();
                 const year = today.getFullYear();
@@ -465,22 +460,9 @@ const initializeFormFromTransaction = () => {
         // Clear any previous errors
         form.clearErrors();
 
-        // Log final form state
-        console.log('Form initialized successfully:', {
-            category_id: form.category_id,
-            amount: form.amount,
-            transaction_date: form.transaction_date,
-            description: form.description,
-            currency: form.currency,
-            status: form.status,
-            vat_profile_id: form.vat_profile_id,
-            amount_includes_vat: form.amount_includes_vat
-        });
-
         // Mark form as initialized
         isFormInitialized.value = true;
     } catch (error) {
-        console.error('Error initializing form:', error);
         isFormInitialized.value = false;
     }
 };
@@ -488,35 +470,9 @@ const initializeFormFromTransaction = () => {
 // Watch for modal opening and transaction changes
 watch([() => props.open, () => props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        console.log('Watch triggered - initializing form', {
-            isOpen,
-            transactionId,
-            transactionCategoryId: props.transaction.category_id,
-            transactionCategory: props.transaction.category
-        });
         // Use nextTick to ensure DOM is ready
         nextTick(() => {
             initializeFormFromTransaction();
-                // Double-check form values after initialization
-                nextTick(() => {
-                    console.log('Form values after initialization:', {
-                        category_id: form.category_id,
-                        amount: form.amount,
-                        transaction_date: form.transaction_date,
-                        description: form.description,
-                        categoryOptions: categoryOptions.value.length,
-                        categoryOptionsIds: categoryOptions.value.map(opt => opt.value)
-                    });
-                    // Log the selected option to debug
-                    const selected = categoryOptions.value.find(opt => {
-                        const optVal = opt.value;
-                        const formVal = form.category_id;
-                        if (optVal == null && formVal == null) return true;
-                        if (optVal == null || formVal == null) return false;
-                        return String(optVal) === String(formVal) || Number(optVal) === Number(formVal);
-                    });
-                    console.log('Selected option found:', selected);
-                });
         });
     }
 }, { immediate: true });
@@ -530,7 +486,6 @@ watch(() => form.category_id, () => {
 // Watch form.amount to ensure it's always a number
 watch(() => form.amount, (newAmount) => {
     if (newAmount !== null && newAmount !== undefined && typeof newAmount !== 'number') {
-        console.warn('Form amount is not a number, converting:', newAmount);
         form.amount = Number(newAmount) || 0;
     }
 });
@@ -538,7 +493,6 @@ watch(() => form.amount, (newAmount) => {
 // Watch form.transaction_date to ensure it's properly set
 watch(() => form.transaction_date, (newDate) => {
     if (!newDate && props.transaction?.transaction_date) {
-        console.warn('Transaction date is empty, re-initializing from transaction');
         const dateStr = props.transaction.transaction_date;
         if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             form.transaction_date = dateStr;
@@ -552,7 +506,7 @@ watch(() => form.transaction_date, (newDate) => {
                     form.transaction_date = `${year}-${month}-${day}`;
                 }
             } catch (e) {
-                console.error('Error re-initializing date:', e);
+                // Ignore error
             }
         }
     }
@@ -702,22 +656,8 @@ const submit = async () => {
         // amountValue is already set from form.amount above
     }
 
-    console.log('Pre-submission validation check:', {
-        categoryId,
-        transactionDate,
-        amountValue,
-        formCategoryId: form.category_id,
-        formTransactionDate: form.transaction_date,
-        formAmount: form.amount,
-        usePricePerUnit: usePricePerUnit.value,
-        pricePerUnit: pricePerUnit.value,
-        quantity: quantity.value,
-        amountIncludesVat: amountIncludesVat.value
-    });
-
     // Validate category_id (can be string or number)
     if (!categoryId || categoryId === 0 || categoryId === '0' || categoryId === '') {
-        console.error('Category validation failed:', categoryId, 'form.category_id:', form.category_id);
         form.setError('category_id', 'Please select a category.');
         addNotification({
             type: 'error',
@@ -729,7 +669,6 @@ const submit = async () => {
 
     // Validate transaction_date
     if (!transactionDate || transactionDate.trim() === '') {
-        console.error('Transaction date validation failed:', transactionDate, 'form.transaction_date:', form.transaction_date);
         form.setError('transaction_date', 'Transaction date is required.');
         addNotification({
             type: 'error',
@@ -753,7 +692,6 @@ const submit = async () => {
                 throw new Error('Invalid date');
             }
         } catch (e) {
-            console.error('Error normalizing date:', e, 'Original:', normalizedDate);
             form.setError('transaction_date', 'Transaction date is required.');
             return;
         }
@@ -761,7 +699,6 @@ const submit = async () => {
 
     // Validate amount is provided when not using price per unit
     if (!usePricePerUnit.value && (!amountValue || amountValue === 0)) {
-        console.error('Amount validation failed:', amountValue, 'form.amount:', form.amount);
         form.setError('amount', 'Either amount or both amount_per_unit and quantity must be provided.');
         addNotification({
             type: 'error',
@@ -806,7 +743,6 @@ const submit = async () => {
 
     // Ensure form is initialized before submission
     if (!isFormInitialized.value) {
-        console.warn('Form not yet initialized, waiting...');
         // Wait a bit and try again
         setTimeout(() => {
             if (isFormInitialized.value) {
@@ -824,7 +760,6 @@ const submit = async () => {
 
     // Ensure category_id is set (required field)
     if (!form.category_id) {
-        console.error('Category ID is missing:', form.category_id);
         form.setError('category_id', t('Please select a category.'));
         addNotification({
             type: 'error',
@@ -836,7 +771,6 @@ const submit = async () => {
 
     // Ensure transaction_date is set (required field)
     if (!form.transaction_date) {
-        console.error('Transaction date is missing:', form.transaction_date);
         form.setError('transaction_date', t('Transaction date is required.'));
         addNotification({
             type: 'error',
@@ -861,24 +795,6 @@ const submit = async () => {
         return;
     }
 
-    console.log('Form data before submission (after setting all values):', {
-        transactionId: props.transaction.id,
-        category_id: form.category_id,
-        type: form.type,
-        amount: form.amount,
-        amount_per_unit: form.amount_per_unit,
-        quantity: form.quantity,
-        currency: form.currency,
-        house_of_zeros: form.house_of_zeros,
-        vat_profile_id: form.vat_profile_id,
-        amount_includes_vat: form.amount_includes_vat,
-        transaction_date: form.transaction_date,
-        description: form.description,
-        notes: form.notes,
-        status: form.status,
-        formData: form.data()
-    });
-
     // Get files from selectedFiles (already synced with form.files via watcher)
     // Ensure form.files is set from selectedFiles
     if (selectedFiles.value && Array.isArray(selectedFiles.value) && selectedFiles.value.length > 0) {
@@ -886,16 +802,6 @@ const submit = async () => {
     } else {
         form.files = [];
     }
-
-    // Double-check form data is set correctly before submission
-    const formDataBeforeSubmit = form.data();
-    console.log('Form data after setting properties:', {
-        category_id: form.category_id,
-        transaction_date: form.transaction_date,
-        amount: form.amount,
-        formData: formDataBeforeSubmit,
-        hasFiles: form.files.length > 0
-    });
 
     // Only use forceFormData if we have files to upload
     // Otherwise, use regular JSON submission which handles data better
@@ -911,8 +817,6 @@ const submit = async () => {
             emit('close');
         },
         onError: (errors: any) => {
-            console.error('Form submission errors:', errors);
-            console.error('Form data that was sent:', formDataBeforeSubmit);
             addNotification({
                 type: 'error',
                 title: t('Error'),
@@ -928,7 +832,6 @@ const submit = async () => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
     form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
@@ -997,7 +900,7 @@ const submit = async () => {
                             <Label for="quantity">{{ t('Quantity') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="quantity"
-                                v-model.number="quantity"
+                                v-model.number="quantityInput"
                                 type="number"
                                 step="1"
                                 min="1"

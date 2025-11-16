@@ -256,17 +256,8 @@ const isFormInitialized = ref(false);
 // Helper function to initialize form from transaction
 const initializeFormFromTransaction = () => {
     if (!props.transaction) {
-        console.warn('UpdateRemoveModal: No transaction provided');
         return;
     }
-
-    console.log('UpdateRemoveModal: Initializing form', {
-        transactionId: props.transaction.id,
-        category_id: props.transaction.category_id,
-        category: props.transaction.category,
-        transaction_date: props.transaction.transaction_date,
-        amount: props.transaction.amount
-    });
 
     // Handle both direct category_id and nested category.id
     // Category IDs can be hashed strings or numbers
@@ -325,14 +316,11 @@ const initializeFormFromTransaction = () => {
                         const [, year, month, day] = dateMatch;
                         form.transaction_date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
                     } else {
-                        console.error('Could not parse transaction_date:', dateStr);
                         form.transaction_date = '';
                     }
                 }
             }
-            console.log('Set transaction_date to:', form.transaction_date, 'from original:', props.transaction.transaction_date);
         } catch (e) {
-            console.error('Error parsing transaction_date:', e, 'Original value:', props.transaction.transaction_date);
             form.transaction_date = '';
         }
     } else {
@@ -356,14 +344,6 @@ const initializeFormFromTransaction = () => {
 
     form.clearErrors();
 
-    console.log('Form initialized with values:', {
-        category_id: form.category_id,
-        transaction_date: form.transaction_date,
-        amount: form.amount,
-        type: form.type,
-        status: form.status
-    });
-
     // Mark form as initialized
     isFormInitialized.value = true;
 };
@@ -371,51 +351,8 @@ const initializeFormFromTransaction = () => {
 // Reset form when modal opens/closes or transaction changes
 watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        console.log('Watch triggered - modal opening with transaction:', {
-            isOpen,
-            transactionId,
-            hasTransaction: !!props.transaction,
-            category_id: props.transaction.category_id,
-            transaction_date: props.transaction.transaction_date,
-            amount: props.transaction.amount
-        });
-
         // Initialize form immediately
         initializeFormFromTransaction();
-
-        // Double-check form values after a tick to ensure they're set
-        nextTick(() => {
-            console.log('Form values after initialization (nextTick):', {
-                category_id: form.category_id,
-                transaction_date: form.transaction_date,
-                amount: form.amount,
-                type: form.type,
-                status: form.status,
-                categoryOptions: categoryOptions.value.length,
-                categoryOptionsIds: categoryOptions.value.map(opt => opt.value)
-            });
-
-            // Verify all required fields are set
-            if (!form.category_id) {
-                console.error('WARNING: category_id is still null after initialization!');
-            }
-            if (!form.transaction_date) {
-                console.error('WARNING: transaction_date is still empty after initialization!');
-            }
-            if (!form.amount && !form.amount_per_unit) {
-                console.error('WARNING: amount is still null after initialization!');
-            }
-
-            // Log the selected option to debug
-            const selected = categoryOptions.value.find(opt => {
-                const optVal = opt.value;
-                const formVal = form.category_id;
-                if (optVal == null && formVal == null) return true;
-                if (optVal == null || formVal == null) return false;
-                return String(optVal) === String(formVal) || Number(optVal) === Number(formVal);
-            });
-            console.log('Selected option found:', selected);
-        });
     } else if (!isOpen) {
         // Clear form when modal closes
         form.reset();
@@ -534,7 +471,6 @@ const cancelDeleteFile = () => {
 const submit = () => {
     // Ensure form is initialized before submission
     if (!isFormInitialized.value) {
-        console.warn('Form not yet initialized, waiting...');
         // Wait a bit and try again
         setTimeout(() => {
             if (isFormInitialized.value) {
@@ -549,19 +485,6 @@ const submit = () => {
         }, 100);
         return;
     }
-
-    // Log form state before submission
-    console.log('Submit called - Form state:', {
-        category_id: form.category_id,
-        transaction_date: form.transaction_date,
-        amount: form.amount,
-        amount_per_unit: form.amount_per_unit,
-        quantity: form.quantity,
-        type: form.type,
-        status: form.status,
-        usePricePerUnit: usePricePerUnit.value,
-        isFormInitialized: isFormInitialized.value
-    });
 
     // No VAT for expenses/removals
     form.amount_includes_vat = false;
@@ -580,7 +503,6 @@ const submit = () => {
 
     // Ensure category_id is set (required field)
     if (!form.category_id) {
-        console.error('Category ID is missing:', form.category_id);
         form.setError('category_id', t('Please select a category.'));
         addNotification({
             type: 'error',
@@ -592,7 +514,6 @@ const submit = () => {
 
     // Ensure transaction_date is set and properly formatted (required field)
     if (!form.transaction_date || form.transaction_date === '') {
-        console.error('Transaction date is missing:', form.transaction_date);
         form.setError('transaction_date', t('Transaction date is required.'));
         addNotification({
             type: 'error',
@@ -628,27 +549,8 @@ const submit = () => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
-
-    // Log final form data before submission
-    const finalFormData = {
-        category_id: form.category_id,
-        transaction_date: form.transaction_date,
-        amount: form.amount,
-        amount_per_unit: form.amount_per_unit,
-        quantity: form.quantity,
-        type: form.type,
-        status: form.status,
-        currency: form.currency,
-        house_of_zeros: form.house_of_zeros,
-        description: form.description,
-        notes: form.notes,
-        supplier_id: form.supplier_id,
-        crew_member_id: form.crew_member_id,
-    };
-    console.log('Submitting form with data:', finalFormData);
 
     // Only use forceFormData if we have files to upload, otherwise use regular JSON
     const submitOptions: any = {
@@ -663,8 +565,6 @@ const submit = () => {
             emit('close');
         },
         onError: (errors) => {
-            console.error('Form submission errors:', errors);
-            console.error('Form data that was sent:', finalFormData);
             addNotification({
                 type: 'error',
                 title: t('Error'),
