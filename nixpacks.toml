@@ -76,12 +76,12 @@ else
             break
         fi
     done
-    
+
     # If no config found, try without config (may use defaults)
     if [ "$PHP_FPM_STARTED" = false ]; then
         php-fpm -F &
     fi
-    
+
     # Start nginx in foreground (keeps container alive)
     exec nginx -g "daemon off;"
 fi
