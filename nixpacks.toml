@@ -4,6 +4,8 @@ nixPkgs = ["...", "python311Packages.supervisor"]
 [phases.build]
 cmds = [
     "mkdir -p /etc/supervisor/conf.d/",
+    "mkdir -p /var/log/supervisor",
+    "mkdir -p /var/run",
     "cp /assets/worker-laravel.conf /etc/supervisor/conf.d/",
     "cp /assets/supervisord.conf /etc/supervisord.conf",
     "chmod +x /assets/start.sh",
@@ -16,6 +18,10 @@ cmd = '/assets/start.sh'
 [staticAssets]
 "start.sh" = '''
 #!/bin/bash
+
+# Create supervisor directories if they don't exist
+mkdir -p /var/log/supervisor
+mkdir -p /var/run
 
 # Transform the nginx configuration
 node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
