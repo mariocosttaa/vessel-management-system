@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('movimentations', function (Blueprint $table) {
+        Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->string('transaction_number', 50)->unique(); // gerado automaticamente
             $table->foreignId('vessel_id')->nullable()->constrained()->onDelete('set null');
@@ -70,6 +70,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('movimentations');
+        Schema::dropIfExists('transactions');
     }
 };
