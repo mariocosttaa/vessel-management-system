@@ -111,4 +111,20 @@ return [
     'Net'                                            => 'Net',
     'Quantity Returns'                               => 'Quantity Returns',
     'Uncategorized'                                  => 'Uncategorized',
+
+    // VAT Report
+    'VAT Report'                                     => 'VAT Report',
+    'Comprehensive VAT overview for'                 => 'Comprehensive VAT overview for',
+    'Total VAT'                                      => 'Total VAT',
+    'Base Amount'                                    => 'Base Amount',
+    'Total with VAT'                                 => 'Total with VAT',
+    'VAT by Profile'                                 => 'VAT by Profile',
+    'VAT by Category'                                => 'VAT by Category',
+    'Daily VAT Breakdown'                            => 'Daily VAT Breakdown',
+    'VAT by Marea'                                   => 'VAT by Marea',
+    'All Transactions with VAT'                      => 'All Transactions with VAT',
+    'VAT Profile'                                    => 'VAT Profile',
+    'VAT'                                            => 'VAT',
+    'Total'                                          => 'Total',
+    'Unknown'                                        => 'Unknown',
 ];

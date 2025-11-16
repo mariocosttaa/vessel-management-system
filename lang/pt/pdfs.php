@@ -103,4 +103,20 @@ return [
     'Net'                                            => 'Líquido',
     'Quantity Returns'                               => 'Retornos de Quantidade',
     'Uncategorized'                                  => 'Sem Categoria',
+
+    // VAT Report
+    'VAT Report'                                     => 'Relatório de IVA',
+    'Comprehensive VAT overview for'                 => 'Visão geral completa do IVA para',
+    'Total VAT'                                      => 'Total de IVA',
+    'Base Amount'                                    => 'Valor Base',
+    'Total with VAT'                                 => 'Total com IVA',
+    'VAT by Profile'                                 => 'IVA por Perfil',
+    'VAT by Category'                                => 'IVA por Categoria',
+    'Daily VAT Breakdown'                            => 'Análise Diária de IVA',
+    'VAT by Marea'                                   => 'IVA por Marea',
+    'All Transactions with VAT'                      => 'Todas as Movimentações com IVA',
+    'VAT Profile'                                    => 'Perfil de IVA',
+    'VAT'                                            => 'IVA',
+    'Total'                                          => 'Total',
+    'Unknown'                                        => 'Desconhecido',
 ];

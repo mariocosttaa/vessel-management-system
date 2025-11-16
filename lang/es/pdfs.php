@@ -103,4 +103,20 @@ return [
     'Net'                                            => 'Neto',
     'Quantity Returns'                               => 'Retornos de Cantidad',
     'Uncategorized'                                  => 'Sin Categoría',
+
+    // VAT Report
+    'VAT Report'                                     => 'Informe de IVA',
+    'Comprehensive VAT overview for'                 => 'Resumen completo de IVA para',
+    'Total VAT'                                      => 'Total de IVA',
+    'Base Amount'                                    => 'Importe Base',
+    'Total with VAT'                                 => 'Total con IVA',
+    'VAT by Profile'                                 => 'IVA por Perfil',
+    'VAT by Category'                                => 'IVA por Categoría',
+    'Daily VAT Breakdown'                            => 'Desglose Diario de IVA',
+    'VAT by Marea'                                   => 'IVA por Marea',
+    'All Transactions with VAT'                      => 'Todas las Transacciones con IVA',
+    'VAT Profile'                                    => 'Perfil de IVA',
+    'VAT'                                            => 'IVA',
+    'Total'                                          => 'Total',
+    'Unknown'                                        => 'Desconocido',
 ];

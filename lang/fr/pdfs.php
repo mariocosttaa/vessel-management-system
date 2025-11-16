@@ -103,4 +103,20 @@ return [
     'Net'                                            => 'Net',
     'Quantity Returns'                               => 'Retours de Quantité',
     'Uncategorized'                                  => 'Sans Catégorie',
+
+    // VAT Report
+    'VAT Report'                                     => 'Rapport de TVA',
+    'Comprehensive VAT overview for'                 => 'Aperçu complet de la TVA pour',
+    'Total VAT'                                      => 'Total TVA',
+    'Base Amount'                                    => 'Montant de Base',
+    'Total with VAT'                                 => 'Total avec TVA',
+    'VAT by Profile'                                 => 'TVA par Profil',
+    'VAT by Category'                                => 'TVA par Catégorie',
+    'Daily VAT Breakdown'                            => 'Répartition Quotidienne de la TVA',
+    'VAT by Marea'                                   => 'TVA par Marea',
+    'All Transactions with VAT'                      => 'Toutes les Transactions avec TVA',
+    'VAT Profile'                                    => 'Profil de TVA',
+    'VAT'                                            => 'TVA',
+    'Total'                                          => 'Total',
+    'Unknown'                                        => 'Inconnu',
 ];
