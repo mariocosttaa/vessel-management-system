@@ -6,13 +6,14 @@ use App\Models\User;
 use App\Models\Vessel;
 use App\Traits\HasTranslations;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
 
-class CrewMemberInvitationCancelledMail extends Mailable
+class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels, HasTranslations;
 
@@ -23,6 +24,7 @@ class CrewMemberInvitationCancelledMail extends Mailable
         public User $user,
         public Vessel $vessel
     ) {
+        $this->onQueue('emails');
     }
 
     /**

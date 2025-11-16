@@ -362,7 +362,7 @@ class CrewMemberController extends Controller
             // Send invitation email (only if email is provided and not creating without email)
             if (! $createWithoutEmail && $crewMember->email) {
                 try {
-                    Mail::to($crewMember->email)->send(
+                    Mail::to($crewMember->email)->queue(
                         new CrewMemberInvitationMail(
                             $crewMember,
                             $vessel,
@@ -656,7 +656,7 @@ class CrewMemberController extends Controller
                 try {
                     $invitationToken = $crewMember->invitation_token;
 
-                    Mail::to($crewMember->email)->send(
+                    Mail::to($crewMember->email)->queue(
                         new CrewMemberInvitationMail(
                             $crewMember,
                             $vessel,
@@ -1051,7 +1051,7 @@ class CrewMemberController extends Controller
         // Send cancellation email if email exists
         if ($user->email) {
             try {
-                Mail::to($user->email)->send(
+                Mail::to($user->email)->queue(
                     new CrewMemberInvitationCancelledMail($user, $vessel)
                 );
 
@@ -1135,7 +1135,7 @@ class CrewMemberController extends Controller
 
         // Send invitation email
         try {
-            Mail::to($user->email)->send(
+            Mail::to($user->email)->queue(
                 new CrewMemberInvitationMail(
                     $user,
                     $vessel,
