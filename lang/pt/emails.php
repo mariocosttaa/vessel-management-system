@@ -15,6 +15,7 @@ return [
     // Email Content
     'Hello :name'                                                                                                                                                                        => 'Olá :name',
     'New transactions have been created for vessel :vessel'                                                                                                                              => 'Novos movimentos foram criados para a embarcação :vessel',
+    'New movements have been created for vessel :vessel'                                                                                                                                 => 'Novos movimentos foram criados para a embarcação :vessel',
     'A new transaction has been created for vessel :vessel'                                                                                                                              => 'Um novo movimento foi criado para a embarcação :vessel',
     'Transactions have been deleted from vessel :vessel'                                                                                                                                 => 'Movimentos foram removidos da embarcação :vessel',
     'New marea has been started for vessel :vessel'                                                                                                                                      => 'Nova marea foi iniciada para a embarcação :vessel',
@@ -33,6 +34,7 @@ return [
     'Created by'                                                                                                                                                                         => 'Criado por',
     'View Transactions'                                                                                                                                                                  => 'Ver Movimentos',
     'These notifications have been grouped to avoid spam. The last :count transactions created are shown above.'                                                                         => 'Estas notificações foram agrupadas para evitar spam. Os últimos :count movimentos criados são mostrados acima.',
+    'These notifications have been grouped to avoid spam. The last :count movements created are shown above.'                                                                           => 'Estas notificações foram agrupadas para evitar spam. Os últimos :count movimentos criados são mostrados acima.',
 
     // Crew Member Invitations
     'Crew Member Invitation'                                                                                                                                                             => 'Convite para Tripulação',

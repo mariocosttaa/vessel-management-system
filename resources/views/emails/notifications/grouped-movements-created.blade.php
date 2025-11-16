@@ -26,7 +26,7 @@
             </td>
         </tr>
         <tr>
-            <td align="center" style="padding-bottom: 32px;">
+            <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
                     {{ trans('emails.New movements have been created for vessel :vessel', [
                         'vessel' => $vessel->name ?? 'N/A'
@@ -35,7 +35,7 @@
             </td>
         </tr>
         <tr>
-            <td align="center" style="padding-bottom: 24px;">
+            <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
                     <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? 'N/A' }}
                 </p>
@@ -50,55 +50,102 @@
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 500px;">
                     @foreach($notifications as $index => $notification)
                     <tr>
-                        <td style="padding-bottom: @if(!$loop->last) 16px; @else 0; @endif">
-                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px;">
+                        <td style="padding-bottom: @if(!$loop->last) 20px; @else 0; @endif">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
                                 <tr>
-                                    <td style="padding: 20px;">
+                                    <td style="padding: 24px;">
+                                        <!-- Transaction Number -->
                                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                             <tr>
-                                                <td style="padding-bottom: 12px;">
-                                                    <p style="margin: 0; padding: 0; font-size: 14px; font-weight: 600; color: #111827; line-height: 1.4;">
+                                                <td style="padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
+                                                    <p style="margin: 0; padding: 0; font-size: 15px; font-weight: 600; color: #111827; line-height: 1.4; letter-spacing: -0.2px;">
                                                         {{ $notification->subject_data['transaction_number'] ?? 'N/A' }}
                                                     </p>
                                                 </td>
                                             </tr>
+                                        </table>
+
+                                        <!-- Transaction Details -->
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 16px;">
                                             <tr>
-                                                <td style="padding-bottom: 8px;">
-                                                    <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>{{ trans('emails.Type', [], $locale ?? 'en') }}:</strong>
-                                                        @if(($notification->subject_data['type'] ?? '') === 'add')
-                                                            {{ trans('emails.Income', [], $locale ?? 'en') }}
-                                                        @else
-                                                            {{ trans('emails.Expense', [], $locale ?? 'en') }}
-                                                        @endif
-                                                    </p>
+                                                <td style="padding-bottom: 12px;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                        <tr>
+                                                            <td width="100" style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                                                                    {{ trans('emails.Type', [], $locale ?? 'en') }}
+                                                                </p>
+                                                            </td>
+                                                            <td style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #111827; font-weight: 500; line-height: 1.5;">
+                                                                    @if(($notification->subject_data['type'] ?? '') === 'add')
+                                                                        {{ trans('emails.Income', [], $locale ?? 'en') }}
+                                                                    @else
+                                                                        {{ trans('emails.Expense', [], $locale ?? 'en') }}
+                                                                    @endif
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
                                                 </td>
                                             </tr>
                                             @if(isset($notification->subject_data['amount']))
                                             <tr>
-                                                <td style="padding-bottom: 8px;">
-                                                    <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>{{ trans('emails.Amount', [], $locale ?? 'en') }}:</strong>
-                                                        {{ $notification->subject_data['currency_symbol'] ?? '€' }}{{ number_format($notification->subject_data['amount'] / 100, 2, ',', '.') }}
-                                                    </p>
+                                                <td style="padding-bottom: 12px;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                        <tr>
+                                                            <td width="100" style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                                                                    {{ trans('emails.Amount', [], $locale ?? 'en') }}
+                                                                </p>
+                                                            </td>
+                                                            <td style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #111827; font-weight: 600; line-height: 1.5;">
+                                                                    {{ $notification->subject_data['currency_symbol'] ?? '€' }}{{ number_format($notification->subject_data['amount'] / 100, 2, ',', '.') }}
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
                                                 </td>
                                             </tr>
                                             @endif
                                             @if(isset($notification->subject_data['description']))
                                             <tr>
-                                                <td style="padding-bottom: 8px;">
-                                                    <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>{{ trans('emails.Description', [], $locale ?? 'en') }}:</strong> {{ Str::limit($notification->subject_data['description'], 50) }}
-                                                    </p>
+                                                <td style="padding-bottom: 12px;">
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                        <tr>
+                                                            <td width="100" style="padding-bottom: 0; vertical-align: top;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                                                                    {{ trans('emails.Description', [], $locale ?? 'en') }}
+                                                                </p>
+                                                            </td>
+                                                            <td style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #111827; line-height: 1.5;">
+                                                                    {{ Str::limit($notification->subject_data['description'], 50) }}
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
                                                 </td>
                                             </tr>
                                             @endif
                                             @if($notification->actionByUser)
                                             <tr>
                                                 <td>
-                                                    <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>{{ trans('emails.Created by', [], $locale ?? 'en') }}:</strong> {{ $notification->actionByUser->name }}
-                                                    </p>
+                                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                                        <tr>
+                                                            <td width="100" style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                                                                    {{ trans('emails.Created by', [], $locale ?? 'en') }}
+                                                                </p>
+                                                            </td>
+                                                            <td style="padding-bottom: 0;">
+                                                                <p style="margin: 0; padding: 0; font-size: 13px; color: #111827; line-height: 1.5;">
+                                                                    {{ $notification->actionByUser->name }}
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
                                                 </td>
                                             </tr>
                                             @endif
@@ -144,4 +191,3 @@
         </tr>
     </table>
 @endsection
-
