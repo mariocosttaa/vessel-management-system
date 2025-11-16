@@ -13,6 +13,8 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 import maintenances from '@/routes/panel/maintenances';
 import MaintenanceCreateModal from '@/components/modals/Maintenance/create.vue';
+import DownloadPdfModal from '@/components/modals/Maintenance/DownloadPdfModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = (): string => {
@@ -66,6 +68,13 @@ const isDeleting = ref(false);
 
 // Create modal state
 const showCreateModal = ref(false);
+
+// PDF download state
+const showDownloadPdfModal = ref(false);
+const showPdfLoadingModal = ref(false);
+const isPdfDownloading = ref(false);
+const selectedMaintenanceForPdf = ref<Maintenance | null>(null);
+const pendingPdfEnableColors = ref<boolean | null>(null);
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
@@ -235,6 +244,79 @@ const cancelDelete = () => {
     showDeleteDialog.value = false;
     maintenanceToDelete.value = null;
     isDeleting.value = false;
+};
+
+// PDF download functions
+const handleGeneratePdfClick = () => {
+    if (openDropdownId.value === null) return;
+    const maintenance = props.maintenances.data.find(m => m.id === openDropdownId.value);
+    if (maintenance) {
+        selectedMaintenanceForPdf.value = maintenance;
+        showDownloadPdfModal.value = true;
+        closeActionsDropdown();
+    }
+};
+
+const openDownloadPdfModal = (maintenance: Maintenance) => {
+    selectedMaintenanceForPdf.value = maintenance;
+    showDownloadPdfModal.value = true;
+    closeActionsDropdown();
+};
+
+const handlePdfDownload = (enableColors: boolean) => {
+    // Close the selection modal
+    showDownloadPdfModal.value = false;
+
+    // Store enableColors for later download
+    pendingPdfEnableColors.value = enableColors;
+
+    // Show loading modal with countdown
+    showPdfLoadingModal.value = true;
+    isPdfDownloading.value = true;
+};
+
+// Handle PDF ready (when countdown reaches 0)
+const handlePdfReady = () => {
+    if (!isPdfDownloading.value || pendingPdfEnableColors.value === null || !selectedMaintenanceForPdf.value) return;
+
+    const enableColors = pendingPdfEnableColors.value;
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+
+    if (enableColors) {
+        params.append('enable_colors', '1');
+    }
+
+    const url = `/panel/${vesselId}/maintenances/${selectedMaintenanceForPdf.value.id}/download-pdf?${params.toString()}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close loading modal after a short delay
+    setTimeout(() => {
+        showPdfLoadingModal.value = false;
+        isPdfDownloading.value = false;
+        pendingPdfEnableColors.value = null;
+        selectedMaintenanceForPdf.value = null;
+    }, 1000);
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfLoadingModal.value = false;
+    isPdfDownloading.value = false;
+    pendingPdfEnableColors.value = null;
+    selectedMaintenanceForPdf.value = null;
+};
+
+const closePdfLoadingModal = () => {
+    if (!isPdfDownloading.value) {
+        showPdfLoadingModal.value = false;
+    }
 };
 
 // Get status badge color
@@ -466,6 +548,24 @@ const translatedStatuses = computed(() => {
             @saved="router.reload()"
         />
 
+        <!-- PDF Download Modal -->
+        <DownloadPdfModal
+            v-if="selectedMaintenanceForPdf !== null"
+            :open="showDownloadPdfModal"
+            @update:open="showDownloadPdfModal = $event"
+            @close="showDownloadPdfModal = false; selectedMaintenanceForPdf = null"
+            @download="handlePdfDownload"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfLoadingModal"
+            :countdown="5"
+            @close="closePdfLoadingModal"
+            @cancel="handlePdfDownloadCancel"
+            @ready="handlePdfReady"
+        />
+
         <!-- Actions Dropdown Menu (Teleported) -->
         <Teleport to="body">
             <div
@@ -487,6 +587,20 @@ const translatedStatuses = computed(() => {
                             <Icon name="eye" class="w-4 h-4 mr-3" />
                             {{ t('View Details') }}
                         </button>
+
+                        <!-- Generate PDF -->
+                        <button
+                            v-if="openDropdownId !== null"
+                            @click.stop="handleGeneratePdfClick()"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="download" class="w-4 h-4 mr-3" />
+                            {{ t('Generate PDF') }}
+                        </button>
+
+                        <!-- Divider before delete -->
+                        <div v-if="openDropdownId !== null && canDelete('maintenances')" class="my-1 border-t border-border dark:border-border"></div>
+
                         <button
                             v-if="openDropdownId !== null && canDelete('maintenances')"
                             @click.stop="const maintenance = props.maintenances.data.find(m => m.id === openDropdownId); if (maintenance) deleteMaintenance(maintenance); closeActionsDropdown()"
