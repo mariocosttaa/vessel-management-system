@@ -26,6 +26,8 @@ import EditMareaModal from '@/components/modals/Marea/edit.vue';
 import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
 import ImportExcelModal from '@/components/modals/Movimentation/ImportExcelModal.vue';
 import ExcelLoadingModal from '@/components/modals/ExcelLoadingModal.vue';
+import DownloadPdfModal from '@/components/modals/Marea/DownloadPdfModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import transactions from '@/routes/panel/movimentations';
 import MoneyInput from '@/components/Forms/MoneyInput.vue';
@@ -372,6 +374,21 @@ const showImportExcelModal = ref(false);
 const showExcelLoadingModal = ref(false);
 const isExcelDownloading = ref(false);
 let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// PDF download state
+const showDownloadPdfModal = ref(false);
+const showPdfLoadingModal = ref(false);
+const isPdfDownloading = ref(false);
+const preSelectSection = ref<'expensesWithSalary' | 'expenses' | 'incomes' | 'crew' | 'quantity' | 'salary' | undefined>(undefined);
+const pendingPdfSections = ref<{
+    expensesWithSalary: boolean;
+    expenses: boolean;
+    incomes: boolean;
+    crew: boolean;
+    quantity: boolean;
+    salary: boolean;
+    enableColors: boolean;
+} | null>(null);
 
 // Distribution section collapsed state - default to collapsed, especially when calculation is not active
 const isDistributionExpanded = ref(false);
@@ -767,6 +784,7 @@ const handleAddCrew = () => {
 
     isProcessing.value = true;
     addCrewForm.post(mareas.addCrew.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        preserveScroll: true,
         onSuccess: () => {
             showAddCrewDialog.value = false;
             isProcessing.value = false;
@@ -777,7 +795,7 @@ const handleAddCrew = () => {
                 message: t('Crew member has been added to the marea.'),
             });
             // Reload the page to show the updated crew list
-            router.reload();
+            router.reload({ preserveScroll: true });
         },
         onError: (errors) => {
             isProcessing.value = false;
@@ -828,6 +846,7 @@ const handleAddQuantityReturn = () => {
 
     isProcessing.value = true;
     addQuantityReturnForm.post(mareas.addQuantityReturn.url({ vessel: getCurrentVesselId(), mareaId: props.marea.id }), {
+        preserveScroll: true,
         onSuccess: () => {
             showAddQuantityReturnDialog.value = false;
             isProcessing.value = false;
@@ -1159,6 +1178,153 @@ const closeExcelLoadingModal = () => {
     }
 };
 
+// PDF download functions
+const openDownloadPdfModal = (section?: 'expensesWithSalary' | 'expenses' | 'incomes' | 'crew' | 'quantity' | 'salary') => {
+    preSelectSection.value = section;
+    showDownloadPdfModal.value = true;
+};
+
+const handlePdfDownload = (sections: {
+    expensesWithSalary: boolean;
+    expenses: boolean;
+    incomes: boolean;
+    crew: boolean;
+    quantity: boolean;
+    salary: boolean;
+    enableColors: boolean;
+}) => {
+    // Close the selection modal
+    showDownloadPdfModal.value = false;
+    preSelectSection.value = undefined;
+
+    // Store sections for later download
+    pendingPdfSections.value = sections;
+
+    // Show loading modal with countdown
+    showPdfLoadingModal.value = true;
+    isPdfDownloading.value = true;
+};
+
+// Handle PDF ready (when countdown reaches 0)
+const handlePdfReady = () => {
+    if (!isPdfDownloading.value || !pendingPdfSections.value) return;
+
+    const sections = pendingPdfSections.value;
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+
+    if (sections.expensesWithSalary) {
+        params.append('expenses_with_salary', '1');
+    }
+    if (sections.expenses) {
+        params.append('expenses', '1');
+    }
+    if (sections.incomes) {
+        params.append('incomes', '1');
+    }
+    if (sections.crew) {
+        params.append('crew', '1');
+    }
+    if (sections.quantity) {
+        params.append('quantity', '1');
+    }
+    if (sections.salary) {
+        params.append('salary', '1');
+    }
+    if (sections.enableColors) {
+        params.append('enable_colors', '1');
+    }
+
+    const url = `/panel/${vesselId}/mareas/${props.marea.id}/download-pdf?${params.toString()}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close loading modal after a short delay
+    setTimeout(() => {
+        showPdfLoadingModal.value = false;
+        isPdfDownloading.value = false;
+        pendingPdfSections.value = null;
+    }, 1000);
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfLoadingModal.value = false;
+    isPdfDownloading.value = false;
+    pendingPdfSections.value = null;
+};
+
+const closePdfLoadingModal = () => {
+    if (!isPdfDownloading.value) {
+        showPdfLoadingModal.value = false;
+    }
+};
+
+const openSectionPdfModal = (section: 'expenses' | 'expensesWithSalary' | 'incomes' | 'crew' | 'quantity' | 'salary') => {
+    // Check if section has data before opening modal
+    if (section === 'incomes' && incomeTransactions.value.length === 0) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No income movimentations to download.'),
+        });
+        return;
+    }
+
+    if (section === 'expenses' && expenseTransactions.value.length === 0) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No expense movimentations to download.'),
+        });
+        return;
+    }
+
+    if (section === 'expensesWithSalary' && expenseTransactions.value.length === 0 && salaryTransactions.value.length === 0) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No expenses with salary to download.'),
+        });
+        return;
+    }
+
+    if (section === 'crew' && marea.crew_members.length === 0) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No crew members to download.'),
+        });
+        return;
+    }
+
+    if (section === 'quantity' && (marea.quantity_returns.length === 0 || (marea.status !== 'returned' && marea.status !== 'closed'))) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No fishing quantity returns to download.'),
+        });
+        return;
+    }
+
+    if (section === 'salary' && salaryTransactions.value.length === 0) {
+        addNotification({
+            type: 'warning',
+            title: t('No Data'),
+            message: t('No salary payments to download.'),
+        });
+        return;
+    }
+
+    // Open modal with section pre-selected
+    openDownloadPdfModal(section);
+};
+
 // Delete marea functions
 const isDeleting = ref(false);
 
@@ -1274,6 +1440,13 @@ const cancelDeleteMarea = () => {
                         >
                             <Icon name="trash-2" class="w-4 h-4 mr-2" />
                             {{ t('Delete') }}
+                        </button>
+                        <button
+                            @click="openDownloadPdfModal()"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        >
+                            <Icon name="file-text" class="w-4 h-4 mr-2" />
+                            {{ t('Generate PDF') }}
                         </button>
                     </div>
                 </div>
@@ -1615,14 +1788,24 @@ const cancelDeleteMarea = () => {
                         <Wallet class="w-5 h-5 mr-2" />
                         {{ t('Salary Payments') }}
                     </h2>
-                    <button
-                        v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                        @click="showSalaryPaymentDialog = true"
-                        class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                        <Plus class="w-4 h-4 mr-1" />
-                        {{ t('Pay Salary') }}
-                    </button>
+                    <div class="flex gap-2">
+                        <button
+                            @click="openSectionPdfModal('salary')"
+                            class="inline-flex items-center px-3 py-1.5 text-sm border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                            :title="t('Generate PDF')"
+                        >
+                            <Icon name="file-text" class="w-4 h-4 mr-1" />
+                            {{ t('Generate PDF') }}
+                        </button>
+                        <button
+                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
+                            @click="showSalaryPaymentDialog = true"
+                            class="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                            <Plus class="w-4 h-4 mr-1" />
+                            {{ t('Pay Salary') }}
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Salary Search Bar -->
@@ -1846,7 +2029,17 @@ const cancelDeleteMarea = () => {
                 <div v-else class="space-y-4">
                     <!-- Income Transactions -->
                     <div v-if="incomeTransactions.length > 0">
-                        <h3 class="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">{{ t('Income') }}</h3>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-semibold text-green-700 dark:text-green-400">{{ t('Income') }}</h3>
+                            <button
+                                @click="openSectionPdfModal('incomes')"
+                                class="inline-flex items-center px-2 py-1 text-xs border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                :title="t('Generate PDF')"
+                            >
+                                <Icon name="file-text" class="w-3 h-3 mr-1" />
+                                {{ t('Generate PDF') }}
+                            </button>
+                        </div>
                         <div class="space-y-3">
                             <div
                                 v-for="transaction in incomeTransactions"
@@ -1987,7 +2180,17 @@ const cancelDeleteMarea = () => {
 
                     <!-- Expense Transactions (non-salary) -->
                     <div v-if="expenseTransactions.length > 0">
-                        <h3 v-if="incomeTransactions.length === 0" class="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">{{ t('Expenses') }}</h3>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-semibold text-red-700 dark:text-red-400">{{ t('Expenses') }}</h3>
+                            <button
+                                @click="openSectionPdfModal('expenses')"
+                                class="inline-flex items-center px-2 py-1 text-xs border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                :title="t('Generate PDF')"
+                            >
+                                <Icon name="file-text" class="w-3 h-3 mr-1" />
+                                {{ t('Generate PDF') }}
+                            </button>
+                        </div>
                         <div class="space-y-3">
                             <div
                                 v-for="transaction in expenseTransactions"
@@ -2146,12 +2349,23 @@ const cancelDeleteMarea = () => {
                                     {{ t('Empty') }}
                                 </span>
                             </div>
-                            <ChevronDown
-                                :class="[
-                                    'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
-                                    isCrewMembersExpanded ? 'transform rotate-180' : ''
-                                ]"
-                            />
+                            <div class="flex items-center gap-2">
+                                <button
+                                    v-if="marea.crew_members.length > 0"
+                                    @click.stop="openSectionPdfModal('crew')"
+                                    class="inline-flex items-center px-2 py-1 text-xs border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                    :title="t('Generate PDF')"
+                                >
+                                    <Icon name="file-text" class="w-3 h-3 mr-1" />
+                                    {{ t('Generate PDF') }}
+                                </button>
+                                <ChevronDown
+                                    :class="[
+                                        'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
+                                        isCrewMembersExpanded ? 'transform rotate-180' : ''
+                                    ]"
+                                />
+                            </div>
                         </div>
                     </CollapsibleTrigger>
 
@@ -2220,12 +2434,23 @@ const cancelDeleteMarea = () => {
                                     {{ t('Empty') }}
                                 </span>
                             </div>
-                            <ChevronDown
-                                :class="[
-                                    'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
-                                    isFishingQuantityExpanded ? 'transform rotate-180' : ''
-                                ]"
-                            />
+                            <div class="flex items-center gap-2">
+                                <button
+                                    v-if="marea.quantity_returns.length > 0 && (marea.status === 'returned' || marea.status === 'closed')"
+                                    @click.stop="openSectionPdfModal('quantity')"
+                                    class="inline-flex items-center px-2 py-1 text-xs border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                                    :title="t('Generate PDF')"
+                                >
+                                    <Icon name="file-text" class="w-3 h-3 mr-1" />
+                                    {{ t('Generate PDF') }}
+                                </button>
+                                <ChevronDown
+                                    :class="[
+                                        'w-5 h-5 text-muted-foreground dark:text-muted-foreground transition-transform duration-200',
+                                        isFishingQuantityExpanded ? 'transform rotate-180' : ''
+                                    ]"
+                                />
+                            </div>
                         </div>
                     </CollapsibleTrigger>
 
@@ -2822,6 +3047,25 @@ const cancelDeleteMarea = () => {
             :countdown="5"
             @close="closeExcelLoadingModal"
             @cancel="handleExcelDownloadCancel"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfLoadingModal"
+            :countdown="5"
+            @close="closePdfLoadingModal"
+            @cancel="handlePdfDownloadCancel"
+            @ready="handlePdfReady"
+        />
+
+        <!-- PDF Download Modal -->
+        <DownloadPdfModal
+            :open="showDownloadPdfModal"
+            :marea-status="marea.status"
+            :pre-select-section="preSelectSection"
+            @update:open="showDownloadPdfModal = $event"
+            @close="showDownloadPdfModal = false; preSelectSection = undefined"
+            @download="handlePdfDownload"
         />
     </VesselLayout>
 </template>
