@@ -78,10 +78,10 @@ const handleMicrosoftAccept = () => {
                     {{ vessel.name }}
                 </div>
                 <div v-if="roleName" class="text-sm text-muted-foreground">
-                    {{ t('Role') }}: {{ roleName }}
+                    {{ t('Role:') }} {{ roleName }}
                 </div>
                 <div class="text-sm text-muted-foreground">
-                    {{ t('Email') }}: {{ user.email }}
+                    {{ t('Email:') }} {{ user.email }}
                 </div>
             </div>
 
@@ -123,7 +123,7 @@ const handleMicrosoftAccept = () => {
                         variant="outline"
                         class="w-full"
                         disabled
-                        title="Microsoft login will be available soon"
+                        :title="t('Microsoft login will be available soon')"
                     >
                         <svg
                             class="mr-2 h-4 w-4 opacity-50"

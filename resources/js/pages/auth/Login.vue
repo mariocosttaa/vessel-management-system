@@ -194,7 +194,7 @@ const closeModal = () => {
                     variant="outline"
                     class="w-full"
                     disabled
-                    title="Microsoft login will be available soon"
+                    :title="t('Microsoft login will be available soon')"
                 >
                     <svg
                         class="mr-2 h-4 w-4 opacity-50"
@@ -234,7 +234,7 @@ const closeModal = () => {
                 <DialogHeader>
                     <DialogTitle>{{ t('Account Not Found') }}</DialogTitle>
                     <DialogDescription>
-                        {{ t('You don\'t have an account yet. Would you like to sign up with') }} {{ oauthProvider === 'google' ? 'Google' : 'Microsoft' }}?
+                        {{ t('You don\'t have an account yet. Would you like to sign up with') }} {{ oauthProvider === 'google' ? t('Google') : t('Microsoft') }}?
                     </DialogDescription>
                 </DialogHeader>
                 <div class="py-4">
@@ -243,7 +243,7 @@ const closeModal = () => {
                             <strong>{{ oauthName || oauthEmail }}</strong>
                         </p>
                         <p class="text-sm text-muted-foreground">
-                            {{ t('Click the button below to create your account using your') }} {{ oauthProvider === 'google' ? 'Google' : 'Microsoft' }} {{ t('account.') }}
+                            {{ t('Click the button below to create your account using your') }} {{ oauthProvider === 'google' ? t('Google') : t('Microsoft') }} {{ t('account.') }}
                         </p>
                     </div>
                 </div>
@@ -280,7 +280,7 @@ const closeModal = () => {
                                 fill="#EA4335"
                             />
                         </svg>
-                        {{ t('Sign up with') }} {{ oauthProvider === 'google' ? 'Google' : 'Microsoft' }}
+                        {{ t('Sign up with') }} {{ oauthProvider === 'google' ? t('Google') : t('Microsoft') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
