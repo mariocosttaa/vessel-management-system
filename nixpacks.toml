@@ -7,7 +7,6 @@ cmds = [
     "mkdir -p /var/log/supervisor",
     "mkdir -p /var/run",
     "cp /assets/worker-laravel.conf /etc/supervisor/conf.d/",
-    "cp /assets/supervisord.conf /etc/supervisord.conf",
     "chmod +x /assets/start.sh",
     "..."
 ]
@@ -26,11 +25,12 @@ mkdir -p /var/run
 # Transform the nginx configuration
 node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
 
-# Start supervisor
-supervisord -c /etc/supervisord.conf -n
-'''
+# Find nginx and php-fpm paths
+NGINX_CMD=$(which nginx 2>/dev/null || find /usr -name nginx 2>/dev/null | head -1 || echo "nginx")
+PHP_FPM_CMD=$(which php-fpm 2>/dev/null || find /usr -name php-fpm 2>/dev/null | head -1 || echo "php-fpm")
 
-"supervisord.conf" = '''
+# Create supervisor config dynamically
+cat > /etc/supervisord.conf <<EOF
 [unix_http_server]
 file=/assets/supervisor.sock
 
@@ -39,12 +39,27 @@ logfile=/var/log/supervisord.log
 pidfile=/var/run/supervisord.pid
 childlogdir=/var/log/supervisor
 nodaemon=true
+user=root
 
 [rpcinterface:supervisor]
 supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 
 [supervisorctl]
 serverurl=unix:///assets/supervisor.sock
+
+[program:nginx]
+command=$NGINX_CMD -g "daemon off;"
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/nginx.log
+stderr_logfile=/var/log/nginx.log
+
+[program:php-fpm]
+command=$PHP_FPM_CMD -F
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/php-fpm.log
+stderr_logfile=/var/log/php-fpm.log
 
 [program:worker-laravel]
 process_name=%(program_name)s_%(process_num)02d
@@ -58,7 +73,12 @@ startsecs=0
 stopwaitsecs=3600
 stdout_logfile=/var/log/worker-laravel.log
 stderr_logfile=/var/log/worker-laravel.log
+EOF
+
+# Start supervisor (which will start nginx, php-fpm, and queue worker)
+supervisord -c /etc/supervisord.conf -n
 '''
+
 
 "worker-laravel.conf" = '''
 [program:worker-laravel]
