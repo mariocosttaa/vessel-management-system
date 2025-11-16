@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, Teleport } from 'vue';
 import Icon from '@/components/Icon.vue';
 
 interface Column {
@@ -39,30 +39,54 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
+const dropdownPosition = ref<{ top: number; right: number } | null>(null);
+const currentItem = ref<any>(null);
 
 // Click outside handler
 const handleClickOutside = (event: Event) => {
     const target = event.target as HTMLElement;
-    if (!target.closest('.dropdown-container')) {
+    if (!target.closest('.dropdown-container') && !target.closest('.dropdown-menu-portal')) {
         closeActionsDropdown();
     }
 };
 
 onMounted(() => {
     document.addEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', closeActionsDropdown, true);
+    window.addEventListener('resize', closeActionsDropdown);
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
+    window.removeEventListener('scroll', closeActionsDropdown, true);
+    window.removeEventListener('resize', closeActionsDropdown);
 });
 
 // Dropdown methods
-const toggleActionsDropdown = (itemId: number) => {
-    openDropdownId.value = openDropdownId.value === itemId ? null : itemId;
+const toggleActionsDropdown = (itemId: number, event?: MouseEvent) => {
+    if (openDropdownId.value === itemId) {
+        closeActionsDropdown();
+        return;
+    }
+
+    const button = event?.currentTarget as HTMLElement;
+    if (button) {
+        const rect = button.getBoundingClientRect();
+        dropdownPosition.value = {
+            top: rect.bottom + 8, // 8px offset (mt-2)
+            right: window.innerWidth - rect.right,
+        };
+    }
+
+    const item = props.data.find(i => i.id === itemId);
+    currentItem.value = item;
+    openDropdownId.value = itemId;
 };
 
 const closeActionsDropdown = () => {
     openDropdownId.value = null;
+    dropdownPosition.value = null;
+    currentItem.value = null;
 };
 
 const handleRowClick = (item: any) => {
@@ -93,8 +117,8 @@ const getActionsForItem = (item: any): Action[] => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
-        <div class="overflow-x-auto">
+    <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-x-auto overflow-y-visible">
+        <div>
             <table class="min-w-full divide-y divide-border dark:divide-border">
                 <thead class="bg-muted/50 dark:bg-muted/50">
                     <tr>
@@ -158,39 +182,48 @@ const getActionsForItem = (item: any): Action[] => {
                         <td v-if="getActionsForItem(item) && getActionsForItem(item).length > 0" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
                             <div class="relative dropdown-container">
                                 <button
-                                    @click="toggleActionsDropdown(item.id)"
+                                    @click="toggleActionsDropdown(item.id, $event)"
                                     class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-muted dark:hover:bg-muted transition-colors"
                                 >
                                     <Icon name="menu" class="w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
                                 </button>
-
-                                <!-- Actions Dropdown -->
-                                <div
-                                    v-if="openDropdownId === item.id"
-                                    class="absolute right-0 mt-2 w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg z-10"
-                                >
-                                    <div class="py-1">
-                                        <button
-                                            v-for="action in getActionsForItem(item)"
-                                            :key="action.label"
-                                            @click="handleActionClick(action, item)"
-                                            :class="[
-                                                'flex items-center w-full px-4 py-2 text-sm transition-colors',
-                                                action.variant === 'destructive'
-                                                    ? 'text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted'
-                                                    : 'text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted'
-                                            ]"
-                                        >
-                                            <Icon :name="action.icon" class="w-4 h-4 mr-3" />
-                                            {{ action.label }}
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Actions Dropdown Menu (Teleported) -->
+        <Teleport to="body">
+            <div
+                v-if="openDropdownId !== null && dropdownPosition && currentItem"
+                class="dropdown-menu-portal fixed z-[9999]"
+                :style="{
+                    top: `${dropdownPosition.top}px`,
+                    right: `${dropdownPosition.right}px`,
+                }"
+                @click.stop
+            >
+                <div class="w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg">
+                    <div class="py-1">
+                        <button
+                            v-for="action in getActionsForItem(currentItem)"
+                            :key="action.label"
+                            @click="handleActionClick(action, currentItem)"
+                            :class="[
+                                'flex items-center w-full px-4 py-2 text-sm transition-colors',
+                                action.variant === 'destructive'
+                                    ? 'text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted'
+                                    : 'text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted'
+                            ]"
+                        >
+                            <Icon :name="action.icon" class="w-4 h-4 mr-3" />
+                            {{ action.label }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>

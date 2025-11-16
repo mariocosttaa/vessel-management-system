@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted, Teleport } from 'vue';
 import Icon from '@/components/Icon.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import { DateInput } from '@/components/ui/date-input';
@@ -72,10 +72,53 @@ const showCreateModal = ref(false);
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
+const dropdownPosition = ref<{ top: number; right: number } | null>(null);
+const buttonRefs = ref<Record<number, HTMLElement>>({});
+
+// Click outside handler
+const handleClickOutside = (event: Event) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.dropdown-container') && !target.closest('.dropdown-menu-portal')) {
+        openDropdownId.value = null;
+        dropdownPosition.value = null;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', closeActionsDropdown, true);
+    window.addEventListener('resize', closeActionsDropdown);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
+    window.removeEventListener('scroll', closeActionsDropdown, true);
+    window.removeEventListener('resize', closeActionsDropdown);
+});
 
 // Dropdown methods
-const toggleActionsDropdown = (mareaId: number) => {
-    openDropdownId.value = openDropdownId.value === mareaId ? null : mareaId;
+const toggleActionsDropdown = (mareaId: number, event?: MouseEvent) => {
+    if (openDropdownId.value === mareaId) {
+        openDropdownId.value = null;
+        dropdownPosition.value = null;
+        return;
+    }
+
+    const button = event?.currentTarget as HTMLElement;
+    if (button) {
+        const rect = button.getBoundingClientRect();
+        dropdownPosition.value = {
+            top: rect.bottom + 8, // 8px offset (mt-2)
+            right: window.innerWidth - rect.right,
+        };
+    }
+
+    openDropdownId.value = mareaId;
+};
+
+const closeActionsDropdown = () => {
+    openDropdownId.value = null;
+    dropdownPosition.value = null;
 };
 
 // Sorting - default to created_at descending (newest first)
@@ -321,7 +364,7 @@ const translatedStatuses = computed(() => {
             </div>
 
             <!-- Mareas List -->
-            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-x-auto overflow-y-visible">
                 <div v-if="!props.mareas || !props.mareas.data || !Array.isArray(props.mareas.data) || props.mareas.data.length === 0"
                      class="px-6 py-12 text-center text-muted-foreground dark:text-muted-foreground">
                     {{ t('No mareas found') }}
@@ -412,44 +455,12 @@ const translatedStatuses = computed(() => {
                                 class="relative dropdown-container flex-shrink-0"
                             >
                                 <button
-                                    @click.stop="toggleActionsDropdown(marea.id)"
+                                    :ref="el => { if (el) buttonRefs[marea.id] = el as HTMLElement }"
+                                    @click.stop="toggleActionsDropdown(marea.id, $event)"
                                     class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-background dark:hover:bg-background transition-colors"
                                 >
                                     <Icon name="menu" class="w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
                                 </button>
-
-                                <!-- Actions Dropdown Menu -->
-                                <div
-                                    v-if="openDropdownId === marea.id"
-                                    @click.stop
-                                    class="absolute right-0 mt-2 w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg z-50"
-                                >
-                                    <div class="py-1">
-                                        <button
-                                            @click.stop="router.visit(mareas.show.url({ vessel: getCurrentVesselId(), mareaId: marea.id }))"
-                                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
-                                        >
-                                            <Icon name="eye" class="w-4 h-4 mr-3" />
-                                            {{ t('View Details') }}
-                                        </button>
-                                        <button
-                                            v-if="canEdit('mareas') && marea.status !== 'closed' && marea.status !== 'cancelled'"
-                                            @click.stop="router.visit(mareas.edit.url({ vessel: getCurrentVesselId(), mareaId: marea.id }))"
-                                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
-                                        >
-                                            <Icon name="edit" class="w-4 h-4 mr-3" />
-                                            {{ t('Edit Marea') }}
-                                        </button>
-                                        <button
-                                            v-if="canDelete('mareas')"
-                                            @click.stop="deleteMarea(marea)"
-                                            class="flex items-center w-full px-4 py-2 text-sm text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted transition-colors"
-                                        >
-                                            <Icon name="trash-2" class="w-4 h-4 mr-3" />
-                                            {{ t('Delete Marea') }}
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -485,6 +496,48 @@ const translatedStatuses = computed(() => {
             @update:open="showCreateModal = $event"
             @saved="router.reload()"
         />
+
+        <!-- Actions Dropdown Menu (Teleported) -->
+        <Teleport to="body">
+            <div
+                v-if="openDropdownId !== null && dropdownPosition"
+                class="dropdown-menu-portal fixed z-[9999]"
+                :style="{
+                    top: `${dropdownPosition.top}px`,
+                    right: `${dropdownPosition.right}px`,
+                }"
+                @click.stop
+            >
+                <div class="w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg">
+                    <div class="py-1">
+                        <button
+                            v-if="openDropdownId !== null"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) router.visit(mareas.show.url({ vessel: getCurrentVesselId(), mareaId: openDropdownId })); closeActionsDropdown()"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="eye" class="w-4 h-4 mr-3" />
+                            {{ t('View Details') }}
+                        </button>
+                        <button
+                            v-if="openDropdownId !== null && canEdit('mareas')"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea && marea.status !== 'closed' && marea.status !== 'cancelled') router.visit(mareas.edit.url({ vessel: getCurrentVesselId(), mareaId: openDropdownId })); closeActionsDropdown()"
+                            class="flex items-center w-full px-4 py-2 text-sm text-card-foreground dark:text-card-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="edit" class="w-4 h-4 mr-3" />
+                            {{ t('Edit Marea') }}
+                        </button>
+                        <button
+                            v-if="openDropdownId !== null && canDelete('mareas')"
+                            @click.stop="const marea = props.mareas.data.find(m => m.id === openDropdownId); if (marea) deleteMarea(marea); closeActionsDropdown()"
+                            class="flex items-center w-full px-4 py-2 text-sm text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted transition-colors"
+                        >
+                            <Icon name="trash-2" class="w-4 h-4 mr-3" />
+                            {{ t('Delete Marea') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </VesselLayout>
 </template>
 
