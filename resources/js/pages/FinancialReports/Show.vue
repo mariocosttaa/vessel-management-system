@@ -10,6 +10,9 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import financialReports from '@/routes/panel/financial-reports';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-vue-next';
+import ColorSelectionModal from '@/components/modals/Movimentation/ColorSelectionModal.vue';
+import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
+import { ref } from 'vue';
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
@@ -168,6 +171,76 @@ const getChangeColor = (change: number) => {
     return 'text-muted-foreground';
 };
 
+// PDF download state
+const showColorModal = ref(false);
+const showPdfModal = ref(false);
+const isDownloading = ref(false);
+let colorPreference = false;
+
+// Open color selection modal before download
+const openColorModal = () => {
+    showColorModal.value = true;
+};
+
+// Handle color selection confirmation
+const handleColorConfirm = (enableColors: boolean) => {
+    colorPreference = enableColors;
+    showColorModal.value = false;
+    startDownload();
+};
+
+// Start download after color selection
+const startDownload = () => {
+    showPdfModal.value = true;
+    isDownloading.value = true;
+};
+
+// Download PDF
+const downloadPdf = () => {
+    openColorModal();
+};
+
+const closePdfModal = () => {
+    if (!isDownloading.value) {
+        showPdfModal.value = false;
+    }
+};
+
+const handlePdfDownloadCancel = () => {
+    showPdfModal.value = false;
+    isDownloading.value = false;
+};
+
+const handlePdfReady = () => {
+    if (!isDownloading.value) return; // Canceled
+
+    const vesselId = getCurrentVesselId();
+    const params = new URLSearchParams();
+    if (colorPreference) {
+        params.append('enable_colors', '1');
+    }
+    const queryString = params.toString();
+    const url = financialReports.pdf.url({
+        vessel: vesselId,
+        year: year.value,
+        month: month.value
+    }) + (queryString ? '?' + queryString : '');
+
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Close modal after a short delay
+    setTimeout(() => {
+        showPdfModal.value = false;
+        isDownloading.value = false;
+    }, 500);
+};
+
 </script>
 
 <template>
@@ -189,13 +262,22 @@ const getChangeColor = (change: number) => {
                             {{ t('Comprehensive financial overview for') }} {{ monthLabel }} {{ year }}
                         </p>
                     </div>
-                    <Link
-                        :href="financialReports.index.url({ vessel: getCurrentVesselId() })"
-                        class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
-                    >
-                        <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-                        {{ t('Back to Reports') }}
-                    </Link>
+                    <div class="flex items-center gap-3">
+                        <button
+                            @click="downloadPdf"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground dark:text-primary-foreground font-medium transition-colors"
+                        >
+                            <Icon name="download" class="w-4 h-4 mr-2" />
+                            {{ t('Download PDF') }}
+                        </button>
+                        <Link
+                            :href="financialReports.index.url({ vessel: getCurrentVesselId() })"
+                            class="inline-flex items-center px-4 py-2 border border-border dark:border-border rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-medium transition-colors"
+                        >
+                            <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+                            {{ t('Back to Reports') }}
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -499,6 +581,21 @@ const getChangeColor = (change: number) => {
                 </div>
             </div>
         </div>
+
+        <!-- Color Selection Modal -->
+        <ColorSelectionModal
+            :open="showColorModal"
+            @close="showColorModal = false"
+            @confirm="handleColorConfirm"
+        />
+
+        <!-- PDF Loading Modal -->
+        <PdfLoadingModal
+            :open="showPdfModal"
+            @update:open="closePdfModal"
+            @cancel="handlePdfDownloadCancel"
+            @ready="handlePdfReady"
+        />
     </VesselLayout>
     <VesselLayout v-else :breadcrumbs="[]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">

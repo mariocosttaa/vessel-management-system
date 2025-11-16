@@ -269,6 +269,10 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/financial-reports/{year}/{month}', [FinancialReportController::class, 'show'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
         ->name('panel.financial-reports.show');
+    Route::get('/financial-reports/{year}/{month}/pdf', [FinancialReportController::class, 'downloadPdf'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{1,2}'])
+        ->name('panel.financial-reports.pdf');
+    Route::get('/test-pdf', [FinancialReportController::class, 'testPdf'])->name('panel.test-pdf');
 
     // VAT Reports (scoped to current vessel)
     Route::get('/vat-reports', [VatReportController::class, 'index'])->name('panel.vat-reports.index');
