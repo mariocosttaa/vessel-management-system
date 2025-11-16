@@ -362,11 +362,14 @@ class CrewMemberController extends Controller
             // Send invitation email (only if email is provided and not creating without email)
             if (! $createWithoutEmail && $crewMember->email) {
                 try {
+                    $inviter = $request->user(); // Get the logged-in user who is sending the invitation
                     Mail::to($crewMember->email)->queue(
                         new CrewMemberInvitationMail(
                             $crewMember,
                             $vessel,
-                            $invitationToken
+                            $invitationToken,
+                            null,
+                            $inviter
                         )
                     );
 
@@ -655,12 +658,15 @@ class CrewMemberController extends Controller
 
                 try {
                     $invitationToken = $crewMember->invitation_token;
+                    $inviter = $request->user(); // Get the logged-in user who is sending the invitation
 
                     Mail::to($crewMember->email)->queue(
                         new CrewMemberInvitationMail(
                             $crewMember,
                             $vessel,
-                            $invitationToken
+                            $invitationToken,
+                            null,
+                            $inviter
                         )
                     );
 
@@ -1051,8 +1057,9 @@ class CrewMemberController extends Controller
         // Send cancellation email if email exists
         if ($user->email) {
             try {
+                $inviter = $request->user(); // Get the logged-in user who is cancelling the invitation
                 Mail::to($user->email)->queue(
-                    new CrewMemberInvitationCancelledMail($user, $vessel)
+                    new CrewMemberInvitationCancelledMail($user, $vessel, $inviter)
                 );
 
                 // Track cancellation email
@@ -1135,11 +1142,14 @@ class CrewMemberController extends Controller
 
         // Send invitation email
         try {
+            $inviter = $request->user(); // Get the logged-in user who is sending the invitation
             Mail::to($user->email)->queue(
                 new CrewMemberInvitationMail(
                     $user,
                     $vessel,
-                    $invitationToken
+                    $invitationToken,
+                    null,
+                    $inviter
                 )
             );
 

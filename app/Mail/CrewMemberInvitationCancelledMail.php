@@ -22,7 +22,8 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
      */
     public function __construct(
         public User $user,
-        public Vessel $vessel
+        public Vessel $vessel,
+        public ?User $inviter = null
     ) {
         $this->onQueue('emails');
     }
@@ -32,11 +33,11 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
-        // Set locale based on user's preference
+        // Set locale based on inviter's preference (the logged-in user who cancelled the invitation)
+        // Use inviter's language if available, otherwise fallback to default
         $originalLocale = App::getLocale();
-        if ($this->user->language) {
-            App::setLocale($this->user->language);
-        }
+        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        App::setLocale($localeToUse);
 
         $subject = $this->transFrom('emails', 'Crew Member Invitation Cancelled') . ' - ' . config('app.name', 'Bindamy Mareas');
 
@@ -53,18 +54,18 @@ class CrewMemberInvitationCancelledMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
-        // Set locale for email content
+        // Set locale for email content based on inviter's preference (the logged-in user who cancelled the invitation)
+        // Use inviter's language if available, otherwise fallback to default
         $originalLocale = App::getLocale();
-        if ($this->user->language) {
-            App::setLocale($this->user->language);
-        }
+        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        App::setLocale($localeToUse);
 
         $content = new Content(
             view: 'emails.notifications.crew-member-invitation-cancelled',
             with: [
                 'user' => $this->user,
                 'vessel' => $this->vessel,
-                'locale' => $this->user->language ?? 'en',
+                'locale' => $localeToUse,
             ],
         );
 

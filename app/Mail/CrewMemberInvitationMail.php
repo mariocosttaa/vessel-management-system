@@ -24,7 +24,8 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
         public User $user,
         public Vessel $vessel,
         public string $invitationToken,
-        public ?string $roleName = null
+        public ?string $roleName = null,
+        public ?User $inviter = null
     ) {
         $this->onQueue('emails');
     }
@@ -34,11 +35,11 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
-        // Set locale based on user's preference
+        // Set locale based on inviter's preference (the logged-in user sending the invitation)
+        // Use inviter's language if available, otherwise fallback to default
         $originalLocale = App::getLocale();
-        if ($this->user->language) {
-            App::setLocale($this->user->language);
-        }
+        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        App::setLocale($localeToUse);
 
         $subject = $this->transFrom('emails', 'Crew Member Invitation') . ' - ' . config('app.name', 'Bindamy Mareas');
 
@@ -55,11 +56,11 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
-        // Set locale for email content
+        // Set locale for email content based on inviter's preference (the logged-in user sending the invitation)
+        // Use inviter's language if available, otherwise fallback to default
         $originalLocale = App::getLocale();
-        if ($this->user->language) {
-            App::setLocale($this->user->language);
-        }
+        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        App::setLocale($localeToUse);
 
         $acceptUrl = route('invitation.accept', [
             'token' => $this->invitationToken,
@@ -72,7 +73,7 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
                 'vessel' => $this->vessel,
                 'roleName' => $this->roleName,
                 'acceptUrl' => $acceptUrl,
-                'locale' => $this->user->language ?? 'en',
+                'locale' => $localeToUse,
             ],
         );
 
