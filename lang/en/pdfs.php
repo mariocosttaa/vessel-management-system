@@ -97,4 +97,18 @@ return [
     'Returned'                                       => 'Returned',
     'Closed'                                         => 'Closed',
     'Cancelled'                                      => 'Cancelled',
+
+    // Financial Report
+    'Financial Report'                               => 'Financial Report',
+    'Comprehensive financial overview for'           => 'Comprehensive financial overview for',
+    'Category Breakdown'                             => 'Category Breakdown',
+    'Expenses by Category'                           => 'Expenses by Category',
+    'Income by Category'                             => 'Income by Category',
+    'Daily Breakdown'                                => 'Daily Breakdown',
+    'Mareas (Fishing Trips)'                         => 'Mareas (Fishing Trips)',
+    'Percentage'                                     => 'Percentage',
+    'Count'                                          => 'Count',
+    'Net'                                            => 'Net',
+    'Quantity Returns'                               => 'Quantity Returns',
+    'Uncategorized'                                  => 'Uncategorized',
 ];

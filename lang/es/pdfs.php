@@ -89,4 +89,18 @@ return [
     'Returned'                                       => 'Regresado',
     'Closed'                                         => 'Cerrado',
     'Cancelled'                                      => 'Cancelado',
+
+    // Financial Report
+    'Financial Report'                               => 'Informe Financiero',
+    'Comprehensive financial overview for'           => 'Resumen financiero integral para',
+    'Category Breakdown'                             => 'Desglose por Categoría',
+    'Expenses by Category'                           => 'Gastos por Categoría',
+    'Income by Category'                             => 'Ingresos por Categoría',
+    'Daily Breakdown'                                => 'Desglose Diario',
+    'Mareas (Fishing Trips)'                         => 'Mareas (Viajes de Pesca)',
+    'Percentage'                                     => 'Porcentaje',
+    'Count'                                          => 'Cantidad',
+    'Net'                                            => 'Neto',
+    'Quantity Returns'                               => 'Retornos de Cantidad',
+    'Uncategorized'                                  => 'Sin Categoría',
 ];

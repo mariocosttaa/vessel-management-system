@@ -9,14 +9,14 @@ return [
     // Section headers
     'Period:'                                        => 'Período:',
     'Summary'                                        => 'Resumo',
-    'Transactions'                                   => 'Transações',
+    'Transactions'                                   => 'Movimentações',
 
     // Summary labels
     'Total Income'                                   => 'Total de Receitas',
     'Total Expenses'                                 => 'Total de Despesas',
     'Expense'                                        => 'Despesa',
     'Net Balance'                                    => 'Saldo Líquido',
-    'Total Transactions'                             => 'Total de Transações',
+    'Total Transactions'                             => 'Total de Movimentações',
 
     // Table headers
     'Date'                                           => 'Data',
@@ -61,8 +61,8 @@ return [
     'Item'                                           => 'Item',
     'Value'                                          => 'Valor',
     'Final Result'                                   => 'Resultado Final',
-    'Income Transactions'                            => 'Transações de Receita',
-    'Expense Transactions'                           => 'Transações de Despesa',
+    'Income Transactions'                            => 'Movimentações de Receita',
+    'Expense Transactions'                           => 'Movimentações de Despesa',
     'Crew Members'                                   => 'Membros da Tripulação',
     'Crew Member'                                    => 'Membro da Tripulação',
     'Salary Payments'                                => 'Pagamentos de Salário',
@@ -89,4 +89,18 @@ return [
     'Returned'                                       => 'Retornado',
     'Closed'                                         => 'Fechado',
     'Cancelled'                                      => 'Cancelado',
+
+    // Financial Report
+    'Financial Report'                               => 'Relatório Financeiro',
+    'Comprehensive financial overview for'           => 'Visão geral financeira abrangente para',
+    'Category Breakdown'                             => 'Resumo por Categoria',
+    'Expenses by Category'                           => 'Despesas por Categoria',
+    'Income by Category'                             => 'Receitas por Categoria',
+    'Daily Breakdown'                                => 'Resumo Diário',
+    'Mareas (Fishing Trips)'                         => 'Mareas (Viagens de Pesca)',
+    'Percentage'                                     => 'Percentagem',
+    'Count'                                          => 'Contagem',
+    'Net'                                            => 'Líquido',
+    'Quantity Returns'                               => 'Retornos de Quantidade',
+    'Uncategorized'                                  => 'Sem Categoria',
 ];
