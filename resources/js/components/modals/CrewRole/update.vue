@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { watch, computed } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import BaseModal from '@/components/modals/BaseModal.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import InputError from '@/components/InputError.vue';
 import { useI18n } from '@/composables/useI18n';
 
@@ -11,6 +12,20 @@ interface CrewPosition {
     id: number;
     name: string;
     is_global: boolean;
+    vessel_role_access_id?: number | null;
+    vessel_role?: {
+        id: number;
+        name: string;
+        display_name: string;
+        description?: string;
+    } | null;
+}
+
+interface VesselRole {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
 }
 
 interface Props {
@@ -20,6 +35,31 @@ interface Props {
 
 const props = defineProps<Props>();
 const { t } = useI18n();
+const page = usePage();
+
+// Get vessel roles from page props or API data
+const vesselRoles = computed(() => {
+    // Try to get from page props first
+    const pageRoles = (page.props as any).vesselRoles;
+    if (pageRoles && pageRoles.length > 0) {
+        return pageRoles;
+    }
+    return [];
+});
+
+// Convert to Select options
+const roleOptions = computed(() => {
+    const options = [
+        { value: '', label: t('No Role (Default)') }
+    ];
+    vesselRoles.value.forEach((role: VesselRole) => {
+        options.push({
+            value: role.id.toString(),
+            label: role.display_name
+        });
+    });
+    return options;
+});
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
@@ -27,14 +67,17 @@ const emit = defineEmits<{
     'open-permissions-info': [];
 }>();
 
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 
 const form = useForm({
     name: '',
+    vessel_role_access_id: '' as string | number | null,
 });
 
 // API URL for lazy loading
@@ -50,6 +93,9 @@ const apiUrl = computed(() => {
 watch(() => props.crewPosition, (position) => {
     if (position) {
         form.name = position.name;
+        form.vessel_role_access_id = position.vessel_role_access_id
+            ? position.vessel_role_access_id.toString()
+            : '';
     } else {
         form.reset();
     }
@@ -72,13 +118,29 @@ watch(() => props.open, (isOpen) => {
 const handleDataLoaded = (data: any) => {
     if (data?.crewPosition) {
         form.name = data.crewPosition.name;
+        form.vessel_role_access_id = data.crewPosition.vessel_role_access_id
+            ? data.crewPosition.vessel_role_access_id.toString()
+            : '';
         form.clearErrors();
+    }
+    // Update vessel roles if provided in API response
+    if (data?.vesselRoles) {
+        // Store in a way that roleOptions can access
+        (page.props as any).vesselRoles = data.vesselRoles;
     }
 };
 
 const handleSave = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId || !props.crewPosition) return;
+
+    // Convert vessel_role_access_id to number or null before submitting
+    const roleId = form.vessel_role_access_id && form.vessel_role_access_id !== ''
+        ? Number(form.vessel_role_access_id)
+        : null;
+
+    // Update form data with converted role ID
+    form.vessel_role_access_id = roleId;
 
     form.put(`/panel/${vesselId}/crew-roles/${props.crewPosition.id}`, {
         onSuccess: () => {
@@ -150,6 +212,35 @@ const handleClose = () => {
                     <p class="mt-1 text-xs text-muted-foreground">
                         {{ t('The scope cannot be changed after creation.') }}
                     </p>
+                </div>
+
+                <!-- Vessel Role Access -->
+                <div>
+                    <Label for="vessel_role_access_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                        {{ t('Access Level') }}
+                    </Label>
+                    <Select
+                        id="vessel_role_access_id"
+                        v-model="form.vessel_role_access_id"
+                        :options="roleOptions"
+                        :placeholder="t('Select access level for this position')"
+                        searchable
+                        :disabled="apiLoading"
+                        :class="{ 'border-destructive dark:border-destructive': form.errors.vessel_role_access_id }"
+                    >
+                        <template #option="{ option }">
+                            <div>
+                                <div class="font-medium">{{ option.label }}</div>
+                                <div v-if="option.value && vesselRoles.find((r: VesselRole) => r.id.toString() === option.value)" class="text-xs text-muted-foreground">
+                                    {{ vesselRoles.find((r: VesselRole) => r.id.toString() === option.value)?.description }}
+                                </div>
+                            </div>
+                        </template>
+                    </Select>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        {{ t('Members assigned to this position will automatically receive this access level. Changing this will update all existing members with this position.') }}
+                    </p>
+                    <InputError :message="form.errors.vessel_role_access_id" class="mt-1" />
                 </div>
             </form>
         </template>
