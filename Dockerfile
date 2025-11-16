@@ -49,8 +49,9 @@ RUN mkdir -p /var/www/html/storage/app/private \
     && mkdir -p /var/www/html/storage/framework/views \
     && mkdir -p /var/www/html/storage/logs
 
-# Set ownership for all storage directories
-RUN chown -R www-data:www-data /var/www/html/storage
+# Set ownership for storage and bootstrap/cache directories only (not entire app)
+RUN chown -R www-data:www-data /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html/bootstrap/cache
 
 # Set permissions: 755 for directories (as requested), but ensure they're writable
 # Note: 755 allows owner (www-data) to write, group and others can read/execute
@@ -68,9 +69,6 @@ RUN chmod 755 /var/www/html/storage/app \
     && chmod 755 /var/www/html/storage/framework/testing \
     && chmod 755 /var/www/html/storage/framework/views \
     && chmod 755 /var/www/html/storage/logs
-
-# Set ownership for entire application (needed for file operations)
-RUN chown -R www-data:www-data /var/www/html
 
 # Create supervisor configuration directories
 RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor
