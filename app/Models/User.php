@@ -45,6 +45,7 @@ class User extends Authenticatable
         'invitation_token',
         'invitation_sent_at',
         'invitation_accepted_at',
+        'invitation_language',
     ];
 
     /**

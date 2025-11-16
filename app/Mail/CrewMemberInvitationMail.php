@@ -35,10 +35,13 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
-        // Set locale based on inviter's preference (the logged-in user sending the invitation)
-        // Use inviter's language if available, otherwise fallback to default
+        // Set locale based on invitation language (stored when invitation was created)
+        // Fallback to inviter's language, then default
         $originalLocale = App::getLocale();
-        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        $localeToUse = $this->user->invitation_language
+            ?? $this->inviter?->language
+            ?? $originalLocale
+            ?? 'en';
         App::setLocale($localeToUse);
 
         $subject = $this->transFrom('emails', 'Crew Member Invitation') . ' - ' . config('app.name', 'Bindamy Mareas');
@@ -56,10 +59,13 @@ class CrewMemberInvitationMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
-        // Set locale for email content based on inviter's preference (the logged-in user sending the invitation)
-        // Use inviter's language if available, otherwise fallback to default
+        // Set locale for email content based on invitation language (stored when invitation was created)
+        // Fallback to inviter's language, then default
         $originalLocale = App::getLocale();
-        $localeToUse = $this->inviter?->language ?? $originalLocale ?? 'en';
+        $localeToUse = $this->user->invitation_language
+            ?? $this->inviter?->language
+            ?? $originalLocale
+            ?? 'en';
         App::setLocale($localeToUse);
 
         $acceptUrl = route('invitation.accept', [

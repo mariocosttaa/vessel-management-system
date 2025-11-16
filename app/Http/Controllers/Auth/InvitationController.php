@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\App;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,6 +57,15 @@ class InvitationController extends Controller
         $nameParts = explode(' ', $user->name, 2);
         $firstName = $nameParts[0] ?? '';
         $surname   = $nameParts[1] ?? '';
+
+        // Set locale based on invitation language (the language of the person who sent the invitation)
+        $supportedLocales = ['en', 'pt', 'es', 'fr'];
+        $invitationLocale = $user->invitation_language ?? 'en';
+        if (in_array($invitationLocale, $supportedLocales)) {
+            App::setLocale($invitationLocale);
+            // Set cookie so frontend can pick it up
+            cookie()->queue('locale', $invitationLocale, 60 * 24 * 365);
+        }
 
         return Inertia::render('auth/AcceptInvitation', [
             'token'    => $token,

@@ -260,9 +260,11 @@ class CrewMemberController extends Controller
                 }
 
                 // Set invitation token for existing users too (they need to accept to link to vessel)
+                $inviter = $request->user();
                 $crewMember->update([
-                    'invitation_token'   => $invitationToken,
-                    'invitation_sent_at' => now(),
+                    'invitation_token'     => $invitationToken,
+                    'invitation_sent_at'   => now(),
+                    'invitation_language'  => $inviter?->language ?? 'en',
                 ]);
             } else {
                 // Create new user
@@ -287,11 +289,13 @@ class CrewMemberController extends Controller
                                                                             // No invitation token
                 } else {
                     // Create with email - will send invitation
-                    $userData['email']              = $email;
-                    $userData['login_permitted']    = false;                   // Will be enabled when they accept invitation
-                    $userData['password']           = bcrypt(Str::random(64)); // Temporary password - user will set their own when accepting invitation
-                    $userData['invitation_token']   = $invitationToken;
-                    $userData['invitation_sent_at'] = now();
+                    $inviter = $request->user();
+                    $userData['email']                = $email;
+                    $userData['login_permitted']      = false;                   // Will be enabled when they accept invitation
+                    $userData['password']             = bcrypt(Str::random(64)); // Temporary password - user will set their own when accepting invitation
+                    $userData['invitation_token']     = $invitationToken;
+                    $userData['invitation_sent_at']   = now();
+                    $userData['invitation_language']  = $inviter?->language ?? 'en';
                 }
 
                 $crewMember = User::create($userData);
@@ -600,8 +604,10 @@ class CrewMemberController extends Controller
                         $invitationToken = $crewMember->invitation_token;
                     }
 
-                    // Set invitation sent date
+                    // Set invitation sent date and language
+                    $inviter = $request->user();
                     $updateData['invitation_sent_at'] = now();
+                    $updateData['invitation_language'] = $inviter?->language ?? 'en';
                     // Initially set login_permitted to false - they need to accept invitation first
                     // This matches the create flow where users must accept invitation before they can log in
                     $updateData['login_permitted'] = false;
@@ -1157,15 +1163,16 @@ class CrewMemberController extends Controller
         }
 
         // Generate new invitation token
+        $inviter = $request->user();
         $invitationToken = Str::random(64);
         $user->update([
-            'invitation_token'   => $invitationToken,
-            'invitation_sent_at' => now(),
+            'invitation_token'     => $invitationToken,
+            'invitation_sent_at'   => now(),
+            'invitation_language'  => $inviter?->language ?? 'en',
         ]);
 
         // Send invitation email
         try {
-            $inviter = $request->user(); // Get the logged-in user who is sending the invitation
             Mail::to($user->email)->queue(
                 new CrewMemberInvitationMail(
                     $user,
