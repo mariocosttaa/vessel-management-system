@@ -1355,5 +1355,6 @@
     "Remove Crew Member": "Remove Crew Member",
     "To remove system access for this crew member, you must remove them from the vessel. This action cannot be undone.": "To remove system access for this crew member, you must remove them from the vessel. This action cannot be undone.",
     "This user has an existing account. To remove system access, you must remove the crew member from the vessel.": "This user has an existing account. To remove system access, you must remove the crew member from the vessel.",
-    "This crew member currently has system access. To remove access, you must remove the crew member.": "This crew member currently has system access. To remove access, you must remove the crew member."
+    "This crew member currently has system access. To remove access, you must remove the crew member.": "This crew member currently has system access. To remove access, you must remove the crew member.",
+    "On Leave": "On Leave"
 }

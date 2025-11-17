@@ -1281,5 +1281,7 @@
     "To remove system access for this crew member, you must remove them from the vessel. This action cannot be undone.": "Para eliminar el acceso al sistema de este miembro de la tripulación, debe eliminarlo de la embarcación. Esta acción no se puede deshacer.",
     "This user has an existing account. To remove system access, you must remove the crew member from the vessel.": "Este usuario tiene una cuenta existente. Para eliminar el acceso al sistema, debe eliminar el miembro de la tripulación de la embarcación.",
     "This crew member currently has system access. To remove access, you must remove the crew member.": "Este miembro de la tripulación actualmente tiene acceso al sistema. Para eliminar el acceso, debe eliminar el miembro de la tripulación.",
-    "Please wait while we create your PDF report...": "Por favor, espere mientras creamos su informe PDF..."
+    "Please wait while we create your PDF report...": "Por favor, espere mientras creamos su informe PDF...",
+    "On Leave": "En Licencia",
+    "Check this if this member is an administrative member rather than a crew member": "Marque esto si este miembro es un miembro administrativo en lugar de un miembro de la tripulación"
 }

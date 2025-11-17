@@ -380,6 +380,19 @@ const getStatusBadgeClass = (status: string) => {
     }
 };
 
+const getStatusLabel = (status: string) => {
+    switch (status) {
+        case 'active':
+            return t('Active');
+        case 'inactive':
+            return t('Inactive');
+        case 'on_leave':
+            return t('On Leave');
+        default:
+            return status ? t(status.charAt(0).toUpperCase() + status.slice(1)) : '';
+    }
+};
+
 const getSystemAccessBadgeClass = (hasAccess: boolean | undefined) => {
     const baseClass = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
 
@@ -641,7 +654,7 @@ const formatDate = (dateString: string) => {
                             <!-- Custom cell for status -->
                             <template #cell-status_label="{ item }">
                                 <span :class="getStatusBadgeClass(item.status)">
-                                    {{ item.status_label }}
+                                    {{ getStatusLabel(item.status) }}
                                 </span>
                             </template>
 
@@ -691,7 +704,7 @@ const formatDate = (dateString: string) => {
                             <!-- Custom cell for status -->
                             <template #cell-status_label="{ item }">
                                 <span :class="getStatusBadgeClass(item.status)">
-                                    {{ item.status_label }}
+                                    {{ getStatusLabel(item.status) }}
                                 </span>
                             </template>
 
