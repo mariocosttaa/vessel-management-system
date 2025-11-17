@@ -39,7 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Dropdown state
 const openDropdownId = ref<number | null>(null);
-const dropdownPosition = ref<{ top: number; right: number } | null>(null);
+const dropdownPosition = ref<{ top: number; bottom: number; right: number; openUp: boolean } | null>(null);
 const currentItem = ref<any>(null);
 
 // Click outside handler
@@ -72,9 +72,33 @@ const toggleActionsDropdown = (itemId: number, event?: MouseEvent) => {
     const button = event?.currentTarget as HTMLElement;
     if (button) {
         const rect = button.getBoundingClientRect();
+        const dropdownHeight = 200; // Approximate height of dropdown menu (adjust if needed)
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const minSpace = 8; // Minimum space from viewport edge
+        const openUp = spaceBelow < dropdownHeight + minSpace && spaceAbove > spaceBelow;
+
+        // Calculate position ensuring dropdown stays within viewport
+        let top = 0;
+        let bottom = 0;
+
+        if (openUp) {
+            // Position above button, but ensure it doesn't go off top of screen
+            const calculatedBottom = window.innerHeight - rect.top + minSpace;
+            const maxBottom = window.innerHeight - minSpace; // Leave some space at top
+            bottom = Math.min(calculatedBottom, maxBottom);
+        } else {
+            // Position below button, but ensure it doesn't go off bottom of screen
+            const calculatedTop = rect.bottom + minSpace;
+            const maxTop = window.innerHeight - dropdownHeight - minSpace;
+            top = Math.min(calculatedTop, maxTop);
+        }
+
         dropdownPosition.value = {
-            top: rect.bottom + 8, // 8px offset (mt-2)
+            top: openUp ? 0 : top,
+            bottom: openUp ? bottom : 0,
             right: window.innerWidth - rect.right,
+            openUp,
         };
     }
 
@@ -200,12 +224,13 @@ const getActionsForItem = (item: any): Action[] => {
                 v-if="openDropdownId !== null && dropdownPosition && currentItem"
                 class="dropdown-menu-portal fixed z-[9999]"
                 :style="{
-                    top: `${dropdownPosition.top}px`,
+                    top: dropdownPosition.openUp ? 'auto' : `${dropdownPosition.top}px`,
+                    bottom: dropdownPosition.openUp ? `${dropdownPosition.bottom}px` : 'auto',
                     right: `${dropdownPosition.right}px`,
                 }"
                 @click.stop
             >
-                <div class="w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg">
+                <div class="w-48 bg-card dark:bg-card border border-border dark:border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto">
                     <div class="py-1">
                         <button
                             v-for="action in getActionsForItem(currentItem)"

@@ -46,7 +46,10 @@
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="absolute z-50 mt-1 w-full rounded-lg border border-border dark:border-border bg-card dark:bg-card shadow-lg"
+        :class="[
+          'absolute z-50 w-full rounded-lg border border-border dark:border-border bg-card dark:bg-card shadow-lg',
+          dropdownOpenUp ? 'mb-1 bottom-full' : 'mt-1 top-full'
+        ]"
         @click.stop
         @mousedown="handleDropdownMouseDown"
       >
@@ -97,9 +100,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { ChevronDownIcon } from 'lucide-vue-next'
 import { cn } from '@/lib/utils'
+
+// Global registry to track open selects and their close functions
+type CloseFunction = () => void
+const openSelects = new Map<symbol, CloseFunction>()
+
+// Generate unique ID for this select instance
+const SELECT_ID = Symbol('select-instance')
 
 interface Option {
   value: string | number | null
@@ -135,10 +145,34 @@ const emit = defineEmits<{
 const inputRef = ref<HTMLInputElement>()
 const searchInputRef = ref<HTMLInputElement>()
 const dropdownRef = ref<HTMLDivElement>()
+const containerRef = ref<HTMLDivElement>()
 const isOpen = ref(false)
 const searchQuery = ref('')
 const highlightedIndex = ref(-1)
 const isClickingInsideDropdown = ref(false)
+const dropdownOpenUp = ref(false)
+
+// Close all other selects when this one opens
+const closeOtherSelects = () => {
+  openSelects.forEach((closeFn, id) => {
+    if (id !== SELECT_ID) {
+      closeFn()
+    }
+  })
+  openSelects.clear()
+}
+
+// Handle click outside
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (
+    containerRef.value &&
+    !containerRef.value.contains(target) &&
+    isOpen.value
+  ) {
+    closeSelect()
+  }
+}
 
 const inputClasses = computed(() => cn(
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
@@ -208,20 +242,52 @@ const handleInputClick = () => {
   }
 }
 
+const closeSelect = () => {
+  if (!isOpen.value) return
+  isOpen.value = false
+  highlightedIndex.value = -1
+  dropdownOpenUp.value = false
+  openSelects.delete(SELECT_ID)
+}
+
 const toggleOpen = () => {
   if (props.disabled) return
 
-  isOpen.value = !isOpen.value
-  if (isOpen.value && props.searchable) {
-    // Clear search query when opening dropdown to allow fresh search
-    searchQuery.value = ''
-    nextTick(() => {
+  const willOpen = !isOpen.value
+  
+  if (willOpen) {
+    // Close all other selects first
+    closeOtherSelects()
+    // Register this select as open with its close function
+    openSelects.set(SELECT_ID, closeSelect)
+  } else {
+    closeSelect()
+    return
+  }
+
+  isOpen.value = true
+  
+  // Calculate if dropdown should open upward
+  nextTick(() => {
+    if (inputRef.value) {
+      const rect = inputRef.value.getBoundingClientRect()
+      const searchInputHeight = props.searchable ? 60 : 0 // Approximate search input height
+      const dropdownHeight = 240 + searchInputHeight // max-h-60 (240px) + search input if searchable
+      const minSpace = 8 // Minimum space from viewport edge
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      dropdownOpenUp.value = spaceBelow < dropdownHeight + minSpace && spaceAbove > spaceBelow
+    }
+    
+    if (props.searchable) {
+      // Clear search query when opening dropdown to allow fresh search
+      searchQuery.value = ''
       // Small delay to ensure dropdown is rendered
       setTimeout(() => {
         searchInputRef.value?.focus()
       }, 50)
-    })
-  }
+    }
+  })
 }
 
 const selectOption = (option: any) => {
@@ -229,8 +295,7 @@ const selectOption = (option: any) => {
   emit('update:modelValue', value)
   // Clear search query when option is selected
   searchQuery.value = ''
-  isOpen.value = false
-  highlightedIndex.value = -1
+  closeSelect()
 }
 
 const handleBlur = (event: FocusEvent) => {
@@ -254,8 +319,7 @@ const handleBlur = (event: FocusEvent) => {
     if (activeElement && dropdownRef.value?.contains(activeElement)) {
       return
     }
-    isOpen.value = false
-    highlightedIndex.value = -1
+    closeSelect()
   }, 150)
 }
 
@@ -276,7 +340,20 @@ const handleKeydown = (event: KeyboardEvent) => {
     case 'ArrowDown':
       event.preventDefault()
       if (!isOpen.value) {
+        closeOtherSelects()
+        openSelects.set(SELECT_ID, closeSelect)
         isOpen.value = true
+        nextTick(() => {
+          if (inputRef.value) {
+            const rect = inputRef.value.getBoundingClientRect()
+            const searchInputHeight = props.searchable ? 60 : 0
+            const dropdownHeight = 240 + searchInputHeight
+            const minSpace = 8
+            const spaceBelow = window.innerHeight - rect.bottom
+            const spaceAbove = rect.top
+            dropdownOpenUp.value = spaceBelow < dropdownHeight + minSpace && spaceAbove > spaceBelow
+          }
+        })
       } else {
         highlightedIndex.value = Math.min(highlightedIndex.value + 1, filteredOptions.value.length - 1)
       }
@@ -288,8 +365,7 @@ const handleKeydown = (event: KeyboardEvent) => {
       }
       break
     case 'Escape':
-      isOpen.value = false
-      highlightedIndex.value = -1
+      closeSelect()
       break
   }
 }
@@ -311,8 +387,7 @@ const handleSearchKeydown = (event: KeyboardEvent) => {
       }
       break
     case 'Escape':
-      isOpen.value = false
-      highlightedIndex.value = -1
+      closeSelect()
       break
   }
 }
@@ -322,6 +397,17 @@ watch(() => isOpen.value, (isOpenNow) => {
   if (!isOpenNow) {
     // Clear search query when closing dropdown
     searchQuery.value = ''
+    dropdownOpenUp.value = false
+    openSelects.delete(SELECT_ID)
   }
+})
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  openSelects.delete(SELECT_ID)
 })
 </script>
