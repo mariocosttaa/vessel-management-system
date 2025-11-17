@@ -1389,7 +1389,7 @@ const openSectionPdfModal = (section: 'expenses' | 'expensesWithSalary' | 'incom
         return;
     }
 
-    if (section === 'crew' && marea.crew_members.length === 0) {
+    if (section === 'crew' && props.marea.crew_members.length === 0) {
         addNotification({
             type: 'warning',
             title: t('No Data'),
@@ -1398,7 +1398,7 @@ const openSectionPdfModal = (section: 'expenses' | 'expensesWithSalary' | 'incom
         return;
     }
 
-    if (section === 'quantity' && (marea.quantity_returns.length === 0 || (marea.status !== 'returned' && marea.status !== 'closed'))) {
+    if (section === 'quantity' && (props.marea.quantity_returns.length === 0 || (props.marea.status !== 'returned' && props.marea.status !== 'closed'))) {
         addNotification({
             type: 'warning',
             title: t('No Data'),
@@ -3275,7 +3275,7 @@ const cancelDeleteMarea = () => {
         <!-- PDF Download Modal -->
         <DownloadPdfModal
             :open="showDownloadPdfModal"
-            :marea-status="marea.status"
+            :marea-status="props.marea.status"
             :pre-select-section="preSelectSection"
             @update:open="showDownloadPdfModal = $event"
             @close="showDownloadPdfModal = false; preSelectSection = undefined"
