@@ -13,6 +13,8 @@ const user = computed(() => page.props.auth?.user)
 
 // Animation state
 const visibleSections = ref<Set<string>>(new Set())
+const videoLoaded = ref(false)
+const videoElement = ref<HTMLVideoElement | null>(null)
 
 // Observe all sections on mount
 onMounted(() => {
@@ -70,6 +72,15 @@ onMounted(() => {
             observer.observe(element)
         }
     })
+
+    // Load video when page is ready (hero section is always visible)
+    // Using setTimeout to ensure it doesn't block initial page render
+    setTimeout(() => {
+        videoLoaded.value = true
+        if (videoElement.value) {
+            videoElement.value.load()
+        }
+    }, 100)
 })
 
 const features = computed(() => [
@@ -206,18 +217,29 @@ const testimonials = computed(() => [
                         </a>
                     </div>
 
-                    <!-- Video/Image Placeholder -->
-                    <div class="relative mx-auto max-w-4xl rounded-xl overflow-hidden border border-border/50 dark:border-sidebar-border/50 shadow-xl bg-card/50 dark:bg-card/30 backdrop-blur-sm">
-                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted dark:from-muted/30 dark:to-muted/20 flex items-center justify-center relative group cursor-pointer">
-                            <!-- Placeholder content -->
-                            <div class="text-center p-8">
-                                <div class="mb-4 inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/20 dark:bg-primary/30 border-2 border-primary/50">
-                                    <Icon name="play" class="w-10 h-10 text-primary" />
+                    <!-- Video Demo -->
+                    <div id="hero-video" class="relative mx-auto max-w-4xl rounded-xl overflow-hidden border border-border/50 dark:border-sidebar-border/50 shadow-xl bg-card/50 dark:bg-card/30 backdrop-blur-sm">
+                        <div class="aspect-video relative bg-gradient-to-br from-muted/50 to-muted dark:from-muted/30 dark:to-muted/20">
+                            <video
+                                ref="videoElement"
+                                class="w-full h-full object-cover"
+                                autoplay
+                                muted
+                                loop
+                                playsinline
+                                :preload="videoLoaded ? 'auto' : 'none'"
+                            >
+                                <source v-if="videoLoaded" src="/bindamy-marea-presentation.mp4" type="video/mp4" />
+                            </video>
+                            <!-- Loading placeholder -->
+                            <div v-if="!videoLoaded" class="absolute inset-0 flex items-center justify-center">
+                                <div class="text-center p-8">
+                                    <div class="mb-4 inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/20 dark:bg-primary/30 border-2 border-primary/50">
+                                        <Icon name="play" class="w-10 h-10 text-primary" />
+                                    </div>
+                                    <p class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('System Demo') }}</p>
                                 </div>
-                                <p class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('System Demo') }}</p>
                             </div>
-                            <!-- Overlay on hover -->
-                            <div class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </div>
                     </div>
                 </div>
@@ -433,8 +455,8 @@ const testimonials = computed(() => [
                         <div class="space-y-3">
                             <div class="flex items-center gap-3">
                                 <Icon name="mail" class="w-5 h-5 text-primary flex-shrink-0" />
-                                <a href="mailto:geral@mareas.bindamy.site" class="text-sm text-card-foreground dark:text-card-foreground hover:text-primary transition-colors">
-                                    geral@mareas.bindamy.site
+                                <a href="mailto:support@bindamy.site" class="text-sm text-card-foreground dark:text-card-foreground hover:text-primary transition-colors">
+                                    support@bindamy.site
                                 </a>
                             </div>
                             <div class="flex items-center gap-3">
@@ -456,7 +478,7 @@ const testimonials = computed(() => [
                                 {{ t('Contact us for a personalized demo and pricing information tailored to your needs.') }}
                             </p>
                             <a
-                                href="mailto:geral@mareas.bindamy.site"
+                                href="mailto:support@bindamy.site"
                                 class="inline-flex items-center justify-center w-full px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 <Icon name="mail" class="w-4 h-4 mr-2" />
@@ -558,7 +580,7 @@ const testimonials = computed(() => [
                             </p>
                         </div>
                         <a
-                            href="mailto:geral@mareas.bindamy.site"
+                            href="mailto:support@bindamy.site"
                             class="inline-flex items-center justify-center w-full px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
                         >
                             <Icon name="mail" class="w-4 h-4 mr-2" />
