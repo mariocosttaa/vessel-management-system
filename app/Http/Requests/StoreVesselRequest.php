@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Vessel;
 use App\Models\Country;
 use App\Models\Currency;
+use App\Models\VatProfile;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,8 +17,9 @@ use Illuminate\Validation\Rule;
  * @property int|null $year_built
  * @property string $status
  * @property string|null $notes
- * @property string|null $country_code
- * @property string|null $currency_code
+ * @property string $country_code
+ * @property string $currency_code
+ * @property int $vat_profile_id
  * @method array all()
  * @method mixed input(string $key = null, mixed $default = null)
  * @method void merge(array $data)
@@ -40,13 +42,14 @@ class StoreVesselRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['required', 'string', 'max:100', Rule::unique(Vessel::class, 'registration_number')],
-            'vessel_type' => ['required', 'in:cargo,passenger,fishing,yacht'],
+            'vessel_type' => ['required', 'in:cargo,passenger,fishing,fish,yacht'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'year_built' => ['nullable', 'integer', 'min:1900', 'max:' . date('Y')],
             'status' => ['required', 'in:active,suspended,maintenance'],
             'notes' => ['nullable', 'string', 'max:1000'],
-            'country_code' => ['nullable', 'string', 'size:2', Rule::exists(Country::class, 'code')],
-            'currency_code' => ['nullable', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
+            'country_code' => ['required', 'string', 'size:2', Rule::exists(Country::class, 'code')],
+            'currency_code' => ['required', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
+            'vat_profile_id' => ['required', 'integer', Rule::exists(VatProfile::class, 'id')],
         ];
     }
 
@@ -68,6 +71,12 @@ class StoreVesselRequest extends FormRequest
             'status.required' => 'Please select a status.',
             'status.in' => 'The selected status is invalid.',
             'notes.max' => 'Notes may not be greater than 1000 characters.',
+            'country_code.required' => 'Please select a country.',
+            'country_code.exists' => 'The selected country is invalid.',
+            'currency_code.required' => 'Please select a currency.',
+            'currency_code.exists' => 'The selected currency is invalid.',
+            'vat_profile_id.required' => 'Please select a VAT profile.',
+            'vat_profile_id.exists' => 'The selected VAT profile is invalid.',
         ];
     }
 

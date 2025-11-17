@@ -6,10 +6,10 @@
         <!-- Simple Header -->
         <div class="text-center mb-8">
           <h1 class="text-4xl font-bold text-card-foreground dark:text-card-foreground mb-4">
-            Create New Vessel
+            {{ t('Create New Vessel') }}
           </h1>
           <p class="text-lg text-muted-foreground dark:text-muted-foreground">
-            Add a new vessel to your fleet
+            {{ t('Add a new vessel to your fleet') }}
           </p>
         </div>
 
@@ -24,14 +24,14 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Vessel Name -->
             <div class="space-y-2">
-              <Label for="name">Vessel Name *</Label>
+              <Label for="name">{{ t('Vessel Name') }} <span class="text-destructive">*</span></Label>
               <Input
                 id="name"
                 name="name"
                 type="text"
                 required
                 autofocus
-                placeholder="Enter vessel name"
+                :placeholder="t('Enter vessel name')"
                 :class="{ 'border-destructive': errors.name }"
               />
               <InputError :message="errors.name" />
@@ -39,13 +39,13 @@
 
             <!-- Registration Number -->
             <div class="space-y-2">
-              <Label for="registration_number">Registration Number *</Label>
+              <Label for="registration_number">{{ t('Registration Number') }} <span class="text-destructive">*</span></Label>
               <Input
                 id="registration_number"
                 name="registration_number"
                 type="text"
                 required
-                placeholder="Enter registration number"
+                :placeholder="t('Enter registration number')"
                 :class="{ 'border-destructive': errors.registration_number }"
               />
               <InputError :message="errors.registration_number" />
@@ -53,13 +53,13 @@
 
             <!-- Vessel Type -->
             <div class="space-y-2">
-              <Label for="vessel_type">Vessel Type *</Label>
+              <Label for="vessel_type">{{ t('Vessel Type') }} <span class="text-destructive">*</span></Label>
               <Select
                 id="vessel_type"
                 name="vessel_type"
                 v-model="vesselType"
                 :options="vesselTypeOptions"
-                placeholder="Select vessel type"
+                :placeholder="t('Select vessel type')"
                 :error="!!errors.vessel_type"
               />
               <InputError :message="errors.vessel_type" />
@@ -67,13 +67,13 @@
 
             <!-- Status -->
             <div class="space-y-2">
-              <Label for="status">Status *</Label>
+              <Label for="status">{{ t('Status') }} <span class="text-destructive">*</span></Label>
               <Select
                 id="status"
                 name="status"
                 v-model="status"
                 :options="statusOptions"
-                placeholder="Select status"
+                :placeholder="t('Select status')"
                 :error="!!errors.status"
               />
               <InputError :message="errors.status" />
@@ -84,13 +84,13 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Capacity -->
             <div class="space-y-2">
-              <Label for="capacity">Capacity</Label>
+              <Label for="capacity">{{ t('Capacity') }}</Label>
               <Input
                 id="capacity"
                 name="capacity"
                 type="number"
                 min="1"
-                placeholder="Enter capacity"
+                :placeholder="t('Enter capacity')"
                 :class="{ 'border-destructive': errors.capacity }"
               />
               <InputError :message="errors.capacity" />
@@ -98,14 +98,14 @@
 
             <!-- Year Built -->
             <div class="space-y-2">
-              <Label for="year_built">Year Built</Label>
+              <Label for="year_built">{{ t('Year Built') }}</Label>
               <Input
                 id="year_built"
                 name="year_built"
                 type="number"
                 :min="1900"
                 :max="new Date().getFullYear()"
-                placeholder="Enter year built"
+                :placeholder="t('Enter year built')"
                 :class="{ 'border-destructive': errors.year_built }"
               />
               <InputError :message="errors.year_built" />
@@ -113,13 +113,13 @@
 
             <!-- Country -->
             <div class="space-y-2">
-              <Label for="country_code">Country</Label>
+              <Label for="country_code">{{ t('Country') }} <span class="text-destructive">*</span></Label>
               <Select
                 id="country_code"
                 name="country_code"
                 v-model="countryCode"
                 :options="countryOptions"
-                placeholder="Select country"
+                :placeholder="t('Select country')"
                 searchable
                 :error="!!errors.country_code"
               />
@@ -128,13 +128,13 @@
 
             <!-- Currency -->
             <div class="space-y-2">
-              <Label for="currency_code">Currency</Label>
+              <Label for="currency_code">{{ t('Currency') }} <span class="text-destructive">*</span></Label>
               <Select
                 id="currency_code"
                 name="currency_code"
                 v-model="currencyCode"
                 :options="currencyOptions"
-                placeholder="Select currency"
+                :placeholder="t('Select currency')"
                 searchable
                 :error="!!errors.currency_code"
               />
@@ -142,14 +142,29 @@
             </div>
           </div>
 
+          <!-- VAT Profile -->
+          <div class="space-y-2">
+            <Label for="vat_profile_id">{{ t('VAT Profile') }} <span class="text-destructive">*</span></Label>
+            <Select
+              id="vat_profile_id"
+              name="vat_profile_id"
+              v-model="vatProfileId"
+              :options="vatProfileOptions"
+              :placeholder="t('Select a VAT profile')"
+              searchable
+              :error="!!errors.vat_profile_id"
+            />
+            <InputError :message="errors.vat_profile_id" />
+          </div>
+
           <!-- Notes -->
           <div class="space-y-2">
-            <Label for="notes">Notes</Label>
+            <Label for="notes">{{ t('Notes') }}</Label>
             <textarea
               id="notes"
               name="notes"
               rows="3"
-              placeholder="Enter additional notes"
+              :placeholder="t('Enter additional notes')"
               class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               :class="{ 'border-destructive': errors.notes }"
             ></textarea>
@@ -164,7 +179,7 @@
               class="inline-flex items-center px-4 py-2 text-sm font-medium text-muted-foreground hover:text-card-foreground transition-colors"
             >
               <Icon name="arrow-left" class="w-4 h-4 mr-2" />
-              Back to Vessels
+              {{ t('Back to Vessels') }}
             </button>
 
             <div class="flex items-center space-x-3">
@@ -173,7 +188,7 @@
                 @click="goBack"
                 class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-card-foreground transition-colors"
               >
-                Cancel
+                {{ t('Cancel') }}
               </button>
               <Button
                 type="submit"
@@ -190,7 +205,7 @@
                   name="plus"
                   class="w-4 h-4 mr-2"
                 />
-                {{ processing ? 'Creating...' : 'Create Vessel' }}
+                {{ processing ? t('Creating...') : t('Create Vessel') }}
               </Button>
             </div>
           </div>
@@ -204,7 +219,6 @@
 <script setup lang="ts">
 import { Form, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
-import { ArrowLeft, Plus, LoaderCircle } from 'lucide-vue-next'
 import Icon from '@/components/Icon.vue'
 import InputError from '@/components/InputError.vue'
 import { Button } from '@/components/ui/button'
@@ -213,25 +227,40 @@ import { Select } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import IndexDefaultLayout from '@/layouts/IndexDefault/IndexDefaultLayout.vue'
 import type { BreadcrumbItemType } from '@/types'
+import { useI18n } from '@/composables/useI18n'
+
+interface VatProfile {
+  id: number
+  name: string
+  percentage: number
+  country: {
+    id: number
+    name: string
+    code: string
+  } | null
+}
 
 interface Props {
   vesselTypes: Record<string, string>
   statuses: Record<string, string>
   countries: Array<{ code: string; name: string }>
   currencies: Array<{ code: string; name: string; symbol: string }>
+  vatProfiles: VatProfile[]
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 // Form values for Select components
 const vesselType = ref('')
 const status = ref('')
 const countryCode = ref('')
 const currencyCode = ref('')
+const vatProfileId = ref<number | null>(null)
 
 // Convert to Select component options format
 const vesselTypeOptions = computed(() => {
-    const options = [{ value: '', label: 'Select vessel type' }];
+    const options = [{ value: '', label: t('Select vessel type') }];
     Object.entries(props.vesselTypes).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -239,7 +268,7 @@ const vesselTypeOptions = computed(() => {
 });
 
 const statusOptions = computed(() => {
-    const options = [{ value: '', label: 'Select status' }];
+    const options = [{ value: '', label: t('Select status') }];
     Object.entries(props.statuses).forEach(([value, label]) => {
         options.push({ value, label: label as string });
     });
@@ -247,7 +276,7 @@ const statusOptions = computed(() => {
 });
 
 const countryOptions = computed(() => {
-    const options = [{ value: '', label: 'Select country' }];
+    const options = [{ value: '', label: t('Select country') }];
     props.countries.forEach(country => {
         options.push({ value: country.code, label: country.name });
     });
@@ -255,24 +284,34 @@ const countryOptions = computed(() => {
 });
 
 const currencyOptions = computed(() => {
-    const options = [{ value: '', label: 'Select currency' }];
+    const options = [{ value: '', label: t('Select currency') }];
     props.currencies.forEach(currency => {
         options.push({ value: currency.code, label: `${currency.name} (${currency.symbol})` });
     });
     return options;
 });
 
+const vatProfileOptions = computed(() => {
+    const options = [{ value: null, label: t('Select a VAT profile') }];
+    props.vatProfiles.forEach(profile => {
+        const countryPart = profile.country ? ` (${profile.country.name})` : '';
+        const label = `${profile.name}${countryPart} - ${profile.percentage}%`;
+        options.push({ value: profile.id, label });
+    });
+    return options;
+});
+
 // Breadcrumbs
-const breadcrumbs: BreadcrumbItemType[] = [
+const breadcrumbs = computed<BreadcrumbItemType[]>(() => [
   {
-    title: 'Vessels',
+    title: t('Vessels'),
     href: '/panel',
   },
   {
-    title: 'Create New Vessel',
+    title: t('Create New Vessel'),
     href: '/panel/vessel/create',
   },
-]
+])
 
 const goBack = () => {
   router.visit('/panel')

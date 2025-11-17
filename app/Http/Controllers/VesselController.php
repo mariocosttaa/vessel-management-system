@@ -61,6 +61,7 @@ class VesselController extends BaseController
                 'cargo'     => 'Cargo',
                 'passenger' => 'Passenger',
                 'fishing'   => 'Fishing',
+                'fish'      => 'Fish',
                 'yacht'     => 'Yacht',
             ],
             'statuses'      => [
@@ -90,6 +91,7 @@ class VesselController extends BaseController
                 'cargo'     => 'Cargo',
                 'passenger' => 'Passenger',
                 'fishing'   => 'Fishing',
+                'fish'      => 'Fish',
                 'yacht'     => 'Yacht',
             ],
             'statuses'    => [
@@ -99,6 +101,18 @@ class VesselController extends BaseController
             ],
             'countries'   => Country::orderBy('name')->get(['code', 'name']),
             'currencies'  => Currency::active()->orderBy('name')->get(['code', 'name', 'symbol']),
+            'vatProfiles' => \App\Models\VatProfile::active()->with('country')->orderBy('name')->get()->map(function ($profile) {
+                return [
+                    'id'         => $profile->id,
+                    'name'       => $profile->name,
+                    'percentage' => (float) $profile->percentage,
+                    'country'    => $profile->country ? [
+                        'id'   => $profile->country->id,
+                        'name' => $profile->country->name,
+                        'code' => $profile->country->code,
+                    ] : null,
+                ];
+            }),
         ]);
     }
 
@@ -163,6 +177,14 @@ class VesselController extends BaseController
             // Set the vessel owner
             $vessel->update(['owner_id' => $user->id]);
 
+            // Create vessel setting with country, currency, and VAT profile
+            \App\Models\VesselSetting::create([
+                'vessel_id'     => $vessel->id,
+                'country_code'  => $request->country_code,
+                'currency_code' => $request->currency_code,
+                'vat_profile_id' => $request->vat_profile_id,
+            ]);
+
             // Log the create action
             AuditLogAction::logCreate(
                 $vessel,
@@ -216,6 +238,7 @@ class VesselController extends BaseController
                 'cargo'     => 'Cargo',
                 'passenger' => 'Passenger',
                 'fishing'   => 'Fishing',
+                'fish'      => 'Fish',
                 'yacht'     => 'Yacht',
             ],
             'statuses'    => [
