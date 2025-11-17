@@ -38,13 +38,13 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT_URI') ?: rtrim(env('APP_URL', 'http://localhost:8000'), '/') . '/auth/google/callback',
+        'redirect' => env('GOOGLE_REDIRECT_URI') ?: rtrim(env('APP_URL', 'https://localhost'), '/') . '/auth/google/callback',
     ],
 
     'microsoft' => [
         'client_id' => env('MICROSOFT_CLIENT_ID'),
         'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
-        'redirect' => env('MICROSOFT_REDIRECT_URI') ?: rtrim(env('APP_URL', 'http://localhost:8000'), '/') . '/auth/microsoft/callback',
+        'redirect' => env('MICROSOFT_REDIRECT_URI') ?: rtrim(env('APP_URL', 'https://localhost'), '/') . '/auth/microsoft/callback',
         'tenant' => env('MICROSOFT_TENANT_ID', 'common'), // 'common', 'organizations', 'consumers', or tenant ID
     ],
 

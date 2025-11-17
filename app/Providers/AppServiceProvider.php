@@ -33,8 +33,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS URLs when APP_URL uses HTTPS (for production)
-        if (config('app.url') && str_starts_with(config('app.url'), 'https://')) {
+        // Force HTTPS URLs in production or when request is HTTPS
+        // This ensures Inertia.js and all URL generation uses HTTPS
+        if (app()->environment('production')) {
+            // In production, always force HTTPS
+            URL::forceScheme('https');
+        } elseif (config('app.url') && str_starts_with(config('app.url'), 'https://')) {
+            // In other environments, force HTTPS if APP_URL is HTTPS
+            URL::forceScheme('https');
+        } elseif (request()->secure() || request()->header('X-Forwarded-Proto') === 'https') {
+            // If request is HTTPS (even behind proxy), force HTTPS URLs
             URL::forceScheme('https');
         }
 

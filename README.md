@@ -117,7 +117,7 @@ This system provides complete financial control for vessel management operations
    php artisan serve
    ```
 
-Visit `http://localhost:8000` to access the application.
+Visit your configured `APP_URL` (defaults to `https://localhost` in production) to access the application.
 
 ## 📚 Documentation
 

@@ -103,7 +103,8 @@ class TestDataSeeder extends Command
         $this->info('🎯 NEXT STEPS:');
         $this->info('==============');
         $this->info('1. Start the development server: php artisan serve');
-        $this->info('2. Visit: http://localhost:8000');
+        $appUrl = config('app.url', 'https://localhost');
+        $this->info('2. Visit: ' . $appUrl);
         $this->info('3. Test with these credentials:');
         $this->info('');
 
