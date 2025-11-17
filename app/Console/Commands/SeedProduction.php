@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Database\Seeders\CountrySeeder;
 use Database\Seeders\CrewPositionSeeder;
 use Database\Seeders\CurrencySeeder;
+use Database\Seeders\MovimentationCategorySeeder;
 use Database\Seeders\VatProfileSeeder;
 use Database\Seeders\VesselRoleAccessSeeder;
 use Illuminate\Console\Command;
@@ -23,7 +24,7 @@ class SeedProduction extends Command
      *
      * @var string
      */
-    protected $description = 'Seed production data: Countries, Currencies, Crew Positions, VAT Profiles, and Vessel Role Access';
+    protected $description = 'Seed production data: Countries, Currencies, Crew Positions, VAT Profiles, Transaction Categories, and Vessel Role Access';
 
     /**
      * Execute the console command.
@@ -39,6 +40,7 @@ class SeedProduction extends Command
             CurrencySeeder::class,
             CrewPositionSeeder::class,     // May reference VesselRoleAccess
             VatProfileSeeder::class,        // Must run after CountrySeeder
+            MovimentationCategorySeeder::class, // Transaction categories
         ];
 
         foreach ($seeders as $seeder) {
