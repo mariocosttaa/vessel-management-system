@@ -7,7 +7,7 @@ return [
     'Passenger Transport'     => 'Transporte de Passageiros',
     'Cargo Transport'         => 'Transporte de Carga',
     'Fishing Operations'      => 'Operações de Pesca',
-    'Fishing Sale'            => 'Venda de Pesca',
+    'Fishing Sale'            => 'Venda de Pescado',
     'Services'                => 'Serviços',
     'Towing Services'         => 'Serviços de Reboque',
     'Salvage Operations'      => 'Operações de Salvamento',
