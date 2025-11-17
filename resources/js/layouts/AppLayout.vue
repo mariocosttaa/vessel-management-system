@@ -17,14 +17,8 @@ const page = usePage()
 
 // Determine which layout to use based on the current route
 const layout = computed(() => {
-    // Get URL from page props or window location - most reliable
-    let url = ''
-    if (typeof window !== 'undefined') {
-        url = window.location.pathname
-    }
-    if (page.url?.value) {
-        url = page.url.value
-    }
+    // Get URL from Inertia page (works in both SSR and client)
+    const url = page.url?.value || ''
 
     // Landing page (public website at /) uses IndexDefaultLayout
     if (url === '/' || url === '') {

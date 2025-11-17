@@ -308,17 +308,17 @@ const userInitials = computed(() => {
 })
 
 const isLandingPage = computed(() => {
-  const url = page.props.url || window.location.pathname
+  const url = page.url?.value || ''
   return url === '/' || url === ''
 })
 
 const isHomePage = computed(() => {
-  const url = page.props.url || window.location.pathname
+  const url = page.url?.value || ''
   return url === '/panel' || url === '/panel/'
 })
 
 const isProfilePage = computed(() => {
-  const url = page.props.url || window.location.pathname
+  const url = page.url?.value || ''
   return url === '/panel/profile'
 })
 
@@ -369,17 +369,27 @@ const handleClickOutside = (event: Event) => {
 
 // Handle scroll for dynamic transparency
 const handleScroll = () => {
-  scrollY.value = window.scrollY || window.pageYOffset
+  if (typeof window !== 'undefined') {
+    scrollY.value = window.scrollY || window.pageYOffset
+  }
 }
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-  window.addEventListener('scroll', handleScroll, { passive: true })
-  handleScroll() // Initial check
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', handleClickOutside)
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll() // Initial check
+  }
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-  window.removeEventListener('scroll', handleScroll)
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('click', handleClickOutside)
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('scroll', handleScroll)
+  }
 })
 </script>

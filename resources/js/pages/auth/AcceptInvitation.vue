@@ -45,11 +45,15 @@ const submit = () => {
 };
 
 const handleGoogleAccept = () => {
-    window.location.href = `/auth/google?source=invitation&invitation_token=${props.token}`;
+    if (typeof window !== 'undefined') {
+        window.location.href = `/auth/google?source=invitation&invitation_token=${props.token}`;
+    }
 };
 
 const handleMicrosoftAccept = () => {
-    window.location.href = `/auth/microsoft?source=invitation&invitation_token=${props.token}`;
+    if (typeof window !== 'undefined') {
+        window.location.href = `/auth/microsoft?source=invitation&invitation_token=${props.token}`;
+    }
 };
 </script>
 
