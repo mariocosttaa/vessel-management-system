@@ -528,7 +528,7 @@ const testimonials = computed(() => [
                                 </div>
                                 <div>
                                     <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
-                          @              {{ t('No hidden fees or setup costs') }}
+                                        {{ t('No hidden fees or setup costs') }}
                                     </p>
                                     <p class="text-xs text-muted-foreground dark:text-muted-foreground">
                                         {{ t('Transparent pricing with no surprises') }}
