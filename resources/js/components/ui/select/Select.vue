@@ -254,7 +254,7 @@ const toggleOpen = () => {
   if (props.disabled) return
 
   const willOpen = !isOpen.value
-  
+
   if (willOpen) {
     // Close all other selects first
     closeOtherSelects()
@@ -266,7 +266,7 @@ const toggleOpen = () => {
   }
 
   isOpen.value = true
-  
+
   // Calculate if dropdown should open upward
   nextTick(() => {
     if (inputRef.value) {
@@ -278,7 +278,7 @@ const toggleOpen = () => {
       const spaceAbove = rect.top
       dropdownOpenUp.value = spaceBelow < dropdownHeight + minSpace && spaceAbove > spaceBelow
     }
-    
+
     if (props.searchable) {
       // Clear search query when opening dropdown to allow fresh search
       searchQuery.value = ''
