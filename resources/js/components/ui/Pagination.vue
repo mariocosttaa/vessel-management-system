@@ -26,6 +26,30 @@ const props = withDefaults(defineProps<Props>(), {
     showInfo: true,
 });
 
+/**
+ * Sanitize URL to ensure it uses HTTPS or relative path
+ * This fixes mixed content errors when pagination links contain HTTP URLs
+ */
+const sanitizeUrl = (url: string | null): string | null => {
+    if (!url) return null;
+
+    // If URL starts with http://, convert to https:// or relative path
+    if (url.startsWith('http://')) {
+        // Convert to relative path (more reliable) or HTTPS
+        try {
+            const urlObj = new URL(url);
+            // Return relative path which will use the current page's protocol
+            return urlObj.pathname + urlObj.search;
+        } catch {
+            // Fallback: replace http:// with https://
+            return url.replace(/^http:\/\//, 'https://');
+        }
+    }
+
+    // Already HTTPS or relative path, return as-is
+    return url;
+};
+
 const getPageNumbers = () => {
     const current = props.meta.current_page;
     const last = props.meta.last_page;
@@ -63,7 +87,7 @@ const getPageNumbers = () => {
                 <div class="flex-1 flex justify-between sm:hidden gap-3">
                     <Link
                         v-if="links[0]?.url"
-                        :href="links[0].url"
+                        :href="sanitizeUrl(links[0].url)"
                         preserve-scroll
                         class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg border border-border dark:border-border bg-background dark:bg-background text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
                     >
@@ -74,7 +98,7 @@ const getPageNumbers = () => {
                     </Link>
                     <Link
                         v-if="links[links.length - 1]?.url"
-                        :href="links[links.length - 1].url"
+                        :href="sanitizeUrl(links[links.length - 1].url)"
                         preserve-scroll
                         class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg border border-border dark:border-border bg-background dark:bg-background text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
                     >
@@ -106,7 +130,7 @@ const getPageNumbers = () => {
                             <!-- Previous button -->
                             <Link
                                 v-if="links[0]?.url"
-                                :href="links[0].url"
+                                :href="sanitizeUrl(links[0].url)"
                                 preserve-scroll
                                 class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 hover:text-primary dark:hover:text-primary active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
                                 title="Previous page"
@@ -127,7 +151,7 @@ const getPageNumbers = () => {
                                 </span>
                                 <Link
                                     v-else
-                                    :href="links.find(link => link.label === page.toString())?.url || '#'"
+                                    :href="sanitizeUrl(links.find(link => link.label === page.toString())?.url || null) || '#'"
                                     preserve-scroll
                                     :class="[
                                         'relative inline-flex items-center justify-center min-w-[2.25rem] h-9 px-3 rounded-lg text-sm font-medium transition-all duration-200',
@@ -143,7 +167,7 @@ const getPageNumbers = () => {
                             <!-- Next button -->
                             <Link
                                 v-if="links[links.length - 1]?.url"
-                                :href="links[links.length - 1].url"
+                                :href="sanitizeUrl(links[links.length - 1].url)"
                                 preserve-scroll
                                 class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border dark:border-border bg-background dark:bg-background text-sm font-medium text-card-foreground dark:text-card-foreground hover:bg-muted/50 dark:hover:bg-muted/50 hover:border-primary/20 dark:hover:border-primary/20 hover:text-primary dark:hover:text-primary active:scale-95 transition-all duration-200 shadow-sm hover:shadow"
                                 title="Next page"
