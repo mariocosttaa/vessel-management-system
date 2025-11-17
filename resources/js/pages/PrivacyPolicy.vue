@@ -94,7 +94,7 @@ const { t } = useI18n()
                         </h2>
                         <p>
                             {{ t('If you have questions about this Privacy Policy, please contact us at:') }}
-                            <a href="mailto:geral@mareas.bindamy.site" class="text-primary hover:underline">geral@mareas.bindamy.site</a>
+                            <a href="mailto:support@bindamy.site" class="text-primary hover:underline">support@bindamy.site</a>
                         </p>
                     </section>
                 </div>

@@ -229,7 +229,7 @@
                 </div>
             <div class="mt-5">
               <a
-                href="mailto:geral@bindamy.site?subject=Vessel Management System - Upgrade Request"
+                href="mailto:support@bindamy.site?subject=Vessel Management System - Upgrade Request"
                 class="inline-flex items-center px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
               >
                 <Icon name="mail" class="w-3.5 h-3.5 mr-1.5" />
@@ -237,7 +237,7 @@
               </a>
             </div>
                 <p class="text-xs text-muted-foreground mt-2.5">
-                  {{ t('Email') }}: geral@bindamy.site
+                  {{ t('Email') }}: support@bindamy.site
                 </p>
           </div>
         </div>
@@ -284,7 +284,7 @@
 
           <div class="space-y-3">
             <a
-              href="mailto:geral@bindamy.site?subject=Vessel Management System - Upgrade Request"
+              href="mailto:support@bindamy.site?subject=Vessel Management System - Upgrade Request"
               class="block w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-center"
             >
               <Icon name="mail" class="w-4 h-4 mr-2 inline" />
@@ -299,7 +299,7 @@
           </div>
 
               <p class="text-xs text-muted-foreground mt-4">
-                {{ t('Email') }}: geral@bindamy.site
+                {{ t('Email') }}: support@bindamy.site
               </p>
         </div>
       </div>

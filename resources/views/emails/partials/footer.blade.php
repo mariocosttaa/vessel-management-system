@@ -41,7 +41,7 @@
                     <td align="center">
                         <p style="margin: 0; padding: 0; font-size: 12px; color: #6b7280; line-height: 1.6; max-width: 500px;">
                             @php
-                                $emailLink = '<a href="mailto:geral@mareas.bindamy.site" style="color: #6b7280; text-decoration: none; font-weight: 700;">geral@mareas.bindamy.site</a>';
+                                $emailLink = '<a href="mailto:support@bindamy.site" style="color: #6b7280; text-decoration: none; font-weight: 700;">support@bindamy.site</a>';
                             @endphp
                             {!! trans('emails.This is an automatic message from the :app system. If you do not wish to receive these messages, you can change your preferences in your profile settings or contact us at :email.', [
                                 'app' => config('app.name', 'Bindamy Mareas'),

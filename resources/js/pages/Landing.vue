@@ -528,7 +528,7 @@ const testimonials = computed(() => [
                                 </div>
                                 <div>
                                     <p class="text-sm font-medium text-card-foreground dark:text-card-foreground mb-1">
-                                        {{ t('No hidden fees or setup costs') }}
+                          @              {{ t('No hidden fees or setup costs') }}
                                     </p>
                                     <p class="text-xs text-muted-foreground dark:text-muted-foreground">
                                         {{ t('Transparent pricing with no surprises') }}
@@ -620,7 +620,7 @@ const testimonials = computed(() => [
                                 {{ t('Go to Panel') }}
                             </Link>
                             <a
-                                href="mailto:info@bindamy.com"
+                                href="mailto:support@bindamy.site"
                                 class="inline-flex items-center justify-center px-5 py-2.5 border border-border dark:border-sidebar-border bg-background dark:bg-card hover:bg-muted/50 dark:hover:bg-muted/30 text-card-foreground dark:text-card-foreground rounded-lg font-medium text-sm transition-all duration-200"
                             >
                                 {{ t('Contact Us') }}
