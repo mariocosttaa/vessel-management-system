@@ -23,7 +23,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Install Node.js and npm
+# Install Node.js and npm (required for SSR server)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
@@ -33,8 +33,8 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --optimize-autoloader --no-interaction --prefer-dist
 
-# Install npm dependencies and build assets
-RUN npm ci && npm run build
+# Install npm dependencies and build assets (including SSR bundle)
+RUN npm ci && npm run build:ssr
 
 # Remove dev dependencies for production (optional - keeps image smaller)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || true
@@ -47,11 +47,13 @@ RUN mkdir -p /var/www/html/storage/app/private \
     && mkdir -p /var/www/html/storage/framework/sessions \
     && mkdir -p /var/www/html/storage/framework/testing \
     && mkdir -p /var/www/html/storage/framework/views \
-    && mkdir -p /var/www/html/storage/logs
+    && mkdir -p /var/www/html/storage/logs \
+    && mkdir -p /var/www/html/bootstrap/ssr
 
-# Set ownership for storage and bootstrap/cache directories only (not entire app)
+# Set ownership for storage and bootstrap directories only (not entire app)
 RUN chown -R www-data:www-data /var/www/html/storage \
-    && chown -R www-data:www-data /var/www/html/bootstrap/cache
+    && chown -R www-data:www-data /var/www/html/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html/bootstrap/ssr
 
 # Set permissions: 775 for directories, 664 for files
 # Directories: 775 (rwxrwxr-x) - owner and group can read, write, execute
@@ -59,7 +61,9 @@ RUN chown -R www-data:www-data /var/www/html/storage \
 RUN find /var/www/html/storage -type d -exec chmod 775 {} \; \
     && find /var/www/html/storage -type f -exec chmod 664 {} \; \
     && find /var/www/html/bootstrap/cache -type d -exec chmod 775 {} \; \
-    && find /var/www/html/bootstrap/cache -type f -exec chmod 664 {} \;
+    && find /var/www/html/bootstrap/cache -type f -exec chmod 664 {} \; \
+    && find /var/www/html/bootstrap/ssr -type d -exec chmod 775 {} \; \
+    && find /var/www/html/bootstrap/ssr -type f -exec chmod 664 {} \;
 
 # Ensure specific subdirectories have correct permissions (775 for directories)
 RUN chmod 775 /var/www/html/storage \
@@ -120,6 +124,15 @@ RUN echo '[program:scheduler]' > /etc/supervisor/conf.d/scheduler.conf \
     && echo 'stdout_logfile=/var/www/html/storage/logs/scheduler.log' >> /etc/supervisor/conf.d/scheduler.conf \
     && echo 'stderr_logfile=/var/www/html/storage/logs/scheduler.log' >> /etc/supervisor/conf.d/scheduler.conf
 
+RUN echo '[program:ssr-server]' > /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'command=php /var/www/html/artisan inertia:start-ssr' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'autostart=true' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'autorestart=true' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'stopasgroup=true' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'killasgroup=true' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'stdout_logfile=/var/www/html/storage/logs/ssr-server.log' >> /etc/supervisor/conf.d/ssr-server.conf \
+    && echo 'stderr_logfile=/var/www/html/storage/logs/ssr-server.log' >> /etc/supervisor/conf.d/ssr-server.conf
+
 # Configure nginx for Laravel with Vite support
 RUN rm -f /etc/nginx/sites-enabled/default \
     && echo 'server {' > /etc/nginx/sites-available/laravel \
@@ -161,6 +174,6 @@ EXPOSE 80
 # Use entrypoint to ensure permissions are set at startup
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Start supervisor (which manages nginx, php-fpm, queue worker, and scheduler)
+# Start supervisor (which manages nginx, php-fpm, queue worker, scheduler, and SSR server)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 

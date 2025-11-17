@@ -45,10 +45,16 @@ if [ -d /var/www/html/storage/logs ]; then
     find /var/www/html/storage/logs -type f -exec chown www-data:www-data {} \; || true
 fi
 
-# Also ensure bootstrap/cache has correct permissions
+# Also ensure bootstrap/cache and bootstrap/ssr have correct permissions
 chown -R www-data:www-data /var/www/html/bootstrap/cache || true
 find /var/www/html/bootstrap/cache -type d -exec chmod 775 {} \; || true
 find /var/www/html/bootstrap/cache -type f -exec chmod 664 {} \; || true
+
+# Ensure SSR directory exists and has correct permissions
+mkdir -p /var/www/html/bootstrap/ssr || true
+chown -R www-data:www-data /var/www/html/bootstrap/ssr || true
+find /var/www/html/bootstrap/ssr -type d -exec chmod 775 {} \; || true
+find /var/www/html/bootstrap/ssr -type f -exec chmod 664 {} \; || true
 
 echo "Storage directories and files initialized with correct permissions."
 
