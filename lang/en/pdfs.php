@@ -30,7 +30,6 @@ return [
 
     // Movimentation types
     'Income'                                         => 'Income',
-    'Expense'                                        => 'Expense',
     'Transfer'                                       => 'Transfer',
 
     // Header/Footer labels
@@ -90,13 +89,10 @@ return [
     'movimentations'                                 => 'movimentations',
     'Generate PDF'                                   => 'Generate PDF',
     'Select sections to include in the PDF'          => 'Select sections to include in the PDF',
-    'Marea Information'                              => 'Marea Information',
     'Always included'                                => 'Always included',
     'Preparing'                                      => 'Preparing',
     'At Sea'                                         => 'At Sea',
     'Returned'                                       => 'Returned',
-    'Closed'                                         => 'Closed',
-    'Cancelled'                                      => 'Cancelled',
 
     // Financial Report
     'Financial Report'                               => 'Financial Report',
@@ -127,4 +123,8 @@ return [
     'VAT'                                            => 'VAT',
     'Total'                                          => 'Total',
     'Unknown'                                        => 'Unknown',
+    'Transaction'                                    => 'Transaction',
+    'Movements'                                      => 'Movements',
+    'Total Movements'                                => 'Total Movements',
+    'No movements found for the selected period.'    => 'No movements found for the selected period.',
 ];

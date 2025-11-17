@@ -30,7 +30,6 @@ return [
 
     // Transaction types
     'Income'                                         => 'Revenu',
-    'Expense'                                        => 'Dépense',
     'Transfer'                                       => 'Transfert',
 
     // Header/Footer labels
@@ -87,8 +86,6 @@ return [
     'Preparing'                                      => 'Préparation',
     'At Sea'                                         => 'En Mer',
     'Returned'                                       => 'Retourné',
-    'Closed'                                         => 'Fermé',
-    'Cancelled'                                      => 'Annulé',
 
     // Financial Report
     'Financial Report'                               => 'Rapport Financier',
@@ -119,4 +116,8 @@ return [
     'VAT'                                            => 'TVA',
     'Total'                                          => 'Total',
     'Unknown'                                        => 'Inconnu',
+    'Transaction'                                    => 'Transaction',
+    'Movements'                                      => 'Mouvements',
+    'Total Movements'                                => 'Total des Mouvements',
+    'No movements found for the selected period.'    => 'Aucun mouvement trouvé pour la période sélectionnée.',
 ];
