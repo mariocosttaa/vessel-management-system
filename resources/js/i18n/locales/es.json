@@ -1268,5 +1268,18 @@
     "Salary Payments": "Pagos de Salario",
     "Products": "Productos",
     "Crew Members": "Miembros de la Tripulación",
-    "Calculations": "Cálculos"
+    "Calculations": "Cálculos",
+    "Remove transaction from maintenance": "Eliminar transacción del mantenimiento",
+    "Invited": "Invitado",
+    "Yes": "Sí",
+    "No": "No",
+    "Administrative Member": "Miembro Administrativo",
+    "Skip salary configuration": "Omitir configuración de salario",
+    "Check this if you don't want to set up salary compensation for this crew member.": "Marque esto si no desea configurar la compensación salarial para este miembro de la tripulación.",
+    "Access settings": "Configuración de acceso",
+    "Remove Crew Member": "Eliminar Miembro de la Tripulación",
+    "To remove system access for this crew member, you must remove them from the vessel. This action cannot be undone.": "Para eliminar el acceso al sistema de este miembro de la tripulación, debe eliminarlo de la embarcación. Esta acción no se puede deshacer.",
+    "This user has an existing account. To remove system access, you must remove the crew member from the vessel.": "Este usuario tiene una cuenta existente. Para eliminar el acceso al sistema, debe eliminar el miembro de la tripulación de la embarcación.",
+    "This crew member currently has system access. To remove access, you must remove the crew member.": "Este miembro de la tripulación actualmente tiene acceso al sistema. Para eliminar el acceso, debe eliminar el miembro de la tripulación.",
+    "Please wait while we create your PDF report...": "Por favor, espere mientras creamos su informe PDF..."
 }
