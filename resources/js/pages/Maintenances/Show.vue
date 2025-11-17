@@ -68,6 +68,10 @@ interface Maintenance {
             id: number;
             company_name: string;
         } | null;
+        maintenance: {
+            id: number;
+            maintenance_number: string;
+        } | null;
     }>;
     created_at: string | null;
     created_by: {
@@ -181,6 +185,11 @@ const pendingPdfEnableColors = ref<boolean | null>(null);
 // End date form for open maintenances
 const endDateForm = useForm({
     end_date: props.maintenance.end_date || '',
+});
+
+// Start date form for open maintenances
+const startDateForm = useForm({
+    start_date: props.maintenance.start_date || '',
 });
 
 // Get status badge color
@@ -440,6 +449,31 @@ const updateEndDate = () => {
     });
 };
 
+// Update start date
+const updateStartDate = () => {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
+    startDateForm.put(maintenances.update.url({
+        vessel: vesselId,
+        maintenanceId: props.maintenance.id
+    }), {
+        onSuccess: () => {
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('Start date has been updated.'),
+            });
+        },
+        onError: () => {
+            addNotification({
+                type: 'error',
+                title: t('Error'),
+                message: t('Failed to update start date. Please try again.'),
+            });
+        },
+    });
+};
+
 // Finalize maintenance
 const finalizeMaintenance = () => {
     if (!endDateForm.end_date) {
@@ -586,10 +620,38 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                     </div>
                 </div>
 
-                <!-- End Date and Finalize Section (only for open maintenances) -->
+                <!-- Start Date, End Date and Finalize Section (only for open maintenances) -->
                 <div v-if="canEdit('maintenances') && props.maintenance.status === 'open'" class="mt-6 pt-6 border-t border-border dark:border-border">
-                    <div class="flex items-end gap-4">
-                        <div class="flex-1">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- Start Date -->
+                        <div>
+                            <label for="start_date" class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
+                                {{ t('Start Date') }}
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <DateInput
+                                    id="start_date"
+                                    v-model="startDateForm.start_date"
+                                    :class="{ 'border-destructive dark:border-destructive': startDateForm.errors.start_date }"
+                                    class="max-w-xs"
+                                />
+                                <Button
+                                    @click="updateStartDate"
+                                    :disabled="startDateForm.processing || !startDateForm.start_date"
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    <Icon v-if="startDateForm.processing" name="loader" class="w-4 h-4 mr-2 animate-spin" />
+                                    <Icon v-else name="save" class="w-4 h-4 mr-2" />
+                                    {{ startDateForm.processing ? t('Saving...') : t('Save Start Date') }}
+                                </Button>
+                            </div>
+                            <p v-if="startDateForm.errors.start_date" class="mt-1 text-sm text-destructive">
+                                {{ startDateForm.errors.start_date }}
+                            </p>
+                        </div>
+                        <!-- End Date -->
+                        <div>
                             <label for="end_date" class="block text-sm font-medium text-card-foreground dark:text-card-foreground mb-2">
                                 {{ t('End Date') }}
                             </label>
@@ -597,7 +659,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                 <DateInput
                                     id="end_date"
                                     v-model="endDateForm.end_date"
-                                    :min="props.maintenance.start_date || undefined"
+                                    :min="startDateForm.start_date || props.maintenance.start_date || undefined"
                                     :class="{ 'border-destructive dark:border-destructive': endDateForm.errors.end_date }"
                                     class="max-w-xs"
                                 />
@@ -619,17 +681,17 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                 {{ t('Set the end date when maintenance is completed') }}
                             </p>
                         </div>
-                        <div>
-                            <Button
-                                @click="finalizeMaintenance"
-                                :disabled="!endDateForm.end_date"
-                                variant="default"
-                                class="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                                <Icon name="check" class="w-4 h-4 mr-2" />
-                                {{ t('Finalize Maintenance') }}
-                            </Button>
-                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <Button
+                            @click="finalizeMaintenance"
+                            :disabled="!endDateForm.end_date"
+                            variant="default"
+                            class="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            <Icon name="check" class="w-4 h-4 mr-2" />
+                            {{ t('Finalize Maintenance') }}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -672,7 +734,7 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                             <button
                                 v-if="canEdit('maintenances') && props.maintenance.status === 'open'"
                                 @click="showCreateExpenseModal = true"
-                                class="inline-flex items-center px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                                class="inline-flex items-center px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                             >
                                 <Icon name="plus" class="w-4 h-4 mr-1" />
                                 {{ t('Add Expense') }}
@@ -756,6 +818,9 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
                                     <span v-if="transaction.description">{{ transaction.description }}</span>
                                     <span v-if="transaction.supplier" class="ml-2">
                                         • {{ transaction.supplier.company_name }}
+                                    </span>
+                                    <span v-if="transaction.maintenance" class="ml-2">
+                                        • {{ t('Maintenance') }}: {{ transaction.maintenance.maintenance_number }}
                                     </span>
                                     <span v-if="transaction.transaction_date" class="ml-2">
                                         • {{ formatDate(transaction.transaction_date) }}

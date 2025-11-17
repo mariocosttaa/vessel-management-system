@@ -240,12 +240,8 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.marea_id = props.mareaId ?? null;
         form.maintenance_id = props.maintenanceId ?? null;
 
-        // Auto-select maintenance category if maintenanceId is provided
-        if (props.maintenanceId && maintenanceCategoryId.value) {
-            form.category_id = maintenanceCategoryId.value;
-        } else {
-            form.category_id = null;
-        }
+        // Don't auto-select category - let user choose
+        form.category_id = null;
 
         form.amount = null;
         form.amount_per_unit = null;
@@ -397,12 +393,8 @@ const submit = () => {
             form.marea_id = props.mareaId ?? null;
             form.maintenance_id = props.maintenanceId ?? null;
 
-            // Auto-select maintenance category if maintenanceId is provided
-            if (props.maintenanceId && maintenanceCategoryId.value) {
-                form.category_id = maintenanceCategoryId.value;
-            } else {
-                form.category_id = null;
-            }
+            // Don't auto-select category - let user choose
+            form.category_id = null;
 
             form.amount = null;
             form.amount_per_unit = null;
@@ -465,7 +457,6 @@ const submit = () => {
                     <div class="flex items-center justify-between">
                         <Label for="category_id">{{ t('Category') }} <span class="text-destructive">*</span></Label>
                         <Button
-                            v-if="!props.maintenanceId"
                             type="button"
                             variant="ghost"
                             size="sm"
@@ -483,12 +474,8 @@ const submit = () => {
                         :placeholder="t('Select a category')"
                         searchable
                         :error="!!form.errors.category_id"
-                        :disabled="!!props.maintenanceId"
                     />
                     <InputError :message="form.errors.category_id" />
-                    <p v-if="props.maintenanceId" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                        {{ t('Category is automatically set for maintenance transactions.') }}
-                    </p>
                 </div>
 
                 <!-- Price Per Unit Checkbox -->

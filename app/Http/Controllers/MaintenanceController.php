@@ -341,6 +341,7 @@ class MaintenanceController extends Controller
                 'category:id,name,type,color',
                 'supplier:id,company_name',
                 'crewMember:id,name,email',
+                'maintenance:id,maintenance_number',
             ]);
 
         // Search functionality
@@ -381,6 +382,10 @@ class MaintenanceController extends Controller
                 'supplier'           => $transaction->supplier ? [
                     'id'           => $this->hashId($transaction->supplier->id, 'supplier'),
                     'company_name' => $transaction->supplier->company_name,
+                ] : null,
+                'maintenance'        => $transaction->maintenance ? [
+                    'id'                 => $this->hashId($transaction->maintenance->id, 'maintenance'),
+                    'maintenance_number' => $transaction->maintenance->maintenance_number,
                 ] : null,
             ];
         });
@@ -655,7 +660,18 @@ class MaintenanceController extends Controller
 
             // Validate request
             $validated = $request->validate([
-                'end_date'    => 'nullable|date|after_or_equal:start_date',
+                'start_date'  => 'nullable|date',
+                'end_date'    => [
+                    'nullable',
+                    'date',
+                    function ($attribute, $value, $fail) use ($request, $maintenance) {
+                        // Use updated start_date if provided, otherwise use existing start_date
+                        $startDate = $request->input('start_date') ?? $maintenance->start_date;
+                        if ($value && $startDate && $value < $startDate) {
+                            $fail('The end date must be after or equal to the start date.');
+                        }
+                    },
+                ],
                 'name'        => 'nullable|string|max:255',
                 'description' => 'nullable|string',
             ]);
