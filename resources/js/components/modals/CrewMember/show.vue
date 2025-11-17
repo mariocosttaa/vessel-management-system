@@ -66,6 +66,19 @@ const getStatusBadgeClass = (status: string) => {
     }
 };
 
+const getStatusLabel = (status: string) => {
+    switch (status) {
+        case 'active':
+            return t('Active');
+        case 'inactive':
+            return t('Inactive');
+        case 'on_leave':
+            return t('On Leave');
+        default:
+            return status ? t(status.charAt(0).toUpperCase() + status.slice(1)) : '';
+    }
+};
+
 const formatSalaryAmount = (compensation: any) => {
     if (!compensation) return t('Not specified');
 
@@ -144,7 +157,7 @@ const formatPaymentFrequency = (frequency: string) => {
                                     <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Status') }}</dt>
                                     <dd class="text-sm">
                                         <span :class="getStatusBadgeClass(crewMember.status)">
-                                            {{ crewMember.status_label }}
+                                            {{ getStatusLabel(crewMember.status) }}
                                         </span>
                                     </dd>
                                 </div>
