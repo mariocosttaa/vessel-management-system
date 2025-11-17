@@ -53,22 +53,26 @@ RUN mkdir -p /var/www/html/storage/app/private \
 RUN chown -R www-data:www-data /var/www/html/storage \
     && chown -R www-data:www-data /var/www/html/bootstrap/cache
 
-# Set permissions: 755 for directories (as requested), but ensure they're writable
-# Note: 755 allows owner (www-data) to write, group and others can read/execute
-RUN chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+# Set permissions: 775 for directories, 664 for files
+# Directories: 775 (rwxrwxr-x) - owner and group can read, write, execute
+# Files: 664 (rw-rw-r--) - owner and group can read and write
+RUN find /var/www/html/storage -type d -exec chmod 775 {} \; \
+    && find /var/www/html/storage -type f -exec chmod 664 {} \; \
+    && find /var/www/html/bootstrap/cache -type d -exec chmod 775 {} \; \
+    && find /var/www/html/bootstrap/cache -type f -exec chmod 664 {} \;
 
-# Ensure storage/app subdirectories have correct permissions (755 = rwxr-xr-x)
-RUN chmod 755 /var/www/html/storage/app \
-    && chmod 755 /var/www/html/storage/app/private \
-    && chmod 755 /var/www/html/storage/app/public \
-    && chmod 755 /var/www/html/storage/framework \
-    && chmod 755 /var/www/html/storage/framework/cache \
-    && chmod 755 /var/www/html/storage/framework/cache/data \
-    && chmod 755 /var/www/html/storage/framework/sessions \
-    && chmod 755 /var/www/html/storage/framework/testing \
-    && chmod 755 /var/www/html/storage/framework/views \
-    && chmod 755 /var/www/html/storage/logs
+# Ensure specific subdirectories have correct permissions (775 for directories)
+RUN chmod 775 /var/www/html/storage \
+    && chmod 775 /var/www/html/storage/app \
+    && chmod 775 /var/www/html/storage/app/private \
+    && chmod 775 /var/www/html/storage/app/public \
+    && chmod 775 /var/www/html/storage/framework \
+    && chmod 775 /var/www/html/storage/framework/cache \
+    && chmod 775 /var/www/html/storage/framework/cache/data \
+    && chmod 775 /var/www/html/storage/framework/sessions \
+    && chmod 775 /var/www/html/storage/framework/testing \
+    && chmod 775 /var/www/html/storage/framework/views \
+    && chmod 775 /var/www/html/storage/logs
 
 # Create supervisor configuration directories
 RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor
