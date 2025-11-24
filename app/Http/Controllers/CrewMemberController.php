@@ -245,27 +245,75 @@ class CrewMemberController extends Controller
             $invitationToken = $createWithoutEmail ? null : Str::random(64);
 
             if ($existingUser && ! $createWithoutEmail) {
-                // User exists - update vessel assignment and send invitation
-                // Don't update name, password, or other fields for existing users
+                // User already exists - just send invitation to join the vessel
                 $crewMember = $existingUser;
 
-                // Update vessel assignment if not already set
-                if (! $crewMember->vessel_id || $crewMember->vessel_id !== $vesselId) {
-                    $crewMember->update([
-                        'vessel_id'   => $vesselId,
-                        'position_id' => $request->position_id, // Already decoded in prepareForValidation
-                        'hire_date'   => $request->hire_date,
-                        'status'      => $request->status ?? 'active',
-                    ]);
+                // Check if user already has access to this vessel
+                $hasVesselAccess = VesselUserRole::where('user_id', $crewMember->id)
+                    ->where('vessel_id', $vesselId)
+                    ->where('is_active', true)
+                    ->exists();
+
+                if ($hasVesselAccess) {
+                    return back()
+                        ->withInput()
+                        ->with('error', $this->transFrom('notifications', 'User with email :email already has access to this vessel.', [
+                            'email' => $email,
+                        ]))
+                        ->with('notification_delay', 0);
                 }
 
-                // Set invitation token for existing users too (they need to accept to link to vessel)
+                // Set invitation token for existing users (they need to accept to link to vessel)
                 $inviter = $request->user();
                 $crewMember->update([
                     'invitation_token'     => $invitationToken,
                     'invitation_sent_at'   => now(),
                     'invitation_language'  => $inviter?->language ?? 'en',
                 ]);
+
+                // Create vessel user role entry (will be activated when invitation is accepted)
+                // Get role from position if provided
+                $vesselRoleAccessId = null;
+                if ($request->position_id) {
+                    $position = CrewPosition::find($request->position_id);
+                    if ($position && $position->vessel_role_access_id) {
+                        $vesselRoleAccessId = $position->vessel_role_access_id;
+                    }
+                }
+
+                // If no role from position, use default "normal" role
+                if (! $vesselRoleAccessId) {
+                    $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
+                    if ($normalRole) {
+                        $vesselRoleAccessId = $normalRole->id;
+                    }
+                }
+
+                // Create VesselUserRole entry (inactive until invitation is accepted)
+                if ($vesselRoleAccessId) {
+                    VesselUserRole::updateOrCreate(
+                        [
+                            'vessel_id' => $vesselId,
+                            'user_id'   => $crewMember->id,
+                        ],
+                        [
+                            'vessel_role_access_id' => $vesselRoleAccessId,
+                            'is_active'             => false, // Will be activated when invitation is accepted
+                        ]
+                    );
+                }
+
+                // Also create VesselUser entry for backward compatibility
+                VesselUser::updateOrCreate(
+                    [
+                        'vessel_id' => $vesselId,
+                        'user_id'   => $crewMember->id,
+                    ],
+                    [
+                        'role'      => 'viewer',
+                        'is_active' => false, // Will be activated when invitation is accepted
+                    ]
+                );
             } else {
                 // Create new user
                 $userData = [
@@ -404,14 +452,20 @@ class CrewMemberController extends Controller
                 $vesselId
             );
 
-            // Set appropriate success message based on whether email was provided
-            $successMessage = $createWithoutEmail || ! $crewMember->email
-                ? $this->transFrom('notifications', "Crew member ':name' has been created successfully. They do not have system access.", [
-                    'name' => $crewMember->name,
-                ])
-                : $this->transFrom('notifications', "Invitation sent to ':email'. They will receive an email to accept the invitation.", [
+            // Set appropriate success message based on whether email was provided and if user already exists
+            if ($existingUser && ! $createWithoutEmail) {
+                $successMessage = $this->transFrom('notifications', "Invitation sent to ':email'. They will receive an email to accept the invitation and join the vessel.", [
                     'email' => $crewMember->email,
                 ]);
+            } else {
+                $successMessage = $createWithoutEmail || ! $crewMember->email
+                    ? $this->transFrom('notifications', "Crew member ':name' has been created successfully. They do not have system access.", [
+                        'name' => $crewMember->name,
+                    ])
+                    : $this->transFrom('notifications', "Invitation sent to ':email'. They will receive an email to accept the invitation.", [
+                        'email' => $crewMember->email,
+                    ]);
+            }
 
             Log::info('CrewMemberController::store - Success', [
                 'crew_member_id'       => $crewMember->id,

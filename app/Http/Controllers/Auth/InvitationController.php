@@ -125,11 +125,25 @@ class InvitationController extends Controller
         ]);
 
         // Ensure vessel access is active
-        if ($user->vessel_id) {
+        // Check if user has vessel_id (new crew member) or has pending vessel access (existing user)
+        $vesselId = $user->vessel_id;
+
+        // If no vessel_id, check for pending vessel access (existing user invited to join vessel)
+        if (! $vesselId) {
+            $pendingVesselRole = VesselUserRole::where('user_id', $user->id)
+                ->where('is_active', false)
+                ->first();
+
+            if ($pendingVesselRole) {
+                $vesselId = $pendingVesselRole->vessel_id;
+            }
+        }
+
+        if ($vesselId) {
             // Create/update VesselUser for backward compatibility
             VesselUser::updateOrCreate(
                 [
-                    'vessel_id' => $user->vessel_id,
+                    'vessel_id' => $vesselId,
                     'user_id'   => $user->id,
                 ],
                 [
@@ -149,7 +163,19 @@ class InvitationController extends Controller
                 }
             }
 
-            // If no role from position, use default "normal" role
+            // If no role from position, check if there's already a pending role
+            if (! $vesselRoleAccessId) {
+                $pendingVesselRole = VesselUserRole::where('user_id', $user->id)
+                    ->where('vessel_id', $vesselId)
+                    ->where('is_active', false)
+                    ->first();
+
+                if ($pendingVesselRole) {
+                    $vesselRoleAccessId = $pendingVesselRole->vessel_role_access_id;
+                }
+            }
+
+            // If still no role, use default "normal" role
             if (! $vesselRoleAccessId) {
                 $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
                 if ($normalRole) {
@@ -157,16 +183,16 @@ class InvitationController extends Controller
                 }
             }
 
-            // Create VesselUserRole if we have a role access ID
+            // Create/update VesselUserRole and activate it
             if ($vesselRoleAccessId) {
                 VesselUserRole::updateOrCreate(
                     [
-                        'vessel_id' => $user->vessel_id,
+                        'vessel_id' => $vesselId,
                         'user_id'   => $user->id,
                     ],
                     [
                         'vessel_role_access_id' => $vesselRoleAccessId,
-                        'is_active'             => true,
+                        'is_active'             => true, // Activate vessel access
                     ]
                 );
             }
