@@ -22,6 +22,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Discord Logging Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Restrict Discord logging to production only.
+    | If true, Discord logs only work in production environment.
+    | If false or not set, Discord logs work in all environments (default).
+    |
+    */
+
+    'discord_logs_only_on_production' => env('DISCORD_LOGS_ONLY_ON_PRODUCTION', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Deprecations Log Channel
     |--------------------------------------------------------------------------
     |
@@ -54,7 +67,20 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', env('LOG_STACK', 'single')),
+            'channels' => array_filter(
+                array_map('trim', explode(',', env('LOG_STACK', 'single'))),
+                function ($channel) {
+                    // Filter out Discord channels only if restricted to production and not in production
+                    if (in_array($channel, ['discord', 'discord-errors', 'discord-critical'])) {
+                        $onlyProduction = env('DISCORD_LOGS_ONLY_ON_PRODUCTION', false);
+                        $isProduction = env('APP_ENV') === 'production';
+                        // If onlyProduction is true and we're not in production, filter out
+                        // Otherwise, keep the channel (default behavior - always send)
+                        return !($onlyProduction && !$isProduction);
+                    }
+                    return true;
+                }
+            ),
             'ignore_exceptions' => false,
         ],
 
@@ -125,6 +151,42 @@ return [
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
+        ],
+
+        'discord' => [
+            'driver' => 'discord',
+            'handler_with' => [
+                'webhook_url' => env('DISCORD_WEBHOOK_URL'),
+                'username' => env('DISCORD_WEBHOOK_USERNAME', 'log-general-manager'),
+                'avatar_url' => env('DISCORD_WEBHOOK_AVATAR_URL'),
+                'include_context' => env('DISCORD_INCLUDE_CONTEXT', true),
+                'max_message_length' => env('DISCORD_MAX_MESSAGE_LENGTH', 2000),
+            ],
+            'level' => env('DISCORD_LOG_LEVEL', 'info'),
+        ],
+
+        'discord-errors' => [
+            'driver' => 'discord-errors',
+            'handler_with' => [
+                'webhook_url' => env('DISCORD_ERRORS_WEBHOOK_URL', env('DISCORD_WEBHOOK_URL')),
+                'username' => env('DISCORD_ERRORS_WEBHOOK_USERNAME', 'log-error-manager'),
+                'avatar_url' => env('DISCORD_ERRORS_WEBHOOK_AVATAR_URL'),
+                'include_context' => env('DISCORD_INCLUDE_CONTEXT', true),
+                'max_message_length' => env('DISCORD_MAX_MESSAGE_LENGTH', 2000),
+            ],
+            'level' => env('DISCORD_ERRORS_LOG_LEVEL', 'error'),
+        ],
+
+        'discord-critical' => [
+            'driver' => 'discord-critical',
+            'handler_with' => [
+                'webhook_url' => env('DISCORD_CRITICAL_WEBHOOK_URL', env('DISCORD_WEBHOOK_URL')),
+                'username' => env('DISCORD_CRITICAL_WEBHOOK_USERNAME', 'log-critical-manager'),
+                'avatar_url' => env('DISCORD_CRITICAL_WEBHOOK_AVATAR_URL'),
+                'include_context' => env('DISCORD_INCLUDE_CONTEXT', true),
+                'max_message_length' => env('DISCORD_MAX_MESSAGE_LENGTH', 2000),
+            ],
+            'level' => env('DISCORD_CRITICAL_LOG_LEVEL', 'critical'),
         ],
 
     ],

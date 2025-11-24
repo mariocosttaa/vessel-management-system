@@ -2,6 +2,7 @@
 namespace App\Providers;
 
 use App\Actions\General\EasyHashAction;
+use App\Logging\DiscordWebhookHandler;
 use App\Models\CrewPosition;
 use App\Models\User;
 use App\Observers\CrewPositionObserver;
@@ -16,6 +17,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Monolog\Level;
+use Monolog\Logger;
+use Monolog\Processor\PsrLogMessageProcessor;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
@@ -48,6 +52,16 @@ class AppServiceProvider extends ServiceProvider
 
         // Register observers
         CrewPosition::observe(CrewPositionObserver::class);
+
+        // Register Discord logging channels
+        // Only restrict registration if discord_logs_only_on_production is true and not in production
+        $onlyProduction = config('logging.discord_logs_only_on_production', false);
+        $isProduction = app()->environment('production');
+
+        // Register if: not restricted OR (restricted AND in production)
+        if (!($onlyProduction && !$isProduction)) {
+            $this->registerDiscordLogChannels();
+        }
 
         // Customize redirect for authenticated users to panel
         RedirectIfAuthenticated::redirectUsing(function () {
@@ -224,6 +238,48 @@ class AppServiceProvider extends ServiceProvider
 
             // Always abort with 404 if user not found - this prevents passing raw string to controller
             abort(404, 'Crew member not found.');
+        });
+    }
+
+    /**
+     * Register custom Discord logging channels
+     */
+    protected function registerDiscordLogChannels(): void
+    {
+        // Register discord channel
+        Log::extend('discord', function ($app, array $config) {
+            $handler = new DiscordWebhookHandler($config['handler_with'] ?? []);
+            $handler->setLevel(Level::fromName($config['level'] ?? 'info'));
+
+            $logger = new Logger('discord');
+            $logger->pushHandler($handler);
+            $logger->pushProcessor(new PsrLogMessageProcessor());
+
+            return $logger;
+        });
+
+        // Register discord-errors channel
+        Log::extend('discord-errors', function ($app, array $config) {
+            $handler = new DiscordWebhookHandler($config['handler_with'] ?? []);
+            $handler->setLevel(Level::fromName($config['level'] ?? 'error'));
+
+            $logger = new Logger('discord-errors');
+            $logger->pushHandler($handler);
+            $logger->pushProcessor(new PsrLogMessageProcessor());
+
+            return $logger;
+        });
+
+        // Register discord-critical channel
+        Log::extend('discord-critical', function ($app, array $config) {
+            $handler = new DiscordWebhookHandler($config['handler_with'] ?? []);
+            $handler->setLevel(Level::fromName($config['level'] ?? 'critical'));
+
+            $logger = new Logger('discord-critical');
+            $logger->pushHandler($handler);
+            $logger->pushProcessor(new PsrLogMessageProcessor());
+
+            return $logger;
         });
     }
 }
