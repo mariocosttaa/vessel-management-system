@@ -38,7 +38,18 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
-    @vite(['resources/css/app.css'])
+    @php
+        // Check if Vite manifest exists before using @vite directive
+        // The @vite directive throws an exception if manifest is not found
+        // This check prevents the error in production when assets might not be built
+        $manifestPath = public_path('build/.vite/manifest.json');
+        $hasViteManifest = file_exists($manifestPath);
+    @endphp
+
+    @if($hasViteManifest)
+        @vite(['resources/css/app.css'])
+    @endif
+    {{-- If Vite manifest doesn't exist, the page uses inline styles defined below --}}
 
     <style>
         * {
