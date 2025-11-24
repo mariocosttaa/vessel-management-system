@@ -145,15 +145,36 @@ class OAuthController extends Controller
                 if ($existingUser) {
                     // User exists with this email
                     if ($source === 'login') {
-                        // Coming from login page - check if they have OAuth account
+                        // Coming from login page - allow login if they have OAuth account or link it
                         if ($existingUser->provider && $existingUser->provider === $provider) {
                             // They have OAuth account, allow login
                             $user = $existingUser;
-                        } else {
-                            // User exists but doesn't have OAuth account - prevent login
+                        } elseif ($existingUser->provider && $existingUser->provider !== $provider) {
+                            // They have different OAuth provider - suggest using that
                             return redirect()->route('login')
-                                ->with('error', 'An account with this email already exists. Please use your password to login, or sign up with a different email.');
+                                ->with('error', 'An account with this email exists but uses ' . ucfirst($existingUser->provider) . ' for login. Please use ' . ucfirst($existingUser->provider) . ' to login.');
+                        } else {
+                            // User exists but doesn't have OAuth account - link it and allow login
+                            $existingUser->update([
+                                'provider'    => $provider,
+                                'provider_id' => $socialUser->getId(),
+                                'avatar'      => $socialUser->getAvatar(),
+                            ]);
+                            $user = $existingUser;
                         }
+                    } elseif ($source === 'register') {
+                        // Coming from signup page - user already exists, ask if they want to login
+                        Log::info('OAuth signup attempt with existing email', [
+                            'email'    => $socialUser->getEmail(),
+                            'provider' => $provider,
+                        ]);
+
+                        return redirect()->route('login')
+                            ->with('error', 'An account with this email already exists. Would you like to login instead?')
+                            ->with('show_login_modal', true)
+                            ->with('oauth_provider', $provider)
+                            ->with('oauth_email', $socialUser->getEmail())
+                            ->with('oauth_name', $socialUser->getName());
                     } elseif ($source === 'link') {
                         // Coming from profile page - link OAuth to current user's account
                         $currentUser = Auth::user();
@@ -171,7 +192,7 @@ class OAuthController extends Controller
                                 ->with('error', 'This ' . $provider . ' account is already linked to another account.');
                         }
                     } else {
-                        // Coming from signup page - link OAuth to existing account
+                        // Unknown source - link OAuth to existing account
                         $existingUser->update([
                             'provider'    => $provider,
                             'provider_id' => $socialUser->getId(),
@@ -366,16 +387,34 @@ class OAuthController extends Controller
             ]);
 
             // Ensure vessel access is active
-            if ($user->vessel_id) {
+            // Check if user has vessel_id (new crew member) or has pending vessel access (existing user)
+            $vesselId = $user->vessel_id;
+
+            // If no vessel_id, check for pending vessel access (existing user invited to join vessel)
+            if (! $vesselId) {
+                $pendingVesselRole = VesselUserRole::where('user_id', $user->id)
+                    ->where('is_active', false)
+                    ->first();
+
+                if ($pendingVesselRole) {
+                    $vesselId = $pendingVesselRole->vessel_id;
+                    Log::info('Invitation OAuth: Found pending vessel access', [
+                        'user_id'   => $user->id,
+                        'vessel_id' => $vesselId,
+                    ]);
+                }
+            }
+
+            if ($vesselId) {
                 Log::info('Invitation OAuth: Setting up vessel access', [
                     'user_id'   => $user->id,
-                    'vessel_id' => $user->vessel_id,
+                    'vessel_id' => $vesselId,
                 ]);
 
                 // Create/update VesselUser for backward compatibility
                 VesselUser::updateOrCreate(
                     [
-                        'vessel_id' => $user->vessel_id,
+                        'vessel_id' => $vesselId,
                         'user_id'   => $user->id,
                     ],
                     [
@@ -399,7 +438,22 @@ class OAuthController extends Controller
                     }
                 }
 
-                // If no role from position, use default "normal" role
+                // If no role from position, check if there's already a pending role
+                if (! $vesselRoleAccessId) {
+                    $pendingVesselRole = VesselUserRole::where('user_id', $user->id)
+                        ->where('vessel_id', $vesselId)
+                        ->where('is_active', false)
+                        ->first();
+
+                    if ($pendingVesselRole) {
+                        $vesselRoleAccessId = $pendingVesselRole->vessel_role_access_id;
+                        Log::info('Invitation OAuth: Using pending vessel role', [
+                            'vessel_role_access_id' => $vesselRoleAccessId,
+                        ]);
+                    }
+                }
+
+                // If still no role, use default "normal" role
                 if (! $vesselRoleAccessId) {
                     $normalRole = VesselRoleAccess::where('name', 'normal')->where('is_active', true)->first();
                     if ($normalRole) {
@@ -410,30 +464,30 @@ class OAuthController extends Controller
                     }
                 }
 
-                // Create VesselUserRole if we have a role access ID
+                // Create/update VesselUserRole and activate it
                 if ($vesselRoleAccessId) {
                     VesselUserRole::updateOrCreate(
                         [
-                            'vessel_id' => $user->vessel_id,
+                            'vessel_id' => $vesselId,
                             'user_id'   => $user->id,
                         ],
                         [
                             'vessel_role_access_id' => $vesselRoleAccessId,
-                            'is_active'             => true,
+                            'is_active'             => true, // Activate vessel access
                         ]
                     );
-                    Log::info('Invitation OAuth: VesselUserRole created', [
-                        'vessel_id'             => $user->vessel_id,
+                    Log::info('Invitation OAuth: VesselUserRole created/activated', [
+                        'vessel_id'             => $vesselId,
                         'vessel_role_access_id' => $vesselRoleAccessId,
                     ]);
                 } else {
                     Log::warning('Invitation OAuth: No vessel role access ID found', [
                         'user_id'   => $user->id,
-                        'vessel_id' => $user->vessel_id,
+                        'vessel_id' => $vesselId,
                     ]);
                 }
             } else {
-                Log::warning('Invitation OAuth: User has no vessel_id', [
+                Log::warning('Invitation OAuth: User has no vessel_id or pending vessel access', [
                     'user_id' => $user->id,
                 ]);
             }
