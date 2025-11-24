@@ -109,7 +109,7 @@ You should see:
 
 ### Single Command Mode
 
-Execute a single PHP code snippet:
+Execute a single PHP code snippet. **Both the code (input) and output are sent to Discord:**
 
 ```bash
 php artisan tinker:discord "User::count()"
@@ -122,6 +122,8 @@ php artisan tinker:discord "DB::table('users')->count()"
 ```bash
 php artisan tinker:discord "Log::info('Test message')"
 ```
+
+**Important:** The PHP code you execute (input) will always be displayed in the Discord message along with the execution results. This allows you to see what code was run and its output.
 
 ### Interactive Mode
 

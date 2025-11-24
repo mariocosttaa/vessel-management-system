@@ -7,7 +7,9 @@ use Illuminate\Console\Command;
 
 class VpsManageCommand extends Command
 {
-    protected $signature = 'vps:manage {--i|interactive}';
+    protected $signature = 'vps:manage
+                            {command?* : The terminal command to execute (can include multiple words)}
+                            {--i|interactive : Run in interactive mode}';
 
     protected $description = 'Execute terminal commands on VPS and send results to Discord (production only)';
 
@@ -29,17 +31,14 @@ class VpsManageCommand extends Command
         }
 
         // Interactive mode
-        if ($this->option('interactive')) {
+        $commandArgs = $this->argument('command');
+        if ($this->option('interactive') || empty($commandArgs)) {
             return $this->interactiveMode();
         }
 
-        // Single command mode - get command from input
-        $command = $this->ask('Enter command to execute (or press Enter for interactive mode)');
-
-        if (empty($command)) {
-            return $this->interactiveMode();
-        }
-
+        // Single command mode - join all command arguments to handle commands with spaces
+        $command = is_array($commandArgs) ? implode(' ', $commandArgs) : $commandArgs;
+        
         return $this->executeCommand($command);
     }
 
@@ -76,6 +75,13 @@ class VpsManageCommand extends Command
      */
     protected function executeCommand(string $command): int
     {
+        // Ensure command is not empty
+        $command = trim($command);
+        if (empty($command)) {
+            $this->error('Command cannot be empty.');
+            return Command::FAILURE;
+        }
+
         $this->info("Executing: {$command}");
         $this->newLine();
 
@@ -91,11 +97,11 @@ class VpsManageCommand extends Command
         $this->info("Exit Code: {$result['exit_code']}");
         $this->info("Execution Time: {$result['execution_time']}s");
 
-        // Send to Discord
+        // Send to Discord - always include the command (input)
         $this->info('Sending results to Discord...');
         $sent = VpsAction::sendToDiscord(
-            $command,
-            $result['output'],
+            $command, // This is the input/command that was executed
+            $result['output'] ?? '',
             $result['exit_code'],
             $result['execution_time']
         );

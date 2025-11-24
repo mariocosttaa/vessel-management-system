@@ -118,13 +118,23 @@ You should see:
 
 ### Single Command Mode
 
-Execute a single command and send results to Discord:
+Execute a single command and send results to Discord. **Both the input command and output are sent to Discord:**
 
 ```bash
+# Commands with spaces - use quotes
 php artisan vps:manage "df -h"
 php artisan vps:manage "docker ps"
 php artisan vps:manage "systemctl status nginx"
+
+# Commands without spaces - quotes optional
+php artisan vps:manage ls
+php artisan vps:manage pwd
+
+# Commands with multiple words - all arguments are joined
+php artisan vps:manage ls -la /var/www
 ```
+
+**Important:** The command you execute (input) will always be displayed in the Discord message along with the output. This allows you to see what command was run and its results.
 
 ### Interactive Mode
 

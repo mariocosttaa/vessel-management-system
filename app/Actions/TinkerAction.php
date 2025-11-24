@@ -136,11 +136,13 @@ class TinkerAction
                 ? substr($output, 0, $maxOutputLength) . "\n... (truncated)"
                 : $output;
 
-            // Format code for display (escape markdown)
-            $codeDisplay = self::escapeMarkdown($code);
+            // Format code for display - ensure it's always visible
+            $codeDisplay = !empty(trim($code))
+                ? self::escapeMarkdown($code)
+                : '(no code specified)';
 
             // Format output for code block
-            $outputDisplay = $truncatedOutput ?: '(no output)';
+            $outputDisplay = !empty(trim($output)) ? $truncatedOutput : '(no output)';
 
             $embed = [
                 'title' => 'Laravel Tinker Execution',

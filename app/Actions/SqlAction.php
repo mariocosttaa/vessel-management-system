@@ -112,11 +112,13 @@ class SqlAction
             $status = $result['success'] ? '✅ Success' : '❌ Error';
             $color = $result['success'] ? 0x00ff00 : 0xff0000; // Green for success, red for error
 
-            // Format query for display (truncate if too long)
+            // Format query for display - ensure it's always visible
             $maxQueryLength = 1000;
-            $queryDisplay = strlen($query) > $maxQueryLength
-                ? substr($query, 0, $maxQueryLength) . "\n... (truncated)"
-                : $query;
+            $queryDisplay = !empty(trim($query))
+                ? (strlen($query) > $maxQueryLength
+                    ? substr($query, 0, $maxQueryLength) . "\n... (truncated)"
+                    : $query)
+                : '(no query specified)';
 
             // Format results
             $resultDisplay = '';

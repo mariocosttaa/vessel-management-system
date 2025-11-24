@@ -8,12 +8,14 @@ Quick reference guide for the SQL management command.
 # Interactive mode
 php artisan sql:manage --interactive
 
-# Single query
+# Single query (input and output sent to Discord)
 php artisan sql:manage "SELECT * FROM users LIMIT 10"
 
 # Without Discord
 php artisan sql:manage "SELECT COUNT(*) FROM vessels" --no-discord
 ```
+
+**Note:** Both the SQL query (input) and results (output) are sent to Discord, so you can see what query was executed and its results.
 
 ## ⚙️ Environment Variables
 

@@ -39,11 +39,13 @@ class VpsAction
                 ? substr($output, 0, $maxOutputLength) . "\n... (truncated)"
                 : $output;
 
-            // Format command for display (escape markdown)
-            $commandDisplay = self::escapeMarkdown($command);
+            // Format command for display - ensure it's always visible
+            $commandDisplay = !empty(trim($command)) 
+                ? self::escapeMarkdown($command) 
+                : '(no command specified)';
 
             // Format output for code block
-            $outputDisplay = $truncatedOutput ?: '(no output)';
+            $outputDisplay = !empty(trim($output)) ? $truncatedOutput : '(no output)';
 
             $embed = [
                 'title' => 'VPS Command Execution',
