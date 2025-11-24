@@ -124,7 +124,10 @@ docs/
 ## 🔐 Permission System Quick Reference
 
 ### User Types
-- **`paid_system`**: Can create vessels, becomes vessel owner/administrator
+- **`paid_system`**: Can create vessels (tenant role is mandatory), becomes vessel owner/administrator
+- **VesselService**: Handles vessel creation with owner, config, and mandatory administrator role
+- **Member Invitations**: Existing users receive invitations to join vessels (no duplicate accounts)
+- **OAuth Authentication**: Smart handling of existing users during login/signup flows
 - **`employee_of_vessel`**: Can only access assigned vessels
 
 ### Vessel Roles
@@ -192,6 +195,44 @@ $user->getVesselRoleAccess($vesselId)       // Get role access for vessel
 ```vue
 <button class="bg-primary hover:bg-primary/90 text-primary-foreground">
 ```
+
+❌ **Don't forget translation keys:**
+```vue
+<button>{{ t('Delete Vessel') }}</button>
+<!-- Missing key causes SSR errors -->
+```
+
+✅ **Always add keys to all locales:**
+- Add to `en.json`, `pt.json`, `es.json`, `fr.json`
+- Use English text as the key
+- Test in all languages
+
+❌ **Don't use @vite without checking manifest:**
+```php
+@vite(['resources/css/app.css'])
+<!-- Fails if manifest doesn't exist -->
+```
+
+✅ **Check manifest exists first:**
+```php
+@php
+    $manifestPath = public_path('build/.vite/manifest.json');
+    $hasViteManifest = file_exists($manifestPath);
+@endphp
+
+@if($hasViteManifest)
+    @vite(['resources/css/app.css'])
+@endif
+```
+
+## 🔧 Troubleshooting
+
+For production issues and common errors, see:
+- **Troubleshooting Guide**: `docs/troubleshooting-guide.md`
+  - Vite manifest errors
+  - Translation key issues
+  - Error page best practices
+  - Production deployment checklist
 
 ---
 

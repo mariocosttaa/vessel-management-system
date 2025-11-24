@@ -20,9 +20,25 @@ The documentation is organized into **core guides** and **pattern references** t
 
 ### 🚀 Essential Guides
 
+#### `troubleshooting-guide.md`
+**Purpose**: Common production issues and their solutions
+**When to use**:
+- Encountering Vite manifest errors
+- Missing translation key errors
+- Error page issues
+- Production deployment problems
+- Console error debugging
+
+**Key Content**:
+- Vite manifest error solutions
+- Translation key troubleshooting
+- Error page best practices
+- Production deployment checklist
+- Common console errors explained
+
 #### `quick-reference.md`
 **Purpose**: Quick lookup for common patterns and essential information
-**When to use**: 
+**When to use**:
 - Need quick access to design system colors
 - Looking up form patterns or component structures
 - Checking common mistakes to avoid
@@ -189,6 +205,24 @@ The documentation is organized into **core guides** and **pattern references** t
 - Money formatting patterns
 - Relationship loading optimization
 - Complete resource examples
+
+#### `service-patterns.md`
+**Purpose**: Service layer patterns for complex business logic
+**When to use**:
+- Creating services for complex operations
+- Encapsulating multi-model operations
+- Implementing transaction-safe operations
+- Creating reusable business logic
+- Understanding VesselService implementation
+
+**Key Content**:
+- Service structure and naming conventions
+- VesselService example (vessel creation with owner and roles)
+- Transaction safety patterns
+- Tenant role validation
+- Mandatory administrator role assignment
+- Service usage in controllers
+- Best practices and benefits
 
 ### Frontend Patterns
 
@@ -376,6 +410,7 @@ The documentation is organized into **core guides** and **pattern references** t
 4. **Follow Patterns**: Use specific pattern files based on your task:
    - **Models**: Use `model-patterns.md`
    - **Controllers**: Use `controller-patterns.md`
+   - **Services**: Use `service-patterns.md` (for complex business logic)
    - **Requests**: Use `request-patterns.md`
    - **Resources**: Use `resource-patterns.md`
    - **Frontend**: Use `frontend-patterns.md`
@@ -400,16 +435,17 @@ The documentation is organized into **core guides** and **pattern references** t
 3. Follow `multi-tenant-patterns.md` for vessel-based architecture ⭐ **ESSENTIAL**
 4. Follow `model-patterns.md` for model creation
 5. Use `controller-patterns.md` for controller implementation
-6. Apply `request-patterns.md` for validation
-7. Use `resource-patterns.md` for API responses
-8. Follow `frontend-patterns.md` for Vue.js components
-9. Use `translation-patterns.md` for frontend translations
-10. Use `backend-translation-patterns.md` for controller/email translations
-11. Apply `permissions-patterns.md` for authorization
-12. Apply `notification-patterns.md` for user feedback
-13. Apply `email-patterns.md` for email templates
-14. Apply `pdf-patterns.md` for PDF generation
-15. Apply `layout-patterns.md` for UI consistency
+6. Use `service-patterns.md` for complex business logic (vessel creation, etc.)
+7. Apply `request-patterns.md` for validation
+8. Use `resource-patterns.md` for API responses
+9. Follow `frontend-patterns.md` for Vue.js components
+10. Use `translation-patterns.md` for frontend translations
+11. Use `backend-translation-patterns.md` for controller/email translations
+12. Apply `permissions-patterns.md` for authorization
+13. Apply `notification-patterns.md` for user feedback
+14. Apply `email-patterns.md` for email templates
+15. Apply `pdf-patterns.md` for PDF generation
+16. Apply `layout-patterns.md` for UI consistency
 
 #### When Working with Money:
 1. Always read `money-handling.md` first
@@ -435,6 +471,7 @@ The documentation is organized into **core guides** and **pattern references** t
    - Multi-Tenant: `multi-tenant-patterns.md` ⭐ **ESSENTIAL**
    - Model: `model-patterns.md`
    - Controller: `controller-patterns.md`
+   - Service: `service-patterns.md` (for complex operations like vessel creation)
    - Request: `request-patterns.md`
    - Resource: `resource-patterns.md`
    - Frontend: `frontend-patterns.md`
@@ -484,6 +521,8 @@ The documentation is organized into **core guides** and **pattern references** t
 ❌ **Don't skip vessel injection**: Always inject vessel_id in store methods ⭐ **CRITICAL**
 ❌ **Don't use AppLayout**: Use VesselLayout for vessel-specific pages ⭐ **CRITICAL**
 ❌ **Don't forget vessel parameter**: Always include vessel in route generation ⭐ **CRITICAL**
+❌ **Don't use @vite without checking manifest**: Always check manifest exists in error pages
+❌ **Don't forget translation keys**: Always add keys to all locale files (en, pt, es, fr)
 
 ## 📋 Quick Reference Checklist
 
@@ -510,6 +549,8 @@ Before implementing any feature, ensure you have:
 - [ ] Implemented vessel-specific authorization ⭐ **ESSENTIAL**
 - [ ] Used VesselLayout for vessel pages ⭐ **ESSENTIAL**
 - [ ] Included vessel parameter in all routes ⭐ **ESSENTIAL**
+- [ ] Added translation keys to all locale files (en, pt, es, fr)
+- [ ] Checked Vite manifest exists before using @vite in error pages
 
 ## 🔗 File Relationships
 
@@ -517,6 +558,7 @@ Before implementing any feature, ensure you have:
 docs/
 ├── README.md (this file)
 ├── quick-reference.md (start here)
+├── troubleshooting-guide.md (production issues & fixes)
 ├── implementation-guide.md (architecture)
 ├── database-schema.md (data structure)
 ├── vessel-rbac-overview.md (permission system overview)
@@ -526,6 +568,7 @@ docs/
     ├── model-patterns.md (Eloquent models)
     ├── controller-patterns.md (Laravel controllers)
     ├── request-patterns.md (validation)
+    ├── service-patterns.md (business logic services)
     ├── resource-patterns.md (API resources)
     ├── frontend-patterns.md (Vue.js)
     ├── translation-patterns.md (frontend i18n)
@@ -539,6 +582,9 @@ docs/
     ├── pdf-patterns.md (PDF generation)
     ├── money-handling.md (monetary values)
     ├── multi-tenant-patterns.md (vessel-based architecture) ⭐ **ESSENTIAL**
+    ├── service-patterns.md (business logic services)
+    ├── member-invitation-patterns.md (crew member invitations)
+    ├── oauth-authentication-patterns.md (OAuth login/signup)
     └── git-commit-pattners.md (commit rules)
 ```
 

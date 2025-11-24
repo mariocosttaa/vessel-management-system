@@ -107,9 +107,10 @@ vessels (owner_id references users)
 - Seamless user experience
 
 ### 4. User Type Restrictions
-- Only `paid_system` users can create vessels
+- Only `paid_system` users can create vessels (tenant role is mandatory)
 - `employee_of_vessel` users are restricted to assigned vessels
 - Clear separation of responsibilities
+- VesselService validates tenant role before vessel creation
 
 ### 5. Scalable Architecture
 - Easy to add new roles
@@ -173,9 +174,24 @@ vessels (owner_id references users)
 
 ### Backend
 - **Models**: `User`, `Vessel`, `VesselUserRole`, `VesselRoleAccess`
+- **Services**: `VesselService` for vessel creation with owner and role assignment
 - **Controllers**: Vessel-specific authorization checks
 - **Requests**: Permission validation in FormRequest classes
 - **Relationships**: Complex many-to-many with pivot data
+
+### Vessel Creation Service
+
+The `VesselService` encapsulates all vessel creation logic:
+
+- ✅ Validates tenant role (`paid_system`) before creation
+- ✅ Creates vessel with owner assignment
+- ✅ Automatically assigns administrator role (mandatory)
+- ✅ Creates vessel settings
+- ✅ Maintains backward compatibility (VesselUser table)
+- ✅ Performs all operations within a database transaction
+- ✅ Logs audit trail
+
+See `docs/patterns/service-patterns.md` for complete implementation details.
 
 ### Frontend
 - **Components**: Permission-based rendering
