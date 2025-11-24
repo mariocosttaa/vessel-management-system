@@ -276,5 +276,9 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     });
 });
 
+// Discord Interactions (slash commands)
+Route::post('/discord/interactions', [App\Http\Controllers\DiscordInteractionController::class, 'handle'])
+    ->name('discord.interactions');
+
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
