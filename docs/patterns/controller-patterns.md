@@ -1069,23 +1069,43 @@ class VesselController extends Controller
      */
     public function store(StoreVesselRequest $request)
     {
-        // Authorization is handled in the request class
-        // Access validated values directly as properties (never use validated())
-        $vessel = Vessel::create([
-            'name' => $request->name,
-            'registration_number' => $request->registration_number,
-            'vessel_type' => $request->vessel_type,
-            'capacity' => $request->capacity,
-            'year_built' => $request->year_built,
-            'status' => $request->status,
-            'notes' => $request->notes,
-            'country_code' => $request->country_code,
-            'currency_code' => $request->currency_code,
-        ]);
+        $user = auth()->user();
 
-        return redirect()
-            ->route('vessels.index')
-            ->with('success', 'Vessel created successfully.');
+        // Check if user can create vessels (must have tenant role - paid_system)
+        if (! $user->canCreateVessels()) {
+            abort(403, 'You do not have permission to create vessels. You must have tenant role (paid_system).');
+        }
+
+        // Validate that user has tenant role (mandatory)
+        if ($user->user_type !== 'paid_system') {
+            abort(403, 'You must have tenant role (paid_system) to create vessels.');
+        }
+
+        try {
+            // Use VesselService for vessel creation
+            $vesselService = new \App\Services\VesselService();
+            
+            $vessel = $vesselService->createVessel($user, [
+                'name'                => $request->name,
+                'registration_number' => $request->registration_number,
+                'vessel_type'         => $request->vessel_type,
+                'capacity'            => $request->capacity,
+                'year_built'          => $request->year_built,
+                'status'              => $request->status,
+                'notes'               => $request->notes,
+                'country_code'        => $request->country_code,
+                'currency_code'       => $request->currency_code,
+                'vat_profile_id'      => $request->vat_profile_id,
+            ]);
+
+            return redirect()
+                ->route('panel.index')
+                ->with('success', "Vessel '{$vessel->name}' has been created successfully.");
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create vessel: ' . $e->getMessage());
+        }
     }
 
     /**

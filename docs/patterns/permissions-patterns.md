@@ -308,7 +308,7 @@ public function authorize(): bool
 
 ### 3. Controller Authorization
 
-Controllers implement vessel-specific permission checks:
+Controllers implement vessel-specific permission checks and use services for complex operations:
 
 ```php
 // app/Http/Controllers/VesselController.php
@@ -316,28 +316,37 @@ public function store(StoreVesselRequest $request)
 {
     $user = auth()->user();
 
-    // Check if user can create vessels
-    if (!$user->canCreateVessels()) {
-        abort(403, 'You do not have permission to create vessels.');
+    // Check if user can create vessels (must have tenant role - paid_system)
+    if (! $user->canCreateVessels()) {
+        abort(403, 'You do not have permission to create vessels. You must have tenant role (paid_system).');
+    }
+
+    // Validate that user has tenant role (mandatory)
+    if ($user->user_type !== 'paid_system') {
+        abort(403, 'You must have tenant role (paid_system) to create vessels.');
     }
 
     try {
-        $vessel = Vessel::create($request->validated());
-
-        // Assign the vessel to the current user as administrator (owner)
-        $adminRoleAccess = VesselRoleAccess::where('name', 'administrator')->first();
-
-        if ($adminRoleAccess) {
-            VesselUserRole::create([
-                'vessel_id' => $vessel->id,
-                'user_id' => $user->id,
-                'vessel_role_access_id' => $adminRoleAccess->id,
-                'is_active' => true,
-            ]);
-        }
-
-        // Set the vessel owner
-        $vessel->update(['owner_id' => $user->id]);
+        // Use VesselService for vessel creation
+        // This service handles:
+        // - Vessel creation with owner assignment
+        // - Administrator role assignment (mandatory)
+        // - Vessel settings creation
+        // - Audit logging
+        $vesselService = new \App\Services\VesselService();
+        
+        $vessel = $vesselService->createVessel($user, [
+            'name'                => $request->name,
+            'registration_number' => $request->registration_number,
+            'vessel_type'         => $request->vessel_type,
+            'capacity'            => $request->capacity,
+            'year_built'          => $request->year_built,
+            'status'              => $request->status,
+            'notes'               => $request->notes,
+            'country_code'        => $request->country_code,
+            'currency_code'       => $request->currency_code,
+            'vat_profile_id'      => $request->vat_profile_id,
+        ]);
 
         return redirect()
             ->route('panel.index')
@@ -345,9 +354,65 @@ public function store(StoreVesselRequest $request)
     } catch (\Exception $e) {
         return back()
             ->withInput()
-            ->with('error', 'Failed to create vessel. Please try again.');
+            ->with('error', 'Failed to create vessel: ' . $e->getMessage());
     }
 }
+```
+
+#### VesselService Pattern
+
+The `VesselService` encapsulates all vessel creation logic:
+
+```php
+// app/Services/VesselService.php
+class VesselService
+{
+    /**
+     * Create a new vessel with owner and initial administrator role.
+     *
+     * @param User $owner The user who will own the vessel (must be paid_system)
+     * @param array $vesselData Vessel configuration data
+     * @return Vessel The created vessel
+     * @throws \Exception If user doesn't have tenant role or creation fails
+     */
+    public function createVessel(User $owner, array $vesselData): Vessel
+    {
+        // Validate that owner has tenant role (paid_system)
+        if ($owner->user_type !== 'paid_system') {
+            throw new \Exception('User must have tenant role (paid_system) to create vessels.');
+        }
+
+        return DB::transaction(function () use ($owner, $vesselData) {
+            // Create the vessel
+            $vessel = Vessel::create([...]);
+
+            // Get or create the administrator role access
+            $adminRoleAccess = VesselRoleAccess::where('name', 'administrator')->first();
+            // ... create if doesn't exist ...
+
+            // Create vessel user role with administrator access (mandatory)
+            VesselUserRole::create([
+                'vessel_id'             => $vessel->id,
+                'user_id'               => $owner->id,
+                'vessel_role_access_id' => $adminRoleAccess->id,
+                'is_active'             => true,
+            ]);
+
+            // Create vessel settings, audit logs, etc.
+            // ...
+
+            return $vessel;
+        });
+    }
+}
+```
+
+**Benefits of using VesselService:**
+- ✅ Centralized vessel creation logic
+- ✅ Automatic administrator role assignment (mandatory)
+- ✅ Transaction safety (all-or-nothing)
+- ✅ Consistent vessel setup
+- ✅ Easier testing and maintenance
 
 public function update(UpdateVesselRequest $request, Vessel $vessel)
 {

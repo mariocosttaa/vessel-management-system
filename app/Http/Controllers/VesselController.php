@@ -9,6 +9,7 @@ use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Vessel;
 use App\Models\VesselUser;
+use App\Services\VesselService;
 use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -123,13 +124,20 @@ class VesselController extends BaseController
     {
         $user = auth()->user();
 
-        // Check if user can create vessels
+        // Check if user can create vessels (must have tenant role - paid_system)
         if (! $user->canCreateVessels()) {
-            abort(403, 'You do not have permission to create vessels.');
+            abort(403, 'You do not have permission to create vessels. You must have tenant role (paid_system).');
+        }
+
+        // Validate that user has tenant role (mandatory)
+        if ($user->user_type !== 'paid_system') {
+            abort(403, 'You must have tenant role (paid_system) to create vessels.');
         }
 
         try {
-            $vessel = Vessel::create([
+            $vesselService = new VesselService();
+
+            $vessel = $vesselService->createVessel($user, [
                 'name'                => $request->name,
                 'registration_number' => $request->registration_number,
                 'vessel_type'         => $request->vessel_type,
@@ -139,59 +147,8 @@ class VesselController extends BaseController
                 'notes'               => $request->notes,
                 'country_code'        => $request->country_code,
                 'currency_code'       => $request->currency_code,
+                'vat_profile_id'      => $request->vat_profile_id,
             ]);
-
-            // Assign the vessel to the current user as administrator (owner)
-            $user = auth()->user();
-
-            // Get or create the administrator role access
-            $adminRoleAccess = \App\Models\VesselRoleAccess::where('name', 'administrator')->first();
-
-            // If administrator role doesn't exist, create it
-            if (! $adminRoleAccess) {
-                $adminRoleAccess = \App\Models\VesselRoleAccess::create([
-                    'name'         => 'administrator',
-                    'display_name' => 'Administrator',
-                    'description'  => 'Full access to vessel including deletion and user management',
-                    'permissions' => ['view_vessel', 'edit_vessel_basic', 'edit_vessel_advanced', 'manage_crew', 'delete_vessel', 'manage_vessel_users'],
-                    'is_active'    => true,
-                ]);
-            }
-
-            // Create vessel user role with administrator access
-            \App\Models\VesselUserRole::create([
-                'vessel_id'             => $vessel->id,
-                'user_id'               => $user->id,
-                'vessel_role_access_id' => $adminRoleAccess->id,
-                'is_active'             => true,
-            ]);
-
-            // Also maintain the old vessel_users table for backward compatibility
-            VesselUser::create([
-                'vessel_id' => $vessel->id,
-                'user_id'   => $user->id,
-                'role'      => 'owner',
-                'is_active' => true,
-            ]);
-
-            // Set the vessel owner
-            $vessel->update(['owner_id' => $user->id]);
-
-            // Create vessel setting with country, currency, and VAT profile
-            \App\Models\VesselSetting::create([
-                'vessel_id'     => $vessel->id,
-                'country_code'  => $request->country_code,
-                'currency_code' => $request->currency_code,
-                'vat_profile_id' => $request->vat_profile_id,
-            ]);
-
-            // Log the create action
-            AuditLogAction::logCreate(
-                $vessel,
-                'Vessel',
-                $vessel->name,
-                null// Vessels are not vessel-scoped (they're global entities)
-            );
 
             return redirect()
                 ->route('panel.index')
@@ -202,7 +159,9 @@ class VesselController extends BaseController
         } catch (\Exception $e) {
             return back()
                 ->withInput()
-                ->with('error', $this->transFrom('notifications', 'Failed to create vessel. Please try again.'))
+                ->with('error', $this->transFrom('notifications', 'Failed to create vessel: :message', [
+                    'message' => $e->getMessage(),
+                ]))
                 ->with('notification_delay', 0); // Persistent error (0 = no auto-dismiss)
         }
     }
