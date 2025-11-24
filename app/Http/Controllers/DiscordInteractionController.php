@@ -197,7 +197,10 @@ class DiscordInteractionController extends Controller
     }
 
     /**
-     * Verify Discord request signature
+     * Verify Discord request signature (Ed25519)
+     * 
+     * Discord signs all interaction requests with Ed25519.
+     * This prevents unauthorized requests to your endpoint.
      */
     protected function verifySignature(Request $request): bool
     {
@@ -206,22 +209,49 @@ class DiscordInteractionController extends Controller
         $body = $request->getContent();
 
         if (!$signature || !$timestamp) {
+            Log::warning('Discord interaction missing signature headers');
             return false;
         }
 
         $publicKey = env('DISCORD_PUBLIC_KEY', '');
+        
+        // In development, allow without verification for easier testing
+        if (app()->environment('local') && empty($publicKey)) {
+            Log::warning('Discord signature verification skipped in local environment');
+            return true;
+        }
+
         if (empty($publicKey)) {
-            // In development, skip verification
-            if (app()->environment('local')) {
-                return true;
-            }
+            Log::error('DISCORD_PUBLIC_KEY not configured - rejecting request for security');
             return false;
         }
 
-        // Verify signature using Ed25519
-        // For simplicity, we'll use a library or skip in development
-        // In production, you should properly verify the signature
-        return true; // Simplified for now - implement proper verification
+        // Verify signature using Ed25519 (sodium extension)
+        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+            Log::error('sodium extension not available - cannot verify Discord signature');
+            // In production, we should reject, but for now allow if sodium is not available
+            // You should install sodium extension: apt-get install php-sodium
+            return app()->environment('local');
+        }
+
+        // Discord signature format: hex-encoded Ed25519 signature
+        $signatureBinary = hex2bin($signature);
+        $publicKeyBinary = hex2bin($publicKey);
+        
+        // Discord signs: timestamp + body
+        $message = $timestamp . $body;
+
+        // Verify the signature
+        $isValid = sodium_crypto_sign_verify_detached($signatureBinary, $message, $publicKeyBinary);
+
+        if (!$isValid) {
+            Log::warning('Discord interaction signature verification failed', [
+                'timestamp' => $timestamp,
+                'body_length' => strlen($body),
+            ]);
+        }
+
+        return $isValid;
     }
 }
 
