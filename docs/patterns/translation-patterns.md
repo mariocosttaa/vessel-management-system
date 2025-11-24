@@ -177,6 +177,25 @@ const statusLabel = ref(t('Active'));
 
 The system automatically handles missing keys by falling back to the key itself (English text). However, you should verify keys exist during development.
 
+### Common Missing Keys (Production Issues)
+
+The following keys are commonly missing and cause production errors:
+
+1. **Vessel Deletion:**
+   - `"Delete Vessel"` - Required for vessel deletion confirmation dialog
+   - `"This will permanently delete the vessel and remove all user access. This action cannot be undone."` - Warning message
+
+2. **Privacy Policy Section Headers:**
+   - `"Information We Collect"` - Section 1 header (without number prefix)
+   - `"How We Use Your Information"` - Section 2 header (without number prefix)
+   - `"Data Security"` - Section 4 header (without number prefix)
+   - `"Data Retention"` - Section 5 header (without number prefix)
+   - `"Your Rights"` - Section 6 header (without number prefix)
+
+**Note:** These keys must exist in ALL locale files (en, pt, es, fr) to prevent SSR errors.
+
+**See Also:** `docs/troubleshooting-guide.md` for detailed solutions to translation key issues.
+
 ### Development Verification
 
 Create a helper function to check for missing keys in development:

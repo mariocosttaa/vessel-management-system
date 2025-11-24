@@ -36,6 +36,20 @@ The documentation is organized into **core guides** and **pattern references** t
 - Production deployment checklist
 - Common console errors explained
 
+#### `user-manage-commands-guide.md`
+**Purpose**: Complete guide to the UserManage command system
+**When to use**:
+- Managing users, vessels, crew, and system via terminal
+- Understanding available commands and their usage
+- Setting up automation scripts
+- Performing administrative tasks
+
+**Key Content**:
+- Interactive menu guide
+- All 27 commands with examples
+- Common workflows and use cases
+- Best practices and troubleshooting
+
 #### `quick-reference.md`
 **Purpose**: Quick lookup for common patterns and essential information
 **When to use**:
