@@ -40,8 +40,8 @@ class VpsAction
                 : $output;
 
             // Format command for display - ensure it's always visible
-            $commandDisplay = !empty(trim($command)) 
-                ? self::escapeMarkdown($command) 
+            $commandDisplay = !empty(trim($command))
+                ? self::escapeMarkdown($command)
                 : '(no command specified)';
 
             // Format output for code block
