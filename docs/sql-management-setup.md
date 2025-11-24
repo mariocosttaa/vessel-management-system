@@ -342,10 +342,11 @@ php artisan route:clear
 
 ### Discord webhook not working
 
-1. **Check webhook URL**: Verify the URL is correct and active
-2. **Check environment**: Ensure `APP_ENV=production` if `SQL_DISCORD_ONLY_ON_PRODUCTION=true`
-3. **Check permissions**: Ensure the webhook has permission to post in the channel
-4. **Check logs**: Review `storage/logs/laravel.log` for errors
+1. **Test webhook configuration**: Run `php artisan discord:test` to test all Discord webhooks
+2. **Check webhook URL**: Verify the URL is correct and active
+3. **Check environment**: Ensure `APP_ENV=production` if `SQL_DISCORD_ONLY_ON_PRODUCTION=true`
+4. **Check permissions**: Ensure the webhook has permission to post in the channel
+5. **Check logs**: Review `storage/logs/laravel.log` for errors
 
 ### Query execution failed
 
@@ -449,8 +450,10 @@ This ensures:
 
 ## 🔗 Related Documentation
 
+- [Discord Webhook Test Guide](./discord-webhook-test-guide.md) - Test all Discord webhook configurations
 - [Discord Logging Setup](./discord-logging-setup.md) - Application logging to Discord
 - [VPS Management Setup](./vps-management-setup.md) - VPS command execution
+- [Tinker Discord Setup](./tinker-discord-setup.md) - Tinker Discord integration
 - [Laravel Database Documentation](https://laravel.com/docs/database)
 
 ---

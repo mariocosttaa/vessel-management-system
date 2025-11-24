@@ -265,10 +265,11 @@ If you see "Tinker Discord webhook URL is not configured":
 
 ### Messages not appearing in Discord
 
-1. **Check webhook URL**: Verify the URL is correct and active
-2. **Check environment**: Make sure `.env` variables are loaded (`php artisan config:clear`)
-3. **Check permissions**: Ensure the webhook has permission to post in the channel
-4. **Check logs**: Review `storage/logs/laravel.log` for errors
+1. **Test webhook configuration**: Run `php artisan discord:test` to test all Discord webhooks
+2. **Check webhook URL**: Verify the URL is correct and active
+3. **Check environment**: Make sure `.env` variables are loaded (`php artisan config:clear`)
+4. **Check permissions**: Ensure the webhook has permission to post in the channel
+5. **Check logs**: Review `storage/logs/laravel.log` for errors
 
 ### Code execution errors
 
@@ -367,9 +368,16 @@ This ensures:
 - ✅ No test/development executions reach production Discord
 - ✅ Proper bot identification in Discord
 
+## 🔗 Related Documentation
+
+- [Discord Webhook Test Guide](./discord-webhook-test-guide.md) - Test all Discord webhook configurations
+- [VPS Management Setup](./vps-management-setup.md) - VPS command execution
+- [SQL Management Setup](./sql-management-setup.md) - SQL query execution
+
 ---
 
 **Need help?** 
+- Test webhook configuration: `php artisan discord:test`
 - Check the application logs: `storage/logs/laravel.log`
 - Review the implementation: `app/Actions/TinkerAction.php`
 - Check the command: `app/Console/Commands/TinkerCommand.php`

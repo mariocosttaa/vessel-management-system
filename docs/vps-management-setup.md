@@ -307,10 +307,11 @@ If you get "Command is not allowed" error:
 
 ### Discord webhook not working
 
-1. **Check webhook URL**: Verify the URL is correct and active
-2. **Check permissions**: Ensure webhook has permission to post in channel
-3. **Check logs**: Review Laravel logs for webhook errors
-4. **Test webhook**: Use Discord webhook tester to verify URL
+1. **Test webhook configuration**: Run `php artisan discord:test` to test all Discord webhooks
+2. **Check webhook URL**: Verify the URL is correct and active
+3. **Check permissions**: Ensure webhook has permission to post in channel
+4. **Check logs**: Review Laravel logs for webhook errors
+5. **Test webhook**: Use Discord webhook tester to verify URL
 
 ### Timeout errors
 
@@ -370,6 +371,7 @@ php artisan vps:manage "tail -n 100 storage/logs/laravel.log"
 
 ## 🔗 Related Documentation
 
+- [Discord Webhook Test Guide](./discord-webhook-test-guide.md) - Test all Discord webhook configurations
 - [Discord Logging Setup](./discord-logging-setup.md) - Similar Discord integration
 - [Laravel Console Commands](https://laravel.com/docs/artisan) - Laravel command documentation
 
