@@ -15,6 +15,7 @@ const user = computed(() => page.props.auth?.user)
 const visibleSections = ref<Set<string>>(new Set())
 const videoLoaded = ref(false)
 const videoElement = ref<HTMLVideoElement | null>(null)
+const videoElementMobile = ref<HTMLVideoElement | null>(null)
 
 // Observe all sections on mount
 onMounted(() => {
@@ -63,7 +64,11 @@ onMounted(() => {
         'pricing-features',
         'contact-header',
         'contact-card',
-        'contact-info'
+        'contact-info',
+        'showcase-header',
+        'showcase-1',
+        'showcase-2',
+        'showcase-3'
     ]
     additionalSections.forEach((sectionId) => {
         const element = document.getElementById(sectionId)
@@ -79,6 +84,9 @@ onMounted(() => {
         videoLoaded.value = true
         if (videoElement.value) {
             videoElement.value.load()
+        }
+        if (videoElementMobile.value) {
+            videoElementMobile.value.load()
         }
     }, 100)
 })
@@ -169,75 +177,117 @@ const testimonials = computed(() => [
     <Head title="Bindamy Mareas - Vessel Management System" />
     <AppLayout>
         <!-- Hero Section -->
-        <section class="relative bg-gradient-to-b from-background to-muted/30 dark:from-[#121212] dark:to-[#0a0a0a] pt-24 pb-12 lg:pt-32 lg:pb-20 overflow-hidden">
-            <!-- Background gradient -->
-            <div class="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent dark:from-primary/10"></div>
+        <section class="relative bg-gradient-to-b from-background to-muted/30 dark:from-[#121212] dark:to-[#0a0a0a] pt-20 pb-16 lg:pt-24 lg:pb-20 overflow-hidden">
+            <!-- Background Gradient -->
+            <div class="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/80 dark:from-[#121212]/95 dark:via-[#121212]/90 dark:to-[#121212]/80"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent dark:from-[#121212] dark:via-transparent dark:to-transparent"></div>
 
-            <div class="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div class="text-center">
-                    <!-- Badge -->
-                    <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-border/50 dark:border-sidebar-border/50 bg-card/40 dark:bg-card/20 backdrop-blur-sm px-3 py-1 text-xs text-muted-foreground dark:text-muted-foreground">
-                        <span>{{ t('Part of') }}</span>
-                        <span class="font-semibold text-card-foreground dark:text-card-foreground">{{ t('Bindamy Group') }}</span>
-                    </div>
+            <div class="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                    <!-- Left Column: Text Content -->
+                    <div class="text-left animate-fade-in-left">
+                        <!-- Badge -->
+                        <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-border/50 dark:border-sidebar-border/50 bg-card/60 dark:bg-card/30 backdrop-blur-md px-3 py-1 text-xs text-muted-foreground dark:text-muted-foreground shadow-lg">
+                            <Icon name="sparkles" class="w-3 h-3 text-primary" />
+                            <span>{{ t('Part of') }}</span>
+                            <span class="font-semibold text-card-foreground dark:text-card-foreground">{{ t('Bindamy Group') }}</span>
+                        </div>
 
-                    <!-- Main Headline -->
-                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4 leading-tight">
-                        {{ t('Vessel management system for') }}
-                        <span class="text-primary dark:text-primary">{{ t('modern operations') }}</span>
-                    </h1>
+                        <!-- Main Headline -->
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4 leading-tight">
+                            {{ t('Vessel management system for') }}
+                            <span class="block mt-2 bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent animate-gradient">
+                                {{ t('modern operations') }}
+                            </span>
+                        </h1>
 
-                    <!-- Subtext -->
-                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground mb-8 leading-relaxed">
-                        {{ t('Our vessel management platform works seamlessly across all devices, so you only have to set it up once, and get beautiful results forever. Complete financial control and operational efficiency.') }}
-                    </p>
+                        <!-- Subtext -->
+                        <p class="text-base sm:text-lg text-muted-foreground dark:text-muted-foreground mb-8 leading-relaxed max-w-xl">
+                            {{ t('Our vessel management platform works seamlessly across all devices, so you only have to set it up once, and get beautiful results forever. Complete financial control and operational efficiency.') }}
+                        </p>
 
-                    <!-- CTA Buttons -->
-                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
-                        <Link
-                            v-if="!user"
-                            :href="login()"
-                            class="inline-flex items-center px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                        >
-                            {{ t('Get started') }}
-                        </Link>
-                        <Link
-                            v-else
-                            href="/panel"
-                            class="inline-flex items-center px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                        >
-                            <Icon name="grid" class="w-4 h-4 mr-2" />
-                            {{ t('Go to Panel') }}
-                        </Link>
-                        <a
-                            href="#features"
-                            class="inline-flex items-center px-6 py-2.5 border border-border dark:border-sidebar-border bg-background dark:bg-card hover:bg-muted/50 dark:hover:bg-muted/30 text-card-foreground dark:text-card-foreground rounded-lg font-medium text-sm transition-all duration-200"
-                        >
-                            {{ t('Learn more') }}
-                        </a>
-                    </div>
-
-                    <!-- Video Demo -->
-                    <div id="hero-video" class="relative mx-auto max-w-4xl rounded-xl overflow-hidden border border-border/50 dark:border-sidebar-border/50 shadow-xl bg-card/50 dark:bg-card/30 backdrop-blur-sm">
-                        <div class="aspect-video relative bg-gradient-to-br from-muted/50 to-muted dark:from-muted/30 dark:to-muted/20">
-                            <video
-                                ref="videoElement"
-                                class="w-full h-full object-cover"
-                                autoplay
-                                muted
-                                loop
-                                playsinline
-                                :preload="videoLoaded ? 'auto' : 'none'"
+                        <!-- CTA Buttons -->
+                        <div class="flex flex-col sm:flex-row items-start gap-3">
+                            <Link
+                                v-if="!user"
+                                :href="login()"
+                                class="group inline-flex items-center px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-sm transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                             >
-                                <source v-if="videoLoaded" src="/bindamy-marea-presentation.mp4" type="video/mp4" />
-                            </video>
-                            <!-- Loading placeholder -->
-                            <div v-if="!videoLoaded" class="absolute inset-0 flex items-center justify-center">
-                                <div class="text-center p-8">
-                                    <div class="mb-4 inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/20 dark:bg-primary/30 border-2 border-primary/50">
-                                        <Icon name="play" class="w-10 h-10 text-primary" />
+                                <span>{{ t('Get started') }}</span>
+                                <Icon name="arrow-right" class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                            <Link
+                                v-else
+                                href="/panel"
+                                class="group inline-flex items-center px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-sm transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                            >
+                                <Icon name="grid" class="w-4 h-4 mr-2" />
+                                <span>{{ t('Go to Panel') }}</span>
+                                <Icon name="arrow-right" class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                            <a
+                                href="#features"
+                                class="inline-flex items-center px-6 py-2.5 border border-border dark:border-sidebar-border bg-background/80 dark:bg-card/80 backdrop-blur-sm hover:bg-muted/50 dark:hover:bg-muted/30 text-card-foreground dark:text-card-foreground rounded-lg font-semibold text-sm transition-all duration-300 hover:scale-105 shadow-md"
+                            >
+                                {{ t('Learn more') }}
+                                <Icon name="chevron-down" class="w-4 h-4 ml-2" />
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Video Background -->
+                    <div class="relative lg:block hidden animate-fade-in-right">
+                        <div class="relative rounded-xl overflow-hidden border border-border/30 dark:border-sidebar-border/30 shadow-2xl bg-card/50 dark:bg-card/30 backdrop-blur-sm">
+                            <div class="aspect-video relative">
+                                <video
+                                    ref="videoElement"
+                                    class="w-full h-full object-cover"
+                                    autoplay
+                                    muted
+                                    loop
+                                    playsinline
+                                    :preload="videoLoaded ? 'auto' : 'none'"
+                                >
+                                    <source v-if="videoLoaded" src="/bindamy-marea-presentation.mp4" type="video/mp4" />
+                                </video>
+                                <!-- Loading placeholder -->
+                                <div v-if="!videoLoaded" class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                                    <div class="text-center p-8">
+                                        <div class="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 dark:bg-primary/30 border-2 border-primary/50 animate-pulse">
+                                            <Icon name="play" class="w-8 h-8 text-primary" />
+                                        </div>
+                                        <p class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">{{ t('System Demo') }}</p>
                                     </div>
-                                    <p class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('System Demo') }}</p>
+                                </div>
+                                <!-- Overlay gradient for better text readability -->
+                                <div class="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-background/10 dark:to-[#121212]/10 pointer-events-none"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Video (centered, below text) -->
+                    <div class="relative lg:hidden animate-fade-in-up">
+                        <div class="relative rounded-xl overflow-hidden border border-border/30 dark:border-sidebar-border/30 shadow-xl bg-card/50 dark:bg-card/30">
+                            <div class="aspect-video relative">
+                                <video
+                                    ref="videoElementMobile"
+                                    class="w-full h-full object-cover"
+                                    autoplay
+                                    muted
+                                    loop
+                                    playsinline
+                                    :preload="videoLoaded ? 'auto' : 'none'"
+                                >
+                                    <source v-if="videoLoaded" src="/bindamy-marea-presentation.mp4" type="video/mp4" />
+                                </video>
+                                <!-- Loading placeholder -->
+                                <div v-if="!videoLoaded" class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                                    <div class="text-center p-8">
+                                        <div class="mb-4 inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 dark:bg-primary/30 border-2 border-primary/50 animate-pulse">
+                                            <Icon name="play" class="w-8 h-8 text-primary" />
+                                        </div>
+                                        <p class="text-xs font-medium text-muted-foreground dark:text-muted-foreground">{{ t('System Demo') }}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -296,94 +346,267 @@ const testimonials = computed(() => [
                 </div>
 
                 <!-- Workflow Block 1: Mareas Management -->
-                <div id="operations-1" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-1') }">
-                    <div>
-                        <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Fishing Trip Control') }}
+                <div id="operations-1" class="mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-1') }">
+                    <div class="order-2 lg:order-1">
+                        <div class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                            <Icon name="fish" class="w-4 h-4" />
+                            <span>{{ t('Fishing Trip Control') }}</span>
                         </div>
-                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        <h3 class="text-2xl lg:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                             {{ t('Complete Mareas Management') }}
                         </h3>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        <p class="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed mb-6">
                             {{ t('Track vessels from departure to return. Register catch details, crew participation, and automatically calculate distribution profiles. Everything is recorded and monitored.') }}
                         </p>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Real-time vessel tracking') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Automatic distribution calculations') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Complete catch documentation') }}</span>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
-                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
-                                <Icon name="fish" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Mareas Tracking') }}</p>
-                            </div>
+                    <div class="order-1 lg:order-2 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
+                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/marea-manager.png"
+                                :alt="t('Mareas Management Interface')"
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                            />
                         </div>
                     </div>
                 </div>
 
                 <!-- Workflow Block 2: Financial Control -->
-                <div id="operations-2" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-2') }">
-                    <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
-                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
-                                <Icon name="dollar-sign" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Financial Control') }}</p>
-                            </div>
+                <div id="operations-2" class="mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-2') }">
+                    <div class="order-2 lg:order-1 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
+                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/system-dashboard.png"
+                                :alt="t('Financial Dashboard')"
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                            />
                         </div>
                     </div>
                     <div class="order-1 lg:order-2">
-                        <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Complete Financial System') }}
+                        <div class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                            <Icon name="dollar-sign" class="w-4 h-4" />
+                            <span>{{ t('Complete Financial System') }}</span>
                         </div>
-                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        <h3 class="text-2xl lg:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                             {{ t('Income, Expenses & Transfers') }}
                         </h3>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        <p class="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed mb-6">
                             {{ t('Register all financial movements with automatic VAT calculations. Track balances across multiple bank accounts. Export reports to PDF for documentation and compliance.') }}
                         </p>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Automatic VAT calculations') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Multi-account balance tracking') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('PDF export for compliance') }}</span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
                 <!-- Workflow Block 3: Salary & Distribution -->
-                <div id="operations-3" class="mb-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-3') }">
-                    <div>
-                        <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Automated Calculations') }}
+                <div id="operations-3" class="mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-left': visibleSections.has('operations-3') }">
+                    <div class="order-2 lg:order-1">
+                        <div class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                            <Icon name="calculator" class="w-4 h-4" />
+                            <span>{{ t('Automated Calculations') }}</span>
                         </div>
-                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        <h3 class="text-2xl lg:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                             {{ t('Crew Salary & Distribution Profiles') }}
                         </h3>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        <p class="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed mb-6">
                             {{ t('Automatically calculate crew salaries based on fishing trips and distribution profiles. Track crew movements and positions. Everything is calculated and documented automatically.') }}
                         </p>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Automated salary calculations') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Custom distribution profiles') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Crew position tracking') }}</span>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
-                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
-                                <Icon name="calculator" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Salary Calculation') }}</p>
-                            </div>
+                    <div class="order-1 lg:order-2 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
+                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/system-users-administratives-and-colaborators.png"
+                                :alt="t('Crew Management Interface')"
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                            />
                         </div>
                     </div>
                 </div>
 
                 <!-- Workflow Block 4: Monitoring & Security -->
-                <div id="operations-4" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-4') }">
-                    <div class="order-2 lg:order-1 rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-4 shadow-md">
-                        <div class="aspect-video bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
-                                <Icon name="activity" class="w-12 h-12 text-primary/50 mx-auto mb-2" />
-                                <p class="text-xs text-muted-foreground dark:text-muted-foreground">{{ t('Audit & Monitoring') }}</p>
-                            </div>
+                <div id="operations-4" class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-4') }">
+                    <div class="order-2 lg:order-1 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
+                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/auditory.png"
+                                :alt="t('Audit Trail Interface')"
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                            />
                         </div>
                     </div>
                     <div class="order-1 lg:order-2">
-                        <div class="mb-2 text-xs font-semibold text-primary uppercase tracking-wider">
-                            {{ t('Security & Transparency') }}
+                        <div class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                            <Icon name="shield-check" class="w-4 h-4" />
+                            <span>{{ t('Security & Transparency') }}</span>
                         </div>
-                        <h3 class="text-xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        <h3 class="text-2xl lg:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                             {{ t('Complete Audit Trail & Permissions') }}
                         </h3>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        <p class="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed mb-6">
                             {{ t('Monitor everything with comprehensive audit logging. Control access with vessel-specific permissions and roles. Get email notifications for all important events. Export everything to PDF.') }}
                         </p>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Complete audit logging') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Vessel-specific permissions') }}</span>
+                            </li>
+                            <li class="flex items-start gap-2 text-sm text-muted-foreground">
+                                <Icon name="check-circle" class="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                <span>{{ t('Email notifications') }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Additional Features Showcase -->
+        <section class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
+            <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <div id="showcase-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('showcase-header') }">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                        {{ t('Powerful Features at Your Fingertips') }}
+                    </h2>
+                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
+                        {{ t('Discover the comprehensive tools that make vessel management effortless and efficient.') }}
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Feature 1: User Management -->
+                    <div
+                        id="showcase-1"
+                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        :class="{ 'animate-fade-in-up': visibleSections.has('showcase-1') }"
+                    >
+                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/add-colaborator.png"
+                                :alt="t('Add Collaborator')"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                loading="lazy"
+                            />
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                        </div>
+                        <div class="p-5">
+                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                                <Icon name="user-plus" class="w-4 h-4" />
+                                <span>{{ t('Team Management') }}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
+                                {{ t('Add Collaborators') }}
+                            </h3>
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ t('Easily add and manage team members with role-based permissions.') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 2: Recovery & Trash -->
+                    <div
+                        id="showcase-2"
+                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        :class="{ 'animate-fade-in-up': visibleSections.has('showcase-2') }"
+                        style="animation-delay: 0.1s"
+                    >
+                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/recovery-trash.png"
+                                :alt="t('Recovery & Trash')"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                loading="lazy"
+                            />
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                        </div>
+                        <div class="p-5">
+                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                                <Icon name="trash-2" class="w-4 h-4" />
+                                <span>{{ t('Data Recovery') }}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
+                                {{ t('Recovery & Trash') }}
+                            </h3>
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ t('Safely recover deleted items with our comprehensive trash system.') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 3: Embassy Selection -->
+                    <div
+                        id="showcase-3"
+                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        :class="{ 'animate-fade-in-up': visibleSections.has('showcase-3') }"
+                        style="animation-delay: 0.2s"
+                    >
+                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                            <img
+                                src="/assets/choose-embasy.png"
+                                :alt="t('Choose Embassy')"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                loading="lazy"
+                            />
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                        </div>
+                        <div class="p-5">
+                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                                <Icon name="globe" class="w-4 h-4" />
+                                <span>{{ t('International') }}</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
+                                {{ t('Embassy Selection') }}
+                            </h3>
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                                {{ t('Manage international operations with embassy selection tools.') }}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
