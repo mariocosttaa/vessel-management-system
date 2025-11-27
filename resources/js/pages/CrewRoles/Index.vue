@@ -78,8 +78,18 @@ const sortField = ref(props.filters.sort || 'name');
 const sortDirection = ref(props.filters.direction || 'asc');
 
 // Computed properties to ensure string values are passed to DataTable
-const sortFieldValue = computed(() => sortField.value);
-const sortDirectionValue = computed(() => sortDirection.value);
+const sortFieldValue = computed(() => {
+    const value = sortField.value;
+    // Ensure we always return a string, never a function
+    if (typeof value === 'function') {
+        return 'name';
+    }
+    return String(value || 'name');
+});
+const sortDirectionValue = computed(() => {
+    const value = sortDirection.value;
+    return String(value || 'asc');
+});
 
 // Convert to Select component options format
 const scopeOptions = computed(() => {
