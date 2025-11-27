@@ -14,11 +14,12 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import suppliers from '@/routes/panel/suppliers';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface Supplier {
@@ -113,13 +114,19 @@ const actions = computed(() => {
 
 // Watch for changes and update URL
 watch([search, sortField, sortDirection], () => {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+
     const filters: Record<string, any> = {};
 
     if (search.value) filters.search = search.value;
     if (sortField.value !== 'created_at') filters.sort = sortField.value;
     if (sortDirection.value !== 'desc') filters.direction = sortDirection.value;
 
-    router.get(suppliers.index.url({ vessel: getCurrentVesselId() }), filters, {
+    router.get(suppliers.index.url({ vessel: vesselId }), filters, {
         preserveState: true,
         replace: true,
     });
@@ -164,9 +171,15 @@ const deleteSupplier = (supplier: Supplier) => {
 const confirmDelete = () => {
     if (!supplierToDelete.value) return;
 
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+
     isDeleting.value = true;
 
-    router.delete(suppliers.destroy.url({ vessel: getCurrentVesselId(), supplier: supplierToDelete.value.id }), {
+    router.delete(suppliers.destroy.url({ vessel: vesselId, supplier: supplierToDelete.value.id }), {
         onSuccess: () => {
             showDeleteDialog.value = false;
             supplierToDelete.value = null;
@@ -192,7 +205,7 @@ const formatDate = (dateString: string) => {
 <template>
     <Head :title="t('Suppliers')" />
 
-    <VesselLayout :breadcrumbs="[{ title: t('Suppliers'), href: suppliers.index.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Suppliers'), href: suppliers.index.url({ vessel: getCurrentVesselId() || '' }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">

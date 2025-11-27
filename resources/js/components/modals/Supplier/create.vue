@@ -39,14 +39,22 @@ watch(() => props.open, (isOpen) => {
     }
 });
 
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 
 const handleSave = () => {
-    form.post(suppliers.store.url({ vessel: getCurrentVesselId() }), {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID');
+        return;
+    }
+
+    form.post(suppliers.store.url({ vessel: vesselId }), {
         onSuccess: () => {
             emit('saved');
             emit('update:open', false);
