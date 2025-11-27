@@ -501,7 +501,6 @@ const closePdfLoadingModal = () => {
 
 const openUpdateModal = (transaction: Transaction) => {
     if (!transaction) {
-        console.error('No transaction provided to openUpdateModal');
         return;
     }
 

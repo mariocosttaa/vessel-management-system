@@ -239,12 +239,8 @@ const openTransactionModal = async (transaction: any) => {
             if (data.transaction) {
                 selectedTransaction.value = data.transaction;
             }
-        } else {
-            console.error('Failed to load transaction details:', response.statusText);
-            // Continue with the transaction data we have
         }
     } catch (error) {
-        console.error('Failed to load transaction details:', error);
         // Continue with the transaction data we have
     } finally {
         loadingTransaction.value = false;
@@ -285,7 +281,6 @@ const openUpdateModal = async (transaction: any) => {
             transactionToEdit.value = transaction;
         }
     } catch (error) {
-        console.error('Failed to load transaction details:', error);
         // Fallback to the transaction passed in if API fails
         transactionToEdit.value = transaction;
     }

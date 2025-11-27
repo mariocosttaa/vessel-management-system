@@ -246,12 +246,8 @@ const openTransactionModal = async (transaction: any) => {
             if (data.transaction) {
                 selectedTransaction.value = data.transaction;
             }
-        } else {
-            console.error('Failed to load transaction details:', response.statusText);
-            // Continue with the transaction data we have
         }
     } catch (error) {
-        console.error('Failed to load transaction details:', error);
         // Continue with the transaction data we have
     } finally {
         loadingTransaction.value = false;
@@ -291,7 +287,6 @@ const openUpdateModal = async (transaction: any) => {
             transactionToEdit.value = transaction;
         }
     } catch (error) {
-        console.error('Failed to load transaction details:', error);
         // Fallback to the transaction passed in if API fails
         transactionToEdit.value = transaction;
     }
@@ -717,7 +712,6 @@ const loadAvailableTransactions = async () => {
         const data = await response.json();
         availableTransactions.value = data.transactions || [];
     } catch (error) {
-        console.error('Failed to load available transactions:', error);
         addNotification({
             type: 'error',
             title: t('Error'),
@@ -739,7 +733,6 @@ const loadAvailableCrew = async () => {
         const data = await response.json();
         availableCrewMembers.value = data.crew_members || [];
         if (data.error) {
-            console.error('Error from server:', data.error);
             addNotification({
                 type: 'error',
                 title: t('Error'),
@@ -747,7 +740,6 @@ const loadAvailableCrew = async () => {
             });
         }
     } catch (error) {
-        console.error('Failed to load available crew:', error);
         addNotification({
             type: 'error',
             title: t('Error'),
@@ -864,7 +856,6 @@ const handleAddCrew = () => {
         },
         onError: (errors) => {
             isProcessing.value = false;
-            console.error('Failed to add crew member:', errors);
             if (errors.message) {
                 addNotification({
                     type: 'error',
@@ -1136,7 +1127,6 @@ const loadCrewSalaryData = async (crewMemberId: number | null) => {
             salaryPaymentForm.amount = null;
         }
     } catch (error) {
-        console.error('Failed to load salary data:', error);
         salaryPaymentForm.amount = null;
         selectedCrewSalaryInfo.value = null;
     } finally {

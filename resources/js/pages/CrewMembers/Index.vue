@@ -316,7 +316,6 @@ const confirmCancelInvitation = () => {
     const invitation = invitationToCancel.value;
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Could not determine vessel ID from URL');
         showCancelInvitationDialog.value = false;
         invitationToCancel.value = null;
         return;
@@ -332,7 +331,6 @@ const confirmCancelInvitation = () => {
             router.reload();
         },
         onError: (errors) => {
-            console.error('Error cancelling invitation:', errors);
             isCancellingInvitation.value = false;
         },
     });
@@ -351,7 +349,6 @@ const resendInvitation = (invitation: typeof props.pendingInvitations[0]) => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Could not determine vessel ID from URL');
         return;
     }
 
@@ -360,7 +357,7 @@ const resendInvitation = (invitation: typeof props.pendingInvitations[0]) => {
             router.reload();
         },
         onError: (errors) => {
-            console.error('Error resending invitation:', errors);
+            // Error handled by notification system
         },
     });
 };

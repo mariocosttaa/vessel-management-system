@@ -116,7 +116,6 @@ const actions = computed(() => {
 watch([search, sortField, sortDirection], () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
 
@@ -173,7 +172,6 @@ const confirmDelete = () => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
 
