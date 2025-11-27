@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AuditLogAction;
+use App\Actions\MoneyAction;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Models\Maintenance;
 use App\Models\Movimentation;
@@ -27,9 +28,7 @@ class MaintenanceController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view maintenances using config permissions
-        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
-        }
+        // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
         // Check maintenances.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
@@ -81,7 +80,13 @@ class MaintenanceController extends Controller
         $maintenances = $query->with([
             'vessel:id,name',
             'createdBy:id,name',
-        ])->paginate(15)->withQueryString();
+        ])
+        ->withCount('transactions')
+        ->withSum(['transactions as total_expenses' => function ($query) {
+            $query->where('type', 'expense');
+        }], 'total_amount')
+        ->paginate(15)
+        ->withQueryString();
 
         // Current filters
         $filters = $request->only([
@@ -107,20 +112,17 @@ class MaintenanceController extends Controller
 
         return Inertia::render('Maintenances/Index', [
             'maintenances'    => $maintenances->through(function ($maintenance) {
-                // Count transactions for this maintenance
-                $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
-
                 return [
                     'id'                 => $this->hashId($maintenance->id, 'maintenance'),
                     'maintenance_number' => $maintenance->maintenance_number,
                     'name'               => $maintenance->name,
                     'description'        => $maintenance->description,
                     'status'             => $maintenance->status,
-                    'start_date'         => $maintenance->start_date?->format('Y-m-d'),
-                    'end_date'           => $maintenance->end_date?->format('Y-m-d'),
+                    'start_date'         => $maintenance->start_date ? $maintenance->start_date->format('Y-m-d') : null,
+                    'end_date'           => $maintenance->end_date ? $maintenance->end_date->format('Y-m-d') : null,
                     'total_expenses'     => $maintenance->total_expenses,
                     'created_at'         => $maintenance->created_at ? $maintenance->created_at->format('Y-m-d H:i:s') : null,
-                    'transaction_count'  => $transactionCount,
+                    'transaction_count'  => $maintenance->transactions_count,
                 ];
             }),
             'statuses'        => $statuses,
@@ -349,6 +351,10 @@ class MaintenanceController extends Controller
         // Force fresh query with both vessel_id and id to ensure correct maintenance
         $maintenance = Maintenance::where('vessel_id', $vesselId)
             ->where('id', $maintenanceId)
+            ->withCount('transactions')
+            ->withSum(['transactions as total_expenses' => function ($query) {
+                $query->where('type', 'expense');
+            }], 'total_amount')
             ->firstOrFail();
 
         // Check permissions
@@ -385,8 +391,11 @@ class MaintenanceController extends Controller
             : \App\Models\VatProfile::where('is_default', true)->first();
         $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
 
-        // Count transactions for deletion warning
-        $transactionCount = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)->count();
+        // Use the count from withCount to avoid N+1 query
+        $transactionCount = $maintenance->transactions_count;
+
+        // Cache total_expenses to avoid duplicate queries when accessing formatted_total_expenses
+        $totalExpenses = $maintenance->total_expenses;
 
         // Load transactions with pagination and search
         $transactionsQuery = \App\Models\Movimentation::where('maintenance_id', $maintenance->id)
@@ -493,8 +502,13 @@ class MaintenanceController extends Controller
                 'closed_at'                => $maintenance->closed_at?->format('Y-m-d H:i:s'),
                 'currency'                 => $maintenance->currency ?? $defaultCurrency,
                 'house_of_zeros'           => $maintenance->house_of_zeros ?? 2,
-                'total_expenses'           => $maintenance->total_expenses,
-                'formatted_total_expenses' => $maintenance->formatted_total_expenses,
+                'total_expenses'           => $totalExpenses,
+                'formatted_total_expenses' => MoneyAction::format(
+                    $totalExpenses,
+                    $maintenance->getHouseOfZeros(),
+                    $maintenance->getCurrency(),
+                    true
+                ),
                 // Transactions are loaded separately with pagination
                 'created_at'               => $maintenance->created_at?->format('Y-m-d H:i:s'),
                 'created_by'               => $maintenance->createdBy ? [
@@ -519,9 +533,7 @@ class MaintenanceController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view maintenances for this vessel
-        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
-        }
+        // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
         // Check maintenances.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
@@ -696,9 +708,7 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
@@ -808,9 +818,7 @@ class MaintenanceController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
