@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 use App\Models\Marea;
 use App\Models\Movimentation;
 use App\Pdf\FinancialReportPdf;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class FinancialReportController extends Controller
 {
+    use HasTranslations;
     /**
      * Display a listing of financial reports grouped by month and year.
      */
@@ -23,14 +25,14 @@ class FinancialReportController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check reports.access permission from config (reports require specific access permission)
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['reports.access'] ?? false)) {
-            abort(403, 'You do not have permission to view financial reports.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view financial reports.'));
         }
 
         // Get vessel settings for default currency
@@ -95,23 +97,23 @@ class FinancialReportController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check reports.access permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['reports.access'] ?? false)) {
-            abort(403, 'You do not have permission to view financial reports.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view financial reports.'));
         }
 
         // Validate month and year
         if ($month < 1 || $month > 12) {
-            abort(404, 'Invalid month.');
+            abort(404, $this->transFrom('notifications', 'Invalid month.'));
         }
 
         if ($year < 2000 || $year > 2100) {
-            abort(404, 'Invalid year.');
+            abort(404, $this->transFrom('notifications', 'Invalid year.'));
         }
 
         // Get vessel settings for default currency
@@ -288,29 +290,29 @@ class FinancialReportController extends Controller
 
         // Check if user has permission to view transactions using config permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check reports.access permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['reports.access'] ?? false)) {
-            abort(403, 'You do not have permission to view financial reports.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view financial reports.'));
         }
 
         // Validate month and year
         if ($month < 1 || $month > 12) {
-            abort(404, 'Invalid month.');
+            abort(404, $this->transFrom('notifications', 'Invalid month.'));
         }
 
         if ($year < 2000 || $year > 2100) {
-            abort(404, 'Invalid year.');
+            abort(404, $this->transFrom('notifications', 'Invalid year.'));
         }
 
         // Get vessel
         $vessel = \App\Models\Vessel::find($vesselId);
         if (! $vessel) {
-            abort(404, 'Vessel not found.');
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
         }
 
         // Get enable_colors from request (default to false)
