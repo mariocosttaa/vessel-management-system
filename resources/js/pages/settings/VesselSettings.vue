@@ -11,6 +11,7 @@ import InputError from '@/components/InputError.vue';
 import VesselLogoUpload from '@/components/VesselLogoUpload.vue';
 import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
+import { usePermissions } from '@/composables/usePermissions';
 import settings from '@/routes/panel/settings';
 import { Settings, Globe } from 'lucide-vue-next';
 
