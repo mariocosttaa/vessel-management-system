@@ -42,7 +42,6 @@ interface Transaction {
         type: string;
         color: string;
     };
-    supplier_id: number | null;
     crew_member_id: number | null;
     files?: {
         id: number;
@@ -61,11 +60,6 @@ interface TransactionCategory {
     color: string;
 }
 
-interface Supplier {
-    id: number;
-    company_name: string;
-}
-
 interface CrewMember {
     id: number;
     name: string;
@@ -76,7 +70,6 @@ interface Props {
     open: boolean;
     transaction: Transaction;
     categories: TransactionCategory[];
-    suppliers: Supplier[];
     crewMembers: CrewMember[];
     defaultCurrency?: string;
 }
@@ -101,8 +94,9 @@ const isDeletingFile = ref(false);
 // For update modals, prioritize transaction currency since it's what was saved
 const vesselCurrency = computed(() => {
     // Priority: transaction currency (what was saved) > defaultCurrency > current_vessel currency > EUR
-    if (props.transaction?.currency) {
-        return props.transaction.currency;
+    const transaction = localTransaction.value || props.transaction;
+    if (transaction?.currency) {
+        return transaction.currency;
     }
     const propsCurrency = (props as any).defaultCurrency;
     if (propsCurrency) {
@@ -134,8 +128,9 @@ const vesselCurrencyData = computed(() => {
 // Currency priority: transaction currency (what was saved) > vessel_settings > EUR
 const currentCurrency = computed(() => {
     // Always prioritize transaction currency for update modals
-    if (props.transaction?.currency) {
-        return props.transaction.currency;
+    const transaction = localTransaction.value || props.transaction;
+    if (transaction?.currency) {
+        return transaction.currency;
     }
     return vesselCurrencyData.value.code || 'EUR';
 });
@@ -145,7 +140,8 @@ const currentCurrencyDecimals = computed(() => {
     if (vesselCurrencyData.value.decimals) {
         return vesselCurrencyData.value.decimals;
     }
-    return props.transaction.house_of_zeros || 2;
+    const transaction = localTransaction.value || props.transaction;
+    return transaction?.house_of_zeros || 2;
 });
 
 // Filter categories for expense only
@@ -162,16 +158,8 @@ const categoryOptions = computed(() => {
     return options;
 });
 
-const supplierOptions = computed(() => {
-    const options = [{ value: null, label: t('Select a supplier') }];
-    (props.suppliers || []).forEach(supplier => {
-        options.push({ value: supplier.id, label: supplier.company_name });
-    });
-    return options;
-});
-
 const crewMemberOptions = computed(() => {
-    const options = [{ value: null, label: t('Select a crew member') }];
+    const options: Array<{ value: number | null; label: string }> = [{ value: null, label: t('Select a crew member') }];
     (props.crewMembers || []).forEach(member => {
         options.push({ value: member.id, label: `${member.name} (${member.email})` });
     });
@@ -184,11 +172,6 @@ const statusOptions = computed(() => {
         { value: 'completed', label: t('Completed') },
         { value: 'cancelled', label: t('Cancelled') }
     ];
-});
-
-// Show supplier field for expenses
-const showSupplierField = computed(() => {
-    return true; // Always show for expenses
 });
 
 // Show crew member field for salary expenses
@@ -206,12 +189,15 @@ const quantity = ref<number | null>(null);
 
 // Initialize price per unit state from transaction
 const initializePricePerUnit = () => {
+    const transaction = localTransaction.value || props.transaction;
+    if (!transaction) return;
+
     // Read from amount_per_unit (preferred) or price_per_unit (fallback for backward compatibility)
-    const amountPerUnit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit;
-    if (amountPerUnit !== null && amountPerUnit !== undefined && props.transaction.quantity !== null && props.transaction.quantity !== undefined) {
+    const amountPerUnit = (transaction as any).amount_per_unit ?? transaction.price_per_unit;
+    if (amountPerUnit !== null && amountPerUnit !== undefined && transaction.quantity !== null && transaction.quantity !== undefined) {
         usePricePerUnit.value = true;
         pricePerUnit.value = amountPerUnit;
-        quantity.value = props.transaction.quantity;
+        quantity.value = transaction.quantity;
     } else {
         usePricePerUnit.value = false;
         pricePerUnit.value = null;
@@ -244,7 +230,6 @@ const form = useForm({
     transaction_date: '' as string,
     description: '' as string,
     notes: '' as string,
-    supplier_id: null as number | null,
     crew_member_id: null as number | null,
     status: 'completed' as string,
     files: [] as File[],
@@ -253,18 +238,54 @@ const form = useForm({
 const selectedFiles = ref<File[]>([]);
 const isFormInitialized = ref(false);
 
+// Local reactive copy of transaction that can be updated
+const localTransaction = ref<Transaction>(props.transaction);
+
+// Watch transaction prop and update local copy
+watch(() => props.transaction, (newTransaction) => {
+    if (newTransaction) {
+        localTransaction.value = { ...newTransaction };
+    }
+}, { immediate: true, deep: true });
+
+// Helper function to reload transaction data
+const reloadTransactionData = async () => {
+    if (!props.transaction?.id) return;
+
+    try {
+        const vesselId = getCurrentVesselId();
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${props.transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                localTransaction.value = data.transaction;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to reload transaction data:', error);
+    }
+};
+
 // Helper function to initialize form from transaction
 const initializeFormFromTransaction = () => {
-    if (!props.transaction) {
+    const transaction = localTransaction.value || props.transaction;
+    if (!transaction) {
         return;
     }
 
     // Handle both direct category_id and nested category.id
     // Category IDs can be hashed strings or numbers
     let categoryId: string | number | null = null;
-    if (props.transaction.category_id !== null && props.transaction.category_id !== undefined) {
+    if (transaction.category_id !== null && transaction.category_id !== undefined) {
         // Keep as string if it's a hashed ID, convert to number if it's numeric
-        const catId = props.transaction.category_id;
+        const catId = transaction.category_id;
         if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
             // It's a hashed ID (string)
             categoryId = catId;
@@ -273,8 +294,8 @@ const initializeFormFromTransaction = () => {
             const numId = Number(catId);
             categoryId = !isNaN(numId) && numId > 0 ? numId : catId;
         }
-    } else if ((props.transaction.category as any)?.id !== null && (props.transaction.category as any)?.id !== undefined) {
-        const catId = (props.transaction.category as any).id;
+    } else if ((transaction.category as any)?.id !== null && (transaction.category as any)?.id !== undefined) {
+        const catId = (transaction.category as any).id;
         if (typeof catId === 'string' && /^[a-zA-Z0-9]+$/.test(catId) && isNaN(Number(catId))) {
             categoryId = catId;
         } else {
@@ -286,16 +307,16 @@ const initializeFormFromTransaction = () => {
     // Set all form fields - ensure they are not null/undefined
     form.category_id = categoryId;
     form.type = 'expense';
-    form.amount = props.transaction.amount ?? null;
-    form.amount_per_unit = (props.transaction as any).amount_per_unit ?? props.transaction.price_per_unit ?? null;
-    form.quantity = props.transaction.quantity ?? null;
-    form.currency = props.transaction.currency || vesselCurrencyData.value.code || 'EUR';
-    form.house_of_zeros = props.transaction.house_of_zeros ?? currentCurrencyDecimals.value;
+    form.amount = transaction.amount ?? null;
+    form.amount_per_unit = (transaction as any).amount_per_unit ?? transaction.price_per_unit ?? null;
+    form.quantity = transaction.quantity ?? null;
+    form.currency = transaction.currency || vesselCurrencyData.value.code || 'EUR';
+    form.house_of_zeros = transaction.house_of_zeros ?? currentCurrencyDecimals.value;
 
     // Normalize transaction_date to YYYY-MM-DD format (DateInput expects this)
-    if (props.transaction.transaction_date) {
+    if (transaction.transaction_date) {
         try {
-            let dateStr = String(props.transaction.transaction_date).trim();
+            let dateStr = String(transaction.transaction_date).trim();
 
             // If it's already in YYYY-MM-DD format, use it directly
             if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -327,11 +348,10 @@ const initializeFormFromTransaction = () => {
         form.transaction_date = '';
     }
 
-    form.description = props.transaction.description || '';
-    form.notes = props.transaction.notes || '';
-    form.supplier_id = props.transaction.supplier_id || null;
-    form.crew_member_id = props.transaction.crew_member_id || null;
-    form.status = props.transaction.status || 'completed';
+    form.description = transaction.description || '';
+    form.notes = transaction.notes || '';
+    form.crew_member_id = transaction.crew_member_id || null;
+    form.status = transaction.status || 'completed';
     // Remove VAT completely from expenses
     form.amount_includes_vat = false;
     form.vat_rate_id = null;
@@ -349,8 +369,8 @@ const initializeFormFromTransaction = () => {
 };
 
 // Reset form when modal opens/closes or transaction changes
-watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
-    if (isOpen && transactionId && props.transaction) {
+watch(() => [props.open, localTransaction.value?.id], ([isOpen, transactionId]) => {
+    if (isOpen && transactionId && localTransaction.value) {
         // Initialize form immediately
         initializeFormFromTransaction();
     } else if (!isOpen) {
@@ -434,7 +454,7 @@ const deleteFile = (file: { id: number; name: string }) => {
     showDeleteFileDialog.value = true;
 };
 
-const confirmDeleteFile = () => {
+const confirmDeleteFile = async () => {
     if (!fileToDelete.value) return;
 
     const vesselId = getCurrentVesselId();
@@ -444,12 +464,22 @@ const confirmDeleteFile = () => {
 
     router.delete(`/panel/${vesselId}/movimentations/${props.transaction.id}/files/${fileId}`, {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: async () => {
             showDeleteFileDialog.value = false;
             fileToDelete.value = null;
             isDeletingFile.value = false;
-            // Emit success to refresh transaction data in parent
-            emit('success');
+
+            // Reload transaction data to update files list
+            await reloadTransactionData();
+
+            // Show success notification
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('File has been deleted successfully.'),
+            });
+
+            // Don't emit success - keep modal open
         },
         onError: () => {
             isDeletingFile.value = false;
@@ -498,7 +528,7 @@ const submit = () => {
 
     // Ensure status is set (required field)
     if (!form.status) {
-        form.status = props.transaction?.status || 'completed';
+        form.status = localTransaction.value?.status || 'completed';
     }
 
     // Ensure category_id is set (required field)
@@ -544,7 +574,7 @@ const submit = () => {
     }
 
     // Ensure currency and house_of_zeros are set
-    form.currency = vesselCurrencyData.value.code || props.transaction.currency || 'EUR';
+    form.currency = vesselCurrencyData.value.code || localTransaction.value?.currency || 'EUR';
     form.house_of_zeros = currentCurrencyDecimals.value;
 
     const vesselId = getCurrentVesselId();
@@ -555,16 +585,19 @@ const submit = () => {
     // Only use forceFormData if we have files to upload, otherwise use regular JSON
     const submitOptions: any = {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Reload transaction data to get updated files
+            await reloadTransactionData();
+
             addNotification({
                 type: 'success',
                 title: t('Success'),
-                message: `${t('Transaction')} '${props.transaction.transaction_number}' ${t('has been updated successfully.')}`,
+                message: `${t('Transaction')} '${localTransaction.value?.transaction_number || props.transaction.transaction_number}' ${t('has been updated successfully.')}`,
             });
             emit('success');
             emit('close');
         },
-        onError: (errors) => {
+        onError: (errors: any) => {
             addNotification({
                 type: 'error',
                 title: t('Error'),
@@ -573,12 +606,22 @@ const submit = () => {
         },
     };
 
-    // Only use forceFormData if we have files to upload
-    if (form.files && form.files.length > 0) {
-        submitOptions.forceFormData = true;
-    }
+    // When files are present, we must use POST with _method=PUT because PUT doesn't support multipart/form-data
+    const hasFiles = form.files && form.files.length > 0;
 
-    form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
+    if (hasFiles) {
+        // Use POST with _method=PUT for file uploads
+        form.transform((data) => ({
+            ...data,
+            _method: 'PUT',
+        })).post(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), {
+            ...submitOptions,
+            forceFormData: true,
+        });
+    } else {
+        // Use regular PUT for updates without files
+        form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
+    }
 };
 </script>
 
@@ -586,7 +629,7 @@ const submit = () => {
     <Dialog :open="open" @update:open="emit('close')">
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
-                <DialogTitle class="text-red-600 dark:text-red-400">{{ t('Update Transaction') }} #{{ transaction.transaction_number }}</DialogTitle>
+                <DialogTitle class="text-red-600 dark:text-red-400">{{ t('Update Transaction') }} #{{ localTransaction.transaction_number }}</DialogTitle>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
@@ -644,7 +687,8 @@ const submit = () => {
                             <Label for="quantity">{{ t('Quantity') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="quantity"
-                                v-model.number="quantity"
+                                :model-value="quantity ?? undefined"
+                                @update:model-value="(val) => quantity = val !== undefined && val !== null ? Number(val) : null"
                                 type="number"
                                 step="1"
                                 min="1"
@@ -698,20 +742,6 @@ const submit = () => {
                         />
                         <InputError :message="form.errors.transaction_date" />
                     </div>
-                </div>
-
-                <!-- Supplier (for expenses) -->
-                <div v-if="showSupplierField" class="space-y-2">
-                    <Label for="supplier_id">{{ t('Supplier') }}</Label>
-                    <Select
-                        id="supplier_id"
-                        v-model="form.supplier_id"
-                        :options="supplierOptions"
-                        :placeholder="t('Select a supplier')"
-                        searchable
-                        :error="!!form.errors.supplier_id"
-                    />
-                    <InputError :message="form.errors.supplier_id" />
                 </div>
 
                 <!-- Crew Member (for salary expenses) -->
@@ -773,11 +803,11 @@ const submit = () => {
                     <!-- Right Column: Files Section -->
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <!-- Existing Files -->
-                        <div v-if="transaction.files && transaction.files.length > 0" class="space-y-3">
+                        <div v-if="localTransaction.files && localTransaction.files.length > 0" class="space-y-3">
                             <Label class="text-base font-semibold">{{ t('Existing Files') }}</Label>
                             <div class="space-y-2 max-h-[300px] overflow-y-auto">
                                 <div
-                                    v-for="file in transaction.files"
+                                    v-for="file in localTransaction.files"
                                     :key="file.id"
                                     class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
                                 >
@@ -807,7 +837,6 @@ const submit = () => {
                                             {{ t('View') }}
                                         </Button>
                                         <Button
-                                            v-if="canEdit('transactions')"
                                             type="button"
                                             variant="destructive"
                                             size="sm"
@@ -824,7 +853,6 @@ const submit = () => {
 
                         <!-- File Upload -->
                         <div class="space-y-2">
-                            <Label class="text-base font-semibold">{{ t('Add New Files') }}</Label>
                             <MultiFileUpload
                                 v-model="selectedFiles"
                                 :error="form.errors.files"

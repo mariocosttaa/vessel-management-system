@@ -26,11 +26,6 @@ interface TransactionCategory {
     color: string;
 }
 
-interface Supplier {
-    id: number;
-    company_name: string;
-}
-
 interface CrewMember {
     id: number;
     name: string;
@@ -40,7 +35,6 @@ interface CrewMember {
 interface Props {
     open: boolean;
     categories: TransactionCategory[];
-    suppliers: Supplier[];
     crewMembers: CrewMember[];
     vatRates?: any[]; // Keep for backward compatibility (not used)
     vatProfiles?: any[]; // Keep for backward compatibility (not used)
@@ -138,25 +132,12 @@ const handleCategoryCreated = (newCategory: TransactionCategory) => {
     showCategoryModal.value = false;
 };
 
-const supplierOptions = computed(() => {
-    const options = [{ value: null, label: t('Select a supplier') }];
-    props.suppliers.forEach(supplier => {
-        options.push({ value: supplier.id, label: supplier.company_name });
-    });
-    return options;
-});
-
 const crewMemberOptions = computed(() => {
     const options = [{ value: null, label: t('Select a crew member') }];
     props.crewMembers.forEach(member => {
         options.push({ value: member.id, label: `${member.name} (${member.email})` });
     });
     return options;
-});
-
-// Show supplier field for expenses
-const showSupplierField = computed(() => {
-    return true; // Always show for expenses
 });
 
 // Show crew member field for salary expenses
@@ -198,7 +179,6 @@ const form = useForm({
     transaction_date: new Date().toISOString().split('T')[0],
     description: '',
     notes: '',
-    supplier_id: null as number | null,
     crew_member_id: null as number | null,
     marea_id: props.mareaId ?? null as number | null,
     maintenance_id: props.maintenanceId ?? null as number | null,
@@ -235,7 +215,6 @@ watch(() => props.open, (isOpen, wasOpen) => {
         form.amount_includes_vat = false;
         form.vat_rate_id = null;
         form.vat_profile_id = null;
-        form.supplier_id = null;
         form.crew_member_id = null;
         form.marea_id = props.mareaId ?? null;
         form.maintenance_id = props.maintenanceId ?? null;
@@ -388,7 +367,6 @@ const submit = () => {
             form.amount_includes_vat = false;
             form.vat_rate_id = null;
             form.vat_profile_id = null;
-            form.supplier_id = null;
             form.crew_member_id = null;
             form.marea_id = props.mareaId ?? null;
             form.maintenance_id = props.maintenanceId ?? null;
@@ -568,20 +546,6 @@ const submit = () => {
                         />
                         <InputError :message="form.errors.transaction_date" />
                     </div>
-                </div>
-
-                <!-- Supplier (for expenses) -->
-                <div v-if="showSupplierField" class="space-y-2">
-                    <Label for="supplier_id">{{ t('Supplier') }}</Label>
-                    <Select
-                        id="supplier_id"
-                        v-model="form.supplier_id"
-                        :options="supplierOptions"
-                        :placeholder="t('Select a supplier')"
-                        searchable
-                        :error="!!form.errors.supplier_id"
-                    />
-                    <InputError :message="form.errors.supplier_id" />
                 </div>
 
                 <!-- Crew Member (for salary expenses) -->
