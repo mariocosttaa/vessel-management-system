@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\General\EasyHashAction;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -34,12 +35,24 @@ class StoreSupplierRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Get vessel ID from route parameter
-        $vesselId = $this->route('vessel');
+        // Get vessel ID from route parameter (may be hashed)
+        $vesselParam = $this->route('vessel');
         $user = $this->user();
 
         if (!$user) {
             return false;
+        }
+
+        // Unhash vessel ID if it's a hashed string
+        if (is_numeric($vesselParam)) {
+            $vesselId = (int) $vesselParam;
+        } else {
+            // Decode hashed vessel ID
+            $decoded = EasyHashAction::decode($vesselParam, 'vessel-id');
+            if (!$decoded || !is_numeric($decoded)) {
+                return false;
+            }
+            $vesselId = (int) $decoded;
         }
 
         // Check if user has admin or manager role for this specific vessel
