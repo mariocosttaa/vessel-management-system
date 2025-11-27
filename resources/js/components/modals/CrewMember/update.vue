@@ -307,7 +307,6 @@ const checkEmailExists = async () => {
     try {
         const vesselId = getCurrentVesselId();
         if (!vesselId) {
-            console.error('Could not determine vessel ID from URL');
             checkingEmail.value = false;
             return;
         }
@@ -334,11 +333,9 @@ const checkEmailExists = async () => {
                 nextTick(() => validateStep('system-access'));
             }
             emailChanged.value = true;
-        } else {
-            console.error('Failed to check email:', response.status, response.statusText);
         }
     } catch (error) {
-        console.error('Error checking email:', error);
+        // Error handled silently
     } finally {
         checkingEmail.value = false;
     }
@@ -507,7 +504,6 @@ const handleSave = () => {
 const performSave = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Could not determine vessel ID');
         return;
     }
 
@@ -543,7 +539,7 @@ const performSave = () => {
             };
         },
         onError: (errors) => {
-            console.error('Update crew member errors:', errors);
+            // Errors are handled by form validation
         },
     });
 };

@@ -181,8 +181,6 @@ const submit = () => {
         }
     })
     .catch(error => {
-        console.error('Error creating category:', error);
-
         // Reset loading state
         isSubmitting.value = false;
 

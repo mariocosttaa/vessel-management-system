@@ -50,7 +50,6 @@ const getCurrentVesselId = () => {
 const handleSave = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
 

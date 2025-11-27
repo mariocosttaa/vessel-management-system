@@ -82,7 +82,6 @@ const handleSave = () => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
 
@@ -97,7 +96,6 @@ const handleSave = () => {
         onError: (errors) => {
             // Validation errors are automatically displayed by InputError components
             // Keep modal open to show errors
-            console.error('Update failed:', errors);
         },
     });
 };

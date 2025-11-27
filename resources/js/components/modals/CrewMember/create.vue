@@ -453,7 +453,6 @@ const checkEmailExists = async () => {
         const vesselId = vesselMatch ? vesselMatch[1] : null;
 
         if (!vesselId) {
-            console.error('Could not determine vessel ID from URL');
             checkingEmail.value = false;
             return;
         }
@@ -479,11 +478,9 @@ const checkEmailExists = async () => {
             if (data.exists && data.user) {
                 form.name = data.user.name;
             }
-        } else {
-            console.error('Failed to check email:', response.status, response.statusText);
         }
     } catch (error) {
-        console.error('Error checking email:', error);
+        // Error handled silently
     } finally {
         checkingEmail.value = false;
     }
