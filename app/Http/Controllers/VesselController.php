@@ -174,29 +174,6 @@ class VesselController extends BaseController
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Vessel $vessel)
-    {
-        return Inertia::render('Vessels/Edit', [
-            'vessel'      => new VesselResource($vessel->load(['country', 'currency'])),
-            'vesselTypes' => [
-                'cargo'     => 'Cargo',
-                'passenger' => 'Passenger',
-                'fishing'   => 'Fishing',
-                'fish'      => 'Fish',
-                'yacht'     => 'Yacht',
-            ],
-            'statuses'    => [
-                'active'      => 'Active',
-                'suspended'   => 'Suspended',
-                'maintenance' => 'Maintenance',
-            ],
-            'countries'   => Country::orderBy('name')->get(['code', 'name']),
-            'currencies'  => Currency::active()->orderBy('name')->get(['code', 'name', 'symbol']),
-        ]);
-    }
 
     /**
      * Update the specified resource in storage.

@@ -64,7 +64,6 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
     // Vessel Management (panel level)
     Route::get('/vessel/create', [VesselController::class, 'create'])->name('panel.vessel.create');
     Route::post('/vessel', [VesselController::class, 'store'])->name('panel.vessel.store');
-    Route::get('/vessel/{vessel}/edit', [VesselController::class, 'edit'])->name('panel.vessel.edit');
     Route::put('/vessel/{vessel}', [VesselController::class, 'update'])->name('panel.vessel.update');
     Route::delete('/vessel/{vessel}', [VesselController::class, 'destroy'])->name('panel.vessel.destroy');
 
