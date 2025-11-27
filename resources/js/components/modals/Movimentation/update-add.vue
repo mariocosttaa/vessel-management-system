@@ -290,6 +290,41 @@ const form = useForm({
 const selectedFiles = ref<File[]>([]);
 const isFormInitialized = ref(false);
 
+// Local reactive copy of transaction that can be updated
+const localTransaction = ref<Transaction>(props.transaction);
+
+// Watch transaction prop and update local copy
+watch(() => props.transaction, (newTransaction) => {
+    if (newTransaction) {
+        localTransaction.value = { ...newTransaction };
+    }
+}, { immediate: true, deep: true });
+
+// Helper function to reload transaction data
+const reloadTransactionData = async () => {
+    if (!props.transaction?.id) return;
+
+    try {
+        const vesselId = getCurrentVesselId();
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${props.transaction.id}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                localTransaction.value = data.transaction;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to reload transaction data:', error);
+    }
+};
+
 // Get default VAT profile from props
 const defaultVatProfile = computed(() => props.defaultVatProfile);
 
@@ -578,7 +613,7 @@ const deleteFile = (file: { id: number; name: string }) => {
     showDeleteFileDialog.value = true;
 };
 
-const confirmDeleteFile = () => {
+const confirmDeleteFile = async () => {
     if (!fileToDelete.value) return;
 
     const vesselId = getCurrentVesselId();
@@ -588,12 +623,22 @@ const confirmDeleteFile = () => {
 
     router.delete(`/panel/${vesselId}/movimentations/${props.transaction.id}/files/${fileId}`, {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: async () => {
             showDeleteFileDialog.value = false;
             fileToDelete.value = null;
             isDeletingFile.value = false;
-            // Emit success to refresh transaction data in parent
-            emit('success');
+
+            // Reload transaction data to update files list
+            await reloadTransactionData();
+
+            // Show success notification
+            addNotification({
+                type: 'success',
+                title: t('Success'),
+                message: t('File has been deleted successfully.'),
+            });
+
+            // Don't emit success - keep modal open
         },
         onError: () => {
             isDeletingFile.value = false;
@@ -807,11 +852,14 @@ const submit = async () => {
     // Otherwise, use regular JSON submission which handles data better
     const submitOptions: any = {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Reload transaction data to get updated files
+            await reloadTransactionData();
+
             addNotification({
                 type: 'success',
                 title: t('Success'),
-                message: `${t('Transaction')} '${props.transaction.transaction_number}' ${t('has been updated successfully.')}`,
+                message: `${t('Transaction')} '${localTransaction.value?.transaction_number || props.transaction.transaction_number}' ${t('has been updated successfully.')}`,
             });
             emit('success');
             emit('close');
@@ -825,16 +873,27 @@ const submit = async () => {
         },
     };
 
-    // Only use forceFormData if we have files to upload
-    if (form.files && form.files.length > 0) {
-        submitOptions.forceFormData = true;
-    }
-
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
         return;
     }
-    form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
+
+    // When files are present, we must use POST with _method=PUT because PUT doesn't support multipart/form-data
+    const hasFiles = form.files && form.files.length > 0;
+
+    if (hasFiles) {
+        // Use POST with _method=PUT for file uploads
+        form.transform((data) => ({
+            ...data,
+            _method: 'PUT',
+        })).post(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), {
+            ...submitOptions,
+            forceFormData: true,
+        });
+    } else {
+        // Use regular PUT for updates without files
+        form.put(transactions.update.url({ vessel: vesselId, movimentationId: props.transaction.id }), submitOptions);
+    }
 };
 </script>
 
@@ -842,7 +901,7 @@ const submit = async () => {
     <Dialog :open="open" @update:open="handleDialogUpdate">
         <DialogContent class="max-h-[90vh] overflow-y-auto" :style="{ maxWidth: '75vw', width: '100%' }">
             <DialogHeader>
-                <DialogTitle class="text-green-600 dark:text-green-400">{{ t('Update Transaction') }} #{{ transaction.transaction_number }}</DialogTitle>
+                <DialogTitle class="text-green-600 dark:text-green-400">{{ t('Update Transaction') }} #{{ localTransaction.transaction_number }}</DialogTitle>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-6">
@@ -1064,11 +1123,11 @@ const submit = async () => {
                     <!-- Right Column: Files Section -->
                     <div class="lg:col-span-1 space-y-4 border-l-0 lg:border-l lg:pl-6 pt-0 lg:pt-0">
                         <!-- Existing Files -->
-                        <div v-if="transaction.files && transaction.files.length > 0" class="space-y-3">
+                        <div v-if="localTransaction.files && localTransaction.files.length > 0" class="space-y-3">
                             <Label class="text-base font-semibold">{{ t('Existing Files') }}</Label>
                             <div class="space-y-2 max-h-[300px] overflow-y-auto">
                                 <div
-                                    v-for="file in transaction.files"
+                                    v-for="file in localTransaction.files"
                                     :key="file.id"
                                     class="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
                                 >
@@ -1098,7 +1157,6 @@ const submit = async () => {
                                             {{ t('View') }}
                                         </Button>
                                         <Button
-                                            v-if="canEdit('transactions')"
                                             type="button"
                                             variant="destructive"
                                             size="sm"
@@ -1115,7 +1173,6 @@ const submit = async () => {
 
                         <!-- File Upload -->
                         <div class="space-y-2">
-                            <Label class="text-base font-semibold">{{ t('Add New Files') }}</Label>
                             <MultiFileUpload
                                 v-model="selectedFiles"
                                 :error="form.errors.files"
