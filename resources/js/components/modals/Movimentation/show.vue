@@ -71,7 +71,7 @@ interface Props {
 const props = defineProps<Props>();
 const { t } = useI18n();
 const emit = defineEmits<{
-    close: [];
+    (e: 'close'): void;
 }>();
 
 // Use transaction data from props directly - it already has all the necessary information
