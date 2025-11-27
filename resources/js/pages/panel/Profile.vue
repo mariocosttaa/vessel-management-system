@@ -551,22 +551,13 @@ const deleteAccountForm = useForm({
 })
 
 const updateProfile = () => {
-  // Debug: Log form data before submission
-  console.log('Form data before submission:', {
-    name: form.name,
-    email: form.email,
-    vessel_admin_notification: form.vessel_admin_notification,
-    hasHighVesselAccess: hasHighVesselAccess.value
-  })
-
   form.patch('/panel/profile', {
     preserveScroll: true,
     onSuccess: () => {
       // Profile updated successfully
     },
     onError: (errors) => {
-      console.error('Profile update errors:', errors)
-      console.error('Form data that was sent:', form.data())
+      // Errors handled by form validation
     }
   })
 }
@@ -578,7 +569,7 @@ const updatePassword = () => {
       passwordForm.reset()
     },
     onError: (errors) => {
-      console.error('Password update errors:', errors)
+      // Errors handled by form validation
     }
   })
 }
@@ -607,7 +598,6 @@ const confirmDeleteAccount = () => {
         deleteAccountForm.reset()
       },
       onError: (errors) => {
-        console.error('Delete account errors:', errors)
         // Keep dialog open to show errors
       }
     })
@@ -620,7 +610,6 @@ const confirmDeleteAccount = () => {
         deleteAccountForm.reset()
       },
       onError: (errors) => {
-        console.error('Delete account errors:', errors)
         showDeleteModal.value = false
       }
     })

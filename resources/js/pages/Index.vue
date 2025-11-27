@@ -462,7 +462,6 @@ const handleAccessDashboard = (vessel: Vessel) => {
           onError: (errors: any) => {
             loadingVessel.value = null
             loadingProgress.value = 0
-            console.error('Error accessing dashboard:', errors)
           },
           onSuccess: () => {
             // Success - page will redirect
@@ -491,7 +490,6 @@ const handleSkipLoading = () => {
       onError: (errors: any) => {
         loadingVessel.value = null
         loadingProgress.value = 0
-        console.error('Error accessing dashboard:', errors)
       },
       onFinish: () => {
         loadingVessel.value = null
@@ -547,7 +545,6 @@ const confirmDelete = () => {
       isDeleting.value = false
     },
     onError: (errors: any) => {
-      console.error('Error deleting vessel:', errors)
       isDeleting.value = false
     },
     onFinish: () => {

@@ -231,7 +231,6 @@ watch([search, actionFilter, modelTypeFilter, userIdFilter, dateFromFilter, date
 const applyFilters = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID from URL');
         return;
     }
     const url = `/panel/${vesselId}/audit-logs`;

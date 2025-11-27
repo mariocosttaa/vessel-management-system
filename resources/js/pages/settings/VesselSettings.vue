@@ -206,27 +206,8 @@ const submitGeneral = () => {
         formData.remove_logo = true
     }
 
-    // Log data before submission for debugging
-    console.log('=== FORM SUBMISSION DEBUG ===')
-    console.log('Form values from generalForm:', {
-        name: generalForm.name,
-        registration_number: generalForm.registration_number,
-        vessel_type: generalForm.vessel_type,
-        status: generalForm.status,
-    })
-    console.log('VesselData values:', {
-        name: vesselData.value?.name,
-        registration_number: vesselData.value?.registration_number,
-        vessel_type: vesselData.value?.vessel_type,
-        status: vesselData.value?.status,
-    })
-    console.log('Final formData being sent:', formData)
-    console.log('Has logo file:', !!logoFile.value)
-    console.log('Remove logo:', removeLogo.value)
-
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
     const submitUrl = settings.update.general.url({ vessel: vesselId })
@@ -248,9 +229,6 @@ const submitGeneral = () => {
             ...(logoFile.value ? { logo: logoFile.value } : {}),
             remove_logo: formData.remove_logo || false,
         })
-
-        console.log('Using POST method with FormData')
-        console.log('Upload form data keys:', Object.keys(uploadForm.data()))
 
         uploadForm.post(submitUrl, {
             preserveScroll: true,
@@ -276,9 +254,6 @@ const submitGeneral = () => {
                 });
             },
             onError: (errors) => {
-                console.error('=== FORM SUBMISSION ERROR ===')
-                console.error('Errors:', errors)
-                console.error('Form data that was sent:', uploadForm.data())
                 addNotification({
                     type: 'error',
                     title: t('Error'),
@@ -288,7 +263,6 @@ const submitGeneral = () => {
         })
     } else {
         // Use regular PATCH when no files
-        console.log('Using PATCH method (no files)')
         generalForm.patch(submitUrl, {
             preserveScroll: true,
             onSuccess: () => {
@@ -299,7 +273,6 @@ const submitGeneral = () => {
                 });
             },
             onError: (errors) => {
-                console.error('Form submission errors:', errors);
                 addNotification({
                     type: 'error',
                     title: t('Error'),
@@ -344,7 +317,6 @@ const isLogoRemovalPending = computed(() => {
 const submitLocation = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
         return;
     }
     locationForm.patch(settings.update.location.url({ vessel: vesselId }), {
@@ -356,7 +328,6 @@ const submitLocation = () => {
             });
         },
         onError: (errors) => {
-            console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
                 title: t('Error'),
