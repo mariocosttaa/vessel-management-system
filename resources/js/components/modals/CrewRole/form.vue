@@ -27,7 +27,8 @@ const emit = defineEmits<{
 
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 

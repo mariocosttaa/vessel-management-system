@@ -159,8 +159,8 @@ const getActionsForItem = (item: any): Action[] => {
                             <div class="flex items-center space-x-1">
                                 <span>{{ column.label }}</span>
                                 <Icon
-                                    v-if="column.sortable && sortField === column.key"
-                                    :name="sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'"
+                                    v-if="column.sortable && props.sortField === column.key"
+                                    :name="props.sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'"
                                     class="w-4 h-4"
                                 />
                             </div>

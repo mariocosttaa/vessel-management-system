@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/Icon.vue';
 import { useI18n } from '@/composables/useI18n';
 
+interface VesselRole {
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+}
+
 interface CrewPosition {
     id: number;
     name: string;
@@ -13,6 +20,7 @@ interface CrewPosition {
     is_global: boolean;
     scope_label: string;
     crew_members_count?: number;
+    vessel_role?: VesselRole | null;
     created_at: string;
     updated_at: string;
 }
@@ -34,16 +42,22 @@ const isLoading = ref(false);
 
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 
 const fetchCrewPositionDetails = async () => {
     if (!props.crewPosition?.id) return;
 
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) {
+        console.error('Vessel ID not found in URL');
+        return;
+    }
+
     isLoading.value = true;
     try {
-        const vesselId = getCurrentVesselId();
         const response = await fetch(`/panel/${vesselId}/api/crew-roles/${props.crewPosition.id}/details`, {
             headers: {
                 'Accept': 'application/json',
@@ -84,6 +98,26 @@ const handleClose = () => {
 
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+};
+
+const getRoleBadgeClass = (roleName: string) => {
+    const roleClasses: Record<string, string> = {
+        'administrator': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-200',
+        'supervisor': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200',
+        'moderator': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200',
+        'normal': 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200',
+    };
+    return roleClasses[roleName] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200';
+};
+
+const getRoleDescription = (roleName: string) => {
+    const roleDescriptions: Record<string, string> = {
+        'administrator': t('Full access to vessel including deletion and user management'),
+        'supervisor': t('Can view, edit vessel information and manage crew'),
+        'moderator': t('Can view and edit basic vessel information'),
+        'normal': t('Basic read-only access to vessel information'),
+    };
+    return roleDescriptions[roleName] || null;
 };
 </script>
 
@@ -134,23 +168,39 @@ const formatDate = (dateString: string) => {
                                     {{ crewPositionData.crew_members_count || 0 }} {{ t('member(s) assigned') }}
                                 </dd>
                             </div>
+                            <div v-if="crewPositionData.vessel_role">
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Access Level') }}</dt>
+                                <dd class="text-sm text-card-foreground dark:text-card-foreground">
+                                    <span
+                                        :class="[
+                                            'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                            getRoleBadgeClass(crewPositionData.vessel_role.name)
+                                        ]"
+                                    >
+                                        {{ crewPositionData.vessel_role.display_name }}
+                                    </span>
+                                    <p v-if="crewPositionData.vessel_role.description" class="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
+                                        {{ getRoleDescription(crewPositionData.vessel_role.name) || crewPositionData.vessel_role.description }}
+                                    </p>
+                                </dd>
+                            </div>
                         </dl>
                     </div>
 
                     <!-- System Information -->
                     <div>
                         <h3 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-4">
-                            System Information
+                            {{ t('System Information') }}
                         </h3>
                         <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Created</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Created') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatDate(crewPositionData.created_at) }}
                                 </dd>
                             </div>
                             <div>
-                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">Last Updated</dt>
+                                <dt class="text-sm font-medium text-muted-foreground dark:text-muted-foreground">{{ t('Last Updated') }}</dt>
                                 <dd class="text-sm text-card-foreground dark:text-card-foreground">
                                     {{ formatDate(crewPositionData.updated_at) }}
                                 </dd>
