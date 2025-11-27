@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HashesIds;
 use App\Http\Requests\StoreMovimentationCategoryRequest;
 use App\Models\MovimentationCategory;
+use App\Traits\HasTranslations;
 use Illuminate\Support\Facades\Log;
 
 class MovimentationCategoryController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
 
     /**
      * Store a newly created category for the vessel.
@@ -28,7 +29,7 @@ class MovimentationCategoryController extends Controller
                     // Try to unhash if it's a hashed string
                     $vessel = (new \App\Models\Vessel())->resolveRouteBinding($vesselParam);
                     if (! $vessel) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                     $vesselId = $vessel->id;
                 }

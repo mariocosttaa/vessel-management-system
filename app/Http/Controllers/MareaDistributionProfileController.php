@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HashesIds;
 use App\Models\MareaDistributionProfile;
 use App\Models\MareaDistributionProfileItem;
 use App\Actions\AuditLogAction;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class MareaDistributionProfileController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
     /**
      * Display a listing of distribution profiles.
      */
@@ -245,7 +246,7 @@ class MareaDistributionProfileController extends Controller
 
         // System profiles cannot be edited
         if ($profile->is_system) {
-            abort(403, 'System profiles cannot be edited.');
+            abort(403, $this->transFrom('notifications', 'System profiles cannot be edited.'));
         }
 
         return Inertia::render('MareaDistributionProfiles/Edit', [
@@ -280,7 +281,7 @@ class MareaDistributionProfileController extends Controller
 
         // System profiles cannot be updated
         if ($profile->is_system) {
-            abort(403, 'System profiles cannot be updated.');
+            abort(403, $this->transFrom('notifications', 'System profiles cannot be updated.'));
         }
 
         // Store original state for change detection
@@ -448,7 +449,7 @@ class MareaDistributionProfileController extends Controller
 
         // System profiles cannot be deleted
         if ($profile->is_system) {
-            abort(403, 'System profiles cannot be deleted.');
+            abort(403, $this->transFrom('notifications', 'System profiles cannot be deleted.'));
         }
 
         // Check if profile is in use

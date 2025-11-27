@@ -21,15 +21,21 @@ class DashboardController extends BaseController
         $user = $request->user();
 
         if (! $user) {
-            abort(403, 'You must be logged in to view the dashboard.');
+            abort(403, $this->transFrom('notifications', 'You must be logged in to view the dashboard.'));
         }
 
-        $vessel   = $this->getCurrentVessel($request);
-        $vesselId = $this->getCurrentVesselId($request);
+        $vessel   = $request->attributes->get('vessel');
+        $vesselId = $request->attributes->get('vessel_id');
 
         // Get vessel settings for default currency
-        $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
-        $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
+        // Use eager loaded setting if available
+        if ($vessel->relationLoaded('setting') && $vessel->setting) {
+            $currencyCode = $vessel->setting->currency_code ?? $vessel->currency_code;
+        } else {
+            $vesselSetting = \App\Models\VesselSetting::getForVessel($vesselId);
+            $currencyCode = $vesselSetting->currency_code ?? $vessel->currency_code;
+        }
+        $defaultCurrency = $currencyCode ?? 'EUR';
 
         // Get current month and year
         $now          = Carbon::now();
@@ -83,21 +89,33 @@ class DashboardController extends BaseController
             ->values();
 
         // Get last 6 months data for chart
+        // Optimization: Fetch all data in one query instead of looping
+        $startDate = Carbon::now()->subMonths(5)->startOfMonth();
+        $endDate   = Carbon::now()->endOfMonth();
+
+        $stats = Movimentation::where('vessel_id', $vesselId)
+            ->where('status', 'completed')
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->selectRaw('
+                transaction_year as year,
+                transaction_month as month,
+                SUM(CASE WHEN type = "income" THEN total_amount ELSE 0 END) as income,
+                SUM(CASE WHEN type = "expense" THEN total_amount ELSE 0 END) as expenses
+            ')
+            ->groupBy('transaction_year', 'transaction_month')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->year . '-' . $item->month;
+            });
+
         $last6Months = [];
         for ($i = 5; $i >= 0; $i--) {
             $date  = Carbon::now()->subMonths($i);
             $month = $date->month;
             $year  = $date->year;
+            $key   = $year . '-' . $month;
 
-            $monthStats = Movimentation::where('vessel_id', $vesselId)
-                ->where('transaction_year', $year)
-                ->where('transaction_month', $month)
-                ->where('status', 'completed')
-                ->selectRaw('
-                    SUM(CASE WHEN type = "income" THEN total_amount ELSE 0 END) as income,
-                    SUM(CASE WHEN type = "expense" THEN total_amount ELSE 0 END) as expenses
-                ')
-                ->first();
+            $monthStats = $stats->get($key);
 
             $last6Months[] = [
                 'month'       => $month,
@@ -206,7 +224,7 @@ class DashboardController extends BaseController
             });
 
         // Get user permissions for quick links
-        $userRole    = $user->getRoleForVessel($vesselId);
+        $userRole    = $request->attributes->get('vessel_role') ?? $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
         return Inertia::render('Dashboard', [
