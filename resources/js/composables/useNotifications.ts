@@ -13,6 +13,7 @@ export interface Notification {
 export function useNotifications() {
     const page = usePage()
     const notifications = ref<Notification[]>([])
+    const processedFlashMessages = ref<Set<string>>(new Set())
 
     // Get flash messages from Inertia
     const flashMessages = computed(() => {
@@ -27,6 +28,19 @@ export function useNotifications() {
     })
 
     const addNotification = (notification: Omit<Notification, 'id'>) => {
+        // Check for duplicate notifications (same type and message)
+        const isDuplicate = notifications.value.some(
+            n => n.type === notification.type && n.message === notification.message
+        )
+
+        if (isDuplicate) {
+            // Return existing notification ID instead of creating a duplicate
+            const existing = notifications.value.find(
+                n => n.type === notification.type && n.message === notification.message
+            )
+            return existing?.id || null
+        }
+
         const id = Math.random().toString(36).substr(2, 9)
         const newNotification: Notification = {
             id,
@@ -96,62 +110,88 @@ export function useNotifications() {
         })
     }
 
-    // Process flash messages immediately when they're available
+    // Process flash messages with deduplication
     const processFlashMessages = () => {
         const flash = flashMessages.value
         const customDelay = flash.notification_delay
 
+        // Create a unique key for each flash message to track processed ones
+        const createFlashKey = (type: string, message: string) => `${type}:${message}`
+
         if (flash.success) {
-            addNotification({
-                type: 'success',
-                title: 'Success',
-                message: flash.success,
-                duration: customDelay ? customDelay * 1000 : undefined, // Convert seconds to milliseconds
-                persistent: customDelay === 0, // If delay is 0, make it persistent
-            })
+            const key = createFlashKey('success', flash.success)
+            if (!processedFlashMessages.value.has(key)) {
+                processedFlashMessages.value.add(key)
+                addNotification({
+                    type: 'success',
+                    title: 'Success',
+                    message: flash.success,
+                    duration: customDelay ? customDelay * 1000 : undefined, // Convert seconds to milliseconds
+                    persistent: customDelay === 0, // If delay is 0, make it persistent
+                })
+            }
         }
 
         if (flash.error) {
-            addNotification({
-                type: 'error',
-                title: 'Error',
-                message: flash.error,
-                duration: customDelay ? customDelay * 1000 : undefined,
-                persistent: customDelay === 0 || customDelay === undefined, // Default persistent for errors
-            })
+            const key = createFlashKey('error', flash.error)
+            if (!processedFlashMessages.value.has(key)) {
+                processedFlashMessages.value.add(key)
+                addNotification({
+                    type: 'error',
+                    title: 'Error',
+                    message: flash.error,
+                    duration: customDelay ? customDelay * 1000 : undefined,
+                    persistent: customDelay === 0 || customDelay === undefined, // Default persistent for errors
+                })
+            }
         }
 
         if (flash.warning) {
-            addNotification({
-                type: 'warning',
-                title: 'Warning',
-                message: flash.warning,
-                duration: customDelay ? customDelay * 1000 : undefined,
-                persistent: customDelay === 0,
-            })
+            const key = createFlashKey('warning', flash.warning)
+            if (!processedFlashMessages.value.has(key)) {
+                processedFlashMessages.value.add(key)
+                addNotification({
+                    type: 'warning',
+                    title: 'Warning',
+                    message: flash.warning,
+                    duration: customDelay ? customDelay * 1000 : undefined,
+                    persistent: customDelay === 0,
+                })
+            }
         }
 
         if (flash.info) {
-            addNotification({
-                type: 'info',
-                title: 'Information',
-                message: flash.info,
-                duration: customDelay ? customDelay * 1000 : undefined,
-                persistent: customDelay === 0,
-            })
+            const key = createFlashKey('info', flash.info)
+            if (!processedFlashMessages.value.has(key)) {
+                processedFlashMessages.value.add(key)
+                addNotification({
+                    type: 'info',
+                    title: 'Information',
+                    message: flash.info,
+                    duration: customDelay ? customDelay * 1000 : undefined,
+                    persistent: customDelay === 0,
+                })
+            }
         }
     }
 
-    // Process flash messages immediately when component mounts
-    processFlashMessages()
+    // Clear processed flash messages when navigating to a new page
+    // This ensures new flash messages on new pages can be processed
+    watch(() => page.url, () => {
+        processedFlashMessages.value.clear()
+    })
 
     // Watch for flash message changes (for subsequent updates)
     watch(flashMessages, (newFlash, oldFlash) => {
+        const customDelay = newFlash.notification_delay
+
         if (newFlash.success && newFlash.success !== oldFlash?.success) {
             addNotification({
                 type: 'success',
                 title: 'Success',
                 message: newFlash.success,
+                duration: customDelay ? customDelay * 1000 : undefined,
+                persistent: customDelay === 0,
             })
         }
 
@@ -160,6 +200,8 @@ export function useNotifications() {
                 type: 'error',
                 title: 'Error',
                 message: newFlash.error,
+                duration: customDelay ? customDelay * 1000 : undefined,
+                persistent: customDelay === 0 || customDelay === undefined,
             })
         }
 
@@ -168,6 +210,8 @@ export function useNotifications() {
                 type: 'warning',
                 title: 'Warning',
                 message: newFlash.warning,
+                duration: customDelay ? customDelay * 1000 : undefined,
+                persistent: customDelay === 0,
             })
         }
 
@@ -176,6 +220,8 @@ export function useNotifications() {
                 type: 'info',
                 title: 'Information',
                 message: newFlash.info,
+                duration: customDelay ? customDelay * 1000 : undefined,
+                persistent: customDelay === 0,
             })
         }
     }, { deep: true })
