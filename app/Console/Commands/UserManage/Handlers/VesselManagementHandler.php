@@ -71,34 +71,137 @@ class VesselManagementHandler extends BaseHandler
 
     public function listVessels(): void
     {
-        $vessels = Vessel::with('owner')
-            ->withCount(['crewMembers', 'movimentations', 'mareas'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           List Vessels');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
 
-        if ($vessels->isEmpty()) {
-            $this->info('No vessels found.');
+        $this->line('Options:');
+        $this->line('  1. List all vessels');
+        $this->line('  2. Search vessels');
+        $this->line('  0. Back to main menu');
+        $this->newLine();
+
+        $choice = $this->ask('Select an option', '0');
+
+        match ($choice) {
+            '1' => $this->listAllVessels(),
+            '2' => $this->searchVessels(),
+            '0' => null,
+            default => $this->error('Invalid option.'),
+        };
+    }
+
+    private function listAllVessels(): void
+    {
+        $this->listVesselsWithPagination(
+            Vessel::with('owner')
+                ->withCount(['crewMembers', 'movimentations', 'mareas'])
+                ->orderBy('created_at', 'desc'),
+            'vessels'
+        );
+    }
+
+    private function searchVessels(): void
+    {
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           Search Vessels');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
+
+        $searchTerm = $this->ask('Enter search term (name or registration number)', '');
+        if (empty($searchTerm)) {
+            $this->error('Search term is required.');
             return;
         }
 
-        $headers = ['ID', 'Name', 'Registration', 'Type', 'Status', 'Owner', 'Crew', 'Mov.', 'Mareas', 'Maint.'];
-        $rows = $vessels->map(function ($vessel) {
-            return [
-                $vessel->id,
-                $vessel->name,
-                $vessel->registration_number,
-                $vessel->vessel_type,
-                $vessel->status,
-                $vessel->owner ? $vessel->owner->email : 'None',
-                $vessel->crew_members_count,
-                $vessel->movimentations_count,
-                $vessel->mareas_count,
-                Maintenance::where('vessel_id', $vessel->id)->count(),
-            ];
-        })->toArray();
+        $query = Vessel::with('owner')
+            ->withCount(['crewMembers', 'movimentations', 'mareas'])
+            ->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('registration_number', 'like', "%{$searchTerm}%");
+            })
+            ->orderBy('created_at', 'desc');
 
-        $this->table($headers, $rows);
-        $this->info("Total: {$vessels->count()} vessel(s)");
+        $this->listVesselsWithPagination($query, "vessels matching '{$searchTerm}'");
+    }
+
+    private function listVesselsWithPagination($query, string $label): void
+    {
+        $perPage = 15;
+        $page = 1;
+        $total = $query->count();
+
+        if ($total === 0) {
+            $this->info("No {$label} found.");
+            return;
+        }
+
+        $totalPages = (int) ceil($total / $perPage);
+
+        while (true) {
+            $vessels = (clone $query)
+                ->skip(($page - 1) * $perPage)
+                ->take($perPage)
+                ->get();
+
+            $headers = ['ID', 'Name', 'Registration', 'Type', 'Status', 'Owner', 'Crew', 'Mov.', 'Mareas', 'Maint.', 'Created', 'Updated'];
+            $rows = $vessels->map(function ($vessel) {
+                return [
+                    $vessel->id,
+                    $vessel->name,
+                    $vessel->registration_number,
+                    $vessel->vessel_type,
+                    $vessel->status,
+                    $vessel->owner ? $vessel->owner->email : 'None',
+                    $vessel->crew_members_count,
+                    $vessel->movimentations_count,
+                    $vessel->mareas_count,
+                    Maintenance::where('vessel_id', $vessel->id)->count(),
+                    $vessel->created_at->format('Y-m-d H:i'),
+                    $vessel->updated_at->format('Y-m-d H:i'),
+                ];
+            })->toArray();
+
+            $this->newLine();
+            $this->table($headers, $rows);
+            $this->info("Page {$page} of {$totalPages} | Total: {$total} {$label}");
+
+            if ($totalPages <= 1) {
+                break;
+            }
+
+            $this->newLine();
+            $this->line('Navigation:');
+            if ($page > 1) {
+                $this->line("  [p] Previous page");
+            }
+            if ($page < $totalPages) {
+                $this->line("  [n] Next page");
+            }
+            $this->line("  [g] Go to page (1-{$totalPages})");
+            $this->line("  [q] Quit");
+            $this->newLine();
+
+            $action = strtolower($this->ask('Action', 'q'));
+
+            if ($action === 'q') {
+                break;
+            } elseif ($action === 'p' && $page > 1) {
+                $page--;
+            } elseif ($action === 'n' && $page < $totalPages) {
+                $page++;
+            } elseif ($action === 'g') {
+                $targetPage = (int) $this->ask("Enter page number (1-{$totalPages})", $page);
+                if ($targetPage >= 1 && $targetPage <= $totalPages) {
+                    $page = $targetPage;
+                } else {
+                    $this->error("Invalid page number. Please enter a number between 1 and {$totalPages}.");
+                }
+            } else {
+                $this->error('Invalid action. Please try again.');
+            }
+        }
     }
 
     public function viewVesselDetails(): void

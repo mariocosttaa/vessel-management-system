@@ -186,6 +186,7 @@ class UserManagementHandler extends BaseHandler
         $this->line('  1. List all paid users');
         $this->line('  2. List all vessel owners');
         $this->line('  3. List all users');
+        $this->line('  4. Search users');
         $this->line('  0. Back to main menu');
         $this->newLine();
 
@@ -195,6 +196,7 @@ class UserManagementHandler extends BaseHandler
             '1' => $this->listPaidUsers(),
             '2' => $this->listOwners(),
             '3' => $this->listAllUsers(),
+            '4' => $this->searchUsers(),
             '0' => null,
             default => $this->error('Invalid option.'),
         };
@@ -495,88 +497,129 @@ class UserManagementHandler extends BaseHandler
 
     private function listPaidUsers(): void
     {
-        $users = User::where('user_type', 'paid_system')
-            ->withCount('ownedVessels')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        if ($users->isEmpty()) {
-            $this->info('No paid users found.');
-            return;
-        }
-
-        $headers = ['ID', 'Name', 'Email', 'Status', 'Login', 'Vessels'];
-        $rows = $users->map(function ($user) {
-            return [
-                $user->id,
-                $user->name,
-                $user->email,
-                $user->status,
-                $user->login_permitted ? 'Yes' : 'No',
-                $user->owned_vessels_count,
-            ];
-        })->toArray();
-
-        $this->table($headers, $rows);
-        $this->info("Total: {$users->count()} paid user(s)");
+        $this->listUsersWithPagination(
+            User::where('user_type', 'paid_system')
+                ->withCount('ownedVessels')
+                ->orderBy('created_at', 'desc'),
+            'paid users'
+        );
     }
 
     private function listOwners(): void
     {
-        $users = User::whereHas('ownedVessels')
-            ->withCount('ownedVessels')
-            ->orderBy('owned_vessels_count', 'desc')
-            ->get();
-
-        if ($users->isEmpty()) {
-            $this->info('No vessel owners found.');
-            return;
-        }
-
-        $headers = ['ID', 'Name', 'Email', 'Type', 'Status', 'Vessels'];
-        $rows = $users->map(function ($user) {
-            return [
-                $user->id,
-                $user->name,
-                $user->email,
-                $user->user_type,
-                $user->status,
-                $user->owned_vessels_count,
-            ];
-        })->toArray();
-
-        $this->table($headers, $rows);
-        $totalVessels = $users->sum('owned_vessels_count');
-        $this->info("Total: {$users->count()} owner(s) with {$totalVessels} vessel(s)");
+        $this->listUsersWithPagination(
+            User::whereHas('ownedVessels')
+                ->withCount('ownedVessels')
+                ->orderBy('owned_vessels_count', 'desc'),
+            'vessel owners'
+        );
     }
 
     private function listAllUsers(): void
     {
-        $users = User::withCount('ownedVessels')
-            ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get();
+        $this->listUsersWithPagination(
+            User::withCount('ownedVessels')
+                ->orderBy('created_at', 'desc'),
+            'users'
+        );
+    }
 
-        if ($users->isEmpty()) {
-            $this->info('No users found.');
+    private function searchUsers(): void
+    {
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->info('           Search Users');
+        $this->info('═══════════════════════════════════════════════════════════');
+        $this->newLine();
+
+        $searchTerm = $this->ask('Enter search term (name or email)', '');
+        if (empty($searchTerm)) {
+            $this->error('Search term is required.');
             return;
         }
 
-        $headers = ['ID', 'Name', 'Email', 'Type', 'Status', 'Login', 'Vessels'];
-        $rows = $users->map(function ($user) {
-            return [
-                $user->id,
-                $user->name,
-                $user->email,
-                $user->user_type,
-                $user->status,
-                $user->login_permitted ? 'Yes' : 'No',
-                $user->owned_vessels_count,
-            ];
-        })->toArray();
+        $query = User::withCount('ownedVessels')
+            ->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%");
+            })
+            ->orderBy('created_at', 'desc');
 
-        $this->table($headers, $rows);
-        $this->info("Showing {$users->count()} user(s)");
+        $this->listUsersWithPagination($query, "users matching '{$searchTerm}'");
+    }
+
+    private function listUsersWithPagination($query, string $label): void
+    {
+        $perPage = 15;
+        $page = 1;
+        $total = $query->count();
+
+        if ($total === 0) {
+            $this->info("No {$label} found.");
+            return;
+        }
+
+        $totalPages = (int) ceil($total / $perPage);
+
+        while (true) {
+            $users = (clone $query)
+                ->skip(($page - 1) * $perPage)
+                ->take($perPage)
+                ->get();
+
+            $headers = ['ID', 'Name', 'Email', 'Type', 'Status', 'Login', 'Vessels', 'Created', 'Updated'];
+            $rows = $users->map(function ($user) {
+                return [
+                    $user->id,
+                    $user->name,
+                    $user->email,
+                    $user->user_type,
+                    $user->status,
+                    $user->login_permitted ? 'Yes' : 'No',
+                    $user->owned_vessels_count,
+                    $user->created_at->format('Y-m-d H:i'),
+                    $user->updated_at->format('Y-m-d H:i'),
+                ];
+            })->toArray();
+
+            $this->newLine();
+            $this->table($headers, $rows);
+            $this->info("Page {$page} of {$totalPages} | Total: {$total} {$label}");
+
+            if ($totalPages <= 1) {
+                break;
+            }
+
+            $this->newLine();
+            $this->line('Navigation:');
+            if ($page > 1) {
+                $this->line("  [p] Previous page");
+            }
+            if ($page < $totalPages) {
+                $this->line("  [n] Next page");
+            }
+            $this->line("  [g] Go to page (1-{$totalPages})");
+            $this->line("  [q] Quit");
+            $this->newLine();
+
+            $action = strtolower($this->ask('Action', 'q'));
+
+            if ($action === 'q') {
+                break;
+            } elseif ($action === 'p' && $page > 1) {
+                $page--;
+            } elseif ($action === 'n' && $page < $totalPages) {
+                $page++;
+            } elseif ($action === 'g') {
+                $targetPage = (int) $this->ask("Enter page number (1-{$totalPages})", $page);
+                if ($targetPage >= 1 && $targetPage <= $totalPages) {
+                    $page = $targetPage;
+                } else {
+                    $this->error("Invalid page number. Please enter a number between 1 and {$totalPages}.");
+                }
+            } else {
+                $this->error('Invalid action. Please try again.');
+            }
+        }
     }
 
     private function checkUserLimits(): void
