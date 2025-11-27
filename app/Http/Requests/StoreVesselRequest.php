@@ -12,10 +12,8 @@ use Illuminate\Validation\Rule;
 /**
  * @property string $name
  * @property string $registration_number
- * @property string $vessel_type
  * @property int|null $capacity
  * @property int|null $year_built
- * @property string $status
  * @property string|null $notes
  * @property string $country_code
  * @property string $currency_code
@@ -42,10 +40,8 @@ class StoreVesselRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['required', 'string', 'max:100', Rule::unique(Vessel::class, 'registration_number')],
-            'vessel_type' => ['required', 'in:cargo,passenger,fishing,fish,yacht'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'year_built' => ['nullable', 'integer', 'min:1900', 'max:' . date('Y')],
-            'status' => ['required', 'in:active,suspended,maintenance'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'country_code' => ['required', 'string', 'size:2', Rule::exists(Country::class, 'code')],
             'currency_code' => ['required', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
@@ -63,13 +59,9 @@ class StoreVesselRequest extends FormRequest
             'name.max' => 'The vessel name may not be greater than 255 characters.',
             'registration_number.required' => 'The registration number is required.',
             'registration_number.unique' => 'This registration number is already in use.',
-            'vessel_type.required' => 'Please select a vessel type.',
-            'vessel_type.in' => 'The selected vessel type is invalid.',
             'capacity.min' => 'Capacity must be at least 1.',
             'year_built.min' => 'Year built must be at least 1900.',
             'year_built.max' => 'Year built cannot be in the future.',
-            'status.required' => 'Please select a status.',
-            'status.in' => 'The selected status is invalid.',
             'notes.max' => 'Notes may not be greater than 1000 characters.',
             'country_code.required' => 'Please select a country.',
             'country_code.exists' => 'The selected country is invalid.',
@@ -90,11 +82,5 @@ class StoreVesselRequest extends FormRequest
             'registration_number' => strtoupper(trim($this->registration_number)),
             'notes' => $this->notes ? trim($this->notes) : null,
         ]);
-
-        if ($this->vat_profile_id) {
-            $this->merge([
-                'vat_profile_id' => \App\Actions\General\EasyHashAction::decode($this->vat_profile_id, 'vatprofile-id'),
-            ]);
-        }
     }
 }

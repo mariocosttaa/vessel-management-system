@@ -88,18 +88,6 @@ class VesselController extends BaseController
         }
 
         return Inertia::render('Vessels/Create', [
-            'vesselTypes' => [
-                'cargo'     => 'Cargo',
-                'passenger' => 'Passenger',
-                'fishing'   => 'Fishing',
-                'fish'      => 'Fish',
-                'yacht'     => 'Yacht',
-            ],
-            'statuses'    => [
-                'active'      => 'Active',
-                'suspended'   => 'Suspended',
-                'maintenance' => 'Maintenance',
-            ],
             'countries'   => Country::orderBy('name')->get(['code', 'name']),
             'currencies'  => Currency::active()->orderBy('name')->get(['code', 'name', 'symbol']),
             'vatProfiles' => \App\Models\VatProfile::active()->with('country')->orderBy('name')->get()->map(function ($profile) {
@@ -140,10 +128,10 @@ class VesselController extends BaseController
             $vessel = $vesselService->createVessel($user, [
                 'name'                => $request->name,
                 'registration_number' => $request->registration_number,
-                'vessel_type'         => $request->vessel_type,
+                'vessel_type'         => 'fishing', // Always set to fishing
                 'capacity'            => $request->capacity,
                 'year_built'          => $request->year_built,
-                'status'              => $request->status,
+                'status'              => 'active', // Always set to active
                 'notes'               => $request->notes,
                 'country_code'        => $request->country_code,
                 'currency_code'       => $request->currency_code,
