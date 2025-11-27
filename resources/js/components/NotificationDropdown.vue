@@ -33,10 +33,11 @@ const auditLogs = ref<AuditLog[]>([]);
 const isLoading = ref(false);
 const isOpen = ref(false);
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed ID (alphanumeric string) or numeric ID
+    const vesselMatch = path.match(/\/panel\/([^/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 
@@ -46,12 +47,15 @@ const fetchRecentLogs = async () => {
         return;
     }
 
+    const vesselId = getCurrentVesselId();
+    // Only fetch if we have a vessel ID (route requires vessel context)
+    if (!vesselId) {
+        return;
+    }
+
     isLoading.value = true;
     try {
-        const vesselId = getCurrentVesselId();
-        const url = vesselId
-            ? `/panel/${vesselId}/audit-logs/recent`
-            : '/audit-logs/recent';
+        const url = `/panel/${vesselId}/audit-logs/recent`;
 
         const response = await fetch(url, {
             headers: {
