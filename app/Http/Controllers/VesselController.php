@@ -84,7 +84,7 @@ class VesselController extends BaseController
 
         // Check if user can create vessels
         if (! $user->canCreateVessels()) {
-            abort(403, 'You do not have permission to create vessels.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to create vessels.'));
         }
 
         return Inertia::render('Vessels/Create', [
@@ -114,12 +114,12 @@ class VesselController extends BaseController
 
         // Check if user can create vessels (must have tenant role - paid_system)
         if (! $user->canCreateVessels()) {
-            abort(403, 'You do not have permission to create vessels. You must have tenant role (paid_system).');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to create vessels. You must have tenant role (paid_system).'));
         }
 
         // Validate that user has tenant role (mandatory)
         if ($user->user_type !== 'paid_system') {
-            abort(403, 'You must have tenant role (paid_system) to create vessels.');
+            abort(403, $this->transFrom('notifications', 'You must have tenant role (paid_system) to create vessels.'));
         }
 
         try {
@@ -163,7 +163,7 @@ class VesselController extends BaseController
 
         // Ensure the vessel being viewed is the current vessel
         if ($vessel->id !== $currentVessel->id) {
-            abort(403, 'You can only view the current vessel.');
+            abort(403, $this->transFrom('notifications', 'You can only view the current vessel.'));
         }
 
         $vessel->load(['crewMembers.position', 'transactions.category', 'transactions.bankAccount']);

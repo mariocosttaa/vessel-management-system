@@ -41,7 +41,7 @@ class VesselSettingController extends Controller
                 // Try to unhash if it's a hashed string
                 $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
                 if (!$vessel) {
-                    abort(404, 'Vessel not found.');
+                    abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                 }
                 $vesselId = $vessel->id;
             }
@@ -49,7 +49,7 @@ class VesselSettingController extends Controller
 
         // Check if user has permission to manage vessel settings
         if (!$user || !$user->hasAnyRoleForVessel($vesselId, ['Administrator', 'Supervisor'])) {
-            abort(403, 'You do not have permission to manage vessel settings.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to manage vessel settings.'));
         }
 
         // Get the vessel from request attributes or find it
@@ -103,7 +103,7 @@ class VesselSettingController extends Controller
                     // Try to unhash if it's a hashed string
                     $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
                     if (!$vessel) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                     $vesselId = $vessel->id;
                 }
@@ -216,7 +216,7 @@ class VesselSettingController extends Controller
                     // Try to unhash if it's a hashed string
                     $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
                     if (!$vessel) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                     $vesselId = $vessel->id;
                 }

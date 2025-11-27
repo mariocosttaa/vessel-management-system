@@ -2,12 +2,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HashesIds;
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class VesselSelectorController extends Controller
 {
-    use HashesIds;
+    use HasTranslations, HashesIds;
     /**
      * Display the vessel selector page.
      */
@@ -78,12 +79,12 @@ class VesselSelectorController extends Controller
         // Unhash the vessel ID from frontend
         $vesselId = $this->unhashId($request->vessel_id, 'vessel');
         if (! $vesselId) {
-            abort(404, 'Vessel not found.');
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
         }
 
         // Verify user has access to this vessel
         if (! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Hash the vessel ID for the URL

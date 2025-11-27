@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Actions\General\EasyHashAction;
 use App\Actions\Tenant\TenantFileAction;
+use App\Traits\HasTranslations;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class VesselFileController
 {
+    use HasTranslations;
     /**
      * Serve a public file for a vessel.
      *
@@ -27,7 +29,7 @@ class VesselFileController
                 'vesselIdHashed' => $vesselIdHashed,
                 'filePath' => $filePath,
             ]);
-            abort(404, 'Vessel not found.');
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
         }
 
         // Ensure storage directory exists before accessing
@@ -82,7 +84,7 @@ class VesselFileController
                 'fileExists' => $fileExists,
                 'fileExistsOnFs' => file_exists($fullPath ?? ''),
             ]);
-            abort(404, 'File not found.');
+            abort(404, $this->transFrom('notifications', 'File not found.'));
         }
 
         try {
@@ -100,7 +102,7 @@ class VesselFileController
                 'filePath' => $filePath,
                 'fullPath' => $fullPath ?? 'unknown',
             ]);
-            abort(500, 'Error serving file.');
+            abort(500, $this->transFrom('notifications', 'Error serving file.'));
         }
     }
 
@@ -117,24 +119,24 @@ class VesselFileController
         $vesselId = EasyHashAction::decode($vesselIdHashed, 'vessel-id');
 
         if (!$vesselId) {
-            abort(404, 'Vessel not found.');
+            abort(404, $this->transFrom('notifications', 'Vessel not found.'));
         }
 
         $user = $request->user();
 
         if (!$user) {
-            abort(401, 'Unauthorized.');
+            abort(401, $this->transFrom('notifications', 'Unauthorized.'));
         }
 
         // Check if user has access to this vessel
         if (!$user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $disk = 'local';
         $path = "vessels/{$vesselId}/" . ltrim($filePath, '/');
         if (!Storage::disk($disk)->exists($path)) {
-            abort(404, 'File not found.');
+            abort(404, $this->transFrom('notifications', 'File not found.'));
         }
         $fullPath = Storage::disk($disk)->path($path);
         $mime = mime_content_type($fullPath);
