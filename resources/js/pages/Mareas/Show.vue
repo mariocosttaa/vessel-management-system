@@ -2991,7 +2991,6 @@ const cancelDeleteMarea = () => {
         <CreateRemoveModal
             :open="showCreateExpenseDialog"
             :categories="props.categories || []"
-            :suppliers="props.suppliers || []"
             :crew-members="props.crewMembers || []"
             :default-currency="props.defaultCurrency || 'EUR'"
             :marea-id="marea.id"

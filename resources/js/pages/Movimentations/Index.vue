@@ -1084,7 +1084,6 @@ const clearFilters = () => {
         <CreateRemoveModal
             :open="showCreateRemoveModal"
             :categories="expenseCategories"
-            :suppliers="suppliers"
             :crew-members="crewMembers"
             :vat-profiles="vatProfiles"
             :default-vat-profile="defaultVatProfile"

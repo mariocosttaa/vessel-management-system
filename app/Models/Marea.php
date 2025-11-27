@@ -217,7 +217,24 @@ class Marea extends Model
     }
 
     /**
+     * Extract numeric part from a marea number (supports numbers only or letters+numbers).
+     * Examples: "12345" -> 12345, "MARE2025000001" -> 1, "A123" -> 123
+     */
+    private static function extractNumericPart(string $number): int
+    {
+        // Extract all digits from the string
+        preg_match_all('/\d+/', $number, $matches);
+        if (!empty($matches[0])) {
+            // Get the last numeric sequence (most significant)
+            $numericPart = end($matches[0]);
+            return (int) $numericPart;
+        }
+        return 0;
+    }
+
+    /**
      * Generate marea number based on vessel's starting number.
+     * Checks all records (including soft-deleted) to find the highest number.
      */
     private static function generateMareaNumber(int $vesselId): string
     {
@@ -225,19 +242,34 @@ class Marea extends Model
         $vesselSetting = VesselSetting::getForVessel($vesselId);
         $startingNumber = $vesselSetting->starting_marea_number ?? 1;
 
-        // Find the last marea for this vessel
-        $lastMarea = self::where('vessel_id', $vesselId)
-            ->orderBy('id', 'desc')
-            ->first();
+        // Find the highest numeric value from all mareas (including soft-deleted)
+        $allMareas = self::withTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get();
 
-        if ($lastMarea) {
-            // Extract number from last marea (format: MARE2025000001)
-            // Get the numeric part (last 6 digits)
-            $lastNumber = (int) substr($lastMarea->marea_number, -6);
-            $nextNumber = $lastNumber + 1;
-        } else {
-            // This is the first marea for this vessel, use starting number
-            $nextNumber = $startingNumber;
+        $maxNumber = $startingNumber - 1;
+
+        foreach ($allMareas as $marea) {
+            $numericPart = self::extractNumericPart($marea->marea_number);
+            if ($numericPart > $maxNumber) {
+                $maxNumber = $numericPart;
+            }
+        }
+
+        // Next number is max + 1
+        $nextNumber = $maxNumber + 1;
+
+        // Check if this number conflicts with a soft-deleted record
+        $conflictExists = self::onlyTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get()
+            ->contains(function ($marea) use ($nextNumber) {
+                return self::extractNumericPart($marea->marea_number) === $nextNumber;
+            });
+
+        // If conflict exists, add +1 and it will be handled in the controller
+        if ($conflictExists) {
+            $nextNumber += 1;
         }
 
         $year = date('Y');
@@ -246,10 +278,57 @@ class Marea extends Model
 
     /**
      * Get the next marea number for a vessel (for display purposes).
+     * Returns array with the number and a flag indicating if there was a soft-deleted conflict.
      */
-    public static function getNextMareaNumber(int $vesselId): string
+    public static function getNextMareaNumber(int $vesselId, bool $returnDetails = false): string|array
     {
-        return self::generateMareaNumber($vesselId);
+        // Get vessel settings to find starting marea number
+        $vesselSetting = VesselSetting::getForVessel($vesselId);
+        $startingNumber = $vesselSetting->starting_marea_number ?? 1;
+
+        // Find the highest numeric value from all mareas (including soft-deleted)
+        $allMareas = self::withTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get();
+
+        $maxNumber = $startingNumber - 1;
+
+        foreach ($allMareas as $marea) {
+            $numericPart = self::extractNumericPart($marea->marea_number);
+            if ($numericPart > $maxNumber) {
+                $maxNumber = $numericPart;
+            }
+        }
+
+        // Next number is max + 1
+        $nextNumber = $maxNumber + 1;
+
+        // Check if this number conflicts with a soft-deleted record
+        $conflictExists = self::onlyTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get()
+            ->contains(function ($marea) use ($nextNumber) {
+                return self::extractNumericPart($marea->marea_number) === $nextNumber;
+            });
+
+        $year = date('Y');
+        $generatedNumber = sprintf('MARE%s%06d', $year, $nextNumber);
+
+        if ($returnDetails) {
+            return [
+                'next_marea_number' => $generatedNumber,
+                'has_soft_deleted_conflict' => $conflictExists,
+                'suggested_number' => $conflictExists ? sprintf('MARE%s%06d', $year, $nextNumber + 1) : $generatedNumber,
+            ];
+        }
+
+        // If conflict exists, add +1 to avoid it
+        if ($conflictExists) {
+            $nextNumber += 1;
+            $generatedNumber = sprintf('MARE%s%06d', $year, $nextNumber);
+        }
+
+        return $generatedNumber;
     }
 
     /**

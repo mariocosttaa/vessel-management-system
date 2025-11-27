@@ -51,6 +51,7 @@ class UpdateVesselRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
             'country_code' => ['nullable', 'string', 'size:2', Rule::exists(Country::class, 'code')],
             'currency_code' => ['nullable', 'string', 'size:3', Rule::exists(Currency::class, 'code')],
+            'vat_profile_id' => ['nullable', 'integer', Rule::exists(\App\Models\VatProfile::class, 'id')],
         ];
     }
 
@@ -85,5 +86,11 @@ class UpdateVesselRequest extends FormRequest
             'registration_number' => strtoupper(trim($this->registration_number)),
             'notes' => $this->notes ? trim($this->notes) : null,
         ]);
+
+        if ($this->vat_profile_id) {
+            $this->merge([
+                'vat_profile_id' => \App\Actions\General\EasyHashAction::decode($this->vat_profile_id, 'vatprofile-id'),
+            ]);
+        }
     }
 }

@@ -928,7 +928,6 @@ const defaultCurrency = computed(() => props.defaultCurrency || 'EUR');
             @update:open="showCreateExpenseModal = $event"
             @close="showCreateExpenseModal = false"
             :categories="props.categories || []"
-            :suppliers="props.suppliers || []"
             :crew-members="props.crewMembers || []"
             :vat-profiles="props.vatProfiles || []"
             :default-vat-profile="props.defaultVatProfile"

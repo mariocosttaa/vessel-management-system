@@ -120,6 +120,11 @@ return [
         'recycle_bin.view' => true,
         'recycle_bin.restore' => true,
         'recycle_bin.delete' => true,
+        'debts.view' => true,
+        'debts.create' => true,
+        'debts.edit' => true,
+        'debts.delete' => true,
+        'debts.pay' => true,
     ],
 
     /**
@@ -169,6 +174,11 @@ return [
         'recycle_bin.view' => true,
         'recycle_bin.restore' => true,
         'recycle_bin.delete' => false,
+        'debts.view' => true,
+        'debts.create' => true,
+        'debts.edit' => true,
+        'debts.delete' => false,
+        'debts.pay' => true,
     ],
 
     /**
@@ -271,7 +281,11 @@ return [
         'recycle_bin.view' => false,
         'recycle_bin.restore' => false,
         'recycle_bin.delete' => false,
+        'debts.view' => true,
+        'debts.create' => true,
+        'debts.edit' => true,
+        'debts.delete' => true,
+        'debts.pay' => true,
     ],
 
 ];
-

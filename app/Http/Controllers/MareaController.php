@@ -164,18 +164,23 @@ class MareaController extends Controller
             abort(403, 'You do not have permission to create mareas.');
         }
 
-        // Get next marea number for this vessel
-        $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
+        // Get next marea number for this vessel with details
+        $nextMareaDetails = Marea::getNextMareaNumber($vesselId, true);
 
         return response()->json([
-            'next_marea_number' => $nextMareaNumber,
+            'next_marea_number' => $nextMareaDetails['next_marea_number'],
+            'has_soft_deleted_conflict' => $nextMareaDetails['has_soft_deleted_conflict'] ?? false,
+            'suggested_number' => $nextMareaDetails['suggested_number'] ?? $nextMareaDetails['next_marea_number'],
         ]);
     }
 
     /**
      * Store a newly created marea.
      */
-    public function store(Request $request)
+    /**
+     * Store a newly created marea.
+     */
+    public function store(Request $request, \App\Services\MareaService $service)
     {
         try {
             /** @var \App\Models\User $user */
@@ -210,66 +215,21 @@ class MareaController extends Controller
                 abort(403, 'You do not have permission to create mareas.');
             }
 
-            // Check if marea_number already exists (including soft-deleted)
-            // This is needed because the database has a unique constraint that includes soft-deleted records
-            $existingMarea = Marea::withTrashed()->where('marea_number', $request->input('marea_number'))->first();
-            if ($existingMarea) {
-                if ($existingMarea->trashed()) {
-                    // If it's soft-deleted, suggest using the auto-generated number instead
-                    $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
-                    return back()
-                        ->withInput()
-                        ->withErrors([
-                            'marea_number' => $this->transFrom('notifications', 'This marea number is already in use (even if deleted). Please use the auto-generated number: :number', [
-                                'number' => $nextMareaNumber,
-                            ]),
-                        ]);
-                } else {
-                    // If it's not deleted, it's a duplicate
-                    return back()
-                        ->withInput()
-                        ->withErrors([
-                            'marea_number' => $this->transFrom('notifications', 'This marea number is already in use. Please use a different number.'),
-                        ]);
-                }
-            }
-
             // Validate request - only required fields
+            // Accept numbers only or letters+numbers format
             $validated = $request->validate([
                 'marea_number'             => [
                     'required',
                     'string',
                     'max:255',
+                    'regex:/^([A-Za-z]*\d+[A-Za-z]*|\d+)$/', // Numbers only or letters+numbers (must contain at least one digit)
                     Rule::unique('mareas', 'marea_number')->whereNull('deleted_at'),
                 ],
                 'estimated_departure_date' => 'nullable|date',
                 'estimated_return_date'    => 'nullable|date|after_or_equal:estimated_departure_date',
             ]);
 
-            $vessel          = \App\Models\Vessel::find($vesselId);
-            $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
-            $defaultCurrency = $vesselSetting->currency_code ?? $vessel->currency_code ?? 'EUR';
-
-            $marea = Marea::create([
-                'vessel_id'                => $vesselId,
-                'marea_number'             => $validated['marea_number'],
-                'estimated_departure_date' => $validated['estimated_departure_date'] ?? null,
-                'estimated_return_date'    => $validated['estimated_return_date'] ?? null,
-                'distribution_profile_id'  => null,  // Not set during creation
-                'use_calculation'          => false, // Default to false, can be enabled later
-                'currency'                 => $defaultCurrency,
-                'house_of_zeros'           => 2, // Default
-                'status'                   => 'preparing',
-                'created_by'               => $user->id,
-            ]);
-
-            // Log the create action
-            AuditLogAction::logCreate(
-                $marea,
-                'Marea',
-                $marea->marea_number,
-                $vesselId
-            );
+            $marea = $service->createMarea($user, $vesselId, $validated);
 
             // Create email notification for other users (not the user who created it)
             // Note: We don't send notification on creation, only when marea goes to sea
@@ -280,31 +240,8 @@ class MareaController extends Controller
                 ->with('success', $this->transFrom('notifications', "Marea ':number' has been created successfully.", [
                     'number' => $marea->marea_number,
                 ]));
-        } catch (QueryException $e) {
-            // Handle database constraint violations (like unique constraint)
-            // SQLite uses error code 23000 for integrity constraint violations
-            $errorMessage = $e->getMessage();
-            if (str_contains($errorMessage, 'UNIQUE constraint failed') ||
-                str_contains($errorMessage, 'Integrity constraint violation') ||
-                $e->getCode() === '23000' ||
-                $e->errorInfo[0] === '23000') {
-                $nextMareaNumber = Marea::getNextMareaNumber($vesselId);
-                Log::warning('Marea creation failed - unique constraint violation', [
-                    'marea_number' => $request->input('marea_number'),
-                    'vessel_id'    => $vesselId,
-                    'error'        => $errorMessage,
-                ]);
 
-                return back()
-                    ->withInput()
-                    ->withErrors([
-                        'marea_number' => $this->transFrom('notifications', 'This marea number is already in use. Please use the auto-generated number: :number', [
-                            'number' => $nextMareaNumber,
-                        ]),
-                    ]);
-            }
-
-            // Re-throw if it's not a constraint violation
+        } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             Log::error('Marea creation failed', [
@@ -770,118 +707,7 @@ class MareaController extends Controller
     /**
      * Update the specified marea.
      */
-    public function update(Request $request, $vessel, $mareaId)
-    {
-        try {
-            /** @var \App\Models\User $user */
-            $user = $request->user();
 
-            // Get vessel_id from route parameter or request attributes
-            $vesselId = $request->attributes->get('vessel_id');
-            if (! $vesselId) {
-                $vessel = $request->route('vessel');
-
-                // Handle both route model binding (object) and hashed ID (string)
-                if (is_object($vessel)) {
-                    $vesselId = $vessel->id;
-                } elseif (is_numeric($vessel)) {
-                    $vesselId = (int) $vessel;
-                } else {
-                    // Decode hashed vessel ID
-                    $decoded  = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
-                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
-
-                    if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
-                    }
-                }
-            }
-
-            // CRITICAL: Get marea ID directly from route parameter
-            $mareaIdFromRoute = $request->route('mareaId');
-            // Unhash marea ID if it's a hashed string
-            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
-                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
-            } else {
-                $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
-            }
-
-            // Force fresh query with both vessel_id and id to ensure correct marea
-            $marea = Marea::where('vessel_id', $vesselId)
-                ->where('id', $mareaId)
-                ->firstOrFail();
-
-            // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
-
-            $userRole    = $user->getRoleForVessel($vesselId);
-            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-            if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
-            }
-
-            // Cannot edit closed or cancelled mareas
-            if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot edit a closed or cancelled marea.');
-            }
-
-            // Store original state for change detection
-            $originalMarea = $marea->replicate();
-
-            // Validate request
-            $validated = $request->validate([
-                'name'                     => 'nullable|string|max:255',
-                'description'              => 'nullable|string',
-                'estimated_departure_date' => 'nullable|date',
-                'estimated_return_date'    => 'nullable|date|after_or_equal:estimated_departure_date',
-                'distribution_profile_id'  => 'nullable|exists:marea_distribution_profiles,id',
-                'use_calculation'          => 'nullable|boolean',
-                'currency'                 => 'nullable|string|size:3',
-                'house_of_zeros'           => 'nullable|integer|min:0|max:4',
-            ]);
-
-            $marea->update([
-                'name'                     => $validated['name'] ?? null,
-                'description'              => $validated['description'] ?? null,
-                'estimated_departure_date' => $validated['estimated_departure_date'] ?? null,
-                'estimated_return_date'    => $validated['estimated_return_date'] ?? null,
-                'distribution_profile_id'  => $validated['distribution_profile_id'] ?? null,
-                'use_calculation'          => $validated['use_calculation'] ?? $marea->use_calculation ?? true,
-                'currency'                 => $validated['currency'] ?? $marea->currency,
-                'house_of_zeros'           => $validated['house_of_zeros'] ?? $marea->house_of_zeros ?? 2,
-            ]);
-
-            // Get changed fields and log the update action
-            $changedFields = AuditLogAction::getChangedFields($marea, $originalMarea);
-            AuditLogAction::logUpdate(
-                $marea,
-                $changedFields,
-                'Marea',
-                $marea->marea_number,
-                $vesselId
-            );
-
-            return redirect()
-                ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
-                ->with('success', $this->transFrom('notifications', "Marea ':number' has been updated successfully.", [
-                    'number' => $marea->marea_number,
-                ]));
-        } catch (\Exception $e) {
-            Log::error('Marea update failed', [
-                'error'        => $e->getMessage(),
-                'trace'        => $e->getTraceAsString(),
-                'request_data' => $request->all(),
-            ]);
-
-            return back()
-                ->withInput()
-                ->with('error', $this->transFrom('notifications', 'Failed to update marea: :message', [
-                    'message' => $e->getMessage(),
-                ]));
-        }
-    }
 
     /**
      * Remove the specified marea.
@@ -1984,6 +1810,99 @@ class MareaController extends Controller
     }
 
     /**
+     * Update the specified marea.
+     */
+    public function update(Request $request, \App\Services\MareaService $service, $vessel, $mareaId)
+    {
+        try {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            /** @var int $vesselId */
+            $vesselId = $request->attributes->get('vessel_id');
+
+            if (! $vesselId) {
+                // Fallback: try to get from route parameter
+                $vesselId = is_object($vessel) ? $vessel->id : (int) $vessel;
+            }
+
+            // CRITICAL: Get marea ID directly from route parameter
+            $mareaIdFromRoute = $request->route('mareaId');
+            // Unhash marea ID if it's a hashed string
+            if ($mareaIdFromRoute && ! is_numeric($mareaIdFromRoute)) {
+                $mareaId = $this->unhashId($mareaIdFromRoute, 'marea');
+            } else {
+                $mareaId = (int) ($mareaIdFromRoute ?? $mareaId);
+            }
+
+            // Force fresh query with both vessel_id and id to ensure correct marea
+            $marea = Marea::where('vessel_id', $vesselId)
+                ->where('id', $mareaId)
+                ->firstOrFail();
+
+            // Check permissions
+            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+                abort(403, 'You do not have access to this vessel.');
+            }
+
+            $userRole    = $user->getRoleForVessel($vesselId);
+            $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+            if (! ($permissions['mareas.edit'] ?? false)) {
+                abort(403, 'You do not have permission to edit mareas.');
+            }
+
+            // Cannot edit closed or cancelled mareas
+            if ($marea->status === 'closed' || $marea->status === 'cancelled') {
+                abort(403, 'Cannot edit a closed or cancelled marea.');
+            }
+
+            // Validate request
+            $validated = $request->validate([
+                'marea_number'             => [
+                    'required',
+                    'string',
+                    'max:255',
+                    'regex:/^([A-Za-z]*\d+[A-Za-z]*|\d+)$/', // Numbers only or letters+numbers
+                    Rule::unique('mareas', 'marea_number')->ignore($marea->id)->whereNull('deleted_at'),
+                ],
+                'name'                     => 'nullable|string|max:255',
+                'description'              => 'nullable|string|max:1000',
+                'estimated_departure_date' => 'nullable|date',
+                'estimated_return_date'    => 'nullable|date|after_or_equal:estimated_departure_date',
+                'actual_departure_date'    => 'nullable|date',
+                'actual_return_date'       => 'nullable|date|after_or_equal:actual_departure_date',
+                'distribution_profile_id'  => 'nullable|exists:marea_distribution_profiles,id',
+                'use_calculation'          => 'boolean',
+                'status'                   => 'required|in:preparing,at_sea,returned,closed,cancelled',
+            ]);
+
+            $marea = $service->updateMarea($marea, $user, $validated);
+
+            return redirect()
+                ->route('panel.mareas.show', ['vessel' => $this->hashId($vesselId, 'vessel'), 'mareaId' => $marea->getRouteKey()])
+                ->with('success', $this->transFrom('notifications', "Marea ':number' has been updated successfully.", [
+                    'number' => $marea->marea_number,
+                ]));
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Marea update failed', [
+                'error'        => $e->getMessage(),
+                'trace'        => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', $this->transFrom('notifications', 'Failed to update marea: :message', [
+                    'message' => $e->getMessage(),
+                ]));
+        }
+    }
+
+    /**
      * Create a salary payment transaction for a crew member.
      */
     public function createSalaryPayment(Request $request, $vessel, $mareaId)
@@ -2254,5 +2173,21 @@ class MareaController extends Controller
         // \Log::info('Marea PDF enableColors', ['enableColors' => $enableColors, 'request_param' => $request->input('enable_colors')]);
 
         return \App\Pdf\MareaPdf::downloadPartial($marea, $sections, null, $user, $enableColors);
+    }
+
+    /**
+     * Extract numeric part from a marea number (supports numbers only or letters+numbers).
+     * Examples: "12345" -> 12345, "MARE2025000001" -> 1, "A123" -> 123
+     */
+    private function extractNumericPart(string $number): int
+    {
+        // Extract all digits from the string
+        preg_match_all('/\d+/', $number, $matches);
+        if (!empty($matches[0])) {
+            // Get the last numeric sequence (most significant)
+            $numericPart = end($matches[0]);
+            return (int) $numericPart;
+        }
+        return 0;
     }
 }

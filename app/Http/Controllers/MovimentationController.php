@@ -310,7 +310,10 @@ class MovimentationController extends Controller
     /**
      * Store a newly created transaction.
      */
-    public function store(StoreMovimentationRequest $request)
+    /**
+     * Store a newly created transaction.
+     */
+    public function store(StoreMovimentationRequest $request, \App\Services\MovimentationService $service)
     {
         try {
             // Get vessel_id from route parameter
@@ -331,205 +334,60 @@ class MovimentationController extends Controller
                 }
             }
 
-            // Get currency priority: request currency (from form) > vessel_settings > vessel currency_code > EUR
-            // IMPORTANT: Always prioritize the currency sent from the frontend form, as it reflects user's intent and vessel settings
-            $vesselSetting = VesselSetting::getForVessel($vesselId);
-            $vessel        = \App\Models\Vessel::find($vesselId);
-
-            // Priority: form currency (user's explicit choice from vessel_settings) > vessel_settings > vessel currency_code > EUR
-            $currency = $request->currency ?? $vesselSetting->currency_code ?? $vessel?->currency_code ?? 'EUR';
-
             // Access validated values directly as properties (never use validated())
             /** @var \App\Models\User $user */
             $user = $request->user();
 
-            // Handle VAT calculation
-            $amount            = $request->amount;
-            $vatAmount         = 0;
-            $vatProfileId      = $request->vat_profile_id ? $this->unhashId($request->vat_profile_id, 'vatprofile') : null;
-            $amountIncludesVat = $request->amount_includes_vat ?? false;
-
-            // For income transactions, always get VAT profile from vessel settings or default
-            // For expense transactions, vat_profile_id should be null (handled in model boot)
-            if ($request->type === 'income') {
-                if (! $vatProfileId) {
-                    $vesselSetting = VesselSetting::getForVessel($vesselId);
-                    $vatProfileId  = $vesselSetting->vat_profile_id
-                        ?: (VatProfile::where('is_default', true)->first()?->id);
-                }
-            } else {
-                // Expense transactions don't use VAT
-                $vatProfileId = null;
-            }
-
-            if ($vatProfileId) {
-                $vatProfile = VatProfile::find($vatProfileId);
-                if ($vatProfile) {
-                    $vatRate = (float) $vatProfile->percentage;
-
-                    if ($amountIncludesVat) {
-                        // Amount includes VAT - separate it
-                        // base = total / (1 + vat_rate/100)
-                        // vat = total - base
-                        $calculation = MoneyAction::calculateFromTotalIncludingVat($amount, $vatRate);
-                        $amount      = $calculation['base']; // Store base amount
-                        $vatAmount   = $calculation['vat'];  // Store VAT amount
-                    } else {
-                        // Amount excludes VAT - calculate VAT on top
-                        // vat = amount * (vat_rate/100)
-                        // total = amount + vat
-                        $vatAmount = MoneyAction::calculateVat($amount, $vatRate);
-                        // amount stays as is (base amount)
-                    }
-                }
-            }
-
-            $totalAmount = $amount + $vatAmount;
-
-            // Helper function to safely unhash or use numeric ID
-            $getNumericId = function ($value, $modelName) {
-                if (! $value) {
-                    return null;
-                }
-                // If already numeric, use it directly (from prepareForValidation)
-                if (is_numeric($value)) {
-                    return (int) $value;
-                }
-                // Otherwise, unhash it
-                return $this->unhashId($value, $modelName);
-            };
-
-            // For salary payments (crew_member_id present), automatically get/create salary category
-            $categoryId   = $request->category_id ? (int) $request->category_id : null;
-            $crewMemberId = $getNumericId($request->crew_member_id, 'user');
-
-            if ($crewMemberId && ! $categoryId) {
-                // Get or create salary category for this vessel
-                $salaryCategory = \App\Models\MovimentationCategory::firstOrCreate(
-                    [
-                        'name'      => 'Salários',
-                        'type'      => 'expense',
-                        'vessel_id' => $vesselId,
-                    ],
-                    [
-                        'description' => 'Salary payments to crew members',
-                    ]
-                );
-                $categoryId = $salaryCategory->id;
-            }
-
-            $transaction = Movimentation::create([
-                'vessel_id'        => $vesselId,
-                'marea_id'         => $getNumericId($request->marea_id, 'marea'),
-                'maintenance_id'   => $getNumericId($request->maintenance_id, 'maintenance'),
-                // Use automatically determined category_id for salary payments, or provided category_id for others
-                'category_id'      => $categoryId,
-                'type'             => $request->type,
-                'amount'           => $amount, // Base amount (after VAT separation if amount includes VAT)
-                'amount_per_unit'  => $request->amount_per_unit ?? null,
-                'quantity'         => $request->quantity ?? null,
-                'vat_amount'       => $vatAmount,
-                'total_amount'     => $totalAmount,
-                'currency'         => $currency,
-                'house_of_zeros'   => $request->house_of_zeros ?? 2,
-                'vat_profile_id'   => $vatProfileId,
+            // Prepare data for service
+            // Note: Request data is already prepared/normalized in StoreMovimentationRequest::prepareForValidation
+            // We can access properties directly as they are available on the request object
+            $data = [
+                'category_id' => $request->category_id,
+                'type' => $request->type,
+                'amount' => $request->amount,
+                'amount_per_unit' => $request->amount_per_unit,
+                'quantity' => $request->quantity,
+                'currency' => $request->currency,
+                'house_of_zeros' => $request->house_of_zeros,
+                'vat_profile_id' => $request->vat_profile_id ? $this->unhashId($request->vat_profile_id, 'vatprofile') : null,
+                'amount_includes_vat' => $request->amount_includes_vat,
                 'transaction_date' => $request->transaction_date,
-                'description'      => $request->description,
-                'notes'            => $request->notes,
-                // Reference is auto-generated in model boot method
-                'supplier_id'      => $getNumericId($request->supplier_id, 'supplier'),
-                'crew_member_id'   => $getNumericId($request->crew_member_id, 'user'),
-                'status'           => $request->status,
-                'created_by'       => $user->id,
-            ]);
+                'description' => $request->description,
+                'notes' => $request->notes,
+                'supplier_id' => $request->supplier_id ? $this->unhashId($request->supplier_id, 'supplier') : null,
+                'crew_member_id' => $request->crew_member_id ? $this->unhashId($request->crew_member_id, 'user') : null,
+                'marea_id' => $request->marea_id ? $this->unhashId($request->marea_id, 'marea') : null,
+                'maintenance_id' => $request->maintenance_id ? $this->unhashId($request->maintenance_id, 'maintenance') : null,
+                'status' => $request->status,
+            ];
 
-            // Handle file uploads if any
-            if ($request->hasFile('files')) {
-                $files = $request->file('files');
-                // Handle both single file and array of files
-                if (! is_array($files)) {
-                    $files = [$files];
-                }
-                foreach ($files as $file) {
-                    if (! $file) {
-                        continue;
-                    }
-                    try {
-                        // Save file using TenantFileAction
-                        $fileInfo = \App\Actions\Tenant\TenantFileAction::save(
-                            vesselId: $vesselId,
-                            file: $file,
-                            isPublic: false,
-                            path: 'transactions',
-                            fileName: null,
-                            extension: null
-                        );
+            // Helper function to safely unhash or use numeric ID (same logic as before, just inline for array construction)
+            // Actually, prepareForValidation already handles unhashing for most fields, but let's be safe and use unhashId
+            // Wait, prepareForValidation merges unhashed values back into the request?
+            // Yes, StoreMovimentationRequest::prepareForValidation does: $this->merge($data);
+            // So $request->category_id IS ALREADY UNHASHED (int).
+            // Let's check StoreMovimentationRequest again.
+            // Yes: $data['category_id'] = (int) $decoded; $this->merge($data);
+            // So we can pass $request->all() or specific fields directly.
+            // However, to be explicit and safe, let's construct the array.
 
-                        // Create transaction file record
-                        \App\Models\MovimentationFile::create([
-                            'transaction_id' => $transaction->id,
-                            'src'            => $fileInfo->url,
-                            'name'           => $file->getClientOriginalName(),
-                            'size'           => $fileInfo->size,
-                            'type'           => $fileInfo->extension,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to upload file for transaction', [
-                            'transaction_id' => $transaction->id,
-                            'file_name'      => $file->getClientOriginalName(),
-                            'error'          => $e->getMessage(),
-                        ]);
-                        // Continue with other files even if one fails
-                    }
-                }
-            }
+            // RE-CHECK: StoreMovimentationRequest unhashes: category_id, vat_profile_id, supplier_id, crew_member_id, marea_id, maintenance_id.
+            // So we can just pass the request inputs directly if they are already unhashed.
+            // But wait, the controller code I'm replacing was doing: $getNumericId($request->supplier_id, 'supplier')
+            // This implies the controller was double-checking or the request unhashing wasn't fully trusted or the controller wanted to be explicit.
+            // If I look at StoreMovimentationRequest, it DOES unhash.
+            // So $request->supplier_id is already an integer.
+            // Calling unhashId on an integer returns null in HashesIds trait?
+            // HashesIds::unhashId(?string $hashedId, string $modelName) expects string.
+            // If I pass an int, strict types might complain or it might cast to string.
+            // Let's trust the Request's prepareForValidation and pass the values directly.
 
-            // Reload with relationships
-            $transaction->load([
-                'category',
-                'supplier',
-                'crewMember',
-                'vatProfile',
-                'files',
-            ]);
-
-            // Log the create action
-            AuditLogAction::logCreate(
-                $transaction,
-                'Transaction',
-                $transaction->transaction_number,
-                $vesselId
+            $transaction = $service->createTransaction(
+                $user,
+                $vesselId,
+                $request->all(), // Pass all inputs, they are normalized by Request
+                $request->file('files')
             );
-
-            // Create email notification for other users (not the user who created it)
-            try {
-                $currencyModel  = \App\Models\Currency::where('code', $currency)->first();
-                $currencySymbol = $currencyModel->symbol ?? '€';
-
-                EmailNotificationAction::createNotification(
-                    type: 'transaction_created',
-                    subjectType: Movimentation::class,
-                    subjectId: $transaction->id,
-                    vesselId: $vesselId,
-                    actionByUserId: $user->id,
-                    subjectData: [
-                        'transaction_number' => $transaction->transaction_number,
-                        'type'               => $transaction->type,
-                        'amount'             => $transaction->total_amount,
-                        'currency_symbol'    => $currencySymbol,
-                        'description'        => $transaction->description,
-                        'category_name'      => $transaction->category->translated_name ?? null,
-                        'created_at'         => $transaction->created_at->toIso8601String(),
-                    ]
-                );
-            } catch (\Exception $e) {
-                // Log error but don't fail the transaction creation
-                Log::warning('Failed to create email notification for transaction', [
-                    'transaction_id' => $transaction->id,
-                    'vessel_id'      => $vesselId,
-                    'error'          => $e->getMessage(),
-                ]);
-            }
 
             return back()
                 ->with('success', $this->transFrom('notifications', "Transaction ':number' has been created successfully.", [

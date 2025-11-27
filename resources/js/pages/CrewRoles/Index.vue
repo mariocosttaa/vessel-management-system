@@ -77,6 +77,10 @@ const roleTypeFilter = ref(props.filters.role_type || 'administrative');
 const sortField = ref(props.filters.sort || 'name');
 const sortDirection = ref(props.filters.direction || 'asc');
 
+// Computed properties to ensure string values are passed to DataTable
+const sortFieldValue = computed(() => sortField.value);
+const sortDirectionValue = computed(() => sortDirection.value);
+
 // Convert to Select component options format
 const scopeOptions = computed(() => {
     return [
@@ -312,8 +316,8 @@ const formatDate = (dateString: string) => {
                     :data="crewPositionsData"
                     :columns="columns"
                     :actions="actions"
-                    :sort-field="sortField"
-                    :sort-direction="sortDirection"
+                    :sort-field="sortFieldValue"
+                    :sort-direction="sortDirectionValue"
                     :on-sort="handleSort"
                 >
                     <template #cell-name="{ item }">

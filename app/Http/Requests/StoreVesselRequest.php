@@ -90,5 +90,11 @@ class StoreVesselRequest extends FormRequest
             'registration_number' => strtoupper(trim($this->registration_number)),
             'notes' => $this->notes ? trim($this->notes) : null,
         ]);
+
+        if ($this->vat_profile_id) {
+            $this->merge([
+                'vat_profile_id' => \App\Actions\General\EasyHashAction::decode($this->vat_profile_id, 'vatprofile-id'),
+            ]);
+        }
     }
 }

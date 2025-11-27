@@ -151,23 +151,57 @@ class Maintenance extends Model
     }
 
     /**
+     * Extract numeric part from a maintenance number (supports numbers only or letters+numbers).
+     * Examples: "12345" -> 12345, "MANT2025000001" -> 1, "A123" -> 123
+     */
+    private static function extractNumericPart(string $number): int
+    {
+        // Extract all digits from the string
+        preg_match_all('/\d+/', $number, $matches);
+        if (!empty($matches[0])) {
+            // Get the last numeric sequence (most significant)
+            $numericPart = end($matches[0]);
+            return (int) $numericPart;
+        }
+        return 0;
+    }
+
+    /**
      * Generate maintenance number based on vessel's starting number.
+     * Checks all records (including soft-deleted) to find the highest number.
      */
     private static function generateMaintenanceNumber(int $vesselId): string
     {
-        // Find the last maintenance for this vessel
-        $lastMaintenance = self::where('vessel_id', $vesselId)
-            ->orderBy('id', 'desc')
-            ->first();
+        $startingNumber = 1;
 
-        if ($lastMaintenance) {
-            // Extract number from last maintenance (format: MANT2025000001)
-            // Get the numeric part (last 6 digits)
-            $lastNumber = (int) substr($lastMaintenance->maintenance_number, -6);
-            $nextNumber = $lastNumber + 1;
-        } else {
-            // This is the first maintenance for this vessel, start at 1
-            $nextNumber = 1;
+        // Find the highest numeric value from all maintenances (including soft-deleted)
+        $allMaintenances = self::withTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get();
+
+        $maxNumber = $startingNumber - 1;
+
+        foreach ($allMaintenances as $maintenance) {
+            $numericPart = self::extractNumericPart($maintenance->maintenance_number);
+            if ($numericPart > $maxNumber) {
+                $maxNumber = $numericPart;
+            }
+        }
+
+        // Next number is max + 1
+        $nextNumber = $maxNumber + 1;
+
+        // Check if this number conflicts with a soft-deleted record
+        $conflictExists = self::onlyTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get()
+            ->contains(function ($maintenance) use ($nextNumber) {
+                return self::extractNumericPart($maintenance->maintenance_number) === $nextNumber;
+            });
+
+        // If conflict exists, add +1 and it will be handled in the controller
+        if ($conflictExists) {
+            $nextNumber += 1;
         }
 
         $year = date('Y');
@@ -176,10 +210,55 @@ class Maintenance extends Model
 
     /**
      * Get the next maintenance number for a vessel (for display purposes).
+     * Returns array with the number and a flag indicating if there was a soft-deleted conflict.
      */
-    public static function getNextMaintenanceNumber(int $vesselId): string
+    public static function getNextMaintenanceNumber(int $vesselId, bool $returnDetails = false): string|array
     {
-        return self::generateMaintenanceNumber($vesselId);
+        $startingNumber = 1;
+
+        // Find the highest numeric value from all maintenances (including soft-deleted)
+        $allMaintenances = self::withTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get();
+
+        $maxNumber = $startingNumber - 1;
+
+        foreach ($allMaintenances as $maintenance) {
+            $numericPart = self::extractNumericPart($maintenance->maintenance_number);
+            if ($numericPart > $maxNumber) {
+                $maxNumber = $numericPart;
+            }
+        }
+
+        // Next number is max + 1
+        $nextNumber = $maxNumber + 1;
+
+        // Check if this number conflicts with a soft-deleted record
+        $conflictExists = self::onlyTrashed()
+            ->where('vessel_id', $vesselId)
+            ->get()
+            ->contains(function ($maintenance) use ($nextNumber) {
+                return self::extractNumericPart($maintenance->maintenance_number) === $nextNumber;
+            });
+
+        $year = date('Y');
+        $generatedNumber = sprintf('MANT%s%06d', $year, $nextNumber);
+
+        if ($returnDetails) {
+            return [
+                'next_maintenance_number' => $generatedNumber,
+                'has_soft_deleted_conflict' => $conflictExists,
+                'suggested_number' => $conflictExists ? sprintf('MANT%s%06d', $year, $nextNumber + 1) : $generatedNumber,
+            ];
+        }
+
+        // If conflict exists, add +1 to avoid it
+        if ($conflictExists) {
+            $nextNumber += 1;
+            $generatedNumber = sprintf('MANT%s%06d', $year, $nextNumber);
+        }
+
+        return $generatedNumber;
     }
 
     /**

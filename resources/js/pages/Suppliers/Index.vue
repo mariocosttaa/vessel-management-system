@@ -59,6 +59,10 @@ const search = ref(props.filters.search || '');
 const sortField = ref(props.filters.sort || 'created_at');
 const sortDirection = ref(props.filters.direction || 'desc');
 
+// Computed properties to ensure string values are passed to DataTable
+const sortFieldValue = computed(() => String(sortField.value || 'created_at'));
+const sortDirectionValue = computed(() => String(sortDirection.value || 'desc'));
+
 // Modal state
 const isCreateModalOpen = ref(false);
 const isUpdateModalOpen = ref(false);
@@ -249,8 +253,8 @@ const formatDate = (dateString: string) => {
                 :clickable="true"
                 :on-row-click="openShowModal"
                 :actions="actions"
-                :sort-field="sortField"
-                :sort-direction="sortDirection"
+                :sort-field="sortFieldValue"
+                :sort-direction="sortDirectionValue"
                 :on-sort="handleSort"
                 :loading="false"
                 :empty-message="t('No suppliers found')"

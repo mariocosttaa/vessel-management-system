@@ -25,6 +25,7 @@ class Vessel extends Model
         'owner_id',
         'country_code',
         'currency_code',
+        'vat_profile_id',
     ];
 
     protected $casts = [

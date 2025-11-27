@@ -137,6 +137,10 @@ const positionFilter = ref(props.filters.position_id || '');
 const sortField = ref(props.filters.sort || 'created_at');
 const sortDirection = ref(props.filters.direction || 'desc');
 
+// Computed properties to ensure string values for DataTable
+const sortFieldValue = computed(() => String(sortField.value || 'created_at'));
+const sortDirectionValue = computed(() => (sortDirection.value === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc');
+
 // Convert to Select component options format
 const statusOptions = computed(() => {
     const options = [{ value: '', label: t('All Statuses') }];
@@ -630,8 +634,8 @@ const formatDate = (dateString: string) => {
                             :clickable="true"
                             :on-row-click="openShowModal"
                             :actions="actions"
-                            :sort-field="sortField"
-                            :sort-direction="sortDirection"
+                            :sort-field="sortFieldValue"
+                            :sort-direction="sortDirectionValue"
                             :on-sort="handleSort"
                             :loading="false"
                             :empty-message="t('No crew members found')"
@@ -680,8 +684,8 @@ const formatDate = (dateString: string) => {
                             :clickable="true"
                             :on-row-click="openShowModal"
                             :actions="actions"
-                            :sort-field="sortField"
-                            :sort-direction="sortDirection"
+                            :sort-field="sortFieldValue"
+                            :sort-direction="sortDirectionValue"
                             :on-sort="handleSort"
                             :loading="false"
                             :empty-message="t('No administrative members found')"

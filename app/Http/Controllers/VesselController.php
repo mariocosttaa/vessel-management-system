@@ -229,6 +229,7 @@ class VesselController extends BaseController
                 'notes'               => $request->notes,
                 'country_code'        => $request->country_code,
                 'currency_code'       => $request->currency_code,
+                'vat_profile_id'      => $request->vat_profile_id,
             ]);
 
             // Get changed fields and log the update action

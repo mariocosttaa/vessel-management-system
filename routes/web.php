@@ -187,6 +187,14 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
         Route::delete('/movimentations/{movimentationId}/files/{fileId}', [MovimentationController::class, 'deleteFile'])->name('panel.movimentations.files.delete');
     });
 
+    // Debts (Dividas)
+    Route::get('/debts', [App\Http\Controllers\DebtController::class, 'index'])->name('panel.debts.index');
+    Route::get('/debts/create', [App\Http\Controllers\DebtController::class, 'create'])->name('panel.debts.create');
+    Route::post('/debts', [App\Http\Controllers\DebtController::class, 'store'])->name('panel.debts.store');
+    Route::get('/debts/{debtId}', [App\Http\Controllers\DebtController::class, 'show'])->name('panel.debts.show');
+    Route::post('/debts/{debtId}/payment', [App\Http\Controllers\DebtController::class, 'addPayment'])->name('panel.debts.payment');
+    Route::delete('/debts/{debtId}', [App\Http\Controllers\DebtController::class, 'destroy'])->name('panel.debts.destroy');
+
     // Vessel Settings (scoped to current vessel)
     Route::get('/settings', [VesselSettingController::class, 'edit'])->name('panel.settings.edit');
     Route::match(['patch', 'post'], '/settings/general', [VesselSettingController::class, 'updateGeneral'])->name('panel.settings.update.general');

@@ -152,11 +152,13 @@ class MaintenanceController extends Controller
             abort(403, 'You do not have permission to create maintenances.');
         }
 
-        // Get next maintenance number for this vessel
-        $nextMaintenanceNumber = Maintenance::getNextMaintenanceNumber($vesselId);
+        // Get next maintenance number for this vessel with details
+        $nextMaintenanceDetails = Maintenance::getNextMaintenanceNumber($vesselId, true);
 
         return response()->json([
-            'next_maintenance_number' => $nextMaintenanceNumber,
+            'next_maintenance_number' => $nextMaintenanceDetails['next_maintenance_number'],
+            'has_soft_deleted_conflict' => $nextMaintenanceDetails['has_soft_deleted_conflict'] ?? false,
+            'suggested_number' => $nextMaintenanceDetails['suggested_number'] ?? $nextMaintenanceDetails['next_maintenance_number'],
         ]);
     }
 
@@ -199,15 +201,66 @@ class MaintenanceController extends Controller
             }
 
             // Validate request - only required fields
+            // Accept numbers only or letters+numbers format
             $validated = $request->validate([
                 'maintenance_number' => [
                     'required',
                     'string',
                     'max:255',
+                    'regex:/^([A-Za-z]*\d+[A-Za-z]*|\d+)$/', // Numbers only or letters+numbers (must contain at least one digit)
                     Rule::unique('maintenances', 'maintenance_number')->whereNull('deleted_at'),
                 ],
                 'start_date'         => 'required|date',
             ]);
+
+            // Check if maintenance_number already exists (including soft-deleted)
+            // Extract numeric part to check for conflicts
+            $inputNumber = $validated['maintenance_number'];
+            $inputNumericPart = $this->extractNumericPart($inputNumber);
+
+            // Check for exact match first
+            $existingMaintenance = Maintenance::withTrashed()->where('maintenance_number', $inputNumber)->first();
+            if ($existingMaintenance) {
+                if ($existingMaintenance->trashed()) {
+                    // If it's soft-deleted, suggest using the auto-generated number instead
+                    $nextMaintenanceDetails = Maintenance::getNextMaintenanceNumber($vesselId, true);
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'maintenance_number' => $this->transFrom('notifications', 'This maintenance number is already in use (even if deleted). Suggested number: :number', [
+                                'number' => $nextMaintenanceDetails['suggested_number'],
+                            ]),
+                        ]);
+                } else {
+                    // If it's not deleted, it's a duplicate
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'maintenance_number' => $this->transFrom('notifications', 'This maintenance number is already in use. Please use a different number.'),
+                        ]);
+                }
+            }
+
+            // Check for numeric conflicts with soft-deleted records
+            $softDeletedWithSameNumber = Maintenance::onlyTrashed()
+                ->where('vessel_id', $vesselId)
+                ->get()
+                ->filter(function ($maintenance) use ($inputNumericPart) {
+                    return $this->extractNumericPart($maintenance->maintenance_number) === $inputNumericPart;
+                })
+                ->first();
+
+            if ($softDeletedWithSameNumber) {
+                // Suggest next available number
+                $nextMaintenanceDetails = Maintenance::getNextMaintenanceNumber($vesselId, true);
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'maintenance_number' => $this->transFrom('notifications', 'A soft-deleted maintenance with this number exists. Suggested number: :number', [
+                            'number' => $nextMaintenanceDetails['suggested_number'],
+                        ]),
+                    ]);
+            }
 
             $vessel          = \App\Models\Vessel::find($vesselId);
             $vesselSetting   = \App\Models\VesselSetting::getForVessel($vesselId);
@@ -898,5 +951,21 @@ class MaintenanceController extends Controller
                     'message' => $e->getMessage(),
                 ]));
         }
+    }
+
+    /**
+     * Extract numeric part from a maintenance number (supports numbers only or letters+numbers).
+     * Examples: "12345" -> 12345, "MANT2025000001" -> 1, "A123" -> 123
+     */
+    private function extractNumericPart(string $number): int
+    {
+        // Extract all digits from the string
+        preg_match_all('/\d+/', $number, $matches);
+        if (!empty($matches[0])) {
+            // Get the last numeric sequence (most significant)
+            $numericPart = end($matches[0]);
+            return (int) $numericPart;
+        }
+        return 0;
     }
 }

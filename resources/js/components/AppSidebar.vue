@@ -11,6 +11,7 @@ import suppliers from '@/routes/panel/suppliers/index';
 import transactions from '@/routes/panel/movimentations/index';
 import mareas from '@/routes/panel/mareas/index';
 import maintenances from '@/routes/panel/maintenances/index';
+import debts from '@/routes/panel/debts/index';
 import financialReports from '@/routes/panel/financial-reports';
 import vatReports from '@/routes/panel/vat-reports';
 import { type NavItem } from '@/types';
@@ -164,6 +165,15 @@ const mainNavItems = computed((): NavItem[] => {
 
 
      // Financial Section
+    if (canView('debts')) {
+        items.push({
+            title: t('Debts'),
+            href: debts.index.url({ vessel: vesselId }),
+            icon: Receipt, // Reusing Receipt icon or could use another like CreditCard if imported
+            group: t('Financial'),
+        });
+    }
+
     if (canView('suppliers')) {
         items.push({
             title: t('Suppliers'),

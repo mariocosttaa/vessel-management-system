@@ -60,10 +60,16 @@ return [
     'Failed to save distribution items: :message'                                                                             => 'Failed to save distribution items: :message',
     'Salary payment has been created successfully.'                                                                           => 'Salary payment has been created successfully.',
     'Failed to create salary payment: :message'                                                                               => 'Failed to create salary payment: :message',
+    'This marea number is already in use (even if deleted). Suggested number: :number'                                      => 'This marea number is already in use (even if deleted). Suggested number: :number',
+    'This marea number is already in use. Please use a different number.'                                                     => 'This marea number is already in use. Please use a different number.',
+    'A soft-deleted marea with this number exists. Suggested number: :number'                                                => 'A soft-deleted marea with this number exists. Suggested number: :number',
 
     // Maintenance
     "Maintenance ':number' has been created successfully."                                                                    => "Maintenance ':number' has been created successfully.",
     'Failed to create maintenance: :message'                                                                                  => 'Failed to create maintenance: :message',
+    'This maintenance number is already in use (even if deleted). Suggested number: :number'                                  => 'This maintenance number is already in use (even if deleted). Suggested number: :number',
+    'This maintenance number is already in use. Please use a different number.'                                              => 'This maintenance number is already in use. Please use a different number.',
+    'A soft-deleted maintenance with this number exists. Suggested number: :number'                                         => 'A soft-deleted maintenance with this number exists. Suggested number: :number',
     "Maintenance ':number' has been updated successfully."                                                                    => "Maintenance ':number' has been updated successfully.",
     'Failed to update maintenance: :message'                                                                                  => 'Failed to update maintenance: :message',
     "Maintenance ':number' has been deleted successfully."                                                                    => "Maintenance ':number' has been deleted successfully.",
