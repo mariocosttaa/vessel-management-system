@@ -122,7 +122,6 @@ const handleImport = async () => {
             try {
                 data = await response.json();
             } catch (jsonError) {
-                console.error('Failed to parse JSON response:', jsonError);
                 notify.error(t('Import failed. Server returned an invalid response.'));
                 const elapsed = Date.now() - startTime;
                 if (elapsed < MIN_LOADING_TIME) {
@@ -133,8 +132,7 @@ const handleImport = async () => {
             }
         } else {
             // If not JSON, get text response
-            const text = await response.text();
-            console.error('Non-JSON response:', text);
+            await response.text();
             notify.error(t('Import failed. Server returned an invalid response.'));
 
             // Ensure minimum loading time
@@ -244,11 +242,8 @@ const handleImport = async () => {
             } else {
                 notify.error(errorMessage, { duration: 8000 });
             }
-
-            console.error('Import failed:', data);
         }
     } catch (error) {
-        console.error('Import error:', error);
         const errorMessage = error instanceof Error ? error.message : t('An error occurred during import. Please try again.');
 
         // Ensure minimum loading time even on error

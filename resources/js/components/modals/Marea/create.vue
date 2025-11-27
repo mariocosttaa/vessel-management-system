@@ -38,12 +38,22 @@ const getCurrentVesselId = () => {
 const vesselId = computed(() => getCurrentVesselId());
 const loadingNextNumber = ref(false);
 const nextMareaNumber = ref<string>('');
+const hasSoftDeletedConflict = ref(false);
+const suggestedNumber = ref<string>('');
 
 const form = useForm({
     marea_number: '' as string,
     estimated_departure_date: '' as string,
     estimated_return_date: '' as string,
 });
+
+// Validate marea number format (numbers only or letters+numbers)
+const validateMareaNumberFormat = (value: string): boolean => {
+    if (!value) return true; // Empty is handled by required validation
+    // Must contain at least one digit, can have letters before/after/mixed
+    const pattern = /^([A-Za-z]*\d+[A-Za-z]*|\d+)$/;
+    return pattern.test(value);
+};
 
 // Load next marea number when modal opens
 const loadNextMareaNumber = async () => {
@@ -53,10 +63,11 @@ const loadNextMareaNumber = async () => {
     try {
         const response = await axios.get(`/panel/${vesselId.value}/mareas/create`);
         nextMareaNumber.value = response.data.next_marea_number;
+        hasSoftDeletedConflict.value = response.data.has_soft_deleted_conflict || false;
+        suggestedNumber.value = response.data.suggested_number || response.data.next_marea_number;
         // Auto-fill the form with the next number
         form.marea_number = nextMareaNumber.value;
     } catch (error) {
-        console.error('Failed to load next marea number:', error);
         // Fallback: try to generate a number on the client side
         const year = new Date().getFullYear();
         form.marea_number = `MARE${year}000001`;
@@ -64,6 +75,15 @@ const loadNextMareaNumber = async () => {
         loadingNextNumber.value = false;
     }
 };
+
+// Watch for changes in marea_number to validate format
+watch(() => form.marea_number, (newValue) => {
+    if (newValue && !validateMareaNumberFormat(newValue)) {
+        form.setError('marea_number', t('Marea number must be numbers only or letters followed by numbers'));
+    } else if (form.errors.marea_number && validateMareaNumberFormat(newValue)) {
+        form.clearErrors('marea_number');
+    }
+});
 
 // Watch for modal open to load next number
 watch(() => props.open, (isOpen) => {
@@ -135,8 +155,14 @@ const handleClose = () => {
                         <p v-if="loadingNextNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
                             {{ t('Loading next marea number...') }}
                         </p>
+                        <p v-else-if="hasSoftDeletedConflict && form.marea_number === nextMareaNumber" class="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                            {{ t('Warning: A soft-deleted marea with a similar number exists. Suggested number:') }} <strong>{{ suggestedNumber }}</strong>
+                        </p>
                         <p v-else-if="nextMareaNumber && form.marea_number === nextMareaNumber" class="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">
                             {{ t('This number was auto-generated. You can change it if needed.') }}
+                        </p>
+                        <p v-else-if="form.marea_number && !validateMareaNumberFormat(form.marea_number)" class="mt-1 text-xs text-destructive">
+                            {{ t('Marea number must be numbers only or letters followed by numbers') }}
                         </p>
                     </div>
 

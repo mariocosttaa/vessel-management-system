@@ -321,7 +321,7 @@ const reloadTransactionData = async () => {
             }
         }
     } catch (error) {
-        console.error('Failed to reload transaction data:', error);
+        // Error handled silently
     }
 };
 
