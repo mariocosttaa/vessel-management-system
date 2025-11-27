@@ -73,13 +73,15 @@ class HandleInertiaRequests extends Middleware
                 'oauth_name' => $request->session()->get('oauth_name'),
                 'active_tab' => $request->session()->get('active_tab'),
             ],
-            'currencies' => Currency::orderBy('name')->get(['code', 'name', 'symbol', 'decimal_separator'])->map(function ($currency) {
-                return [
-                    'code' => $currency->code,
-                    'name' => $currency->name,
-                    'symbol' => $currency->symbol,
-                    'decimal_separator' => $currency->decimal_separator,
-                ];
+            'currencies' => \Illuminate\Support\Facades\Cache::remember('currencies_list', 3600, function () {
+                return Currency::orderBy('name')->get(['code', 'name', 'symbol', 'decimal_separator'])->map(function ($currency) {
+                    return [
+                        'code' => $currency->code,
+                        'name' => $currency->name,
+                        'symbol' => $currency->symbol,
+                        'decimal_separator' => $currency->decimal_separator,
+                    ];
+                });
             }),
         ];
     }
@@ -111,15 +113,33 @@ class HandleInertiaRequests extends Middleware
      */
     private function getUserVessels($user): array
     {
-        return $user->vessels()->get()->map(function ($vessel) use ($user) {
-            return [
+        // Eager load the vessels with the pivot data to avoid N+1
+        // We need to get the role from the pivot table 'vessel_user_roles'
+        // The User model has 'vesselUserRoles' relationship
+        
+        // Get all vessel user roles for this user with the associated vessel and role access definition
+        $userVesselRoles = $user->vesselUserRoles()
+            ->where('is_active', true)
+            ->with(['vessel', 'vesselRoleAccess'])
+            ->get();
+            
+        // Map by vessel_id to handle multiple roles if necessary (though usually one active role per vessel)
+        $vessels = [];
+        
+        foreach ($userVesselRoles as $userRole) {
+            $vessel = $userRole->vessel;
+            if (!$vessel) continue;
+            
+            $vessels[] = [
                 'id' => EasyHashAction::encode($vessel->id, 'vessel-id'),
                 'name' => $vessel->name,
                 'registration_number' => $vessel->registration_number,
                 'status' => $vessel->status,
-                'user_role' => $user->getRoleForVessel($vessel->id),
+                'user_role' => $userRole->vesselRoleAccess->display_name ?? null,
             ];
-        })->toArray();
+        }
+        
+        return $vessels;
     }
 
     /**
@@ -138,7 +158,8 @@ class HandleInertiaRequests extends Middleware
         if (!$vessel) {
             $vesselId = $request->attributes->get('vessel_id');
             if ($vesselId) {
-                $vessel = \App\Models\Vessel::find($vesselId);
+                // Eager load setting if we have to fetch it here
+                $vessel = \App\Models\Vessel::with('setting')->find($vesselId);
             }
         }
 
@@ -148,6 +169,9 @@ class HandleInertiaRequests extends Middleware
             if ($vesselParam) {
                 // Use resolveRouteBinding to handle both hashed and numeric IDs
                 $vessel = (new \App\Models\Vessel())->resolveRouteBinding($vesselParam);
+                if ($vessel) {
+                    $vessel->load('setting');
+                }
             }
         }
 
@@ -163,8 +187,19 @@ class HandleInertiaRequests extends Middleware
             }
 
             // Get currency from vessel_settings first, then fallback to vessel currency_code
-            $vesselSetting = VesselSetting::getForVessel($vesselId);
-            $currencyCode = $vesselSetting->currency_code ?? $vessel->currency_code;
+            // Use the relation if loaded, otherwise fetch it (or use the helper which might query)
+            if ($vessel->relationLoaded('setting') && $vessel->setting) {
+                $currencyCode = $vessel->setting->currency_code ?? $vessel->currency_code;
+            } else {
+                $vesselSetting = VesselSetting::getForVessel($vesselId);
+                $currencyCode = $vesselSetting->currency_code ?? $vessel->currency_code;
+            }
+
+            // Share vessel with other middleware/controllers to avoid re-fetching
+            if (!$request->attributes->has('vessel')) {
+                $request->attributes->set('vessel', $vessel);
+                $request->attributes->set('vessel_id', $vesselId);
+            }
 
             return [
                 'id' => EasyHashAction::encode($vessel->id, 'vessel-id'),

@@ -213,17 +213,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Cache for vessel roles to avoid duplicate queries within the same request.
+     * @var array
+     */
+    protected $roleCache = [];
+
+    /**
      * Get user's role for a specific vessel.
      */
     public function getRoleForVessel(int $vesselId): ?string
     {
+        if (isset($this->roleCache[$vesselId])) {
+            return $this->roleCache[$vesselId];
+        }
+
         $vesselUserRole = $this->vesselUserRoles()
             ->where('vessel_id', $vesselId)
             ->where('is_active', true)
             ->with('vesselRoleAccess')
             ->first();
 
-        return $vesselUserRole?->vesselRoleAccess?->display_name;
+        $role = $vesselUserRole?->vesselRoleAccess?->display_name;
+        $this->roleCache[$vesselId] = $role;
+
+        return $role;
     }
 
     /**
@@ -440,6 +453,14 @@ class User extends Authenticatable
     public function emailNotifications(): HasMany
     {
         return $this->hasMany(EmailNotification::class);
+    }
+
+    /**
+     * Get invitation emails sent to this user.
+     */
+    public function invitationEmails(): HasMany
+    {
+        return $this->hasMany(InvitationEmail::class);
     }
 
     /**

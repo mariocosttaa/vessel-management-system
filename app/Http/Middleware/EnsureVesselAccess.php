@@ -50,24 +50,51 @@ class EnsureVesselAccess
         $vesselId = (int) $vesselId;
 
         // Load vessel model first to check if it exists
-        $vessel = \App\Models\Vessel::find($vesselId);
+        // Eager load setting to avoid N+1 in HandleInertiaRequests and other places
+        // Check if vessel is already loaded in request attributes (e.g. by HandleInertiaRequests)
+        $vessel = $request->attributes->get('vessel');
+        
+        if (!$vessel || $vessel->id !== $vesselId) {
+            $vessel = \App\Models\Vessel::with('setting')->find($vesselId);
+        }
+        
         if (!$vessel) {
             abort(404, 'Vessel not found.');
         }
 
-        // Check if user has access to this vessel
-        if (!$user->hasAccessToVessel($vesselId)) {
+        // Optimize access check and role retrieval
+        // Instead of calling hasAccessToVessel (1 query) and then getRoleForVessel (1 query),
+        // we try to get the role first.
+        
+        $userRole = null;
+        $hasAccess = false;
+
+        // 1. Check for explicit role assignment
+        // Use memoized getRoleForVessel from User model if available, or query efficiently
+        $userRole = $user->getRoleForVessel($vesselId);
+        
+        if ($userRole) {
+            $hasAccess = true;
+        } else {
+            // 2. Check if user is the owner
+            if ($vessel->owner_id === $user->id) {
+                $hasAccess = true;
+            }
+        }
+
+        if (!$hasAccess) {
             abort(403, 'You do not have access to this vessel.');
         }
 
         // Share vessel data with all views
         view()->share('currentVessel', $vessel);
-        view()->share('currentVesselRole', $user->getRoleForVessel($vesselId));
+        view()->share('currentVesselRole', $userRole);
 
         // Share vessel via request attributes for use in controllers and requests
         // Access via: $request->attributes->get('vessel') or $request->get('vessel')
         $request->attributes->set('vessel', $vessel);
         $request->attributes->set('vessel_id', $vesselId);
+        $request->attributes->set('vessel_role', $userRole);
 
         return $next($request);
     }
