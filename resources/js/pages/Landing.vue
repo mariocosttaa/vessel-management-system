@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { login } from '@/routes'
 import Icon from '@/components/Icon.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useI18n } from '@/composables/useI18n'
 
@@ -16,6 +16,10 @@ const visibleSections = ref<Set<string>>(new Set())
 const videoLoaded = ref(false)
 const videoElement = ref<HTMLVideoElement | null>(null)
 const videoElementMobile = ref<HTMLVideoElement | null>(null)
+
+// Image lightbox modal state
+const lightboxImage = ref<string | null>(null)
+const lightboxAlt = ref<string>('')
 
 // Observe all sections on mount
 onMounted(() => {
@@ -90,6 +94,36 @@ onMounted(() => {
         }
     }, 100)
 })
+
+// Close lightbox on ESC key
+const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && lightboxImage.value) {
+        closeLightbox()
+    }
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeyDown)
+    // Cleanup: restore body overflow if modal was open
+    document.body.style.overflow = ''
+})
+
+// Lightbox functions
+const openLightbox = (imageSrc: string, alt: string) => {
+    lightboxImage.value = imageSrc
+    lightboxAlt.value = alt
+    document.body.style.overflow = 'hidden' // Prevent background scrolling
+}
+
+const closeLightbox = () => {
+    lightboxImage.value = null
+    lightboxAlt.value = ''
+    document.body.style.overflow = '' // Restore scrolling
+}
 
 const features = computed(() => [
     {
@@ -177,10 +211,17 @@ const testimonials = computed(() => [
     <Head title="Bindamy Mareas - Vessel Management System" />
     <AppLayout>
         <!-- Hero Section -->
-        <section class="relative bg-gradient-to-b from-background to-muted/30 dark:from-[#121212] dark:to-[#0a0a0a] pt-20 pb-16 lg:pt-24 lg:pb-20 overflow-hidden">
-            <!-- Background Gradient -->
+        <section class="relative bg-gradient-to-br from-primary/5 via-background to-primary/3 dark:from-primary/10 dark:via-[#121212] dark:to-primary/5 pt-20 pb-16 lg:pt-24 lg:pb-20 overflow-hidden">
+            <!-- Animated Background Elements -->
             <div class="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background/80 dark:from-[#121212]/95 dark:via-[#121212]/90 dark:to-[#121212]/80"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent dark:from-[#121212] dark:via-transparent dark:to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-primary/5 dark:from-[#121212] dark:via-transparent dark:to-primary/10"></div>
+
+            <!-- Decorative Circles -->
+            <div class="absolute top-20 right-10 w-72 h-72 bg-primary/10 dark:bg-primary/20 rounded-full blur-3xl opacity-50"></div>
+            <div class="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-40"></div>
+
+            <!-- Grid Pattern Overlay -->
+            <div class="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" style="background-image: linear-gradient(rgba(59,130,246,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.1) 1px, transparent 1px); background-size: 50px 50px;"></div>
 
             <div class="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
@@ -297,35 +338,46 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Build up the whole picture Section -->
-        <section id="features" class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
-            <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div id="features-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('features-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+        <section id="features" class="relative py-16 lg:py-20 bg-gradient-to-b from-muted/60 via-primary/5 to-muted/40 dark:from-[#0a0a0a] dark:via-primary/10 dark:to-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border overflow-hidden">
+            <!-- Decorative Background Elements -->
+            <div class="absolute top-0 right-0 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute bottom-0 left-0 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+
+            <div class="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <div id="features-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('features-header') }">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="sparkles" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Features') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Everything You Need in One Platform') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Comprehensive vessel management solution covering all aspects of your operations. From financial control to crew management, we\'ve got you covered.') }}
                     </p>
                 </div>
 
                 <!-- Features Grid -->
-                <div id="features" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div id="features" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div
                         v-for="(feature, index) in features"
                         :key="feature.title"
                         :class="[
-                            'group rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-card/80 dark:bg-card/50 backdrop-blur-sm p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:shadow-md hover:bg-card dark:hover:bg-card/70',
+                            'group relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-gradient-to-br from-card/90 to-card/70 dark:from-card/60 dark:to-card/40 backdrop-blur-sm p-6 hover:border-primary/60 dark:hover:border-primary/60 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1',
                             visibleSections.has('features') ? 'animate-fade-in-up' : 'opacity-0',
                         ]"
                         :style="{ animationDelay: `${index * 0.1}s` }"
                     >
-                        <div class="mb-3 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors">
-                            <Icon :name="feature.icon" class="w-5 h-5 text-primary" />
+                        <!-- Decorative gradient overlay on hover -->
+                        <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:to-primary/0 transition-all duration-300 pointer-events-none"></div>
+
+                        <div class="relative mb-4 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/20 group-hover:from-primary/30 group-hover:to-primary/20 dark:group-hover:from-primary/40 dark:group-hover:to-primary/30 transition-all duration-300 shadow-lg group-hover:shadow-primary/20">
+                            <Icon :name="feature.icon" class="w-6 h-6 text-primary" />
                         </div>
-                        <h3 class="text-base font-semibold text-card-foreground dark:text-card-foreground mb-2">
+                        <h3 class="relative text-lg font-bold text-card-foreground dark:text-card-foreground mb-3">
                             {{ feature.title }}
                         </h3>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                        <p class="relative text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
                             {{ feature.description }}
                         </p>
                     </div>
@@ -334,13 +386,21 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Complete Operations Management Section -->
-        <section class="py-12 lg:py-16 bg-background dark:bg-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
-            <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div id="operations-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('operations-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+        <section class="relative py-16 lg:py-20 bg-gradient-to-b from-background via-primary/3 to-background dark:from-[#121212] dark:via-primary/5 dark:to-[#121212] border-t border-border/30 dark:border-sidebar-border/30 overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-1/4 left-0 w-64 h-64 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-40"></div>
+            <div class="absolute bottom-1/4 right-0 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-40"></div>
+
+            <div class="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <div id="operations-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('operations-header') }">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="zap" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Operations') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Streamline Your Entire Workflow') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('From vessel departure to return, track everything seamlessly. Register fishing trips, calculate distributions, manage finances, and monitor all operations in real-time.') }}
                     </p>
                 </div>
@@ -373,28 +433,46 @@ const testimonials = computed(() => [
                             </li>
                         </ul>
                     </div>
-                    <div class="order-1 lg:order-2 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
-                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
-                            <img
-                                src="/assets/marea-manager.png"
-                                :alt="t('Mareas Management Interface')"
-                                class="w-full h-full object-cover"
-                                loading="lazy"
-                            />
+                    <div class="order-1 lg:order-2 relative group">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        <div class="relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] cursor-pointer" @click="openLightbox('/assets/marea-manager.png', t('Mareas Management Interface'))">
+                            <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 ring-2 ring-primary/10 relative">
+                                <img
+                                    src="/assets/marea-manager.png"
+                                    :alt="t('Mareas Management Interface')"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                />
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm">
+                                        <Icon name="maximize-2" class="w-4 h-4 text-primary" />
+                                        <span class="text-xs font-semibold text-card-foreground">{{ t('Click to enlarge') }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Workflow Block 2: Financial Control -->
                 <div id="operations-2" class="mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-2') }">
-                    <div class="order-2 lg:order-1 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
-                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
-                            <img
-                                src="/assets/system-dashboard.png"
-                                :alt="t('Financial Dashboard')"
-                                class="w-full h-full object-cover"
-                                loading="lazy"
-                            />
+                    <div class="order-2 lg:order-1 relative group">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        <div class="relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] cursor-pointer" @click="openLightbox('/assets/system-dashboard.png', t('Financial Dashboard'))">
+                            <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 ring-2 ring-primary/10 relative">
+                                <img
+                                    src="/assets/system-dashboard.png"
+                                    :alt="t('Financial Dashboard')"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                />
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm">
+                                        <Icon name="maximize-2" class="w-4 h-4 text-primary" />
+                                        <span class="text-xs font-semibold text-card-foreground">{{ t('Click to enlarge') }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="order-1 lg:order-2">
@@ -453,28 +531,46 @@ const testimonials = computed(() => [
                             </li>
                         </ul>
                     </div>
-                    <div class="order-1 lg:order-2 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
-                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
-                            <img
-                                src="/assets/system-users-administratives-and-colaborators.png"
-                                :alt="t('Crew Management Interface')"
-                                class="w-full h-full object-cover"
-                                loading="lazy"
-                            />
+                    <div class="order-1 lg:order-2 relative group">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        <div class="relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] cursor-pointer" @click="openLightbox('/assets/system-users-administratives-and-colaborators.png', t('Crew Management Interface'))">
+                            <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 ring-2 ring-primary/10 relative">
+                                <img
+                                    src="/assets/system-users-administratives-and-colaborators.png"
+                                    :alt="t('Crew Management Interface')"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                />
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm">
+                                        <Icon name="maximize-2" class="w-4 h-4 text-primary" />
+                                        <span class="text-xs font-semibold text-card-foreground">{{ t('Click to enlarge') }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Workflow Block 4: Monitoring & Security -->
                 <div id="operations-4" class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center" :class="{ 'animate-fade-in-right': visibleSections.has('operations-4') }">
-                    <div class="order-2 lg:order-1 rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]">
-                        <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
-                            <img
-                                src="/assets/auditory.png"
-                                :alt="t('Audit Trail Interface')"
-                                class="w-full h-full object-cover"
-                                loading="lazy"
-                            />
+                    <div class="order-2 lg:order-1 relative group">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                        <div class="relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 p-2 shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] cursor-pointer" @click="openLightbox('/assets/auditory.png', t('Audit Trail Interface'))">
+                            <div class="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20 ring-2 ring-primary/10 relative">
+                                <img
+                                    src="/assets/auditory.png"
+                                    :alt="t('Audit Trail Interface')"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                />
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm">
+                                        <Icon name="maximize-2" class="w-4 h-4 text-primary" />
+                                        <span class="text-xs font-semibold text-card-foreground">{{ t('Click to enlarge') }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="order-1 lg:order-2">
@@ -508,13 +604,21 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Additional Features Showcase -->
-        <section class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
-            <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <section class="relative py-16 lg:py-20 bg-gradient-to-b from-muted/60 via-primary/5 to-muted/40 dark:from-[#0a0a0a] dark:via-primary/10 dark:to-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute bottom-0 right-1/4 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+
+            <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <div id="showcase-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('showcase-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="layers" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Showcase') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Powerful Features at Your Fingertips') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Discover the comprehensive tools that make vessel management effortless and efficient.') }}
                     </p>
                 </div>
@@ -523,27 +627,28 @@ const testimonials = computed(() => [
                     <!-- Feature 1: User Management -->
                     <div
                         id="showcase-1"
-                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        class="group relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-gradient-to-br from-card/90 to-card/70 dark:from-card/60 dark:to-card/40 overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/60 dark:hover:border-primary/60 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1"
                         :class="{ 'animate-fade-in-up': visibleSections.has('showcase-1') }"
                     >
-                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl blur-lg opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                        <div class="relative aspect-video overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
                             <img
                                 src="/assets/add-colaborator.png"
                                 :alt="t('Add Collaborator')"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 loading="lazy"
                             />
-                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent"></div>
                         </div>
-                        <div class="p-5">
-                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                        <div class="relative p-6 bg-gradient-to-br from-card/95 to-card/90 dark:from-card/70 dark:to-card/60">
+                            <div class="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 dark:bg-primary/20 text-xs font-semibold text-primary uppercase tracking-wider">
                                 <Icon name="user-plus" class="w-4 h-4" />
                                 <span>{{ t('Team Management') }}</span>
                             </div>
                             <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
                                 {{ t('Add Collaborators') }}
                             </h3>
-                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
                                 {{ t('Easily add and manage team members with role-based permissions.') }}
                             </p>
                         </div>
@@ -552,28 +657,29 @@ const testimonials = computed(() => [
                     <!-- Feature 2: Recovery & Trash -->
                     <div
                         id="showcase-2"
-                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        class="group relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-gradient-to-br from-card/90 to-card/70 dark:from-card/60 dark:to-card/40 overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/60 dark:hover:border-primary/60 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1"
                         :class="{ 'animate-fade-in-up': visibleSections.has('showcase-2') }"
                         style="animation-delay: 0.1s"
                     >
-                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl blur-lg opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                        <div class="relative aspect-video overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
                             <img
                                 src="/assets/recovery-trash.png"
                                 :alt="t('Recovery & Trash')"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 loading="lazy"
                             />
-                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent"></div>
                         </div>
-                        <div class="p-5">
-                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                        <div class="relative p-6 bg-gradient-to-br from-card/95 to-card/90 dark:from-card/70 dark:to-card/60">
+                            <div class="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 dark:bg-primary/20 text-xs font-semibold text-primary uppercase tracking-wider">
                                 <Icon name="trash-2" class="w-4 h-4" />
                                 <span>{{ t('Data Recovery') }}</span>
                             </div>
                             <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
                                 {{ t('Recovery & Trash') }}
                             </h3>
-                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
                                 {{ t('Safely recover deleted items with our comprehensive trash system.') }}
                             </p>
                         </div>
@@ -582,28 +688,29 @@ const testimonials = computed(() => [
                     <!-- Feature 3: Embassy Selection -->
                     <div
                         id="showcase-3"
-                        class="group rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-card dark:bg-card/50 overflow-hidden shadow-lg hover:shadow-2xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 hover:scale-[1.02]"
+                        class="group relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-gradient-to-br from-card/90 to-card/70 dark:from-card/60 dark:to-card/40 overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/60 dark:hover:border-primary/60 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1"
                         :class="{ 'animate-fade-in-up': visibleSections.has('showcase-3') }"
                         style="animation-delay: 0.2s"
                     >
-                        <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl blur-lg opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                        <div class="relative aspect-video overflow-hidden bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/30 dark:to-muted/20">
                             <img
                                 src="/assets/choose-embasy.png"
                                 :alt="t('Choose Embassy')"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 loading="lazy"
                             />
-                            <div class="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+                            <div class="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent"></div>
                         </div>
-                        <div class="p-5">
-                            <div class="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                        <div class="relative p-6 bg-gradient-to-br from-card/95 to-card/90 dark:from-card/70 dark:to-card/60">
+                            <div class="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 dark:bg-primary/20 text-xs font-semibold text-primary uppercase tracking-wider">
                                 <Icon name="globe" class="w-4 h-4" />
                                 <span>{{ t('International') }}</span>
                             </div>
                             <h3 class="text-lg font-bold text-card-foreground dark:text-card-foreground mb-2">
                                 {{ t('Embassy Selection') }}
                             </h3>
-                            <p class="text-sm text-muted-foreground dark:text-muted-foreground">
+                            <p class="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
                                 {{ t('Manage international operations with embassy selection tools.') }}
                             </p>
                         </div>
@@ -613,39 +720,47 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Customer Testimonials Section -->
-        <section class="py-12 lg:py-16 bg-gradient-to-b from-muted/20 to-card/50 dark:from-[#0a0a0a] dark:to-[#0f0f0f] border-t border-border/50 dark:border-sidebar-border">
+        <section class="relative py-16 lg:py-20 bg-gradient-to-b from-muted/40 via-primary/3 to-background dark:from-[#0a0a0a] dark:via-primary/5 dark:to-[#0f0f0f] border-t border-border/50 dark:border-sidebar-border overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-1/2 left-0 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute top-1/2 right-0 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div id="testimonials-header" class="text-center mb-10" :class="{ 'animate-fade-in-up': visibleSections.has('testimonials-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                <div id="testimonials-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('testimonials-header') }">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="star" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Testimonials') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Trusted by Industry Leaders') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Discover how vessel management companies worldwide are transforming their operations with Bindamy Mareas.') }}
                     </p>
                 </div>
 
                 <!-- Testimonials Grid -->
-                <div id="testimonials" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div id="testimonials" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div
                         v-for="(testimonial, index) in testimonials"
                         :key="index"
                         :class="[
-                            'relative rounded-lg border border-border/50 dark:border-sidebar-border/50 bg-background dark:bg-card/50 p-5 hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300',
+                            'group relative rounded-xl border-2 border-border/50 dark:border-sidebar-border/50 bg-gradient-to-br from-card/90 to-card/70 dark:from-card/60 dark:to-card/40 backdrop-blur-sm p-6 hover:border-primary/60 dark:hover:border-primary/60 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1',
                             visibleSections.has('testimonials') ? 'animate-fade-in-up' : 'opacity-0',
                         ]"
                         :style="{ animationDelay: `${index * 0.15}s` }"
                     >
-                        <div class="mb-4">
-                            <Icon name="message-square" class="w-8 h-8 text-primary/30 dark:text-primary/20" />
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl blur-lg opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                        <div class="relative mb-4 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/20">
+                            <Icon name="message-square" class="w-6 h-6 text-primary" />
                         </div>
-                        <p class="text-sm text-muted-foreground dark:text-muted-foreground mb-4 leading-relaxed">
-                            {{ testimonial.quote }}
+                        <p class="relative text-sm text-muted-foreground dark:text-muted-foreground mb-6 leading-relaxed">
+                            "{{ testimonial.quote }}"
                         </p>
-                        <div class="border-t border-border/50 dark:border-sidebar-border/50 pt-3">
-                            <p class="text-sm font-semibold text-card-foreground dark:text-card-foreground">
+                        <div class="relative border-t border-border/50 dark:border-sidebar-border/50 pt-4">
+                            <p class="text-sm font-bold text-card-foreground dark:text-card-foreground mb-1">
                                 {{ testimonial.author }}
                             </p>
-                            <p class="text-xs text-primary/70 dark:text-primary/60">
+                            <p class="text-xs font-medium text-primary/80 dark:text-primary/70">
                                 {{ testimonial.company }}
                             </p>
                         </div>
@@ -655,13 +770,20 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Contact Section -->
-        <section id="contact" class="py-12 lg:py-16 bg-background dark:bg-[#121212] border-t border-border/30 dark:border-sidebar-border/30">
+        <section id="contact" class="relative py-16 lg:py-20 bg-gradient-to-b from-background via-primary/3 to-background dark:from-[#121212] dark:via-primary/5 dark:to-[#121212] border-t border-border/30 dark:border-sidebar-border/30 overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute bottom-0 left-1/4 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="contact-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('contact-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="mail" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Contact') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Let\'s Talk About Your Needs') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Have questions or need more information? Our team is here to help you get started with Bindamy Mareas. Whether you need a demo, have technical questions, or want to discuss your specific requirements, we\'re ready to assist you.') }}
                     </p>
                 </div>
@@ -692,8 +814,9 @@ const testimonials = computed(() => [
                     </div>
 
                     <!-- Right: Contact Card -->
-                    <div id="contact-card" class="rounded-xl bg-gradient-to-br from-card/80 to-card/60 dark:from-card/50 dark:to-card/30 backdrop-blur-sm border border-border/50 dark:border-sidebar-border/50 p-6 shadow-lg" :class="{ 'animate-fade-in-right': visibleSections.has('contact-card') }">
-                        <div class="text-center">
+                    <div id="contact-card" class="relative rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-card/80 dark:from-primary/20 dark:via-primary/10 dark:to-card/50 backdrop-blur-sm border-2 border-primary/20 dark:border-primary/30 p-8 shadow-xl hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300" :class="{ 'animate-fade-in-right': visibleSections.has('contact-card') }">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl blur-lg opacity-50"></div>
+                        <div class="relative text-center">
                             <h4 class="text-lg font-semibold text-card-foreground dark:text-card-foreground mb-3">
                                 {{ t('Ready to get started?') }}
                             </h4>
@@ -714,13 +837,20 @@ const testimonials = computed(() => [
         </section>
 
         <!-- Pricing Section -->
-        <section id="pricing" class="py-12 lg:py-16 bg-muted/40 dark:bg-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border">
+        <section id="pricing" class="relative py-16 lg:py-20 bg-gradient-to-b from-muted/60 via-primary/5 to-muted/40 dark:from-[#0a0a0a] dark:via-primary/10 dark:to-[#0a0a0a] border-t border-border/50 dark:border-sidebar-border overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-1/4 left-0 w-96 h-96 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute bottom-1/4 right-0 w-80 h-80 bg-primary/5 dark:bg-primary/10 rounded-full blur-3xl opacity-30"></div>
             <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div id="pricing-header" class="text-center mb-12" :class="{ 'animate-fade-in-up': visibleSections.has('pricing-header') }">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-card-foreground dark:text-card-foreground mb-3">
+                    <div class="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 dark:border-primary/30">
+                        <Icon name="dollar-sign" class="w-4 h-4 text-primary" />
+                        <span class="text-xs font-semibold text-primary uppercase tracking-wider">{{ t('Pricing') }}</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-card-foreground dark:text-card-foreground mb-4">
                         {{ t('Simple, Transparent Pricing') }}
                     </h2>
-                    <p class="mx-auto max-w-2xl text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
+                    <p class="mx-auto max-w-2xl text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                         {{ t('Flexible pricing plans designed to scale with your business. Our pricing adapts to your fleet size, user count, and specific requirements. Contact us for personalized pricing that fits your needs.') }}
                     </p>
                 </div>
@@ -788,8 +918,9 @@ const testimonials = computed(() => [
                     </div>
 
                     <!-- Right: Pricing Card -->
-                    <div id="pricing-card" class="rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 dark:from-primary/10 dark:via-primary/20 dark:to-primary/10 border-2 border-primary/20 dark:border-primary/30 p-8 shadow-xl" :class="{ 'animate-fade-in-right': visibleSections.has('pricing-card') }">
-                        <div class="text-center mb-6">
+                    <div id="pricing-card" class="relative rounded-xl bg-gradient-to-br from-primary/10 via-primary/15 to-primary/10 dark:from-primary/20 dark:via-primary/25 dark:to-primary/20 border-2 border-primary/30 dark:border-primary/40 p-8 shadow-2xl hover:shadow-primary/30 transition-all duration-300 hover:scale-[1.02]" :class="{ 'animate-fade-in-right': visibleSections.has('pricing-card') }">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/30 to-primary/20 rounded-xl blur-xl opacity-50"></div>
+                        <div class="relative text-center mb-6">
                             <h3 class="text-2xl font-bold text-card-foreground dark:text-card-foreground mb-2">
                                 {{ t('Custom Pricing') }}
                             </h3>
@@ -853,5 +984,51 @@ const testimonials = computed(() => [
                 </div>
             </div>
         </section>
+
+        <!-- Image Lightbox Modal -->
+        <Transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition duration-200 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="lightboxImage"
+                class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 dark:bg-black/95 backdrop-blur-sm"
+                @click.self="closeLightbox"
+            >
+                <!-- Close Button -->
+                <button
+                    @click="closeLightbox"
+                    class="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 dark:bg-white/10 hover:bg-white/20 dark:hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white transition-all duration-200 hover:scale-110"
+                    :aria-label="t('Close')"
+                >
+                    <Icon name="x" class="w-5 h-5" />
+                </button>
+
+                <!-- Image Container -->
+                <div class="relative max-w-7xl max-h-[90vh] w-full">
+                    <div class="relative rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-card/10 backdrop-blur-sm">
+                        <img
+                            :src="lightboxImage"
+                            :alt="lightboxAlt"
+                            class="w-full h-auto max-h-[90vh] object-contain"
+                        />
+                        <!-- Image Info -->
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-6">
+                            <p class="text-white font-medium text-sm">{{ lightboxAlt }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ESC Hint -->
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 dark:bg-white/10 backdrop-blur-sm border border-white/20">
+                    <Icon name="keyboard" class="w-4 h-4 text-white/70" />
+                    <span class="text-xs text-white/70">{{ t('Press ESC to close') }}</span>
+                </div>
+            </div>
+        </Transition>
     </AppLayout>
 </template>
