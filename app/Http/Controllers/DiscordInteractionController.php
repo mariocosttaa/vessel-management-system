@@ -77,10 +77,10 @@ class DiscordInteractionController extends Controller
         }
 
         $result = VpsAction::executeCommand($command);
-        
+
         $status = $result['exit_code'] === 0 ? '✅' : '❌';
         $output = !empty($result['output']) ? $result['output'] : '(sem output)';
-        
+
         if (strlen($output) > 1900) {
             $output = substr($output, 0, 1900) . "\n... (truncado)";
         }
@@ -107,16 +107,16 @@ class DiscordInteractionController extends Controller
         }
 
         $result = SqlAction::executeQuery($query);
-        
+
         if ($result['success']) {
             $status = '✅';
             $output = "Linhas: {$result['rows']}\n\n";
-            
+
             if ($result['rows'] > 0) {
                 $preview = array_slice($result['data'], 0, 10);
                 $output .= "Preview (primeiras " . min(10, $result['rows']) . " linhas):\n";
                 $output .= "```json\n" . json_encode($preview, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n```";
-                
+
                 if ($result['rows'] > 10) {
                     $output .= "\n... e mais " . ($result['rows'] - 10) . " linhas";
                 }
@@ -154,10 +154,10 @@ class DiscordInteractionController extends Controller
         }
 
         $result = TinkerAction::executeCode($code);
-        
+
         $status = $result['has_error'] ? '❌' : '✅';
         $output = !empty($result['output']) ? $result['output'] : '(sem output)';
-        
+
         if (strlen($output) > 1900) {
             $output = substr($output, 0, 1900) . "\n... (truncado)";
         }
@@ -198,7 +198,7 @@ class DiscordInteractionController extends Controller
 
     /**
      * Verify Discord request signature (Ed25519)
-     * 
+     *
      * Discord signs all interaction requests with Ed25519.
      * This prevents unauthorized requests to your endpoint.
      */
@@ -214,7 +214,7 @@ class DiscordInteractionController extends Controller
         }
 
         $publicKey = env('DISCORD_PUBLIC_KEY', '');
-        
+
         // In development, allow without verification for easier testing
         if (app()->environment('local') && empty($publicKey)) {
             Log::warning('Discord signature verification skipped in local environment');
@@ -237,7 +237,7 @@ class DiscordInteractionController extends Controller
         // Discord signature format: hex-encoded Ed25519 signature
         $signatureBinary = hex2bin($signature);
         $publicKeyBinary = hex2bin($publicKey);
-        
+
         // Discord signs: timestamp + body
         $message = $timestamp . $body;
 
