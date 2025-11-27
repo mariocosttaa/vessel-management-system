@@ -364,10 +364,8 @@ const copyCredentials = async (email: string) => {
   const credentials = `Email: ${email}\nPassword: password`
   try {
     await navigator.clipboard.writeText(credentials)
-    // You could add a toast notification here
-    console.log('Credentials copied to clipboard')
   } catch (err) {
-    console.error('Failed to copy credentials:', err)
+    // Error handled silently
   }
 }
 </script>
