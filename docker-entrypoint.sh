@@ -58,28 +58,6 @@ find /var/www/html/bootstrap/ssr -type f -exec chmod 664 {} \; || true
 
 echo "Storage directories and files initialized with correct permissions."
 
-# Conditionally create Discord bot supervisor config if token is set
-if [ -n "$DISCORD_BOT_TOKEN" ]; then
-    echo "Discord bot token found. Creating supervisor configuration..."
-    cat > /etc/supervisor/conf.d/discord-bot.conf <<EOF
-[program:discord-bot]
-command=php /var/www/html/artisan discord:bot
-directory=/var/www/html
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-stdout_logfile=/var/www/html/storage/logs/discord-bot.log
-stderr_logfile=/var/www/html/storage/logs/discord-bot.log
-user=www-data
-EOF
-    echo "Discord bot supervisor configuration created."
-else
-    echo "Discord bot token not set. Skipping Discord bot configuration."
-    # Remove config if it exists from previous runs
-    rm -f /etc/supervisor/conf.d/discord-bot.conf
-fi
-
 # Execute the original command (supervisord)
 exec "$@"
 

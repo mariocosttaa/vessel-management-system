@@ -133,9 +133,6 @@ RUN echo '[program:ssr-server]' > /etc/supervisor/conf.d/ssr-server.conf \
     && echo 'stdout_logfile=/var/www/html/storage/logs/ssr-server.log' >> /etc/supervisor/conf.d/ssr-server.conf \
     && echo 'stderr_logfile=/var/www/html/storage/logs/ssr-server.log' >> /etc/supervisor/conf.d/ssr-server.conf
 
-# Discord bot configuration will be created conditionally in docker-entrypoint.sh
-# Only if DISCORD_BOT_TOKEN is set
-
 # Configure nginx for Laravel with Vite support
 RUN rm -f /etc/nginx/sites-enabled/default \
     && echo 'server {' > /etc/nginx/sites-available/laravel \
@@ -177,6 +174,6 @@ EXPOSE 80
 # Use entrypoint to ensure permissions are set at startup
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Start supervisor (which manages nginx, php-fpm, queue worker, scheduler, SSR server, and Discord bot)
+# Start supervisor (which manages nginx, php-fpm, queue worker, scheduler, and SSR server)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 

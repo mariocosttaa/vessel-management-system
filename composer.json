@@ -19,7 +19,6 @@
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
         "maatwebsite/excel": "^3.1",
-        "ratchet/pawl": "^0.4.3",
         "socialiteproviders/microsoft": "^4.7"
     },
     "require-dev": {
