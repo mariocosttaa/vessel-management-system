@@ -335,6 +335,35 @@ class Movimentation extends Model
                 $transaction->total_amount = $transaction->amount + ($transaction->vat_amount ?? 0);
             }
         });
+
+        // Delete attached files only when transaction is permanently deleted (force delete)
+        // This ensures files are preserved when transaction is soft deleted and can be recovered
+        static::forceDeleting(function ($transaction) {
+            $files = $transaction->files;
+            $vesselId = $transaction->vessel_id;
+
+            foreach ($files as $file) {
+                // Delete physical file from storage using TenantFileAction
+                try {
+                    \App\Actions\Tenant\TenantFileAction::delete(
+                        vesselId: $vesselId,
+                        fileUrl: $file->src,
+                        isPublic: false
+                    );
+                } catch (\Exception $e) {
+                    // Log error but continue with deletion
+                    \Illuminate\Support\Facades\Log::warning('Failed to delete physical file during transaction permanent deletion', [
+                        'file_id' => $file->id,
+                        'transaction_id' => $transaction->id,
+                        'path' => $file->src,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                // Delete database record
+                $file->delete();
+            }
+        });
     }
 
     /**

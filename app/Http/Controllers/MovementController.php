@@ -1024,25 +1024,8 @@ class MovementController extends Controller
                 abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
             }
 
-            // Delete associated files and their physical files
-            $files = $transaction->files;
-            foreach ($files as $file) {
-                // Delete physical file from storage using TenantFileAction
-                try {
-                    \App\Actions\Tenant\TenantFileAction::delete(
-                        vesselId: $vesselId,
-                        fileUrl: $file->src,
-                        isPublic: false
-                    );
-                } catch (\Exception $e) {
-                    // Log error but continue with deletion
-                    \Illuminate\Support\Facades\Log::warning('Failed to delete physical file', [
-                        'file_id' => $file->id,
-                        'path'    => $file->src,
-                        'error'   => $e->getMessage(),
-                    ]);
-                }
-            }
+            // Files will be automatically deleted by the model's deleting event
+            // No need to manually delete them here
 
             $transactionNumber = $transaction->transaction_number;
 
