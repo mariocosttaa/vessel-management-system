@@ -301,8 +301,15 @@ class Maintenance extends Model
     /**
      * Calculate total expenses from transactions.
      */
+    /**
+     * Calculate total expenses from transactions.
+     */
     public function getTotalExpensesAttribute(): int
     {
+        if (isset($this->attributes['total_expenses'])) {
+            return (int) $this->attributes['total_expenses'];
+        }
+
         return (int) ($this->transactions()
             ->where('type', 'expense')
             ->sum('total_amount') ?? 0);

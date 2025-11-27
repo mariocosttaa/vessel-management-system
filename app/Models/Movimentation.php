@@ -222,6 +222,22 @@ class Movimentation extends Model
     }
 
     /**
+     * Scope to eager load common relationships.
+     * Prevents N+1 queries when displaying transaction details.
+     */
+    public function scopeWithRelationships($query)
+    {
+        return $query->with([
+            'category:id,name,type,icon',
+            'supplier:id,company_name,email,phone',
+            'crewMember:id,name,email',
+            'vatProfile:id,name,percentage',
+            'createdBy:id,name,email',
+            'files:id,transaction_id,name,src,size,mime_type',
+        ]);
+    }
+
+    /**
      * Boot the model.
      */
     protected static function boot()

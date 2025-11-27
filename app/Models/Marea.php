@@ -203,6 +203,22 @@ class Marea extends Model
     }
 
     /**
+     * Scope to eager load transaction totals.
+     * This prevents N+1 queries when accessing total_income and total_expenses attributes.
+     */
+    public function scopeWithTransactionTotals($query)
+    {
+        return $query
+            ->withSum(['transactions as total_income' => function ($q) {
+                $q->where('type', 'income');
+            }], 'total_amount')
+            ->withSum(['transactions as total_expenses' => function ($q) {
+                $q->where('type', 'expense');
+            }], 'total_amount');
+    }
+
+
+    /**
      * Boot the model.
      */
     protected static function boot()
@@ -243,8 +259,13 @@ class Marea extends Model
         $startingNumber = $vesselSetting->starting_marea_number ?? 1;
 
         // Find the highest numeric value from all mareas (including soft-deleted)
+        // Optimization: Filter by current year to reduce dataset
+        $year = date('Y');
+        $pattern = "MARE{$year}%";
+        
         $allMareas = self::withTrashed()
             ->where('vessel_id', $vesselId)
+            ->where('marea_number', 'like', $pattern)
             ->get();
 
         $maxNumber = $startingNumber - 1;
@@ -287,8 +308,13 @@ class Marea extends Model
         $startingNumber = $vesselSetting->starting_marea_number ?? 1;
 
         // Find the highest numeric value from all mareas (including soft-deleted)
+        // Optimization: Filter by current year to reduce dataset
+        $year = date('Y');
+        $pattern = "MARE{$year}%";
+        
         $allMareas = self::withTrashed()
             ->where('vessel_id', $vesselId)
+            ->where('marea_number', 'like', $pattern)
             ->get();
 
         $maxNumber = $startingNumber - 1;
@@ -403,20 +429,34 @@ class Marea extends Model
      */
     public function getTotalIncomeAttribute(): int
     {
+        // Check if eager-loaded via withSum or withTransactionTotals scope
+        if (isset($this->attributes['total_income'])) {
+            return (int) $this->attributes['total_income'];
+        }
+
+        // Fallback to query (for backward compatibility)
         return (int) ($this->transactions()
             ->where('type', 'income')
             ->sum('total_amount') ?? 0);
     }
+
 
     /**
      * Calculate total expenses from transactions.
      */
     public function getTotalExpensesAttribute(): int
     {
+        // Check if eager-loaded via withSum or withTransactionTotals scope
+        if (isset($this->attributes['total_expenses'])) {
+            return (int) $this->attributes['total_expenses'];
+        }
+
+        // Fallback to query (for backward compatibility)
         return (int) ($this->transactions()
             ->where('type', 'expense')
             ->sum('total_amount') ?? 0);
     }
+
 
     /**
      * Calculate net result (income - expenses).
@@ -508,10 +548,16 @@ class Marea extends Model
         }
 
         // Use marea-specific items if they exist, otherwise use profile items
-        $hasOverrides = $this->distributionItems()->exists();
-        $items = $hasOverrides
-            ? $this->distributionItems()->orderBy('order_index')->get()
-            : ($this->distributionProfile ? $this->distributionProfile->items()->orderBy('order_index')->get() : collect());
+        // Optimize: Use loaded relationships if available to avoid N+1 queries
+        $hasOverrides = $this->distributionItems->isNotEmpty();
+        
+        if ($hasOverrides) {
+            $items = $this->distributionItems; // Relationship has default orderBy('order_index')
+        } else {
+            $items = $this->distributionProfile 
+                ? $this->distributionProfile->items->sortBy('order_index') 
+                : collect();
+        }
 
         if ($items->isEmpty()) {
             return [

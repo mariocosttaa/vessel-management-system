@@ -50,9 +50,18 @@ class VesselSetting extends Model
     /**
      * Get or create settings for a vessel.
      */
+    /**
+     * Get or create settings for a vessel.
+     */
     public static function getForVessel(int $vesselId): self
     {
-        return self::firstOrCreate(
+        static $cache = [];
+
+        if (isset($cache[$vesselId])) {
+            return $cache[$vesselId];
+        }
+
+        $setting = self::firstOrCreate(
             ['vessel_id' => $vesselId],
             [
                 'country_code' => null,
@@ -61,6 +70,10 @@ class VesselSetting extends Model
                 'starting_marea_number' => 1,
             ]
         );
+
+        $cache[$vesselId] = $setting;
+
+        return $setting;
     }
 
     /**

@@ -180,6 +180,9 @@ class Vessel extends Model
      */
     public function hasUser(int $userId): bool
     {
+        if ($this->relationLoaded('users')) {
+            return $this->users->contains('id', $userId);
+        }
         return $this->users()->where('user_id', $userId)->exists();
     }
 
@@ -188,6 +191,10 @@ class Vessel extends Model
      */
     public function getUserRole(int $userId): ?string
     {
+        if ($this->relationLoaded('users')) {
+            $user = $this->users->firstWhere('id', $userId);
+            return $user?->pivot?->role;
+        }
         $pivot = $this->users()->where('user_id', $userId)->first()?->pivot;
         return $pivot?->role;
     }
