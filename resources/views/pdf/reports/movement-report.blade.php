@@ -25,7 +25,7 @@
 
 @extends('pdf.layouts.base')
 
-@section('title', $title ?? 'Movement Report')
+@section('title', $title ?? trans('pdfs.Movement Report'))
 
 @section('content')
     @php
