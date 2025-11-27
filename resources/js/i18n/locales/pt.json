@@ -1441,5 +1441,19 @@
     "Bindamy Mareas may update these Terms at any time.": "Bindamy Mareas pode atualizar estes Termos a qualquer momento.",
     "Updates will be posted with the new \"Effective Date.\"": "As atualizações serão publicadas com a nova \"Data de Vigência\".",
     "Continued use of the Platform constitutes acceptance of the updated Terms.": "O uso continuado da Plataforma constitui aceitação dos Termos atualizados.",
-    "For questions, support, or inquiries regarding these Terms:": "Para perguntas, suporte ou consultas sobre estes Termos:"
+    "For questions, support, or inquiries regarding these Terms:": "Para perguntas, suporte ou consultas sobre estes Termos:",
+    "Save Start Date": "Salvar Data de Início",
+    "Edit Member": "Editar Membro",
+    "Delete Member": "Excluir Membro",
+    "Are you sure you want to delete the member": "Tem certeza de que deseja excluir o membro",
+    "This will permanently remove the member and all their data": "Isso removerá permanentemente o membro e todos os seus dados",
+    "Cancel Invitation": "Cancelar Convite",
+    "An email will be sent to notify the user.": "Um e-mail será enviado para notificar o usuário.",
+    "Are you sure you want to cancel the invitation for": "Tem certeza de que deseja cancelar o convite para",
+    "This will cancel the invitation and send a notification email to the user": "Isso cancelará o convite e enviará um e-mail de notificação ao usuário",
+    "Keep Invitation": "Manter Convite",
+    "Default Currency": "Moeda Padrão",
+    "Default VAT Profile": "Perfil de IVA Padrão",
+    "Search": "Pesquisar",
+    "This action cannot be undone. All items in the recycle bin will be permanently deleted.": "Esta ação não pode ser desfeita. Todos os itens na lixeira serão permanentemente excluídos."
 }

@@ -1446,5 +1446,19 @@
     "Bindamy Mareas may update these Terms at any time.": "Bindamy Mareas peut mettre à jour ces Conditions à tout moment.",
     "Updates will be posted with the new \"Effective Date.\"": "Les mises à jour seront publiées avec la nouvelle \"Date d'Entrée en Vigueur\".",
     "Continued use of the Platform constitutes acceptance of the updated Terms.": "L'utilisation continue de la Plateforme constitue l'acceptation des Conditions mises à jour.",
-    "For questions, support, or inquiries regarding these Terms:": "Pour des questions, un support ou des demandes concernant ces Conditions:"
+    "For questions, support, or inquiries regarding these Terms:": "Pour des questions, un support ou des demandes concernant ces Conditions:",
+    "Save Start Date": "Enregistrer la Date de Début",
+    "Edit Member": "Modifier le Membre",
+    "Delete Member": "Supprimer le Membre",
+    "Are you sure you want to delete the member": "Êtes-vous sûr de vouloir supprimer le membre",
+    "This will permanently remove the member and all their data": "Cela supprimera définitivement le membre et toutes ses données",
+    "Cancel Invitation": "Annuler l'Invitation",
+    "An email will be sent to notify the user.": "Un e-mail sera envoyé pour notifier l'utilisateur.",
+    "Are you sure you want to cancel the invitation for": "Êtes-vous sûr de vouloir annuler l'invitation pour",
+    "This will cancel the invitation and send a notification email to the user": "Cela annulera l'invitation et enverra un e-mail de notification à l'utilisateur",
+    "Keep Invitation": "Conserver l'Invitation",
+    "Default Currency": "Devise par Défaut",
+    "Default VAT Profile": "Profil de TVA par Défaut",
+    "Search": "Rechercher",
+    "This action cannot be undone. All items in the recycle bin will be permanently deleted.": "Cette action ne peut pas être annulée. Tous les éléments de la corbeille seront définitivement supprimés."
 }
