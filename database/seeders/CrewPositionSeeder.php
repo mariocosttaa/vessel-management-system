@@ -1,6 +1,8 @@
 <?php
 namespace Database\Seeders;
 
+use App\Models\CrewPosition;
+use App\Models\VesselRoleAccess;
 use Illuminate\Database\Seeder;
 
 class CrewPositionSeeder extends Seeder
@@ -235,7 +237,79 @@ class CrewPositionSeeder extends Seeder
         ];
 
         foreach ($positions as $position) {
-            \App\Models\CrewPosition::updateOrCreate(
+            CrewPosition::updateOrCreate(
+                [
+                    'name'      => $position['name'],
+                    'vessel_id' => $position['vessel_id'],
+                ],
+                $position
+            );
+        }
+
+        // Add administrative roles
+        $this->seedAdministrativeRoles();
+    }
+
+    /**
+     * Seed administrative roles with proper vessel role access mappings.
+     */
+    private function seedAdministrativeRoles(): void
+    {
+        // Get vessel role access IDs
+        $administratorRole = VesselRoleAccess::where('name', 'administrator')->first();
+        $supervisorRole = VesselRoleAccess::where('name', 'supervisor')->first();
+        $normalRole = VesselRoleAccess::where('name', 'normal')->first();
+
+        $administrativePositions = [
+            // Administrative roles with administrator access
+            [
+                'name'                  => 'CEO',
+                'description'           => 'Chief Executive Officer - Full administrative access',
+                'vessel_id'             => null, // Global position
+                'vessel_role_access_id' => $administratorRole?->id,
+                'is_administrative'    => true,
+            ],
+            [
+                'name'                  => 'Director',
+                'description'           => 'Director - Full administrative access',
+                'vessel_id'             => null,
+                'vessel_role_access_id' => $administratorRole?->id,
+                'is_administrative'    => true,
+            ],
+            [
+                'name'                  => 'Administrador',
+                'description'           => 'Administrator - Full administrative access',
+                'vessel_id'             => null,
+                'vessel_role_access_id' => $administratorRole?->id,
+                'is_administrative'    => true,
+            ],
+            // Administrative roles with supervisor access
+            [
+                'name'                  => 'Finance Manager',
+                'description'           => 'Finance Manager - Supervisor level access',
+                'vessel_id'             => null,
+                'vessel_role_access_id' => $supervisorRole?->id,
+                'is_administrative'    => true,
+            ],
+            [
+                'name'                  => 'Manager',
+                'description'           => 'Manager - Supervisor level access',
+                'vessel_id'             => null,
+                'vessel_role_access_id' => $supervisorRole?->id,
+                'is_administrative'    => true,
+            ],
+            // Administrative role with normal access
+            [
+                'name'                  => 'Visitant',
+                'description'           => 'Visitor - View-only access',
+                'vessel_id'             => null,
+                'vessel_role_access_id' => $normalRole?->id,
+                'is_administrative'    => true,
+            ],
+        ];
+
+        foreach ($administrativePositions as $position) {
+            CrewPosition::updateOrCreate(
                 [
                     'name'      => $position['name'],
                     'vessel_id' => $position['vessel_id'],
