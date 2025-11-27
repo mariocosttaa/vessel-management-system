@@ -120,4 +120,6 @@ return [
     'Movements'                                      => 'Movimientos',
     'Total Movements'                                => 'Total de Movimientos',
     'No movements found for the selected period.'    => 'No se encontraron movimientos para el período seleccionado.',
+    'Movement Report'                                => 'Informe de Movimientos',
+    'System Report'                                  => 'Informe del Sistema',
 ];

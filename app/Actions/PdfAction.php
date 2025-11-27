@@ -259,8 +259,10 @@ class PdfAction
             'Generated on'                   => trans('pdfs.Generated on'),
             'All rights reserved'            => trans('pdfs.All rights reserved'),
             'Transaction Report'             => trans('pdfs.Transaction Report'),
+            'Movement Report'                => trans('pdfs.Movement Report'),
             'Marea Report'                   => trans('pdfs.Marea Report'),
             'Maintenance Report'             => trans('pdfs.Maintenance Report'),
+            'System Report'                  => trans('pdfs.System Report'),
         ];
 
         // Restore original locale

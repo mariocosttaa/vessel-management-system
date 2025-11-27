@@ -127,4 +127,6 @@ return [
     'Movements'                                      => 'Movements',
     'Total Movements'                                => 'Total Movements',
     'No movements found for the selected period.'    => 'No movements found for the selected period.',
+    'Movement Report'                                => 'Movement Report',
+    'System Report'                                  => 'System Report',
 ];
