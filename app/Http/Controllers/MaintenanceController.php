@@ -145,13 +145,13 @@ class MaintenanceController extends Controller
 
         // Check permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['maintenances.create'] ?? false)) {
-            abort(403, 'You do not have permission to create maintenances.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to create maintenances.'));
         }
 
         // Get next maintenance number for this vessel with details
@@ -187,19 +187,19 @@ class MaintenanceController extends Controller
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                 if (! $vesselId) {
-                    abort(404, 'Vessel not found.');
+                    abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                 }
             }
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['maintenances.create'] ?? false)) {
-                abort(403, 'You do not have permission to create maintenances.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to create maintenances.'));
             }
 
             // Validate request - only required fields
@@ -331,7 +331,7 @@ class MaintenanceController extends Controller
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                 if (! $vesselId) {
-                    abort(404, 'Vessel not found.');
+                    abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                 }
             }
         }
@@ -342,7 +342,7 @@ class MaintenanceController extends Controller
         if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
             $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
             if (! $maintenanceId) {
-                abort(404, 'Maintenance not found.');
+                abort(404, $this->transFrom('notifications', 'Maintenance not found.'));
             }
         } else {
             $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
@@ -359,13 +359,13 @@ class MaintenanceController extends Controller
 
         // Check permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['maintenances.view'] ?? false)) {
-            abort(403, 'You do not have permission to view maintenances.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view maintenances.'));
         }
 
         // Load all relationships
@@ -539,7 +539,7 @@ class MaintenanceController extends Controller
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['maintenances.view'] ?? false)) {
-            abort(403, 'You do not have permission to view maintenances.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view maintenances.'));
         }
 
         // Get maintenance ID directly from route parameter
@@ -585,7 +585,7 @@ class MaintenanceController extends Controller
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                     if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                 }
             }
@@ -596,7 +596,7 @@ class MaintenanceController extends Controller
             if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
                 $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
                 if (! $maintenanceId) {
-                    abort(404, 'Maintenance not found.');
+                    abort(404, $this->transFrom('notifications', 'Maintenance not found.'));
                 }
             } else {
                 $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
@@ -609,13 +609,13 @@ class MaintenanceController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['maintenances.delete'] ?? false)) {
-                abort(403, 'You do not have permission to delete maintenances.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to delete maintenances.'));
             }
 
             $maintenanceNumber = $maintenance->maintenance_number;
@@ -685,7 +685,7 @@ class MaintenanceController extends Controller
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                     if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                 }
             }
@@ -696,7 +696,7 @@ class MaintenanceController extends Controller
             if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
                 $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
                 if (! $maintenanceId) {
-                    abort(404, 'Maintenance not found.');
+                    abort(404, $this->transFrom('notifications', 'Maintenance not found.'));
                 }
             } else {
                 $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
@@ -713,12 +713,12 @@ class MaintenanceController extends Controller
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['maintenances.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit maintenances.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit maintenances.'));
             }
 
             // Cannot update closed or cancelled maintenances
             if ($maintenance->status === 'closed' || $maintenance->status === 'cancelled') {
-                abort(403, 'Cannot update a closed or cancelled maintenance.');
+                abort(403, $this->transFrom('notifications', 'Cannot update a closed or cancelled maintenance.'));
             }
 
             // Validate request
@@ -795,7 +795,7 @@ class MaintenanceController extends Controller
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                     if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                 }
             }
@@ -806,7 +806,7 @@ class MaintenanceController extends Controller
             if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
                 $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
                 if (! $maintenanceId) {
-                    abort(404, 'Maintenance not found.');
+                    abort(404, $this->transFrom('notifications', 'Maintenance not found.'));
                 }
             } else {
                 $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
@@ -823,7 +823,7 @@ class MaintenanceController extends Controller
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['maintenances.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit maintenances.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit maintenances.'));
             }
 
             // Validate that end_date is set
@@ -898,7 +898,7 @@ class MaintenanceController extends Controller
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                     if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                 }
             }
@@ -909,7 +909,7 @@ class MaintenanceController extends Controller
             if ($maintenanceIdFromRoute && ! is_numeric($maintenanceIdFromRoute)) {
                 $maintenanceId = $this->unhashId($maintenanceIdFromRoute, 'maintenance');
                 if (! $maintenanceId) {
-                    abort(404, 'Maintenance not found.');
+                    abort(404, $this->transFrom('notifications', 'Maintenance not found.'));
                 }
             } else {
                 $maintenanceId = (int) ($maintenanceIdFromRoute ?? $maintenanceId);
@@ -922,18 +922,18 @@ class MaintenanceController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['maintenances.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit maintenances.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit maintenances.'));
             }
 
             // Cannot remove transactions from closed or cancelled maintenances
             if ($maintenance->status === 'closed' || $maintenance->status === 'cancelled') {
-                abort(403, 'Cannot remove transactions from a closed or cancelled maintenance.');
+                abort(403, $this->transFrom('notifications', 'Cannot remove transactions from a closed or cancelled maintenance.'));
             }
 
             // Get transaction ID from route parameter and unhash it
@@ -944,7 +944,7 @@ class MaintenanceController extends Controller
                 $transactionId = (int) $transactionParam;
             }
             if (! $transactionId) {
-                abort(404, 'Transaction not found.');
+                abort(404, $this->transFrom('notifications', 'Transaction not found.'));
             }
             $transaction = Movimentation::where('maintenance_id', $maintenance->id)->findOrFail($transactionId);
 

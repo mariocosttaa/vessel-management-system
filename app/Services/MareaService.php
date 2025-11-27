@@ -144,13 +144,19 @@ class MareaService
         $inputNumericPart = $matches[1] ?? null;
 
         if ($inputNumericPart) {
+            // Optimization: Filter by the current year's pattern to reduce dataset
+            // Assuming standard format MARE{YEAR}{NUMBER}
+            $year = date('Y');
+            $pattern = "MARE{$year}%";
+            
             $softDeletedWithSameNumber = Marea::onlyTrashed()
                 ->where('vessel_id', $vesselId)
+                ->where('marea_number', 'like', $pattern)
                 ->get()
                 ->filter(function ($marea) use ($inputNumericPart) {
                     preg_match('/(\d+)/', $marea->marea_number, $matches);
                     $numericPart = $matches[1] ?? null;
-                    return $numericPart === $inputNumericPart;
+                    return (int)$numericPart === (int)$inputNumericPart;
                 })
                 ->first();
 

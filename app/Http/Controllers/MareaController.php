@@ -32,15 +32,13 @@ class MareaController extends Controller
         $vesselId = $request->attributes->get('vessel_id');
 
         // Check if user has permission to view mareas using config permissions
-        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
-        }
+        // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
         // Check mareas.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['mareas.view'] ?? false)) {
-            abort(403, 'You do not have permission to view mareas.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view mareas.'));
         }
 
         // Main data query - filter by vessel
@@ -87,7 +85,16 @@ class MareaController extends Controller
             'vessel:id,name',
             'distributionProfile:id,name',
             'createdBy:id,name',
-        ])->paginate(15)->withQueryString();
+        ])
+        ->withCount('transactions')
+        ->withSum(['transactions as total_income' => function ($query) {
+            $query->where('type', 'income');
+        }], 'total_amount')
+        ->withSum(['transactions as total_expenses' => function ($query) {
+            $query->where('type', 'expense');
+        }], 'total_amount')
+        ->paginate(15)
+        ->withQueryString();
 
         // Current filters
         $filters = $request->only([
@@ -115,9 +122,6 @@ class MareaController extends Controller
 
         return Inertia::render('Mareas/Index', [
             'mareas'          => $mareas->through(function ($marea) {
-                // Count transactions for this marea
-                $transactionCount = \App\Models\Movimentation::where('marea_id', $marea->id)->count();
-
                 return [
                     'id'                       => $this->hashId($marea->id, 'marea'),
                     'marea_number'             => $marea->marea_number,
@@ -132,7 +136,7 @@ class MareaController extends Controller
                     'total_expenses'           => $marea->total_expenses,
                     'net_result'               => $marea->net_result,
                     'created_at'               => $marea->created_at ? $marea->created_at->format('Y-m-d H:i:s') : null,
-                    'transaction_count'        => $transactionCount,
+                    'transaction_count'        => $marea->transactions_count,
                 ];
             }),
             'statuses'        => $statuses,
@@ -155,13 +159,13 @@ class MareaController extends Controller
 
         // Check permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['mareas.create'] ?? false)) {
-            abort(403, 'You do not have permission to create mareas.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to create mareas.'));
         }
 
         // Get next marea number for this vessel with details
@@ -200,19 +204,19 @@ class MareaController extends Controller
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                 if (! $vesselId) {
-                    abort(404, 'Vessel not found.');
+                    abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                 }
             }
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.create'] ?? false)) {
-                abort(403, 'You do not have permission to create mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to create mareas.'));
             }
 
             // Validate request - only required fields
@@ -286,38 +290,39 @@ class MareaController extends Controller
         }
 
         // Force fresh query with both vessel_id and id to ensure correct marea
+        // Use withTransactionTotals to prevent N+1 queries
         $marea = Marea::where('vessel_id', $vesselId)
             ->where('id', $mareaId)
+            ->withTransactionTotals()
             ->firstOrFail();
+
 
         // Check permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['mareas.view'] ?? false)) {
-            abort(403, 'You do not have permission to view mareas.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view mareas.'));
         }
 
-        // Load all relationships
-        $marea->load([
-            'vessel:id,name,currency_code',
-            'distributionProfile.items',
-            'distributionItems.profileItem',
-            'createdBy:id,name',
-            'crew' => function ($query) {
-                $query->with('user:id,name,email');
-            },
-            'quantityReturns',
-            // Don't load transactions here - we'll load them separately with pagination
-        ]);
-
-        // Also load crewMembers if it's a BelongsToMany relationship
-        if (method_exists($marea, 'crewMembers')) {
-            $marea->load('crewMembers:id,name,email');
-        }
+        // Load all relationships with optimized eager loading to prevent N+1 queries
+    $marea->load([
+        'vessel:id,name,currency_code',
+        'distributionProfile.items',
+        'distributionItems.profileItem',
+        'createdBy:id,name,email', // Add email to prevent additional query
+        'crew' => function ($query) {
+            $query->with([
+                'user:id,name,email',
+                'user.activeSalaryCompensation:id,user_id,compensation_type,fixed_amount,percentage,currency,is_active'
+            ]);
+        },
+        'quantityReturns:id,marea_id,quantity,unit,notes,created_at',
+        // Don't load transactions here - we'll load them separately with pagination
+    ]);
 
         // Calculate distribution
         $distribution = $marea->calculateDistribution();
@@ -326,10 +331,12 @@ class MareaController extends Controller
         // Get categories: system categories (vessel_id = null) + vessel-specific categories
         $categories  = \App\Models\MovimentationCategory::forVessel($vesselId)->orderBy('name')->get();
         $suppliers   = \App\Models\Supplier::where('vessel_id', $vesselId)->orderBy('company_name')->get();
-        $crewMembers = \App\Models\User::where('vessel_id', $vesselId)
-            ->whereNotNull('position_id')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+
+        // Use crew members from the already-loaded marea crew relationship to avoid duplicate queries
+        $crewMembers = $marea->crew->map(function ($crew) {
+            return $crew->user;
+        });
+
         $vatProfiles       = \App\Models\VatProfile::active()->orderBy('name')->get();
         $vesselSetting     = \App\Models\VesselSetting::getForVessel($vesselId);
         $vessel            = \App\Models\Vessel::find($vesselId);
@@ -346,9 +353,8 @@ class MareaController extends Controller
         // Get salary compensation data for crew members in this marea
         $crewSalaryData = [];
         foreach ($marea->crew as $crew) {
-            $salaryCompensation = \App\Models\SalaryCompensation::where('user_id', $crew->user_id)
-                ->where('is_active', true)
-                ->first();
+            // Use eager loaded activeSalaryCompensation
+            $salaryCompensation = $crew->user->activeSalaryCompensation->first();
 
             if ($salaryCompensation) {
                 // Calculate amount based on compensation type
@@ -386,6 +392,7 @@ class MareaController extends Controller
                 'category:id,name,type,color',
                 'supplier:id,company_name',
                 'crewMember:id,name,email',
+                'createdBy:id,name,email',
             ]);
 
         // Search functionality
@@ -443,6 +450,7 @@ class MareaController extends Controller
             ->with([
                 'category:id,name,type,color',
                 'crewMember:id,name,email',
+                'createdBy:id,name,email',
             ]);
 
         // Search functionality for salary payments
@@ -658,22 +666,24 @@ class MareaController extends Controller
         // Force fresh query with both vessel_id and id to ensure correct marea
         $marea = Marea::where('vessel_id', $vesselId)
             ->where('id', $mareaId)
+            ->withTransactionTotals()
             ->firstOrFail();
+
 
         // Check permissions
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['mareas.edit'] ?? false)) {
-            abort(403, 'You do not have permission to edit mareas.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
         }
 
         // Cannot edit closed or cancelled mareas
         if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-            abort(403, 'Cannot edit a closed or cancelled marea.');
+            abort(403, $this->transFrom('notifications', 'Cannot edit a closed or cancelled marea.'));
         }
 
         // Get distribution profiles
@@ -739,14 +749,12 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.delete'] ?? false)) {
-                abort(403, 'You do not have permission to delete mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to delete mareas.'));
             }
 
             $mareaNumber = $marea->marea_number;
@@ -824,14 +832,12 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.manage-status'] ?? false)) {
-                abort(403, 'You do not have permission to manage marea status.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to manage marea status.'));
             }
 
             $validated = $request->validate([
@@ -910,14 +916,12 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.manage-status'] ?? false)) {
-                abort(403, 'You do not have permission to manage marea status.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to manage marea status.'));
             }
 
             $validated = $request->validate([
@@ -996,14 +1000,12 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.manage-status'] ?? false)) {
-                abort(403, 'You do not have permission to manage marea status.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to manage marea status.'));
             }
 
             $marea->close();
@@ -1051,14 +1053,12 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.manage-status'] ?? false)) {
-                abort(403, 'You do not have permission to manage marea status.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to manage marea status.'));
             }
 
             $marea->cancel();
@@ -1107,19 +1107,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot add transactions to closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot add transactions to a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot add transactions to a closed or cancelled marea.'));
             }
 
             // Unhash transaction_id from request before validation
@@ -1189,19 +1187,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot remove transactions from closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot remove transactions from a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot remove transactions from a closed or cancelled marea.'));
             }
 
             // Get movimentation ID from route parameter and unhash it
@@ -1212,7 +1208,7 @@ class MareaController extends Controller
                 $transactionId = (int) $transactionParam;
             }
             if (! $transactionId) {
-                abort(404, 'Movimentation not found.');
+                abort(404, $this->transFrom('notifications', 'Movimentation not found.'));
             }
             $transaction = Movimentation::where('marea_id', $marea->id)->findOrFail($transactionId);
 
@@ -1259,19 +1255,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot add crew to closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot add crew to a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot add crew to a closed or cancelled marea.'));
             }
 
             // Unhash user_id from request before validation
@@ -1300,7 +1294,7 @@ class MareaController extends Controller
             $isDirectCrewMember    = (int) $crewUser->vessel_id === (int) $vesselId;
 
             if (! $hasAccessThroughRoles && ! $isDirectCrewMember) {
-                abort(403, 'User does not belong to this vessel.');
+                abort(403, $this->transFrom('notifications', 'User does not belong to this vessel.'));
             }
 
             // Check if already added
@@ -1356,19 +1350,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot remove crew from closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot remove crew from a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot remove crew from a closed or cancelled marea.'));
             }
 
             // Get user ID from route parameter and unhash it
@@ -1379,7 +1371,7 @@ class MareaController extends Controller
                 $userId = (int) $userParam;
             }
             if (! $userId) {
-                abort(404, 'Crew member not found.');
+                abort(404, $this->transFrom('notifications', 'Crew member not found.'));
             }
 
             // Remove crew member
@@ -1425,19 +1417,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Can only add quantity returns to returned mareas (not closed)
             if ($marea->status !== 'returned') {
-                abort(403, 'Can only add quantity returns to returned mareas. Closed mareas cannot be modified.');
+                abort(403, $this->transFrom('notifications', 'Can only add quantity returns to returned mareas. Closed mareas cannot be modified.'));
             }
 
             $validated = $request->validate([
@@ -1494,19 +1484,17 @@ class MareaController extends Controller
                 ->firstOrFail();
 
             // Check permissions
-            if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
-            }
+            // Note: Vessel access is already checked by EnsureVesselAccess middleware
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot remove quantity returns from closed mareas
             if ($marea->status === 'closed') {
-                abort(403, 'Cannot remove quantity returns from a closed marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot remove quantity returns from a closed marea.'));
             }
 
             // Get quantity return ID from route parameter and unhash it
@@ -1517,7 +1505,7 @@ class MareaController extends Controller
                 $quantityReturnId = (int) $quantityReturnParam;
             }
             if (! $quantityReturnId) {
-                abort(404, 'Quantity return not found.');
+                abort(404, $this->transFrom('notifications', 'Quantity return not found.'));
             }
             $quantityReturn = MareaQuantityReturn::where('marea_id', $marea->id)->findOrFail($quantityReturnId);
 
@@ -1565,7 +1553,7 @@ class MareaController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             // Get available transactions (not linked to any marea, or linked to this marea to allow re-linking)
@@ -1639,7 +1627,7 @@ class MareaController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             // Get crew members already assigned to this marea
@@ -1708,13 +1696,13 @@ class MareaController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Validate request
@@ -1843,18 +1831,18 @@ class MareaController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot edit closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot edit a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot edit a closed or cancelled marea.'));
             }
 
             // Validate request
@@ -1933,18 +1921,18 @@ class MareaController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
             if (! ($permissions['mareas.edit'] ?? false)) {
-                abort(403, 'You do not have permission to edit mareas.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to edit mareas.'));
             }
 
             // Cannot add salary payments to closed or cancelled mareas
             if ($marea->status === 'closed' || $marea->status === 'cancelled') {
-                abort(403, 'Cannot add salary payments to a closed or cancelled marea.');
+                abort(403, $this->transFrom('notifications', 'Cannot add salary payments to a closed or cancelled marea.'));
             }
 
             // Unhash crew_member_id from request before validation
@@ -2050,13 +2038,15 @@ class MareaController extends Controller
             }
 
             // Force fresh query with both vessel_id and id to ensure correct marea
+            // Use withTransactionTotals to prevent N+1 queries when calculating percentage-based salaries
             $marea = Marea::where('vessel_id', $vesselId)
                 ->where('id', $mareaId)
+                ->withTransactionTotals()
                 ->firstOrFail();
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $crewMemberIdHashed = $request->input('crew_member_id');
@@ -2127,14 +2117,14 @@ class MareaController extends Controller
 
         // Check if user has permission to view mareas for this vessel
         if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, 'You do not have access to this vessel.');
+            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
         }
 
         // Check mareas.view permission from config
         $userRole    = $user->getRoleForVessel($vesselId);
         $permissions = config('permissions.' . $userRole, config('permissions.default', []));
         if (! ($permissions['mareas.view'] ?? false)) {
-            abort(403, 'You do not have permission to view mareas.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view mareas.'));
         }
 
         // Get marea ID directly from route parameter
