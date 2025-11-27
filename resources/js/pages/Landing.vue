@@ -93,21 +93,21 @@ onMounted(() => {
             videoElementMobile.value.load()
         }
     }, 100)
-})
 
-// Close lightbox on ESC key
-const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && lightboxImage.value) {
-        closeLightbox()
+    // Close lightbox on ESC key
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && lightboxImage.value) {
+            closeLightbox()
+        }
     }
-}
-
-onMounted(() => {
     window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown)
+    }
 })
 
 onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeyDown)
     // Cleanup: restore body overflow if modal was open
     document.body.style.overflow = ''
 })
