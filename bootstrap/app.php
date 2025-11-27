@@ -36,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             LogInertiaRequests::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\DebugQueryPerformance::class,
         ]);
 
         // Register role middleware
