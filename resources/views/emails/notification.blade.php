@@ -6,7 +6,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.5px; line-height: 1.2; text-align: center;">
-                    {{ $title ?? 'Notificação do Sistema' }}
+                    {{ $title ?? trans('emails.System Notifications', [], $locale ?? 'en') }}
                 </h1>
             </td>
         </tr>
@@ -17,7 +17,7 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    {{ $message ?? 'Está a receber esta notificação porque foi realizada uma ação no sistema.' }}
+                    {{ $message ?? trans('emails.You have :count new notification(s) in the system.', ['count' => 1], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>

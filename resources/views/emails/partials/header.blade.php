@@ -23,7 +23,7 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="right">
                                 <tr>
                                     <td align="right" valign="middle">
-                                        <img src="{{ $vesselLogoUrl }}" alt="{{ $vessel->name ?? 'Vessel Logo' }}" style="max-width: 150px; height: auto; display: block;" />
+                                        <img src="{{ $vesselLogoUrl }}" alt="{{ $vessel->name ?? trans('emails.Vessel Logo', [], $locale ?? 'en') }}" style="max-width: 150px; height: auto; display: block;" />
                                     </td>
                                 </tr>
                             </table>

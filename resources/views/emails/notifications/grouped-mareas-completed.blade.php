@@ -7,9 +7,9 @@
             <td align="center" style="padding-bottom: 32px;">
                 <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.5px; line-height: 1.2; text-align: center;">
                     @if($count > 1)
-                        {{ $count }} Embarcações Retornaram da Marea
+                        {{ $count }} {{ trans('emails.:count Vessels Returned from Marea', ['count' => $count], $locale ?? 'en') }}
                     @else
-                        Embarcação Retornou da Marea
+                        {{ trans('emails.Vessel Returned from Marea', [], $locale ?? 'en') }}
                     @endif
                 </h1>
             </td>
@@ -21,7 +21,7 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
-                    Olá {{ $user->name }},
+                    {{ trans('emails.Hello :name', ['name' => $user->name], $locale ?? 'en') }},
                 </p>
             </td>
         </tr>
@@ -29,9 +29,9 @@
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
                     @if($count > 1)
-                        {{ $count }} mareas foram concluídas no sistema.
+                        {{ trans('emails.:count mareas have been completed in the system.', ['count' => $count], $locale ?? 'en') }}
                     @else
-                        Uma marea foi concluída no sistema.
+                        {{ trans('emails.A marea has been completed in the system.', [], $locale ?? 'en') }}
                     @endif
                 </p>
             </td>
@@ -39,7 +39,7 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
-                    <strong style="color: #374151;">Embarcação:</strong> {{ $vessel->name ?? 'N/A' }}
+                    <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? trans('emails.N/A', [], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>
@@ -70,7 +70,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 8px;">
                                                     <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>Data de Partida:</strong>
+                                                        <strong>{{ trans('emails.Departure Date', [], $locale ?? 'en') }}:</strong>
                                                         {{ \Carbon\Carbon::parse($notification->subject_data['started_at'])->format('d/m/Y H:i') }}
                                                     </p>
                                                 </td>
@@ -80,7 +80,7 @@
                                             <tr>
                                                 <td>
                                                     <p style="margin: 0; padding: 0; font-size: 13px; color: #6b7280; line-height: 1.4;">
-                                                        <strong>Data de Retorno:</strong>
+                                                        <strong>{{ trans('emails.Return Date', [], $locale ?? 'en') }}:</strong>
                                                         {{ \Carbon\Carbon::parse($notification->subject_data['returned_at'])->format('d/m/Y H:i') }}
                                                     </p>
                                                 </td>
@@ -106,7 +106,7 @@
                     <tr>
                         <td style="background-color: #111827; border-radius: 8px;">
                             <a href="{{ route('panel.mareas.index', ['vessel' => $vessel->id]) }}" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: -0.1px;">
-                                Ver Mareas
+                                {{ trans('emails.View Mareas', [], $locale ?? 'en') }}
                             </a>
                         </td>
                     </tr>
@@ -120,9 +120,9 @@
         <tr>
             <td align="center" style="padding-top: 8px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.5; text-align: center; max-width: 500px;">
-                    A(s) embarcação(ões) retornou(ram) com sucesso da marea. Pode agora fechar a(s) marea(s) quando estiver pronto.
+                    {{ trans('emails.The vessel(s) has(have) returned successfully from marea. You can now close the marea(s) when ready.', [], $locale ?? 'en') }}
                     @if($count > 1)
-                        As últimas {{ $count }} mareas concluídas são mostradas acima.
+                        {{ trans('emails.The last :count completed mareas are shown above.', ['count' => $count], $locale ?? 'en') }}
                     @endif
                 </p>
             </td>
