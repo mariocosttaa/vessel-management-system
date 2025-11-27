@@ -110,7 +110,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { hasPermission, canView } = usePermissions();
+const { hasPermission, canView, isAdmin, isSupervisor } = usePermissions();
 const { t } = useI18n();
 
 // Get currency data from shared props
@@ -266,8 +266,9 @@ const getPreparationProgress = (marea: any) => {
             </div>
 
             <!-- Compact Financial Stats Cards -->
+            <!-- Only show financial summaries to Administrators and Supervisors -->
             <div
-                v-if="hasPermission('movimentations.view') || hasPermission('reports.access')"
+                v-if="hasPermission('reports.access') && (isAdmin || isSupervisor)"
                 class="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
                 <!-- Income -->
@@ -359,8 +360,9 @@ const getPreparationProgress = (marea: any) => {
             <!-- Main Content Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <!-- Chart Section -->
+                <!-- Only show to Administrators and Supervisors -->
                 <div
-                    v-if="hasPermission('reports.access')"
+                    v-if="hasPermission('reports.access') && (isAdmin || isSupervisor)"
                     class="lg:col-span-2 rounded-lg border border-slate-200/60 dark:border-slate-800/60 bg-card dark:bg-card p-4"
                 >
                     <div class="flex items-center justify-between mb-4">
@@ -524,7 +526,7 @@ const getPreparationProgress = (marea: any) => {
                                 :currency="transaction.currency"
                                 :decimals="getCurrencyData(transaction.currency).decimal_separator"
                                 :variant="transaction.type === 'income' ? 'positive' : transaction.type === 'expense' ? 'negative' : 'neutral'"
-                                size="xs"
+                                size="sm"
                             />
                             <p class="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">
                                 {{ transaction.formatted_transaction_date }}

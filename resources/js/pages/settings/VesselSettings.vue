@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3';
 import VesselLayout from '@/layouts/VesselLayout.vue';
@@ -75,7 +75,20 @@ interface Props {
 const props = defineProps<Props>();
 const { addNotification } = useNotifications();
 const { t } = useI18n();
+const { hasPermission } = usePermissions();
 const page = usePage();
+
+// Check if user has permission to access settings
+onMounted(() => {
+    if (!hasPermission('settings.access')) {
+        const vesselId = getCurrentVesselId();
+        if (vesselId) {
+            router.visit(`/panel/${vesselId}/dashboard`, {
+                replace: true,
+            });
+        }
+    }
+});
 
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 // Falls back to vessel.id from props if URL extraction fails
@@ -341,7 +354,7 @@ const submitLocation = () => {
 <template>
     <Head :title="t('Vessel Settings')" />
 
-    <VesselLayout :breadcrumbs="[{ title: t('Settings'), href: settings.edit.url({ vessel: getCurrentVesselId() }) }]">
+    <VesselLayout v-if="hasPermission('settings.access')" :breadcrumbs="[{ title: t('Settings'), href: settings.edit.url({ vessel: getCurrentVesselId() }) }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
