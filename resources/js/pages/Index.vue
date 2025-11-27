@@ -55,6 +55,7 @@
       :loading-progress="loadingProgress"
       :on-back="handleBackFromLoading"
       :on-skip="handleSkipLoading"
+      :loading-message="loadingMessage"
     />
 
     <!-- Main Content -->
@@ -397,6 +398,7 @@ const isEntering = ref(false)
 const showCoolAnimation = ref(false)
 const loadingVessel = ref<Vessel | null>(null)
 const loadingProgress = ref(0)
+const loadingMessage = ref<string | undefined>(undefined)
 const shouldRedirectRef = ref(true)
 const showDeleteDialog = ref(false)
 const vesselToDelete = ref<{ id: string; name: string } | null>(null)
@@ -441,6 +443,7 @@ const setShowCoolAnimation = (value: boolean) => {
 const handleAccessDashboard = (vessel: Vessel) => {
   loadingVessel.value = vessel
   loadingProgress.value = 0
+  loadingMessage.value = undefined // Use default message
   shouldRedirectRef.value = true
 
   const dashboardRoute = `/panel/${vessel.id}/dashboard`
@@ -462,6 +465,7 @@ const handleAccessDashboard = (vessel: Vessel) => {
           onError: (errors: any) => {
             loadingVessel.value = null
             loadingProgress.value = 0
+            loadingMessage.value = undefined
           },
           onSuccess: () => {
             // Success - page will redirect
@@ -469,6 +473,7 @@ const handleAccessDashboard = (vessel: Vessel) => {
           onFinish: () => {
             loadingVessel.value = null
             loadingProgress.value = 0
+            loadingMessage.value = undefined
           }
         })
       }
@@ -484,16 +489,21 @@ const handleSkipLoading = () => {
     }
     shouldRedirectRef.value = true
 
-    const dashboardRoute = `/panel/${loadingVessel.value.id}/dashboard`
+    // Determine route based on loading message
+    const route = loadingMessage.value?.includes('settings')
+      ? `/panel/${loadingVessel.value.id}/settings`
+      : `/panel/${loadingVessel.value.id}/dashboard`
 
-    router.visit(dashboardRoute, {
+    router.visit(route, {
       onError: (errors: any) => {
         loadingVessel.value = null
         loadingProgress.value = 0
+        loadingMessage.value = undefined
       },
       onFinish: () => {
         loadingVessel.value = null
         loadingProgress.value = 0
+        loadingMessage.value = undefined
       }
     })
   }
@@ -507,6 +517,7 @@ const handleBackFromLoading = () => {
   }
   loadingVessel.value = null
   loadingProgress.value = 0
+  loadingMessage.value = undefined
 }
 
 const selectVessel = (vesselId: string) => {
@@ -524,8 +535,61 @@ const createVessel = () => {
 }
 
 const editVessel = (vesselId: string) => {
-  if (isEntering.value) return
-  router.visit(`/panel/vessel/${vesselId}/edit`)
+  if (isEntering.value || isSelecting.value) return
+
+  const vessel = props.vessels.find(v => v.id === vesselId)
+  if (!vessel) return
+
+  setIsEntering(true)
+  setShowCoolAnimation(true)
+
+  // Cool animation for 1 second
+  setTimeout(() => {
+    setShowCoolAnimation(false)
+    setIsEntering(false)
+    handleAccessSettings(vessel)
+  }, 1000)
+}
+
+const handleAccessSettings = (vessel: Vessel) => {
+  loadingVessel.value = vessel
+  loadingProgress.value = 0
+  loadingMessage.value = t('Accessing vessel settings...')
+  shouldRedirectRef.value = true
+
+  const settingsRoute = `/panel/${vessel.id}/settings`
+
+  // Animate progress over 4 seconds
+  intervalId = setInterval(() => {
+    loadingProgress.value += 2.5 // 100% / 4 seconds = 2.5% per 100ms
+
+    if (loadingProgress.value >= 100) {
+      loadingProgress.value = 100
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+
+      // Only redirect if user didn't click back
+      if (shouldRedirectRef.value) {
+        router.visit(settingsRoute, {
+          onError: (errors: any) => {
+            loadingVessel.value = null
+            loadingProgress.value = 0
+            loadingMessage.value = undefined
+          },
+          onSuccess: () => {
+            // Success - page will redirect
+          },
+          onFinish: () => {
+            loadingVessel.value = null
+            loadingProgress.value = 0
+            loadingMessage.value = undefined
+          }
+        })
+      }
+    }
+  }, 100)
 }
 
 const deleteVessel = (vesselId: string, vesselName: string) => {

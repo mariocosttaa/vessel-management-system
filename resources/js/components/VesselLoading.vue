@@ -29,7 +29,7 @@
 
       <!-- Loading text -->
       <p class="text-base mt-1 mb-6 text-gray-400">
-        {{ t('Accessing vessel dashboard...') }}
+        {{ loadingMessage || t('Accessing vessel dashboard...') }}
       </p>
 
       <!-- Progress bar & percentage -->
@@ -84,6 +84,7 @@ interface Props {
   loadingProgress: number
   onBack: () => void
   onSkip: () => void
+  loadingMessage?: string
 }
 
 const props = defineProps<Props>()
