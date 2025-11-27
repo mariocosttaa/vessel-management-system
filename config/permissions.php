@@ -224,7 +224,7 @@ return [
         'distribution-profiles.edit' => false,
         'distribution-profiles.delete' => false,
         'distribution-profiles.view' => true,
-        'reports.access' => true,
+        'reports.access' => false, // Only Administrators and Supervisors can access reports
         'settings.access' => false,
         'users.manage' => false,
         'recycle_bin.view' => false,

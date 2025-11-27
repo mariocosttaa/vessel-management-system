@@ -10,11 +10,12 @@ import financialReports from '@/routes/panel/financial-reports';
 import ColorSelectionModal from '@/components/modals/Movimentation/ColorSelectionModal.vue';
 import PdfLoadingModal from '@/components/modals/PdfLoadingModal.vue';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed ID (alphanumeric string) or numeric ID
+    const vesselMatch = path.match(/\/panel\/([^/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface MonthYearCombination {
@@ -35,12 +36,12 @@ interface Props {
 const props = defineProps<Props>();
 
 // Permission check
-const { hasPermission } = usePermissions();
+const { hasPermission, isAdmin, isSupervisor } = usePermissions();
 const { t } = useI18n();
 
-// Check if user has permission to access reports
+// Check if user has permission to access reports (only Administrators and Supervisors)
 onMounted(() => {
-    if (!hasPermission('reports.access')) {
+    if (!hasPermission('reports.access') || (!isAdmin.value && !isSupervisor.value)) {
         router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
             replace: true,
         });
@@ -188,7 +189,7 @@ const groupedByYear = computed(() => {
 <template>
     <Head :title="t('Financial Reports')" />
 
-    <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
+    <VesselLayout v-if="hasPermission('reports.access') && (isAdmin || isSupervisor)" :breadcrumbs="[
         { title: t('Financial Reports'), href: financialReports.index.url({ vessel: getCurrentVesselId() }) }
     ]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">

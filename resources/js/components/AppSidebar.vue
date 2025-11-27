@@ -59,6 +59,8 @@ const getCurrentVesselId = () => {
 
 const mainNavItems = computed((): NavItem[] => {
     const vesselId = getCurrentVesselId();
+    if (!vesselId) return [];
+
     const items: NavItem[] = [];
 
     // Core Section - Most Used Items
@@ -105,7 +107,8 @@ const mainNavItems = computed((): NavItem[] => {
         const movimentationChildren: NavItem[] = [];
 
         // Movimentation History nested under Movimentations
-        if (hasPermission('reports.access')) {
+        // Only Administrators and Supervisors can access history
+        if (hasPermission('reports.access') && (isAdmin.value || hasAnyRole(['Administrator', 'Supervisor']))) {
             movimentationChildren.push({
                 title: t('History'),
                 href: `/panel/${vesselId}/movimentations/history`,
@@ -145,7 +148,8 @@ const mainNavItems = computed((): NavItem[] => {
     }
 
     // Reports Section - Financial Reports and VAT Reports
-    if (canView('movimentations') && hasPermission('reports.access')) {
+    // Only Administrators and Supervisors can access reports
+    if (canView('movimentations') && hasPermission('reports.access') && (isAdmin.value || hasAnyRole(['Administrator', 'Supervisor']))) {
         items.push({
             title: t('Financial Reports'),
             href: financialReports.index.url({ vessel: vesselId }),

@@ -39,7 +39,7 @@ interface Props {
 const props = defineProps<Props>();
 
 // Permission check
-const { hasPermission } = usePermissions();
+const { hasPermission, isAdmin, isSupervisor } = usePermissions();
 const { t } = useI18n();
 
 // PDF download state
@@ -56,9 +56,9 @@ let excelDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 // Color preference (set by color selection modal)
 let colorPreference = false;
 
-// Check if user has permission to access transaction history
+// Check if user has permission to access transaction history (only Administrators and Supervisors)
 onMounted(() => {
-    if (!hasPermission('reports.access')) {
+    if (!hasPermission('reports.access') || (!isAdmin.value && !isSupervisor.value)) {
         router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
             replace: true,
         });
@@ -286,7 +286,7 @@ const groupedByYear = computed(() => {
 <template>
     <Head :title="t('Movements History')" />
 
-    <VesselLayout v-if="hasPermission('reports.access')" :breadcrumbs="[
+    <VesselLayout v-if="hasPermission('reports.access') && (isAdmin || isSupervisor)" :breadcrumbs="[
         { title: t('Transactions'), href: transactions.index.url({ vessel: getCurrentVesselId() }) },
         { title: t('History'), href: `/panel/${getCurrentVesselId()}/movimentations/history` }
     ]">
