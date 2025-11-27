@@ -81,8 +81,18 @@ class AuditLogController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // Paginate results
-        $auditLogs = $query->paginate(50)->withQueryString();
+        // Filter by vessel_id from request (only if not already vessel-scoped)
+        if (!$vesselId && $request->filled('vessel_id')) {
+            $query->where('vessel_id', $request->vessel_id);
+        }
+
+        // Paginate results (20 per page)
+        $auditLogs = $query->paginate(20)->withQueryString();
+
+        // Transform the data manually to preserve pagination metadata
+        $auditLogs->through(function ($log) use ($request) {
+            return (new AuditLogResource($log))->toArray($request);
+        });
 
         // Get filter options
         $actions = ['create', 'update', 'delete'];
@@ -127,7 +137,7 @@ class AuditLogController extends Controller
         }
 
         return Inertia::render('AuditLogs/Index', [
-            'auditLogs' => AuditLogResource::collection($auditLogs),
+            'auditLogs' => $auditLogs,
             'filters' => $request->only(['search', 'action', 'model_type', 'user_id', 'date_from', 'date_to', 'vessel_id']),
             'actions' => $actions,
             'modelTypes' => $modelTypes,

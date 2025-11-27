@@ -45,7 +45,7 @@ class AuditLogResource extends BaseResource
             'user_name' => $this->user?->name ?? 'System',
             'user_email' => $this->user?->email ?? null,
             'model_type' => $this->model_type,
-            'model_id' => $this->hashIdForModel($this->model_id, strtolower(class_basename($this->model_type))),
+            'model_id' => $this->hashIdForModel($this->model_id, $this->getModelHashTypeName($this->model_type)),
             'model_name' => $translatedModelName,
             'page_name' => $translatedModelName,
             'action' => $this->action,
@@ -59,6 +59,35 @@ class AuditLogResource extends BaseResource
             'created_at_formatted' => $formattedDate,
             'created_at_human' => $humanDate,
         ];
+    }
+
+    /**
+     * Get the hash type name for a model class.
+     * Maps model class names to their hash type names according to hashids-patterns.md
+     */
+    protected function getModelHashTypeName(string $modelType): string
+    {
+        $className = class_basename($modelType);
+        $lowercase = strtolower($className);
+
+        // Mapping of model class names to hash type names
+        // According to hashids-patterns.md, hash types follow pattern: {model-name}-id
+        // Some models have different class names than their hash type names
+        $mapping = [
+            'movimentation' => 'transaction', // Movimentation model uses 'transaction-id' hash type
+            'movimentationcategory' => 'transactioncategory',
+            'crewposition' => 'crewposition',
+            'marea' => 'marea',
+            'maintenance' => 'maintenance',
+            'vatprofile' => 'vatprofile',
+            'vesselroleaccess' => 'vesselroleaccess',
+            'vessel' => 'vessel',
+            'user' => 'user',
+            'supplier' => 'supplier',
+        ];
+
+        // Return mapped name or fallback to lowercase class name
+        return $mapping[$lowercase] ?? $lowercase;
     }
 
     /**

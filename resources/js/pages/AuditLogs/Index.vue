@@ -10,26 +10,27 @@ import AuditLogDetailsModal from '@/components/modals/AuditLog/Details.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 
-// Get current vessel ID from URL (if available)
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface AuditLog {
-    id: number;
-    user_id: number | null;
+    id: string; // Hashed ID
+    user_id: string | null; // Hashed ID
     user_name: string;
     user_email: string | null;
     model_type: string;
-    model_id: number | null;
+    model_id: string | null; // Hashed ID
     model_name: string;
     page_name: string;
     action: string;
     action_label?: string;
     message: string;
-    vessel_id: number | null;
+    vessel_id: string | null; // Hashed ID
     vessel_name: string | null;
     ip_address: string | null;
     user_agent: string | null;
@@ -42,7 +43,20 @@ interface Props {
     auditLogs: {
         data: AuditLog[];
         links: any[];
-        meta: any;
+        current_page?: number;
+        last_page?: number;
+        per_page?: number;
+        total?: number;
+        from?: number;
+        to?: number;
+        meta?: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+            from: number;
+            to: number;
+        };
     };
     filters: {
         search?: string;
@@ -97,6 +111,23 @@ const currentVesselId = computed(() => {
 // Computed property for audit logs data
 const auditLogsData = computed(() => props.auditLogs?.data || []);
 const paginatedAuditLogs = computed(() => props.auditLogs);
+
+// Normalize pagination meta for Pagination component
+const paginationMeta = computed(() => {
+    if (!paginatedAuditLogs.value) return null;
+
+    const paginated = paginatedAuditLogs.value;
+    const meta = paginated.meta || {};
+
+    return {
+        current_page: paginated.current_page ?? meta.current_page ?? 1,
+        last_page: paginated.last_page ?? meta.last_page ?? 1,
+        per_page: paginated.per_page ?? meta.per_page ?? 20,
+        total: paginated.total ?? meta.total ?? 0,
+        from: paginated.from ?? meta.from ?? 0,
+        to: paginated.to ?? meta.to ?? 0,
+    };
+});
 
 // Filters
 const search = ref(props.filters.search || '');
@@ -191,27 +222,47 @@ const getTextClasses = (action: string) => {
     }
 };
 
-// Watch filters and reload data
+// Watch filters and reload data with debounce
 watch([search, actionFilter, modelTypeFilter, userIdFilter, dateFromFilter, dateToFilter, vesselIdFilter], () => {
     applyFilters();
-}, { deep: true });
+}, { debounce: 300 });
 
 // Apply filters
 const applyFilters = () => {
     const vesselId = getCurrentVesselId();
-    const url = vesselId
-        ? `/panel/${vesselId}/audit-logs`
-        : '/audit-logs';
+    if (!vesselId) {
+        console.error('Unable to determine vessel ID from URL');
+        return;
+    }
+    const url = `/panel/${vesselId}/audit-logs`;
 
-    router.get(url, {
-        search: search.value || undefined,
-        action: actionFilter.value || undefined,
-        model_type: modelTypeFilter.value || undefined,
-        user_id: userIdFilter.value || undefined,
-        date_from: dateFromFilter.value || undefined,
-        date_to: dateToFilter.value || undefined,
-        vessel_id: vesselIdFilter.value || undefined,
-    }, {
+    // Build filter object, only including non-empty values
+    const filters: Record<string, any> = {};
+
+    if (search.value?.trim()) {
+        filters.search = search.value.trim();
+    }
+    if (actionFilter.value) {
+        filters.action = actionFilter.value;
+    }
+    if (modelTypeFilter.value) {
+        filters.model_type = modelTypeFilter.value;
+    }
+    if (userIdFilter.value) {
+        filters.user_id = userIdFilter.value;
+    }
+    if (dateFromFilter.value) {
+        filters.date_from = dateFromFilter.value;
+    }
+    if (dateToFilter.value) {
+        filters.date_to = dateToFilter.value;
+    }
+    // Only include vessel_id filter if not already vessel-scoped
+    if (!vesselId && vesselIdFilter.value) {
+        filters.vessel_id = vesselIdFilter.value;
+    }
+
+    router.get(url, filters, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -249,10 +300,7 @@ const formatDate = (log: AuditLog) => {
 };
 
 // Breadcrumbs
-const vesselId = computed(() => {
-    const id = getCurrentVesselId();
-    return id ? parseInt(id) : null;
-});
+const vesselId = computed(() => getCurrentVesselId());
 const breadcrumbs = computed(() => {
     const id = vesselId.value;
     return id
@@ -325,7 +373,7 @@ const breadcrumbs = computed(() => {
                     </div>
 
                     <!-- Vessel Filter (only if not vessel-scoped) -->
-                    <div v-if="!currentVesselId && vessels">
+                    <div v-if="!currentVesselId && props.vessels && props.vessels.length > 0">
                         <Select
                             v-model="vesselIdFilter"
                             :options="vesselOptions"
@@ -364,11 +412,12 @@ const breadcrumbs = computed(() => {
             </div>
 
             <!-- Auditory List -->
+            <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card overflow-hidden">
                 <div v-if="auditLogsData.length === 0" class="p-12 text-center">
                     <p class="text-muted-foreground dark:text-muted-foreground">{{ t('No audit logs found') }}</p>
                 </div>
 
-                <div v-else class="space-y-3">
+                <div v-else class="p-4 space-y-3">
                     <div
                         v-for="log in auditLogsData"
                         :key="log.id"
@@ -396,12 +445,13 @@ const breadcrumbs = computed(() => {
                     </div>
                 </div>
 
-            <!-- Pagination -->
-            <Pagination
-                v-if="paginatedAuditLogs?.meta && Array.isArray(paginatedAuditLogs.links)"
-                :links="paginatedAuditLogs.links"
-                :meta="paginatedAuditLogs.meta"
-            />
+                <!-- Pagination -->
+                <Pagination
+                    v-if="paginatedAuditLogs?.links && paginatedAuditLogs.links.length > 3 && paginationMeta && paginationMeta.last_page > 1"
+                    :links="paginatedAuditLogs.links"
+                    :meta="paginationMeta"
+                />
+            </div>
         </div>
 
         <!-- Auditoryog Details Modal -->
