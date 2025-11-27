@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import VesselLayout from '@/layouts/VesselLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import MoneyDisplay from '@/components/Common/MoneyDisplay.vue';
 import Icon from '@/components/Icon.vue';
 import FinancialAreaChart from '@/components/Charts/FinancialAreaChart.vue';
+import TransactionShowModal from '@/components/modals/Movimentation/show.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import {
@@ -131,10 +132,76 @@ const currencyData = computed(() => getCurrencyData(defaultCurrency.value));
 // Alias for easier template access
 const currentMonth = computed(() => props.currentMonth);
 
-// Navigate to transaction
-const viewTransaction = (transactionId: string) => {
+// Transaction modal state
+const showTransactionModal = ref(false);
+const selectedTransaction = ref<any>(null);
+const loadingTransaction = ref(false);
+
+// Open transaction details modal
+const viewTransaction = async (transactionId: string) => {
     const vesselId = getCurrentVesselId();
-    router.visit(`/panel/${vesselId}/movimentations/${transactionId}`);
+
+    // Find the transaction from recentTransactions first
+    const transaction = props.recentTransactions.find(t => t.id === transactionId);
+    if (!transaction) {
+        return;
+    }
+
+    // Set initial transaction data with minimal required fields
+    selectedTransaction.value = {
+        ...transaction,
+        status: 'completed',
+        status_label: t('Completed'),
+        formatted_amount: '',
+        vat_amount: 0,
+        formatted_vat_amount: '',
+        total_amount: transaction.amount,
+        formatted_total_amount: '',
+        amount_per_unit: null,
+        price_per_unit: null,
+        quantity: null,
+        formatted_amount_per_unit: null,
+        formatted_price_per_unit: null,
+        notes: null,
+        reference: null,
+        files: [],
+        supplier: null,
+        crew_member: null,
+        vat_profile: null,
+        created_at: '',
+        updated_at: '',
+    };
+    showTransactionModal.value = true;
+
+    // Fetch full transaction details from API
+    loadingTransaction.value = true;
+    try {
+        const response = await fetch(`/panel/${vesselId}/api/movimentations/${transactionId}/details`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.transaction) {
+                selectedTransaction.value = data.transaction;
+            }
+        }
+    } catch (error) {
+        // Continue with the transaction data we have
+        console.error('Error fetching transaction details:', error);
+    } finally {
+        loadingTransaction.value = false;
+    }
+};
+
+// Close transaction modal
+const closeTransactionModal = () => {
+    showTransactionModal.value = false;
+    selectedTransaction.value = null;
 };
 
 // Navigate to marea
@@ -536,5 +603,13 @@ const getPreparationProgress = (marea: any) => {
                 </div>
             </div>
         </div>
+
+        <!-- Transaction Details Modal -->
+        <TransactionShowModal
+            v-if="selectedTransaction"
+            :open="showTransactionModal"
+            :transaction="selectedTransaction"
+            @close="closeTransactionModal"
+        />
     </VesselLayout>
 </template>
