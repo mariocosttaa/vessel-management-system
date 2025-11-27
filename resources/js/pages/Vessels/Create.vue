@@ -50,34 +50,6 @@
               />
               <InputError :message="errors.registration_number" />
             </div>
-
-            <!-- Vessel Type -->
-            <div class="space-y-2">
-              <Label for="vessel_type">{{ t('Vessel Type') }} <span class="text-destructive">*</span></Label>
-              <Select
-                id="vessel_type"
-                name="vessel_type"
-                v-model="vesselType"
-                :options="vesselTypeOptions"
-                :placeholder="t('Select vessel type')"
-                :error="!!errors.vessel_type"
-              />
-              <InputError :message="errors.vessel_type" />
-            </div>
-
-            <!-- Status -->
-            <div class="space-y-2">
-              <Label for="status">{{ t('Status') }} <span class="text-destructive">*</span></Label>
-              <Select
-                id="status"
-                name="status"
-                v-model="status"
-                :options="statusOptions"
-                :placeholder="t('Select status')"
-                :error="!!errors.status"
-              />
-              <InputError :message="errors.status" />
-            </div>
           </div>
 
           <!-- Additional Fields -->
@@ -241,8 +213,6 @@ interface VatProfile {
 }
 
 interface Props {
-  vesselTypes: Record<string, string>
-  statuses: Record<string, string>
   countries: Array<{ code: string; name: string }>
   currencies: Array<{ code: string; name: string; symbol: string }>
   vatProfiles: VatProfile[]
@@ -252,28 +222,9 @@ const props = defineProps<Props>()
 const { t } = useI18n()
 
 // Form values for Select components
-const vesselType = ref('')
-const status = ref('')
 const countryCode = ref('')
 const currencyCode = ref('')
 const vatProfileId = ref<number | null>(null)
-
-// Convert to Select component options format
-const vesselTypeOptions = computed(() => {
-    const options = [{ value: '', label: t('Select vessel type') }];
-    Object.entries(props.vesselTypes).forEach(([value, label]) => {
-        options.push({ value, label: label as string });
-    });
-    return options;
-});
-
-const statusOptions = computed(() => {
-    const options = [{ value: '', label: t('Select status') }];
-    Object.entries(props.statuses).forEach(([value, label]) => {
-        options.push({ value, label: label as string });
-    });
-    return options;
-});
 
 const countryOptions = computed(() => {
     const options = [{ value: '', label: t('Select country') }];
