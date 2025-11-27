@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import { useI18n } from '@/composables/useI18n'
 
 export interface Notification {
     id: string
@@ -12,6 +13,7 @@ export interface Notification {
 
 export function useNotifications() {
     const page = usePage()
+    const { t } = useI18n()
     const notifications = ref<Notification[]>([])
     const processedFlashMessages = ref<Set<string>>(new Set())
 
@@ -124,7 +126,7 @@ export function useNotifications() {
                 processedFlashMessages.value.add(key)
                 addNotification({
                     type: 'success',
-                    title: 'Success',
+                    title: t('Success!'),
                     message: flash.success,
                     duration: customDelay ? customDelay * 1000 : undefined, // Convert seconds to milliseconds
                     persistent: customDelay === 0, // If delay is 0, make it persistent
@@ -138,7 +140,7 @@ export function useNotifications() {
                 processedFlashMessages.value.add(key)
                 addNotification({
                     type: 'error',
-                    title: 'Error',
+                    title: t('Error!'),
                     message: flash.error,
                     duration: customDelay ? customDelay * 1000 : undefined,
                     persistent: customDelay === 0 || customDelay === undefined, // Default persistent for errors
@@ -152,7 +154,7 @@ export function useNotifications() {
                 processedFlashMessages.value.add(key)
                 addNotification({
                     type: 'warning',
-                    title: 'Warning',
+                    title: t('Warning!'),
                     message: flash.warning,
                     duration: customDelay ? customDelay * 1000 : undefined,
                     persistent: customDelay === 0,
@@ -166,7 +168,7 @@ export function useNotifications() {
                 processedFlashMessages.value.add(key)
                 addNotification({
                     type: 'info',
-                    title: 'Information',
+                    title: t('Information!'),
                     message: flash.info,
                     duration: customDelay ? customDelay * 1000 : undefined,
                     persistent: customDelay === 0,
@@ -188,7 +190,7 @@ export function useNotifications() {
         if (newFlash.success && newFlash.success !== oldFlash?.success) {
             addNotification({
                 type: 'success',
-                title: 'Success',
+                title: t('Success!'),
                 message: newFlash.success,
                 duration: customDelay ? customDelay * 1000 : undefined,
                 persistent: customDelay === 0,
@@ -198,7 +200,7 @@ export function useNotifications() {
         if (newFlash.error && newFlash.error !== oldFlash?.error) {
             addNotification({
                 type: 'error',
-                title: 'Error',
+                title: t('Error!'),
                 message: newFlash.error,
                 duration: customDelay ? customDelay * 1000 : undefined,
                 persistent: customDelay === 0 || customDelay === undefined,
@@ -208,7 +210,7 @@ export function useNotifications() {
         if (newFlash.warning && newFlash.warning !== oldFlash?.warning) {
             addNotification({
                 type: 'warning',
-                title: 'Warning',
+                title: t('Warning!'),
                 message: newFlash.warning,
                 duration: customDelay ? customDelay * 1000 : undefined,
                 persistent: customDelay === 0,
@@ -218,7 +220,7 @@ export function useNotifications() {
         if (newFlash.info && newFlash.info !== oldFlash?.info) {
             addNotification({
                 type: 'info',
-                title: 'Information',
+                title: t('Information!'),
                 message: newFlash.info,
                 duration: customDelay ? customDelay * 1000 : undefined,
                 persistent: customDelay === 0,
