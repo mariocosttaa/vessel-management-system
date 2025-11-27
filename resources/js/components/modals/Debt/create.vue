@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import Icon from '@/components/Icon.vue';
-import MoneyInputWithLabel from '@/components/Forms/MoneyInputWithLabel.vue';
+import MoneyInput from '@/components/Forms/MoneyInput.vue';
 import { useI18n } from '@/composables/useI18n';
 import debts from '@/routes/panel/debts';
 
@@ -27,7 +27,6 @@ const form = useForm({
     description: '',
     holder: '',
     amount: null as number | null,
-    paid_amount: null as number | null,
     due_date: '',
     notes: '',
 });
@@ -43,6 +42,7 @@ watch(() => props.open, (isOpen) => {
 // Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
     const vesselMatch = path.match(/\/panel\/([^\/]+)/);
     return vesselMatch ? vesselMatch[1] : null;
 };
@@ -70,7 +70,7 @@ const handleClose = () => {
 
 <template>
     <Dialog :open="open" @update:open="handleClose">
-        <DialogContent class="max-w-2xl">
+        <DialogContent class="max-w-lg">
             <DialogHeader>
                 <DialogTitle>{{ t('Create New Debt') }}</DialogTitle>
                 <DialogDescription>
@@ -112,16 +112,22 @@ const handleClose = () => {
                             <InputError :message="form.errors.holder" class="mt-1" />
                         </div>
 
+                        <!-- Amount and Due Date -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Amount -->
-                            <MoneyInputWithLabel
-                                v-model="form.amount"
-                                :label="t('Amount')"
-                                currency="EUR"
-                                placeholder="0,00"
-                                :error="form.errors.amount"
-                                required
-                            />
+                            <div>
+                                <Label for="amount" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                                    {{ t('Amount') }} <span class="text-destructive">*</span>
+                                </Label>
+                                <MoneyInput
+                                    id="amount"
+                                    v-model="form.amount"
+                                    currency="EUR"
+                                    placeholder="0,00"
+                                    :error="!!form.errors.amount"
+                                />
+                                <InputError :message="form.errors.amount" class="mt-1" />
+                            </div>
 
                             <!-- Due Date -->
                             <div>
@@ -138,16 +144,6 @@ const handleClose = () => {
                             </div>
                         </div>
 
-                        <!-- Paid Amount (Optional) -->
-                        <MoneyInputWithLabel
-                            v-model="form.paid_amount"
-                            :label="t('Paid Amount (Optional)')"
-                            currency="EUR"
-                            placeholder="0,00"
-                            :error="form.errors.paid_amount"
-                            helper-text="Leave empty if no payment has been made yet"
-                        />
-
                         <!-- Notes -->
                         <div>
                             <Label for="notes" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
@@ -158,7 +154,7 @@ const handleClose = () => {
                                 v-model="form.notes"
                                 rows="3"
                                 :placeholder="t('Additional details...')"
-                                class="w-full rounded-lg border border-input dark:border-input bg-background dark:bg-background px-3 py-2 text-sm text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors resize-none"
+                                class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 :class="{ 'border-destructive dark:border-destructive': form.errors.notes }"
                             ></textarea>
                             <InputError :message="form.errors.notes" class="mt-1" />
