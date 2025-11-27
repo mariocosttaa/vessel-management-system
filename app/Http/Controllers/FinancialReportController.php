@@ -189,14 +189,9 @@ class FinancialReportController extends Controller
             })
             ->with(['quantityReturns:id,marea_id,name,quantity'])
             ->get()
-            ->map(function ($marea) use ($month, $year) {
-                // Get transactions for this marea in this month
-                $mareaTransactions = Movimentation::where('vessel_id', $marea->vessel_id)
-                    ->where('marea_id', $marea->id)
-                    ->where('transaction_month', $month)
-                    ->where('transaction_year', $year)
-                    ->where('status', 'completed')
-                    ->get();
+            ->map(function ($marea) use ($transactions) {
+                // Filter transactions for this marea from already-loaded collection (avoid N+1 query)
+                $mareaTransactions = $transactions->where('marea_id', $marea->id);
 
                 $mareaIncome   = $mareaTransactions->where('type', 'income')->sum('total_amount');
                 $mareaExpenses = $mareaTransactions->where('type', 'expense')->sum('total_amount');
