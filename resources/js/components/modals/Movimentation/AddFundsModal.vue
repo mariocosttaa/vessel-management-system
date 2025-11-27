@@ -311,7 +311,6 @@ const submit = () => {
             emit('close');
         },
         onError: (errors) => {
-            console.error('Form submission errors:', errors);
             addNotification({
                 type: 'error',
                 title: t('Error'),

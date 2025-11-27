@@ -131,17 +131,8 @@ const selectedCrewMember = computed(() => {
 // Helper function to initialize form from transaction
 const initializeFormFromTransaction = () => {
     if (!props.transaction) {
-        console.warn('UpdateSalaryModal: No transaction provided');
         return;
     }
-
-    console.log('UpdateSalaryModal: Initializing form', {
-        transactionId: props.transaction.id,
-        crew_member_id: props.transaction.crew_member_id,
-        amount: props.transaction.amount,
-        transaction_date: props.transaction.transaction_date,
-        description: props.transaction.description
-    });
 
     // Set all form fields
     form.amount = props.transaction.amount ?? null;
@@ -172,14 +163,11 @@ const initializeFormFromTransaction = () => {
                         const [, year, month, day] = dateMatch;
                         form.transaction_date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
                     } else {
-                        console.error('Could not parse transaction_date:', dateStr);
                         form.transaction_date = '';
                     }
                 }
             }
-            console.log('Set transaction_date to:', form.transaction_date, 'from original:', props.transaction.transaction_date);
         } catch (e) {
-            console.error('Error parsing transaction_date:', e, 'Original value:', props.transaction.transaction_date);
             form.transaction_date = '';
         }
     } else {
@@ -192,14 +180,6 @@ const initializeFormFromTransaction = () => {
 
     form.clearErrors();
 
-    console.log('Form initialized with values:', {
-        amount: form.amount,
-        transaction_date: form.transaction_date,
-        description: form.description,
-        notes: form.notes,
-        status: form.status
-    });
-
     // Mark form as initialized
     isFormInitialized.value = true;
 };
@@ -207,35 +187,8 @@ const initializeFormFromTransaction = () => {
 // Reset form when modal opens/closes or transaction changes
 watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
     if (isOpen && transactionId && props.transaction) {
-        console.log('Watch triggered - modal opening with transaction:', {
-            isOpen,
-            transactionId,
-            hasTransaction: !!props.transaction,
-            crew_member_id: props.transaction.crew_member_id,
-            amount: props.transaction.amount,
-            transaction_date: props.transaction.transaction_date
-        });
-
         // Initialize form immediately
         initializeFormFromTransaction();
-
-        // Double-check form values after a tick to ensure they're set
-        nextTick(() => {
-            console.log('Form values after initialization (nextTick):', {
-                amount: form.amount,
-                transaction_date: form.transaction_date,
-                description: form.description,
-                notes: form.notes
-            });
-
-            // Verify all required fields are set
-            if (!form.transaction_date) {
-                console.error('WARNING: transaction_date is still empty after initialization!');
-            }
-            if (!form.amount) {
-                console.error('WARNING: amount is still null after initialization!');
-            }
-        });
     } else if (!isOpen) {
         // Clear form when modal closes
         form.reset();
@@ -247,7 +200,6 @@ watch(() => [props.open, props.transaction?.id], ([isOpen, transactionId]) => {
 const submit = () => {
     // Ensure form is initialized before submission
     if (!isFormInitialized.value) {
-        console.warn('Form not yet initialized, waiting...');
         // Wait a bit and try again
         setTimeout(() => {
             if (isFormInitialized.value) {
@@ -263,19 +215,8 @@ const submit = () => {
         return;
     }
 
-    // Log form state before submission
-    console.log('Submit called - Form state:', {
-        amount: form.amount,
-        transaction_date: form.transaction_date,
-        description: form.description,
-        notes: form.notes,
-        status: form.status,
-        isFormInitialized: isFormInitialized.value
-    });
-
     // Ensure transaction_date is set and properly formatted (required field)
     if (!form.transaction_date || form.transaction_date === '') {
-        console.error('Transaction date is missing:', form.transaction_date);
         form.setError('transaction_date', t('Transaction date is required.'));
         addNotification({
             type: 'error',
@@ -306,7 +247,11 @@ const submit = () => {
 
     const vesselId = getCurrentVesselId();
     if (!vesselId) {
-        console.error('Unable to determine vessel ID');
+        addNotification({
+            type: 'error',
+            title: t('Error'),
+            message: t('Unable to determine vessel ID.'),
+        });
         return;
     }
 
@@ -325,8 +270,6 @@ const submit = () => {
         // Note: category_id is NOT sent - backend will automatically set it to salary category
     };
 
-    console.log('Submitting form with data:', finalFormData);
-
     // Use router.put directly with the finalFormData
     // Backend will automatically set the salary category when crew_member_id is present
     router.put(
@@ -344,8 +287,6 @@ const submit = () => {
                 emit('close');
             },
             onError: (errors) => {
-                console.error('Form submission errors:', errors);
-                console.error('Form data that was sent:', finalFormData);
                 addNotification({
                     type: 'error',
                     title: t('Error'),
