@@ -5,6 +5,7 @@ import BaseModal from '@/components/modals/BaseModal.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
 import { useI18n } from '@/composables/useI18n';
 
@@ -59,6 +60,7 @@ const getCurrentVesselId = () => {
 const form = useForm({
     name: '',
     is_global: false, // Always false - users can only create vessel-specific roles
+    is_administrative: false,
     vessel_role_access_id: '' as string | number | null,
 });
 
@@ -158,6 +160,23 @@ const handleClose = () => {
                         {{ t('Members assigned to this position will automatically receive this access level.') }}
                     </p>
                     <InputError :message="form.errors.vessel_role_access_id" class="mt-1" />
+                </div>
+
+                <!-- Administrative Role -->
+                <div>
+                    <div class="flex items-center justify-between">
+                        <Label for="is_administrative" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                            {{ t('Administrative Role') }}
+                        </Label>
+                        <Switch
+                            id="is_administrative"
+                            v-model:checked="form.is_administrative"
+                        />
+                    </div>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        {{ t('Mark this role as administrative. Administrative roles will appear in a separate tab.') }}
+                    </p>
+                    <InputError :message="form.errors.is_administrative" class="mt-1" />
                 </div>
             </form>
         </template>

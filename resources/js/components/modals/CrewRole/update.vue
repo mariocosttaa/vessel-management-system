@@ -5,6 +5,7 @@ import BaseModal from '@/components/modals/BaseModal.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import InputError from '@/components/InputError.vue';
 import { useI18n } from '@/composables/useI18n';
 
@@ -12,6 +13,7 @@ interface CrewPosition {
     id: number;
     name: string;
     is_global: boolean;
+    is_administrative?: boolean;
     vessel_role_access_id?: number | null;
     vessel_role?: {
         id: number;
@@ -77,6 +79,7 @@ const getCurrentVesselId = () => {
 
 const form = useForm({
     name: '',
+    is_administrative: false,
     vessel_role_access_id: '' as string | number | null,
 });
 
@@ -93,6 +96,7 @@ const apiUrl = computed(() => {
 watch(() => props.crewPosition, (position) => {
     if (position) {
         form.name = position.name;
+        form.is_administrative = position.is_administrative ?? false;
         form.vessel_role_access_id = position.vessel_role_access_id
             ? position.vessel_role_access_id.toString()
             : '';
@@ -118,6 +122,7 @@ watch(() => props.open, (isOpen) => {
 const handleDataLoaded = (data: any) => {
     if (data?.crewPosition) {
         form.name = data.crewPosition.name;
+        form.is_administrative = data.crewPosition.is_administrative ?? false;
         form.vessel_role_access_id = data.crewPosition.vessel_role_access_id
             ? data.crewPosition.vessel_role_access_id.toString()
             : '';
@@ -241,6 +246,24 @@ const handleClose = () => {
                         {{ t('Members assigned to this position will automatically receive this access level. Changing this will update all existing members with this position.') }}
                     </p>
                     <InputError :message="form.errors.vessel_role_access_id" class="mt-1" />
+                </div>
+
+                <!-- Administrative Role -->
+                <div>
+                    <div class="flex items-center justify-between">
+                        <Label for="is_administrative" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
+                            {{ t('Administrative Role') }}
+                        </Label>
+                        <Switch
+                            id="is_administrative"
+                            v-model:checked="form.is_administrative"
+                            :disabled="apiLoading"
+                        />
+                    </div>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        {{ t('Mark this role as administrative. Administrative roles will appear in a separate tab.') }}
+                    </p>
+                    <InputError :message="form.errors.is_administrative" class="mt-1" />
                 </div>
             </form>
         </template>

@@ -15,11 +15,12 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useI18n } from '@/composables/useI18n';
 import { usePage } from '@inertiajs/vue3';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface CrewPosition {
@@ -28,6 +29,7 @@ interface CrewPosition {
     vessel_id?: number | null;
     is_global: boolean;
     scope_label: string;
+    is_administrative: boolean;
     crew_members_count?: number;
     created_at: string;
 }
@@ -41,6 +43,7 @@ interface Props {
     filters: {
         search?: string;
         scope?: string;
+        role_type?: string;
         sort?: string;
         direction?: string;
     };
@@ -55,9 +58,12 @@ const { t } = useI18n();
 // Check if user has permission to view crew roles
 onMounted(() => {
     if (!canView('crew-roles')) {
-        router.visit(`/panel/${getCurrentVesselId()}/dashboard`, {
-            replace: true,
-        });
+        const vesselId = getCurrentVesselId();
+        if (vesselId) {
+            router.visit(`/panel/${vesselId}/dashboard`, {
+                replace: true,
+            });
+        }
     }
 });
 
@@ -67,6 +73,7 @@ const paginatedCrewPositions = computed(() => props.crewPositions);
 
 const search = ref(props.filters.search || '');
 const scopeFilter = ref(props.filters.scope || '');
+const roleTypeFilter = ref(props.filters.role_type || 'administrative');
 const sortField = ref(props.filters.sort || 'name');
 const sortDirection = ref(props.filters.direction || 'asc');
 
@@ -136,15 +143,19 @@ const actions = computed(() => {
 });
 
 // Watch for changes and update URL
-watch([search, scopeFilter, sortField, sortDirection], () => {
+watch([search, scopeFilter, roleTypeFilter, sortField, sortDirection], () => {
     const filters: Record<string, any> = {};
 
     if (search.value) filters.search = search.value;
     if (scopeFilter.value) filters.scope = scopeFilter.value;
+    if (roleTypeFilter.value && roleTypeFilter.value !== 'administrative') filters.role_type = roleTypeFilter.value;
     if (sortField.value !== 'name') filters.sort = sortField.value;
     if (sortDirection.value !== 'asc') filters.direction = sortDirection.value;
 
-    router.get(`/panel/${getCurrentVesselId()}/crew-roles`, filters, {
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
+
+    router.get(`/panel/${vesselId}/crew-roles`, filters, {
         preserveState: true,
         replace: true,
     });
@@ -189,8 +200,10 @@ const confirmDelete = () => {
     if (!crewPositionToDelete.value) return;
 
     isDeleting.value = true;
+    const vesselId = getCurrentVesselId();
+    if (!vesselId) return;
 
-    router.delete(`/panel/${getCurrentVesselId()}/crew-roles/${crewPositionToDelete.value.id}`, {
+    router.delete(`/panel/${vesselId}/crew-roles/${crewPositionToDelete.value.id}`, {
         onSuccess: () => {
             showDeleteDialog.value = false;
             crewPositionToDelete.value = null;
@@ -216,7 +229,7 @@ const formatDate = (dateString: string) => {
 <template>
     <Head :title="t('Members Position')" />
 
-    <VesselLayout :breadcrumbs="[{ title: t('Members Position'), href: `/panel/${getCurrentVesselId()}/crew-roles` }]">
+    <VesselLayout :breadcrumbs="[{ title: t('Members Position'), href: `/panel/${getCurrentVesselId() || ''}/crew-roles` }]">
         <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
             <!-- Header Card -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-6">
@@ -239,8 +252,36 @@ const formatDate = (dateString: string) => {
                 </div>
             </div>
 
-            <!-- Filters Card -->
+            <!-- Tabs -->
             <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-card dark:bg-card p-4">
+                <div class="mb-4 border-b border-border dark:border-border">
+                    <div class="flex gap-1">
+                        <button
+                            @click="roleTypeFilter = 'administrative'"
+                            :class="[
+                                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+                                roleTypeFilter === 'administrative'
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
+                            ]"
+                        >
+                            {{ t('Administrative Roles') }}
+                        </button>
+                        <button
+                            @click="roleTypeFilter = 'normal'"
+                            :class="[
+                                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+                                roleTypeFilter === 'normal'
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
+                            ]"
+                        >
+                            {{ t('Normal Roles') }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
                 <div class="flex flex-wrap items-center gap-3">
                     <!-- Search -->
                     <div class="flex-1 min-w-[200px]">
