@@ -19,6 +19,7 @@ return new class extends Migration
             $table->unsignedBigInteger('vessel_role_access_id')->nullable();
             $table->string('name', 100); // captain, sailor, mechanic, cook
             $table->text('description')->nullable();
+            $table->boolean('is_administrative')->default(false);
             $table->timestamps();
 
             // Unique constraint: vessel_id + name (positions can be duplicated across vessels)

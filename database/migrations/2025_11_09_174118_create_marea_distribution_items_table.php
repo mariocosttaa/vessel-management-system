@@ -12,6 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop table if it exists (in case of previous failed migration)
+        Schema::dropIfExists('marea_distribution_items');
+
         Schema::create('marea_distribution_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('marea_id')->constrained('mareas')->onDelete('cascade');
@@ -54,8 +57,8 @@ return new class extends Migration
             $table->index('marea_id');
             $table->index(['marea_id', 'order_index'], 'idx_marea_order');
             $table->index('profile_item_id', 'idx_profile_item_id');
-            $table->index('reference_item_id', 'idx_ref_item_id');
-            $table->index('reference_operation_item_id', 'idx_ref_op_item_id');
+            $table->index('reference_item_id', 'idx_marea_dist_item_ref_id');
+            $table->index('reference_operation_item_id', 'idx_marea_dist_item_ref_op_id');
         });
 
         // Add foreign keys after referenced tables exist
