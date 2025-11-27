@@ -1,9 +1,9 @@
 <template>
   <div>
     <!-- Main Navbar -->
-    <nav class="fixed top-0 left-0 right-0 z-50 border-b transition-all duration-300" :class="navbarClasses">
+    <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
       <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-14 rounded-full transition-all duration-300 mt-3 px-6 shadow-sm" :class="navbarInnerClasses">
+        <div class="flex items-center justify-between h-14 rounded-full transition-all duration-300 mt-3 px-6 shadow-lg" :class="navbarInnerClasses">
           <!-- Left: Logo -->
           <div class="flex items-center">
             <Link
@@ -197,7 +197,7 @@
           leave-from-class="transform scale-100 opacity-100"
           leave-to-class="transform scale-95 opacity-0"
         >
-          <div v-if="isMobileMenuOpen" class="border-t border-border/50 bg-card/95 backdrop-blur-md py-3 md:hidden">
+          <div v-if="isMobileMenuOpen" class="bg-card/95 backdrop-blur-xl shadow-xl border-t border-border/30 dark:border-sidebar-border/30 py-3 md:hidden">
             <nav class="space-y-1 px-4">
               <!-- Landing Page Mobile Menu -->
               <template v-if="isLandingPage">
@@ -255,7 +255,7 @@
             </nav>
 
             <!-- Mobile Language Switcher & Theme Dropdown -->
-            <div class="flex items-center justify-center px-4 py-3 border-t border-border/50 gap-3">
+            <div class="flex items-center justify-center px-4 py-3 border-t border-border/30 dark:border-sidebar-border/30 gap-3">
               <LanguageSwitcher />
               <ThemeDropdown />
             </div>
@@ -322,21 +322,13 @@ const isProfilePage = computed(() => {
   return url === '/panel/profile'
 })
 
-// Dynamic navbar classes based on scroll
-const navbarClasses = computed(() => {
-  if (isScrolled.value) {
-    return 'border-sidebar-border/50 dark:border-sidebar-border/50'
-  }
-  return 'border-transparent'
-})
-
 const navbarInnerClasses = computed(() => {
   if (isScrolled.value) {
-    // More opaque when scrolled
-    return 'bg-card/80 dark:bg-card/40 backdrop-blur-xl'
+    // More opaque when scrolled - smooth glass effect
+    return 'bg-card/90 dark:bg-card/60 backdrop-blur-xl shadow-xl border border-border/20 dark:border-sidebar-border/20'
   }
-  // More transparent when at top
-  return 'bg-card/30 dark:bg-card/10 backdrop-blur-md'
+  // More transparent when at top - subtle glass effect
+  return 'bg-card/40 dark:bg-card/20 backdrop-blur-lg shadow-md'
 })
 
 const toggleDropdown = () => {
