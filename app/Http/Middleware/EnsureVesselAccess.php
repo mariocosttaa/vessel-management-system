@@ -49,13 +49,16 @@ class EnsureVesselAccess
         }
         $vesselId = (int) $vesselId;
 
+        // Load vessel model first to check if it exists
+        $vessel = \App\Models\Vessel::find($vesselId);
+        if (!$vessel) {
+            abort(404, 'Vessel not found.');
+        }
+
         // Check if user has access to this vessel
         if (!$user->hasAccessToVessel($vesselId)) {
             abort(403, 'You do not have access to this vessel.');
         }
-
-        // Load vessel model
-        $vessel = \App\Models\Vessel::findOrFail($vesselId);
 
         // Share vessel data with all views
         view()->share('currentVessel', $vessel);

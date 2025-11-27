@@ -195,10 +195,21 @@ class User extends Authenticatable
 
     /**
      * Check if user has access to a specific vessel.
+     * Users have access if:
+     * 1. They have a role assigned through vessel_user_roles, OR
+     * 2. They are the owner of the vessel
      */
     public function hasAccessToVessel(int $vesselId): bool
     {
-        return $this->vesselsThroughRoles()->where('vessels.id', $vesselId)->exists();
+        // Check if user has a role assigned through vessel_user_roles
+        if ($this->vesselsThroughRoles()->where('vessels.id', $vesselId)->exists()) {
+            return true;
+        }
+
+        // Check if user is the owner of the vessel
+        return \App\Models\Vessel::where('id', $vesselId)
+            ->where('owner_id', $this->id)
+            ->exists();
     }
 
     /**

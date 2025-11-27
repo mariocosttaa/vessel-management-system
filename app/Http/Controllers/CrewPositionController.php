@@ -56,6 +56,19 @@ class CrewPositionController extends Controller
             }
         }
 
+        // Filter by administrative vs normal roles
+        // Default to administrative if no filter is provided
+        if ($request->filled('role_type')) {
+            if ($request->role_type === 'administrative') {
+                $query->where('is_administrative', true);
+            } elseif ($request->role_type === 'normal') {
+                $query->where('is_administrative', false);
+            }
+        } else {
+            // Default to administrative roles
+            $query->where('is_administrative', true);
+        }
+
         // Sorting
         $sortField     = $request->get('sort', 'name');
         $sortDirection = $request->get('direction', 'asc');
@@ -75,7 +88,7 @@ class CrewPositionController extends Controller
 
         return Inertia::render('CrewRoles/Index', [
             'crewPositions' => $crewPositions,
-            'filters'       => $request->only(['search', 'scope', 'sort', 'direction']),
+            'filters'       => $request->only(['search', 'scope', 'role_type', 'sort', 'direction']),
             'vesselRoles'   => $vesselRoles->map(function ($role) {
                 return [
                     'id'          => $role->id,
@@ -116,6 +129,7 @@ class CrewPositionController extends Controller
                 'description'           => null,
                 'vessel_id'             => $request->is_global ? null : $vesselId, // NULL for global, vessel_id for vessel-specific
                 'vessel_role_access_id' => $vesselRoleAccessId,
+                'is_administrative'     => $request->is_administrative ?? false,
             ]);
 
             $crewPosition->load(['vessel', 'crewMembers']);
@@ -198,6 +212,7 @@ class CrewPositionController extends Controller
                 'name'                  => $request->name,
                 'description'           => null,
                 'vessel_role_access_id' => $vesselRoleAccessId,
+                'is_administrative'     => $request->is_administrative ?? false,
                 // Note: vessel_id cannot be changed after creation (global vs vessel-specific)
             ]);
 
