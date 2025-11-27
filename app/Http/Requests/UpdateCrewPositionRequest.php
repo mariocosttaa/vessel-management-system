@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
  *
  * Input fields:
  * @property string $name
+ * @property bool $is_administrative
  *
  * Route parameters:
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -48,7 +49,7 @@ class UpdateCrewPositionRequest extends FormRequest
         $crewPositionId = $this->route('crewPosition');
 
         // Debug logging
-        \Log::info('UpdateCrewPositionRequest authorize', [
+        \Illuminate\Support\Facades\Log::info('UpdateCrewPositionRequest authorize', [
             'crewPositionId_type' => gettype($crewPositionId),
             'crewPositionId_value' => is_object($crewPositionId) ? get_class($crewPositionId) : $crewPositionId,
             'is_object' => is_object($crewPositionId),
@@ -64,7 +65,7 @@ class UpdateCrewPositionRequest extends FormRequest
             // Handle hashed ID
             $decoded = EasyHashAction::decode($crewPositionId, 'crewposition-id');
             if (! $decoded || ! is_numeric($decoded)) {
-                \Log::warning('UpdateCrewPositionRequest authorize - Failed to decode hashed ID', [
+                \Illuminate\Support\Facades\Log::warning('UpdateCrewPositionRequest authorize - Failed to decode hashed ID', [
                     'crewPositionId' => $crewPositionId,
                     'decoded' => $decoded,
                 ]);
@@ -131,6 +132,7 @@ class UpdateCrewPositionRequest extends FormRequest
                         }
                     }),
             ],
+            'is_administrative'    => ['nullable', 'boolean'],
             'vessel_role_access_id' => [
                 'nullable',
                 'integer',
@@ -159,7 +161,8 @@ class UpdateCrewPositionRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'name' => trim($this->name),
+            'name'              => trim($this->name),
+            'is_administrative' => $this->boolean('is_administrative') ?? false,
         ]);
     }
 }

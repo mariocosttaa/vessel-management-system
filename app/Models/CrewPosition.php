@@ -15,6 +15,11 @@ class CrewPosition extends Model
         'description',
         'vessel_id',
         'vessel_role_access_id',
+        'is_administrative',
+    ];
+
+    protected $casts = [
+        'is_administrative' => 'boolean',
     ];
 
     /**

@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
  * Input fields:
  * @property string $name
  * @property bool $is_global
+ * @property bool $is_administrative
  *
  * Route parameters (for authorization only):
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -74,6 +75,7 @@ class StoreCrewPositionRequest extends FormRequest
                     }),
             ],
             'is_global'            => ['nullable', 'boolean'],
+            'is_administrative'    => ['nullable', 'boolean'],
             'vessel_role_access_id' => [
                 'nullable',
                 'integer',
@@ -102,8 +104,9 @@ class StoreCrewPositionRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'name'      => trim($this->name),
-            'is_global' => $this->boolean('is_global') ?? false,
+            'name'               => trim($this->name),
+            'is_global'          => $this->boolean('is_global') ?? false,
+            'is_administrative'  => $this->boolean('is_administrative') ?? false,
         ]);
     }
 }

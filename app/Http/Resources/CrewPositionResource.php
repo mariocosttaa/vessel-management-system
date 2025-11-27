@@ -18,6 +18,7 @@ class CrewPositionResource extends BaseResource
             'vessel_id'          => $this->hashIdForModel($this->vessel_id, 'vessel'),
             'is_global'          => $this->vessel_id === null,
             'scope_label'        => $this->vessel_id === null ? 'Default' : 'Created',
+            'is_administrative'  => $this->is_administrative ?? false,
             'vessel_role_access_id' => $this->vessel_role_access_id,
             'vessel_role'        => $this->whenLoaded('vesselRoleAccess', function () {
                 return [
