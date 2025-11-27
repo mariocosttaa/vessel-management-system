@@ -31,9 +31,7 @@ const vesselRoles = computed(() => {
 
 // Convert to Select options
 const roleOptions = computed(() => {
-    const options = [
-        { value: '', label: t('No Role (Default)') }
-    ];
+    const options: Array<{ value: string; label: string }> = [];
     vesselRoles.value.forEach((role: VesselRole) => {
         options.push({
             value: role.id.toString(),
@@ -61,7 +59,7 @@ const form = useForm({
     name: '',
     is_global: false, // Always false - users can only create vessel-specific roles
     is_administrative: false,
-    vessel_role_access_id: '' as string | number | null,
+    vessel_role_access_id: '' as string | number,
 });
 
 // Reset form when modal opens/closes
@@ -80,13 +78,14 @@ const handleSave = () => {
     const vesselId = getCurrentVesselId();
     if (!vesselId) return;
 
-    // Convert vessel_role_access_id to number or null before submitting
-    const roleId = form.vessel_role_access_id && form.vessel_role_access_id !== ''
-        ? Number(form.vessel_role_access_id)
-        : null;
+    // Ensure vessel_role_access_id is provided and convert to number
+    if (!form.vessel_role_access_id || form.vessel_role_access_id === '') {
+        form.setError('vessel_role_access_id', 'The access level is required.');
+        return;
+    }
 
-    // Update form data with converted role ID
-    form.vessel_role_access_id = roleId;
+    // Convert vessel_role_access_id to number before submitting
+    form.vessel_role_access_id = Number(form.vessel_role_access_id);
 
     form.post(`/panel/${vesselId}/crew-roles`, {
         onSuccess: () => {
@@ -137,7 +136,7 @@ const handleClose = () => {
                 <!-- Vessel Role Access -->
                 <div>
                     <Label for="vessel_role_access_id" class="text-sm font-medium text-card-foreground dark:text-card-foreground">
-                        {{ t('Access Level') }}
+                        {{ t('Access Level') }} <span class="text-destructive">*</span>
                     </Label>
                     <Select
                         id="vessel_role_access_id"
@@ -145,6 +144,7 @@ const handleClose = () => {
                         :options="roleOptions"
                         :placeholder="t('Select access level for this position')"
                         searchable
+                        required
                         :class="{ 'border-destructive dark:border-destructive': form.errors.vessel_role_access_id }"
                     >
                         <template #option="{ option }">

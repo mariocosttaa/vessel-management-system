@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
  * @property string $name
  * @property bool $is_global
  * @property bool $is_administrative
+ * @property int $vessel_role_access_id
  *
  * Route parameters (for authorization only):
  * @property int $vessel (accessed via $this->route('vessel') for authorization)
@@ -77,7 +78,7 @@ class StoreCrewPositionRequest extends FormRequest
             'is_global'            => ['nullable', 'boolean'],
             'is_administrative'    => ['nullable', 'boolean'],
             'vessel_role_access_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('vessel_role_accesses', 'id')->where('is_active', true),
             ],
@@ -95,6 +96,8 @@ class StoreCrewPositionRequest extends FormRequest
             'name.required' => 'The crew role name is required.',
             'name.max'      => 'The crew role name may not be greater than 255 characters.',
             'name.unique'   => 'A crew role with this name already exists.',
+            'vessel_role_access_id.required' => 'The access level is required.',
+            'vessel_role_access_id.exists'   => 'The selected access level is invalid or inactive.',
         ];
     }
 
