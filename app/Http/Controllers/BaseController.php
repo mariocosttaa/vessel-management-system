@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Traits\HasTranslations;
 use Illuminate\Http\Request;
 use App\Models\Vessel;
 
 abstract class BaseController extends Controller
 {
+    use HasTranslations;
     /**
      * Get the current vessel from request attributes (set by EnsureVesselAccess middleware).
      * This is the preferred method as it uses the vessel already validated and loaded by middleware.
@@ -22,12 +24,12 @@ abstract class BaseController extends Controller
             // Fallback to route parameter if attributes not set (shouldn't happen with proper middleware)
             $vesselParam = $request->route('vessel');
             if (!$vesselParam) {
-                abort(403, 'No vessel specified.');
+                abort(403, $this->transFrom('notifications', 'No vessel specified.'));
             }
             // Use resolveRouteBinding to handle both hashed and numeric IDs
             $vessel = (new Vessel())->resolveRouteBinding($vesselParam);
             if (!$vessel) {
-                abort(404, 'Vessel not found.');
+                abort(404, $this->transFrom('notifications', 'Vessel not found.'));
             }
         }
 
