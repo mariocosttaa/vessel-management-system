@@ -75,7 +75,7 @@ class SupplierController extends Controller
 
         // Check if user has permission to view suppliers (moderator and administrator only)
         if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to view suppliers.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view suppliers.'));
         }
 
         return inertia('Suppliers/Create');
@@ -132,7 +132,7 @@ class SupplierController extends Controller
 
         // Check if user has permission to view suppliers (moderator and administrator only)
         if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to view suppliers.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view suppliers.'));
         }
 
         return inertia('Suppliers/Show', [
@@ -151,7 +151,7 @@ class SupplierController extends Controller
 
         // Check if user has permission to view suppliers (moderator and administrator only)
         if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to view suppliers.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view suppliers.'));
         }
 
         return inertia('Suppliers/Edit', [
@@ -268,7 +268,7 @@ class SupplierController extends Controller
 
         // Check if user has permission to view suppliers (moderator and administrator only)
         if (!$user || !$user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to search suppliers.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to search suppliers.'));
         }
 
         $query = $request->get('q');

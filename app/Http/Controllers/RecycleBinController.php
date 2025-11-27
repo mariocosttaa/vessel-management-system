@@ -35,7 +35,7 @@ class RecycleBinController extends Controller
 
         // Check if user can view recycle bin (typically admin/manager)
         if (! ($permissions['recycle_bin.view'] ?? false)) {
-            abort(403, 'You do not have permission to view the recycle bin.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view the recycle bin.'));
         }
 
         $type   = $request->get('type', 'all'); // all, transactions, suppliers, recurring_transactions, mareas, maintenances
@@ -229,14 +229,14 @@ class RecycleBinController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
             if (! ($permissions['recycle_bin.restore'] ?? false)) {
-                abort(403, 'You do not have permission to restore items.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to restore items.'));
             }
 
             $item     = null;
@@ -309,14 +309,14 @@ class RecycleBinController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
             if (! ($permissions['recycle_bin.delete'] ?? false)) {
-                abort(403, 'You do not have permission to permanently delete items.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to permanently delete items.'));
             }
 
             $item     = null;
@@ -393,14 +393,14 @@ class RecycleBinController extends Controller
 
             // Check permissions
             if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-                abort(403, 'You do not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
             }
 
             $userRole    = $user->getRoleForVessel($vesselId);
             $permissions = config('permissions.' . $userRole, config('permissions.default', []));
 
             if (! ($permissions['recycle_bin.delete'] ?? false)) {
-                abort(403, 'You do not have permission to empty the recycle bin.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to empty the recycle bin.'));
             }
 
             $transactionCount = Movimentation::onlyTrashed()->where('vessel_id', $vesselId)->count();

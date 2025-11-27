@@ -31,7 +31,7 @@ class CrewPositionController extends Controller
         // Check if user has permission to view crew roles (moderator and administrator only)
         // Normal users should not have access to this page
         if (! $user || ! $user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-            abort(403, 'You do not have permission to view crew roles.');
+            abort(403, $this->transFrom('notifications', 'You do not have permission to view crew roles.'));
         }
 
         $query = CrewPosition::query()
@@ -184,12 +184,12 @@ class CrewPositionController extends Controller
 
             // Prevent editing of global roles (vessel_id = NULL)
             if ($crewPosition->vessel_id === null) {
-                abort(403, 'Cannot edit default roles. Default roles are system-managed.');
+                abort(403, $this->transFrom('notifications', 'Cannot edit default roles. Default roles are system-managed.'));
             }
 
             // Only allow updates to vessel-specific positions that belong to current vessel
             if ($crewPosition->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to crew role.');
+                abort(403, $this->transFrom('notifications', 'Unauthorized access to crew role.'));
             }
 
             // Store original state for change detection
@@ -260,12 +260,12 @@ class CrewPositionController extends Controller
 
             // Prevent deletion of global roles (vessel_id = NULL)
             if ($crewPosition->vessel_id === null) {
-                abort(403, 'Cannot delete default roles. Default roles are system-managed.');
+                abort(403, $this->transFrom('notifications', 'Cannot delete default roles. Default roles are system-managed.'));
             }
 
             // Only allow deletion of vessel-specific positions that belong to current vessel
             if ($crewPosition->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to crew role.');
+                abort(403, $this->transFrom('notifications', 'Unauthorized access to crew role.'));
             }
 
             // Check if position has crew members assigned
@@ -329,7 +329,7 @@ class CrewPositionController extends Controller
                 $id = (int) $crewPositionIdFromRoute;
             }
             if (! $id) {
-                abort(404, 'Crew position not found.');
+                abort(404, $this->transFrom('notifications', 'Crew position not found.'));
             }
 
             // Resolve crew position manually to avoid route model binding issues
@@ -341,12 +341,12 @@ class CrewPositionController extends Controller
 
             // Check if user has permission to view crew roles (moderator and administrator only)
             if (! $user || ! $user->hasVesselPermission($vesselId, 'edit_vessel_basic')) {
-                abort(403, 'You do not have permission to view crew role details.');
+                abort(403, $this->transFrom('notifications', 'You do not have permission to view crew role details.'));
             }
 
             // Allow access to global positions (vessel_id = NULL) or vessel-specific positions
             if ($crewPosition->vessel_id !== null && $crewPosition->vessel_id !== $vesselId) {
-                abort(403, 'Unauthorized access to crew role.');
+                abort(403, $this->transFrom('notifications', 'Unauthorized access to crew role.'));
             }
 
             // Load relationships for edit modal

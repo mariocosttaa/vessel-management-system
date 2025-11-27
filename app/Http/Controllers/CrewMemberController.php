@@ -102,13 +102,14 @@ class CrewMemberController extends Controller
             ->whereNotNull('invitation_token')
             ->whereNull('invitation_accepted_at')
             ->with(['position'])
+            ->withCount(['invitationEmails' => function ($query) use ($vesselId) {
+                $query->where('vessel_id', $vesselId)
+                    ->where('email_type', 'invitation');
+            }])
             ->orderBy('invitation_sent_at', 'desc')
             ->get()
-            ->map(function ($user) use ($vesselId) {
-                $emailCount = InvitationEmail::where('user_id', $user->id)
-                    ->where('vessel_id', $vesselId)
-                    ->where('email_type', 'invitation')
-                    ->count();
+            ->map(function ($user) {
+                $emailCount = $user->invitation_emails_count;
 
                 return [
                     'id'                    => $user->id,
@@ -605,7 +606,7 @@ class CrewMemberController extends Controller
                     'has_vessel_role_access' => $hasVesselRoleAccess,
                     'has_vessel_user_access' => $hasVesselUserAccess,
                 ]);
-                abort(403, 'Unauthorized access to crew member.');
+                abort(403, $this->transFrom('notifications', 'Unauthorized access to crew member.'));
             }
 
             // Get the vessel model for email sending
@@ -906,7 +907,7 @@ class CrewMemberController extends Controller
                     'has_vessel_role_access' => $hasVesselRoleAccess,
                     'has_vessel_user_access' => $hasVesselUserAccess,
                 ]);
-                abort(403, 'Unauthorized access to crew member. User does not have access to this vessel.');
+                abort(403, $this->transFrom('notifications', 'Unauthorized access to crew member. User does not have access to this vessel.'));
             }
 
             $vesselModel = Vessel::findOrFail($vesselId);
@@ -1150,7 +1151,7 @@ class CrewMemberController extends Controller
 
         // Verify the crew member belongs to this vessel
         if ($crewMember->vessel_id !== $vesselId) {
-            abort(403, 'This crew member does not belong to this vessel.');
+            abort(403, $this->transFrom('notifications', 'This crew member does not belong to this vessel.'));
         }
 
         $user = $crewMember;
@@ -1215,7 +1216,7 @@ class CrewMemberController extends Controller
 
         // Verify the crew member belongs to this vessel
         if ($crewMember->vessel_id !== $vesselId) {
-            abort(403, 'This crew member does not belong to this vessel.');
+            abort(403, $this->transFrom('notifications', 'This crew member does not belong to this vessel.'));
         }
 
         $user = $crewMember;

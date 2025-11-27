@@ -330,7 +330,7 @@ class MovimentationController extends Controller
                 $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                 if (! $vesselId) {
-                    abort(404, 'Vessel not found.');
+                    abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                 }
             }
 
@@ -435,7 +435,7 @@ class MovimentationController extends Controller
             $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
-            abort(404, 'Transaction not found.');
+            abort(404, $this->transFrom('notifications', 'Transaction not found.'));
         }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
@@ -496,35 +496,29 @@ class MovimentationController extends Controller
             $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
-            abort(404, 'Transaction not found.');
+            abort(404, $this->transFrom('notifications', 'Transaction not found.'));
         }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
-        $transaction = Movimentation::where('vessel_id', $vesselId)
-            ->where('id', $transactionId)
-            ->firstOrFail();
+    // Use withRelationships scope to prevent N+1 queries
+    $transaction = Movimentation::where('vessel_id', $vesselId)
+        ->where('id', $transactionId)
+        ->withRelationships()
+        ->firstOrFail();
 
-        // Check if user has permission to view transactions using config permissions
-        if (! $user || ! $user->hasAccessToVessel($vesselId)) {
-            abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
-        }
+    // Check if user has permission to view transactions using config permissions
+    if (! $user || ! $user->hasAccessToVessel($vesselId)) {
+        abort(403, $this->transFrom('notifications', 'You do not have access to this vessel.'));
+    }
 
-        // Check movimentations.view permission from config
-        $userRole    = $user->getRoleForVessel($vesselId);
-        $permissions = config('permissions.' . $userRole, config('permissions.default', []));
-        if (! ($permissions['movimentations.view'] ?? false)) {
-            abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
-        }
+    // Check movimentations.view permission from config
+    $userRole    = $user->getRoleForVessel($vesselId);
+    $permissions = config('permissions.' . $userRole, config('permissions.default', []));
+    if (! ($permissions['movimentations.view'] ?? false)) {
+        abort(403, $this->transFrom('notifications', 'You do not have permission to perform this action.'));
+    }
 
-        // Load all relationships
-        $transaction->load([
-            'category',
-            'supplier',
-            'crewMember',
-            'vatProfile',
-            'createdBy',
-            'files',
-        ]);
+    // Relationships are already eager-loaded via withRelationships scope
 
         return response()->json([
             'transaction' => new MovimentationResource($transaction),
@@ -556,7 +550,7 @@ class MovimentationController extends Controller
             $transactionId = (int) ($movimentationIdFromRoute ?? $transactionId);
         }
         if (! $transactionId) {
-            abort(404, 'Transaction not found.');
+            abort(404, $this->transFrom('notifications', 'Transaction not found.'));
         }
 
         // Force fresh query with both vessel_id and id to ensure correct transaction
@@ -685,7 +679,7 @@ class MovimentationController extends Controller
                     $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
 
                     if (! $vesselId) {
-                        abort(404, 'Vessel not found.');
+                        abort(404, $this->transFrom('notifications', 'Vessel not found.'));
                     }
                 }
             }
@@ -696,7 +690,7 @@ class MovimentationController extends Controller
             $hashedId                 = $movimentationIdFromRoute ?? $transactionId;
             $transactionId            = $this->unhashId($hashedId, 'movimentation');
             if (! $transactionId) {
-                abort(404, 'Transaction not found.');
+                abort(404, $this->transFrom('notifications', 'Transaction not found.'));
             }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
@@ -1005,7 +999,7 @@ class MovimentationController extends Controller
             $hashedId                 = $movimentationIdFromRoute ?? $transactionId;
             $transactionId            = $this->unhashId($hashedId, 'movimentation');
             if (! $transactionId) {
-                abort(404, 'Transaction not found.');
+                abort(404, $this->transFrom('notifications', 'Transaction not found.'));
             }
 
             // Force fresh query with both vessel_id and id to ensure correct transaction
@@ -1018,7 +1012,7 @@ class MovimentationController extends Controller
             $hashedFileId    = $fileIdFromRoute ?? $fileId;
             $fileId          = $this->unhashId($hashedFileId, 'movimentationfile');
             if (! $fileId) {
-                abort(404, 'File not found.');
+                abort(404, $this->transFrom('notifications', 'File not found.'));
             }
 
             // Verify file belongs to transaction
