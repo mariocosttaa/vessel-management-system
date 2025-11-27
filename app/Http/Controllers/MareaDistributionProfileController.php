@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HashesIds;
 use App\Models\MareaDistributionProfile;
 use App\Models\MareaDistributionProfileItem;
 use App\Actions\AuditLogAction;
@@ -12,6 +13,7 @@ use Inertia\Response;
 
 class MareaDistributionProfileController extends Controller
 {
+    use HashesIds;
     /**
      * Display a listing of distribution profiles.
      */
@@ -31,14 +33,14 @@ class MareaDistributionProfileController extends Controller
         return Inertia::render('MareaDistributionProfiles/Index', [
             'profiles' => $profiles->map(function ($profile) {
                 return [
-                    'id' => $profile->id,
+                    'id' => $this->hashId($profile->id, 'mareadistributionprofile'),
                     'name' => $profile->name,
                     'description' => $profile->description,
                     'is_default' => $profile->is_default,
                     'is_system' => $profile->is_system,
                     'items_count' => $profile->items->count(),
                     'created_by' => $profile->createdBy ? [
-                        'id' => $profile->createdBy->id,
+                        'id' => $this->hashId($profile->createdBy->id, 'user'),
                         'name' => $profile->createdBy->name,
                     ] : null,
                     'created_at' => $profile->created_at ? $profile->created_at->format('Y-m-d H:i:s') : null,
@@ -157,8 +159,23 @@ class MareaDistributionProfileController extends Controller
 
             DB::commit();
 
-            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware) or route
             $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vessel = $request->route('vessel');
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+                }
+            }
+
+            // Hash vessel ID for redirect URL
+            $vesselIdHashed = $vesselId ? $this->hashId($vesselId, 'vessel') : null;
 
             // Log the create action
             AuditLogAction::logCreate(
@@ -169,7 +186,7 @@ class MareaDistributionProfileController extends Controller
             );
 
             return redirect()
-                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselId])
+                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselIdHashed])
                 ->with('success', 'Distribution profile created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -182,37 +199,34 @@ class MareaDistributionProfileController extends Controller
     /**
      * Display the specified distribution profile.
      */
-    public function show(Request $request, $id): Response
+    public function show($vessel, MareaDistributionProfile $profile): Response
     {
-        // Get ID from route parameter to avoid parameter binding conflicts
-        $id = (int) $request->route('id');
-
-        $profile = MareaDistributionProfile::with(['items' => function ($query) {
+        $profile->load(['items' => function ($query) {
             $query->orderBy('order_index');
-        }])->findOrFail($id);
+        }]);
 
         return Inertia::render('MareaDistributionProfiles/Show', [
             'profile' => [
-                'id' => $profile->id,
+                'id' => $this->hashId($profile->id, 'mareadistributionprofile'),
                 'name' => $profile->name,
                 'description' => $profile->description,
                 'is_default' => $profile->is_default,
                 'is_system' => $profile->is_system,
                 'items' => $profile->items->map(function ($item) {
                     return [
-                        'id' => $item->id,
+                        'id' => $this->hashId($item->id, 'mareadistributionprofileitem'),
                         'order_index' => $item->order_index,
                         'name' => $item->name,
                         'description' => $item->description,
                         'value_type' => $item->value_type,
                         'value_amount' => $item->value_amount,
-                        'reference_item_id' => $item->reference_item_id,
+                        'reference_item_id' => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionprofileitem') : null,
                         'operation' => $item->operation,
-                        'reference_operation_item_id' => $item->reference_operation_item_id,
+                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionprofileitem') : null,
                     ];
                 }),
                 'created_by' => $profile->createdBy ? [
-                    'id' => $profile->createdBy->id,
+                    'id' => $this->hashId($profile->createdBy->id, 'user'),
                     'name' => $profile->createdBy->name,
                 ] : null,
                 'created_at' => $profile->created_at ? $profile->created_at->format('Y-m-d H:i:s') : null,
@@ -223,14 +237,11 @@ class MareaDistributionProfileController extends Controller
     /**
      * Show the form for editing the specified distribution profile.
      */
-    public function edit(Request $request, $id): Response
+    public function edit($vessel, MareaDistributionProfile $profile): Response
     {
-        // Get ID from route parameter to avoid parameter binding conflicts
-        $id = (int) $request->route('id');
-
-        $profile = MareaDistributionProfile::with(['items' => function ($query) {
+        $profile->load(['items' => function ($query) {
             $query->orderBy('order_index');
-        }])->findOrFail($id);
+        }]);
 
         // System profiles cannot be edited
         if ($profile->is_system) {
@@ -239,22 +250,22 @@ class MareaDistributionProfileController extends Controller
 
         return Inertia::render('MareaDistributionProfiles/Edit', [
             'profile' => [
-                'id' => $profile->id,
+                'id' => $this->hashId($profile->id, 'mareadistributionprofile'),
                 'name' => $profile->name,
                 'description' => $profile->description,
                 'is_default' => $profile->is_default,
                 'is_system' => $profile->is_system,
-                'items' => $profile->items->map(function ($item) use ($profile) {
+                'items' => $profile->items->map(function ($item) {
                     return [
-                        'id' => $item->id,
+                        'id' => $this->hashId($item->id, 'mareadistributionprofileitem'),
                         'order_index' => $item->order_index,
                         'name' => $item->name,
                         'description' => $item->description,
                         'value_type' => $item->value_type,
                         'value_amount' => $item->value_amount,
-                        'reference_item_id' => $item->reference_item_id,
+                        'reference_item_id' => $item->reference_item_id ? $this->hashId($item->reference_item_id, 'mareadistributionprofileitem') : null,
                         'operation' => $item->operation,
-                        'reference_operation_item_id' => $item->reference_operation_item_id,
+                        'reference_operation_item_id' => $item->reference_operation_item_id ? $this->hashId($item->reference_operation_item_id, 'mareadistributionprofileitem') : null,
                     ];
                 }),
             ],
@@ -264,11 +275,8 @@ class MareaDistributionProfileController extends Controller
     /**
      * Update the specified distribution profile.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $vessel, MareaDistributionProfile $profile)
     {
-        // Get ID from route parameter to avoid parameter binding conflicts
-        $id = (int) $request->route('id');
-        $profile = MareaDistributionProfile::findOrFail($id);
 
         // System profiles cannot be updated
         if ($profile->is_system) {
@@ -393,8 +401,23 @@ class MareaDistributionProfileController extends Controller
 
             DB::commit();
 
-            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware) or route
             $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vessel = $request->route('vessel');
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+                }
+            }
+
+            // Hash vessel ID for redirect URL
+            $vesselIdHashed = $vesselId ? $this->hashId($vesselId, 'vessel') : null;
 
             // Get changed fields and log the update action
             $changedFields = AuditLogAction::getChangedFields($profile, $originalProfile);
@@ -407,7 +430,7 @@ class MareaDistributionProfileController extends Controller
             );
 
             return redirect()
-                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselId])
+                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselIdHashed])
                 ->with('success', 'Distribution profile updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -420,11 +443,8 @@ class MareaDistributionProfileController extends Controller
     /**
      * Remove the specified distribution profile.
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, MareaDistributionProfile $profile)
     {
-        // Get ID from route parameter to avoid parameter binding conflicts
-        $id = (int) $request->route('id');
-        $profile = MareaDistributionProfile::findOrFail($id);
 
         // System profiles cannot be deleted
         if ($profile->is_system) {
@@ -451,11 +471,26 @@ class MareaDistributionProfileController extends Controller
 
             $profile->delete();
 
-            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware)
+            // Get vessel_id from request attributes (set by EnsureVesselAccess middleware) or route
             $vesselId = $request->attributes->get('vessel_id');
+            if (!$vesselId) {
+                $vessel = $request->route('vessel');
+                if (is_object($vessel)) {
+                    $vesselId = $vessel->id;
+                } elseif (is_numeric($vessel)) {
+                    $vesselId = (int) $vessel;
+                } else {
+                    // Decode hashed vessel ID
+                    $decoded = \App\Actions\General\EasyHashAction::decode($vessel, 'vessel-id');
+                    $vesselId = $decoded && is_numeric($decoded) ? (int) $decoded : null;
+                }
+            }
+
+            // Hash vessel ID for redirect URL
+            $vesselIdHashed = $vesselId ? $this->hashId($vesselId, 'vessel') : null;
 
             return redirect()
-                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselId])
+                ->route('panel.marea-distribution-profiles.index', ['vessel' => $vesselIdHashed])
                 ->with('success', 'Distribution profile deleted successfully.');
         } catch (\Exception $e) {
             return back()

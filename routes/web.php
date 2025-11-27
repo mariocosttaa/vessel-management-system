@@ -18,6 +18,7 @@ use App\Http\Controllers\VesselFileController;
 use App\Http\Controllers\VesselSelectorController;
 use App\Http\Controllers\VesselSettingController;
 use App\Http\Middleware\VesselAuthPrivateFiles;
+use App\Models\MareaDistributionProfile;
 use Illuminate\Support\Facades\Route;
 
 // Landing page route
@@ -94,6 +95,9 @@ Route::middleware(['auth', 'verified'])->prefix('panel')->group(function () {
 
 // All panel routes require vessel access
 // Note: {vessel} parameter is handled by EnsureVesselAccess middleware, not route model binding
+// Explicit route model binding for profile parameter
+Route::model('profile', MareaDistributionProfile::class);
+
 Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}')->where(['vessel' => '[^/]+'])->group(function () {
 
     // Dashboard
@@ -240,10 +244,11 @@ Route::middleware(['auth', 'verified', 'vessel.access'])->prefix('panel/{vessel}
     Route::get('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'index'])->name('panel.marea-distribution-profiles.index');
     Route::get('/marea-distribution-profiles/create', [App\Http\Controllers\MareaDistributionProfileController::class, 'create'])->name('panel.marea-distribution-profiles.create');
     Route::post('/marea-distribution-profiles', [App\Http\Controllers\MareaDistributionProfileController::class, 'store'])->name('panel.marea-distribution-profiles.store');
-    Route::get('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'show'])->name('panel.marea-distribution-profiles.show');
-    Route::get('/marea-distribution-profiles/{id}/edit', [App\Http\Controllers\MareaDistributionProfileController::class, 'edit'])->name('panel.marea-distribution-profiles.edit');
-    Route::put('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'update'])->name('panel.marea-distribution-profiles.update');
-    Route::delete('/marea-distribution-profiles/{id}', [App\Http\Controllers\MareaDistributionProfileController::class, 'destroy'])->name('panel.marea-distribution-profiles.destroy');
+    // Use route model binding - only accepts hashed IDs
+    Route::get('/marea-distribution-profiles/{profile}', [App\Http\Controllers\MareaDistributionProfileController::class, 'show'])->name('panel.marea-distribution-profiles.show');
+    Route::get('/marea-distribution-profiles/{profile}/edit', [App\Http\Controllers\MareaDistributionProfileController::class, 'edit'])->name('panel.marea-distribution-profiles.edit');
+    Route::put('/marea-distribution-profiles/{profile}', [App\Http\Controllers\MareaDistributionProfileController::class, 'update'])->name('panel.marea-distribution-profiles.update');
+    Route::delete('/marea-distribution-profiles/{profile}', [App\Http\Controllers\MareaDistributionProfileController::class, 'destroy'])->name('panel.marea-distribution-profiles.destroy');
 
     // Recycle Bin
     Route::get('/recycle-bin', [App\Http\Controllers\RecycleBinController::class, 'index'])->name('panel.recycle-bin.index');
