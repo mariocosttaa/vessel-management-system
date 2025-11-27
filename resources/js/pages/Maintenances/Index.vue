@@ -212,6 +212,15 @@ const deleteMaintenance = (maintenance: Maintenance) => {
     showDeleteDialog.value = true;
 };
 
+const handleDeleteClick = () => {
+    if (openDropdownId.value === null) return;
+    const maintenance = props.maintenances.data.find(m => m.id === openDropdownId.value);
+    if (maintenance) {
+        deleteMaintenance(maintenance);
+        closeActionsDropdown();
+    }
+};
+
 const confirmDelete = () => {
     if (!maintenanceToDelete.value) return;
 
@@ -603,7 +612,7 @@ const translatedStatuses = computed(() => {
 
                         <button
                             v-if="openDropdownId !== null && canDelete('maintenances')"
-                            @click.stop="const maintenance = props.maintenances.data.find(m => m.id === openDropdownId); if (maintenance) deleteMaintenance(maintenance); closeActionsDropdown()"
+                            @click.stop="handleDeleteClick"
                             class="flex items-center w-full px-4 py-2 text-sm text-destructive dark:text-destructive hover:bg-muted dark:hover:bg-muted transition-colors"
                         >
                             <Icon name="trash-2" class="w-4 h-4 mr-3" />
