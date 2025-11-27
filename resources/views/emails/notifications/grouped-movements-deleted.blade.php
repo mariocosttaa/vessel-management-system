@@ -39,7 +39,7 @@
         <tr>
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
-                    <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? 'N/A' }}
+                    <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? trans('emails.N/A', [], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>
@@ -60,7 +60,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 12px;">
                                                     <p style="margin: 0; padding: 0; font-size: 14px; font-weight: 600; color: #111827; line-height: 1.4;">
-                                                        {{ $notification->subject_data['transaction_number'] ?? 'N/A' }}
+                                                        {{ $notification->subject_data['transaction_number'] ?? trans('emails.N/A', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>

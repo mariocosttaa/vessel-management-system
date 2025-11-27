@@ -29,7 +29,7 @@
             <td align="center" style="padding-bottom: 24px;">
                 <p style="margin: 0; padding: 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center; max-width: 500px;">
                     {{ trans('emails.New movements have been created for vessel :vessel', [
-                        'vessel' => $vessel->name ?? 'N/A'
+                        'vessel' => $vessel->name ?? trans('emails.N/A', [], $locale ?? 'en')
                     ], $locale ?? 'en') }}
                 </p>
             </td>
@@ -37,7 +37,7 @@
         <tr>
             <td align="center" style="padding-bottom: 32px;">
                 <p style="margin: 0; padding: 0; font-size: 14px; color: #6b7280; line-height: 1.6; text-align: center; max-width: 500px;">
-                    <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? 'N/A' }}
+                    <strong style="color: #374151;">{{ trans('emails.Vessel', [], $locale ?? 'en') }}:</strong> {{ $vessel->name ?? trans('emails.N/A', [], $locale ?? 'en') }}
                 </p>
             </td>
         </tr>
@@ -59,7 +59,7 @@
                                             <tr>
                                                 <td style="padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
                                                     <p style="margin: 0; padding: 0; font-size: 15px; font-weight: 600; color: #111827; line-height: 1.4; letter-spacing: -0.2px;">
-                                                        {{ $notification->subject_data['transaction_number'] ?? 'N/A' }}
+                                                        {{ $notification->subject_data['transaction_number'] ?? trans('emails.N/A', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>

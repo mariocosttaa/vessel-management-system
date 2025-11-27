@@ -51,7 +51,7 @@
                                             <tr>
                                                 <td>
                                                     <p style="margin: 0; padding: 0; font-size: 15px; color: #111827; line-height: 1.5;">
-                                                        {{ $movement->transaction_number ?? 'N/A' }}
+                                                        {{ $movement->transaction_number ?? trans('emails.N/A', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
@@ -181,7 +181,7 @@
                                             <tr>
                                                 <td>
                                                     <p style="margin: 0; padding: 0; font-size: 15px; color: #111827; line-height: 1.5;">
-                                                        {{ $user->name ?? 'Sistema' }}
+                                                        {{ $user->name ?? trans('emails.System', [], $locale ?? 'en') }}
                                                     </p>
                                                 </td>
                                             </tr>
