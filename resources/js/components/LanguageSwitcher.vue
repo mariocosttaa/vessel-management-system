@@ -49,7 +49,6 @@ const changeLocale = (locale: SupportedLocale) => {
             // Language updated, page will refresh with new locale
         },
         onError: () => {
-            console.error('Failed to update language');
             // Revert local changes on error
             currentLocale.value = getCurrentLocale();
             setLocale(getCurrentLocale());

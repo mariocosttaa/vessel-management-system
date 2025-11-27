@@ -112,7 +112,6 @@ const makeApiRequest = async () => {
         const errorMessage = err instanceof Error ? err.message : t('An unknown error occurred');
         apiError.value = errorMessage;
         emit('error', errorMessage);
-        console.error('API request failed:', err);
     } finally {
         apiLoading.value = false;
     }

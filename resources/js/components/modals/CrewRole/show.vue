@@ -57,7 +57,7 @@ const fetchCrewPositionDetails = async () => {
             crewPositionData.value = data.crewPosition;
         }
     } catch (error) {
-        console.error('Error fetching crew position details:', error);
+        // Error handled silently
     } finally {
         isLoading.value = false;
     }

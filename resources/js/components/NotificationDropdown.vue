@@ -66,7 +66,7 @@ const fetchRecentLogs = async () => {
             auditLogs.value = data.data || [];
         }
     } catch (error) {
-        console.error('Failed to fetch audit logs:', error);
+        // Error handled silently
     } finally {
         isLoading.value = false;
     }

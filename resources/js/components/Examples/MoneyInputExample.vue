@@ -196,19 +196,15 @@ const totalAmount = computed(() => {
 
 // Methods
 const handleValueChange = (rawValue: number | null, formattedValue: string, formValue: number | string | null, centsValue: number | null) => {
-  console.log('Value changed:', { rawValue, formattedValue, formValue, centsValue })
+  // Value changed handler
 }
 
 const handleLabeledValueChange = (rawValue: number | null, formattedValue: string, formValue: number | string | null, centsValue: number | null) => {
-  console.log('Labeled value changed:', { rawValue, formattedValue, formValue, centsValue })
+  // Labeled value changed handler
 }
 
 const handleSubmit = () => {
-  console.log('Form submitted:', {
-    amount: form.value.amount,
-    vatAmount: form.value.vatAmount,
-    totalAmount: totalAmount.value
-  })
+  // Form submitted - totalAmount: totalAmount.value
 
   // Reset form
   form.value = {
