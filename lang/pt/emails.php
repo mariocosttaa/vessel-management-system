@@ -41,11 +41,9 @@ return [
     'Crew Member Invitation Cancelled'                                                                                                                                                   => 'Convite para Tripulação Cancelado',
     'Crew Invitation'                                                                                                                                                                    => 'Convite para Tripulação',
     'Invitation Cancelled'                                                                                                                                                               => 'Convite Cancelado',
-    'Hello :name'                                                                                                                                                                        => 'Olá :name',
     'You have been invited to join the crew of vessel :vessel.'                                                                                                                          => 'Você foi convidado para fazer parte da tripulação da embarcação :vessel.',
     'You have been invited to join the crew of vessel :vessel. Click the button below to accept the invitation and create your account.'                                                 => 'Você foi convidado para fazer parte da tripulação da embarcação :vessel. Clique no botão abaixo para aceitar o convite e criar sua conta.',
     'We inform you that the invitation to join the crew of vessel :vessel has been cancelled.'                                                                                           => 'Informamos que o convite para fazer parte da tripulação da embarcação :vessel foi cancelado.',
-    'Vessel'                                                                                                                                                                             => 'Embarcação',
     'Role'                                                                                                                                                                               => 'Função',
     'Email'                                                                                                                                                                              => 'Email',
     'Accept Invitation'                                                                                                                                                                  => 'Aceitar Convite',
@@ -56,4 +54,8 @@ return [
     'Privacy Policy'                                                                                                                                                                     => 'Política de Privacidade',
     'Terms of Service'                                                                                                                                                                   => 'Termos de Serviço',
     'This is an automatic message from the :app system. If you do not wish to receive these messages, you can change your preferences in your profile settings or contact us at :email.' => 'Esta é uma mensagem automática do sistema :app. Se não pretende receber estas mensagens, pode alterar as suas preferências nas configurações do seu perfil ou contactar-nos em :email.',
+
+    // Common
+    'N/A'                                                                                                                                                                                => 'N/A',
+    'Vessel Logo'                                                                                                                                                                       => 'Logótipo da Embarcação',
 ];

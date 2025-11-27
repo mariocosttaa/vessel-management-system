@@ -74,9 +74,7 @@ return [
     'Hello'                                                                                                                                                                              => 'Hello',
     'System'                                                                                                                                                                             => 'System',
     ':count Vessels in Marea'                                                                                                                                                            => ':count Vessels in Marea',
-    'Vessel in Marea'                                                                                                                                                                    => 'Vessel in Marea',
     ':count Vessels Returned from Marea'                                                                                                                                                 => ':count Vessels Returned from Marea',
-    'Vessel Returned from Marea'                                                                                                                                                         => 'Vessel Returned from Marea',
     ':count mareas have been started in the system.'                                                                                                                                     => ':count mareas have been started in the system.',
     'A marea has been started in the system.'                                                                                                                                            => 'A marea has been started in the system.',
     ':count mareas have been completed in the system.'                                                                                                                                   => ':count mareas have been completed in the system.',
@@ -93,11 +91,9 @@ return [
     'Crew Member Invitation Cancelled'                                                                                                                                                   => 'Crew Member Invitation Cancelled',
     'Crew Invitation'                                                                                                                                                                    => 'Crew Invitation',
     'Invitation Cancelled'                                                                                                                                                               => 'Invitation Cancelled',
-    'Hello :name'                                                                                                                                                                        => 'Hello :name',
     'You have been invited to join the crew of vessel :vessel.'                                                                                                                          => 'You have been invited to join the crew of vessel :vessel.',
     'You have been invited to join the crew of vessel :vessel. Click the button below to accept the invitation and create your account.'                                                 => 'You have been invited to join the crew of vessel :vessel. Click the button below to accept the invitation and create your account.',
     'We inform you that the invitation to join the crew of vessel :vessel has been cancelled.'                                                                                           => 'We inform you that the invitation to join the crew of vessel :vessel has been cancelled.',
-    'Vessel'                                                                                                                                                                             => 'Vessel',
     'Role'                                                                                                                                                                               => 'Role',
     'Email'                                                                                                                                                                              => 'Email',
     'Accept Invitation'                                                                                                                                                                  => 'Accept Invitation',
@@ -108,4 +104,8 @@ return [
     'Privacy Policy'                                                                                                                                                                     => 'Privacy Policy',
     'Terms of Service'                                                                                                                                                                   => 'Terms of Service',
     'This is an automatic message from the :app system. If you do not wish to receive these messages, you can change your preferences in your profile settings or contact us at :email.' => 'This is an automatic message from the :app system. If you do not wish to receive these messages, you can change your preferences in your profile settings or contact us at :email.',
+
+    // Common
+    'N/A'                                                                                                                                                                                => 'N/A',
+    'Vessel Logo'                                                                                                                                                                        => 'Vessel Logo',
 ];
