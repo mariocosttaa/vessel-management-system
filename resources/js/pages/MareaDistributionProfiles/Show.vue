@@ -5,34 +5,35 @@ import { computed } from 'vue';
 import Icon from '@/components/Icon.vue';
 import { usePermissions } from '@/composables/usePermissions';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface DistributionProfileItem {
-    id: number;
+    id: string;
     order_index: number;
     name: string;
     description: string | null;
     value_type: string;
     value_amount: number | null;
-    reference_item_id: number | null;
+    reference_item_id: string | null;
     operation: string;
-    reference_operation_item_id: number | null;
+    reference_operation_item_id: string | null;
 }
 
 interface DistributionProfile {
-    id: number;
+    id: string;
     name: string;
     description: string | null;
     is_default: boolean;
     is_system: boolean;
     items: DistributionProfileItem[];
     created_by: {
-        id: number;
+        id: string;
         name: string;
     } | null;
     created_at: string | null;

@@ -9,29 +9,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ItemModal from '@/components/modals/MareaDistributionProfile/ItemModal.vue';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface DistributionProfileItem {
-    id?: number;
+    id?: string;
     order_index: number;
     name: string;
     description: string;
     value_type: 'base_total_income' | 'base_total_expense' | 'fixed_amount' | 'percentage_of_income' | 'percentage_of_expense' | 'reference_item';
     value_amount: number | null;
-    reference_item_id?: number | null;
+    reference_item_id?: string | null;
     reference_item_order_index?: number | null;
     operation: 'set' | 'add' | 'subtract' | 'multiply' | 'divide';
-    reference_operation_item_id?: number | null;
+    reference_operation_item_id?: string | null;
     reference_operation_item_order_index?: number | null;
 }
 
 interface DistributionProfile {
-    id: number;
+    id: string;
     name: string;
     description: string | null;
     is_default: boolean;

@@ -8,22 +8,23 @@ import { usePermissions } from '@/composables/usePermissions';
 import { useNotifications } from '@/composables/useNotifications';
 import { useI18n } from '@/composables/useI18n';
 
-// Get current vessel ID from URL
+// Get current vessel ID from URL (supports both hashed and numeric IDs)
 const getCurrentVesselId = () => {
     const path = window.location.pathname;
-    const vesselMatch = path.match(/\/panel\/(\d+)/);
-    return vesselMatch ? vesselMatch[1] : '1';
+    // Match hashed vessel IDs (alphanumeric strings) or numeric IDs
+    const vesselMatch = path.match(/\/panel\/([^\/]+)/);
+    return vesselMatch ? vesselMatch[1] : null;
 };
 
 interface DistributionProfile {
-    id: number;
+    id: string;
     name: string;
     description: string | null;
     is_default: boolean;
     is_system: boolean;
     items_count: number;
     created_by: {
-        id: number;
+        id: string;
         name: string;
     } | null;
     created_at: string | null;
@@ -53,10 +54,10 @@ const profileToDelete = ref<DistributionProfile | null>(null);
 const isDeleting = ref(false);
 
 // Dropdown state
-const openDropdownId = ref<number | null>(null);
+const openDropdownId = ref<string | null>(null);
 
 // Dropdown methods
-const toggleActionsDropdown = (profileId: number) => {
+const toggleActionsDropdown = (profileId: string) => {
     openDropdownId.value = openDropdownId.value === profileId ? null : profileId;
 };
 
@@ -105,11 +106,11 @@ const createProfile = () => {
     router.visit(`/panel/${getCurrentVesselId()}/marea-distribution-profiles/create`);
 };
 
-const editProfile = (profileId: number) => {
+const editProfile = (profileId: string) => {
     router.visit(`/panel/${getCurrentVesselId()}/marea-distribution-profiles/${profileId}/edit`);
 };
 
-const viewProfile = (profileId: number) => {
+const viewProfile = (profileId: string) => {
     router.visit(`/panel/${getCurrentVesselId()}/marea-distribution-profiles/${profileId}`);
 };
 </script>
