@@ -17,6 +17,11 @@ class DebugQueryPerformance
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Check if query performance logging is enabled
+        if (!env('ENABLE_QUERY_PERFORMANCE_LOGGING', false)) {
+            return $next($request);
+        }
+
         // Enable query logging
         DB::enableQueryLog();
         $startTime = microtime(true);
